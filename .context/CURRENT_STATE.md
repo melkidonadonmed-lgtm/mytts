@@ -1,8 +1,8 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Correção Definitiva de Reprodução de Áudio Neural (Encapsulamento Canônico WAV RIFF de 44 Bytes + Blob URLs no Frontend).
-- **Status da Branch**: `main` pronta para deploy no Cloud Run e push no GitHub.
+- **Fase**: Correção Definitiva de Reprodução de Áudio Neural Concluída e Implantada no Cloud Run (Revision `mytts-00003-b9j`).
+- **Status da Branch**: `main` (commit `0868836` sincronizado no GitHub e revision `mytts-00003-b9j` servindo 100% do tráfego na nuvem).
 
 ## Decisões Tomadas
 1. **Container WAV RIFF 44-Bytes no Backend (`server.ts`)**:

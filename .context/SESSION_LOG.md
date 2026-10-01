@@ -23,6 +23,12 @@
    - Subchunk `fmt ` confirmado nos bytes 12..16.
    - Sample rate: 24000 Hz, Byte rate: 48000 bytes/s, formato PCM: 1.
 
+3. `gcloud run deploy mytts` (Revision `mytts-00003-b9j`):
+   - Código de saída: `0`.
+   - Serviço servindo 100% do tráfego em `https://mytts-1044179901556.us-central1.run.app`.
+4. `node -e "... (teste HTTP live na URL de produção)"`:
+   - Código de saída: `0`.
+   - Retorno: `Success: true, MimeType: audio/wav, RIFF magic bytes: RIFF, Byte length: 253484`.
+
 ## Próxima Ação Recomendada
-- Commit atômico no Git e push para branch `main` no GitHub.
-- Execução do deploy no Google Cloud Run via `gcloud run deploy`.
+- Teste prático do usuário diretamente na interface pública do Cloud Run.
