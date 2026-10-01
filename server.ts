@@ -10,8 +10,10 @@ import { randomUUID } from 'crypto';
 import { GoogleGenAI, Type } from '@google/genai';
 import { chunkStorage } from './src/services/chunkStorage';
 import { ChunkItem, TargetLang } from './src/types/chunks';
+import { getEmotionStyle, applyAcousticProsody } from './src/utils/prosodyEngine';
 
 const execFileAsync = promisify(execFile);
+
 
 dotenv.config();
 
@@ -32,23 +34,6 @@ const ai = new GoogleGenAI({
   },
 });
 
-function getEmotionStyle(emotion: string, rate: number = 1.0): string {
-  switch (emotion) {
-    case 'inquisitive':
-      return 'Curious, sharp, slightly skeptical with rhythmic inflections, subtle vocal raises at questions, and organic thinking pauses';
-    case 'ironic':
-      return 'Subtly sarcastic, dry wit, knowing conversational chuckles, controlled breath exhalations, and wry pauses';
-    case 'skeptical':
-      return 'Firm objection, deliberative pacing, raised-eyebrows tone, authentic skeptical sighs before counterpoints, and grounded pauses';
-    case 'passionate':
-      return 'High energetic conviction, accelerated cadence, urgent breath intakes, emotional resonance, and intense emphasis on pivotal words';
-    case 'resolute':
-      return 'Authoritative, calm, grounding, steady deep breathing, unwavering cadence, and self-assured deliberate delivery';
-    case 'thoughtful':
-    default:
-      return 'Analytical, measured, reflective with authentic breathing pauses, contemplative hesitations, and warm conversational timbre';
-  }
-}
 
 function formatForTts(text: string): string {
   return text
@@ -769,21 +754,29 @@ app.post('/api/synthesize-chunk', async (req, res) => {
 // 7. Quick Reader Speech Synthesis (Speechify/ElevenLabs Style com Director's Chair)
 app.post('/api/synthesize-speech', async (req, res) => {
   try {
-    const { text, voiceId = 'Puck', emotion = 'thoughtful', speed = 1.0, language = 'pt-BR' } = req.body;
+    const {
+      text,
+      voiceId = 'Puck',
+      emotion = 'natural',
+      speed = 1.0,
+      language = 'pt-BR',
+      autoProsody = true,
+    } = req.body;
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({ error: 'O texto para leitura é obrigatório.' });
     }
 
     const emotionStyle = getEmotionStyle(emotion, speed);
-    const formattedText = formatForTts(text);
+    const formattedText = applyAcousticProsody(text, { enabled: autoProsody, speed });
 
     // Director's Chair prompt
-    const directorPrompt = `Read the following text with authentic human conversational realism, natural breathiness, organic hesitation pauses, and convincing emotional delivery.
-Performance Direction: Deliver with ${emotionStyle}. Ensure natural breathing between sentences and realistic vocal cadence.
+    const directorPrompt = `Performance Direction for ${voiceId}:
+${emotionStyle}
 
 Text:
 ${formattedText}`;
+
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.1-flash-tts-preview',

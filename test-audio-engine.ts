@@ -92,4 +92,38 @@ assert.strictEqual(header44kStereo.readUInt32LE(40), 176400);
 
 console.log('  ✓ Cabeçalho WAV RIFF canônico de 44 bytes verificado com precisão para 44.1kHz estéreo 16-bit.');
 
-console.log('\n🎉 Todos os testes de Engenharia de Áudio passaram com 100% de conformidade!');
+// 5. Validar Motor de Calibração e Auto-Prosódia em PT-BR
+console.log('\n[5/5] Validando Calibração Fonética PT-BR e Auto-Prosódia Acústica:');
+import { getEmotionStyle, applyAcousticProsody } from './src/utils/prosodyEngine';
+
+// 5.1 Testar getEmotionStyle com forçamento de idioma e mapeamento de velocidade
+const naturalPrompt = getEmotionStyle('natural', 1.0);
+assert.ok(naturalPrompt.includes('Brazilian Portuguese (pt-BR)'), 'Prompt natural deve forçar estritamente PT-BR.');
+assert.ok(naturalPrompt.includes('natural and steady-paced'), 'Velocidade 1.0 deve mapear para natural and steady-paced.');
+
+const slowStorytelling = getEmotionStyle('storytelling', 0.8);
+assert.ok(slowStorytelling.includes('Brazilian Portuguese (pt-BR)'), 'Prompt storytelling deve forçar PT-BR.');
+assert.ok(slowStorytelling.includes('slow, deliberate and well-paced'), 'Velocidade 0.8 deve mapear para slow and deliberate.');
+
+const fastSpontaneous = getEmotionStyle('spontaneous', 1.3);
+assert.ok(fastSpontaneous.includes('agile, fast and energetic'), 'Velocidade 1.3 deve mapear para agile and fast.');
+
+console.log('  ✓ getEmotionStyle: Instrução estrita de PT-BR e mapeamento de velocidade validados.');
+
+// 5.2 Testar applyAcousticProsody: sanitização de tags perigosas e pontuação acústica
+const rawTextWithTags = 'Olá [deep breath] a todos! <pause> Vamos começar [sighs] agora.';
+const sanitized = applyAcousticProsody(rawTextWithTags, { enabled: true });
+assert.ok(!sanitized.includes('[deep breath]'), 'Não deve conter tags brutas [deep breath].');
+assert.ok(!sanitized.includes('<pause>'), 'Não deve conter tags brutas <pause>.');
+assert.ok(!sanitized.includes('[sighs]'), 'Não deve conter tags brutas [sighs].');
+assert.ok(!sanitized.includes('deep breath'), 'Não deve conter o texto "deep breath" para evitar leitura literal.');
+
+// 5.3 Testar inserção de pontuação de fôlego em orações longas (> 25 palavras)
+const longSentence = 'Este é um parágrafo bastante extenso que discute os fundamentos da inteligência artificial generativa e da síntese neural de voz, explicando como modelos modernos conseguem simular o ritmo biológico e a cadência humana sem ruídos digitais perceptíveis.';
+const prosodyResult = applyAcousticProsody(longSentence, { enabled: true });
+assert.ok(prosodyResult.includes('...') || prosodyResult.includes('—'), 'Frase longa sem quebras deve receber pontuação acústica de fôlego.');
+
+console.log('  ✓ applyAcousticProsody: Sanitização anti-leitura de tags e pontuação de fôlego validadas.');
+
+console.log('\n🎉 Todos os testes de Engenharia de Áudio e Prosódia passaram com 100% de conformidade!');
+
