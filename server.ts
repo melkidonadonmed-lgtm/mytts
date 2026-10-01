@@ -2,7 +2,10 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 import { GoogleGenAI, Type } from '@google/genai';
+import { chunkStorage } from './src/services/chunkStorage';
+import { ChunkItem, TargetLang } from './src/types/chunks';
 
 dotenv.config();
 
@@ -26,19 +29,33 @@ const ai = new GoogleGenAI({
 function getEmotionStyle(emotion: string, rate: number = 1.0): string {
   switch (emotion) {
     case 'inquisitive':
-      return 'Curious, sharp, slightly skeptical with rhythmic inflections';
+      return 'Curious, sharp, slightly skeptical with rhythmic inflections, subtle vocal raises at questions, and organic thinking pauses';
     case 'ironic':
-      return 'Subtly sarcastic, dry wit, conversational chuckles';
+      return 'Subtly sarcastic, dry wit, knowing conversational chuckles, controlled breath exhalations, and wry pauses';
     case 'skeptical':
-      return 'Firm objection, deliberative pacing, raised eyebrows tone';
+      return 'Firm objection, deliberative pacing, raised-eyebrows tone, authentic skeptical sighs before counterpoints, and grounded pauses';
     case 'passionate':
-      return 'High energetic conviction, accelerated cadence, urgent';
+      return 'High energetic conviction, accelerated cadence, urgent breath intakes, emotional resonance, and intense emphasis on pivotal words';
     case 'resolute':
-      return 'Authoritative, calm, grounding, unwavering cadence';
+      return 'Authoritative, calm, grounding, steady deep breathing, unwavering cadence, and self-assured deliberate delivery';
     case 'thoughtful':
     default:
-      return 'Analytical, measured, reflective with authentic pauses';
+      return 'Analytical, measured, reflective with authentic breathing pauses, contemplative hesitations, and warm conversational timbre';
   }
+}
+
+function formatForTts(text: string): string {
+  return text
+    .replace(/<breath>/gi, '[deep breath]')
+    .replace(/<sigh>/gi, '[sighs]')
+    .replace(/<laugh>/gi, '[laughs]')
+    .replace(/<gasp>/gi, '[gasp]')
+    .replace(/<whisper>/gi, '[whispers]')
+    .replace(/<pause>/gi, '[pause]')
+    .replace(/\|mhm\|/gi, 'mhm...')
+    .replace(/\|yeah\|/gi, 'yeah...')
+    .replace(/<[^>]+>/g, '') // remove qualquer tag HTML-like residual
+    .trim();
 }
 
 // 1. Text Ingestion & Parsing
@@ -152,12 +169,18 @@ DIRETRIZES FUNDAMENTAIS (LEIS INVIOLÁVEIS):
    - "Em suma / Para resumir / Em conclusão"
    Os interlocutores estão em debate real: se um faz um ponto forte, o outro desafia a premissa, expõe o custo oculto ou contra-ataca com um contra-exemplo prático.
 
-2. PONTUAÇÃO PROSÓDICA PARA SÍNTESE NEURAL (TTS):
-   O texto DEVE ser formatado com pontuação dramática calculada para síntese neural:
-   - Use reticências (...) para hesitações deliberadas e pausas reflexivas.
-   - Use travessões (—) para quebras súbitas de pensamento e interpelações.
-   - Inclua tags expressivas suportadas: <breath> (respiração/pausa de fôlego), <laugh> (risadinha sarcástica ou bem-humorada), <gasp> (reação de espanto ou choque), e marcadores de escuta ativa como |mhm| ou |yeah|.
-   - Cada fala deve soar como fala humana real improvisada em estúdio, não como um texto lido roboticamente.
+2. PONTUAÇÃO PROSÓDICA E AUDIO TAGS PARA SÍNTESE NEURAL (TTS):
+   O texto DEVE ser formatado com marcações prosódicas que o decodificador neural do Gemini TTS reconhece nativamente:
+   - Use reticências (...) para hesitações deliberadas, raciocínio em andamento e pausas reflexivas.
+   - Use travessões (—) para quebras súbitas de pensamento, correções imediatas e interrupções incisivas.
+   - Use tags expressivas em inglês entre colchetes diretamente no texto (o decodificador neural foi calibrado sobre elas):
+     * [deep breath] -> pausa audível para puxar fôlego antes de uma frase de impacto
+     * [sighs] -> suspiro sutil de cansaço ou desabafo cético
+     * [pause] -> silêncio reflexivo dramático de 0.5 a 1 segundo
+     * [laughs] ou [giggles] -> risadinha sarcástica, irônica ou descontraída
+     * [gasp] -> reação imediata de surpresa ou espanto
+     * [whispers] -> redução de volume para tom confidencial ou conspiratório
+   - Cada fala humana em estúdio tem nuances: inclua ao menos um marcador prosódico (...) ou tag de áudio por turno para garantir que a leitura soe 100% como conversa real e viva, nunca como texto corrido.
 
 3. IDIOMA E CALIBRAÇÃO:
    ${languageDirectives[language] || languageDirectives['pt-BR']}
@@ -305,20 +328,23 @@ app.post('/api/synthesize-turn', async (req, res) => {
     const effectiveVoice = voiceId || turn.voice_id || 'Kore';
     const effectiveSpeaker = speakerName || turn.speaker || 'Speaker';
     const emotionStyle = getEmotionStyle(turn.emotion, turn.prosody?.speech_rate);
+    const formattedText = formatForTts(turn.text);
 
-    // Call Gemini 3.8 Flash TTS
+    // Prompt no padrão canônico Director's Chair do Gemini 3.1 Flash TTS
+    const directorPrompt = `Read the following dialogue turn as ${effectiveSpeaker} with live human conversational realism.
+Performance Direction: Deliver with ${emotionStyle}. Ensure natural breathiness, authentic pauses between thoughts, and realistic vocal cadence.
+
+${effectiveSpeaker}: ${formattedText}`;
+
+    // Call Gemini 3.1 Flash TTS
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash-tts',
+      model: 'gemini-3.1-flash-tts-preview',
       contents: [
         {
           role: 'user',
           parts: [
             {
-              text: `${effectiveSpeaker}: ${turn.text}`,
-              speechMetadata: {
-                speaker: effectiveSpeaker,
-                style: emotionStyle,
-              },
+              text: directorPrompt,
             },
           ],
         },
@@ -371,20 +397,30 @@ app.post('/api/synthesize-full', async (req, res) => {
     const speaker1 = script.speakers[0];
     const speaker2 = script.speakers[1];
 
-    const parts = script.turns.map((turn: any) => ({
-      text: `${turn.speaker}: ${turn.text}`,
-      speechMetadata: {
-        speaker: turn.speaker,
-        style: getEmotionStyle(turn.emotion, turn.prosody?.speech_rate),
-      },
-    }));
+    const formattedLines = script.turns
+      .map((turn: any) => `${turn.speaker}: ${formatForTts(turn.text)}`)
+      .join('\n\n');
+
+    const spk1Style = getEmotionStyle(
+      script.turns.find((t: any) => t.speaker === speaker1.name)?.emotion || 'thoughtful'
+    );
+    const spk2Style = getEmotionStyle(
+      script.turns.find((t: any) => t.speaker === speaker2.name)?.emotion || 'skeptical'
+    );
+
+    const directorPrompt = `Director's Notes for Studio Podcast Debate:
+- Speaker "${speaker1.name}": ${spk1Style}
+- Speaker "${speaker2.name}": ${spk2Style}
+Deliver this dialogue between ${speaker1.name} and ${speaker2.name} with authentic live realism, natural breathing between sentences, spontaneous conversational friction, and convincing pacing.
+
+${formattedLines}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash-tts',
+      model: 'gemini-3.1-flash-tts-preview',
       contents: [
         {
           role: 'user',
-          parts,
+          parts: [{ text: directorPrompt }],
         },
       ],
       config: {
@@ -455,19 +491,17 @@ app.post('/api/preview-voice', async (req, res) => {
     };
 
     const phrase = previewPhrases[language] || previewPhrases['pt-BR'];
+    const directorPrompt = `Read with natural conversational realism, warm tone, clear pronunciation, and natural breathing:
+${speakerName}: ${phrase}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash-tts',
+      model: 'gemini-3.1-flash-tts-preview',
       contents: [
         {
           role: 'user',
           parts: [
             {
-              text: `${speakerName}: ${phrase}`,
-              speechMetadata: {
-                speaker: speakerName,
-                style: 'Clear, engaging, articulate podcast host voice',
-              },
+              text: directorPrompt,
             },
           ],
         },
@@ -505,14 +539,261 @@ app.post('/api/preview-voice', async (req, res) => {
   }
 });
 
+// 6. FastChunks Neural Synthesis (Gemini 3.1 Flash TTS para Chunks de Idiomas)
+app.post('/api/synthesize-chunk', async (req, res) => {
+  try {
+    const { text, language = 'en-US', voiceId } = req.body;
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: 'Texto do chunk é obrigatório.' });
+    }
+
+    const defaultVoices: Record<string, string> = {
+      'en-US': 'Puck',
+      'it-IT': 'Fenrir',
+      'ja-JP': 'Aoede',
+    };
+
+    const selectedVoice = voiceId || defaultVoices[language] || 'Puck';
+    const cleanText = text.replace(/\(.*?\)/g, '').trim();
+
+    const directorPrompt = `Read this conversational chunk in ${language} with maximum native fluency, authentic colloquial emotion, and natural breathing:
+"${cleanText}"`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-tts-preview',
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: directorPrompt }],
+        },
+      ],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: selectedVoice },
+          },
+        },
+      },
+    });
+
+    const base64Audio =
+      response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+    if (!base64Audio) {
+      throw new Error('Falha ao sintetizar áudio neural para o chunk.');
+    }
+
+    return res.json({
+      success: true,
+      audioBase64: base64Audio,
+      mimeType: 'audio/wav',
+    });
+  } catch (error: any) {
+    console.error('Error in /api/synthesize-chunk:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha na síntese do chunk.',
+    });
+  }
+});
+
+// ==========================================
+// FastChunks: Endpoints de Treino de Idiomas
+// ==========================================
+
+// 1. Geração de Chunks Coloquiais via Gemini 3.8 Flash
+app.post('/api/generate-chunks', async (req, res) => {
+  try {
+    const { textOrPrompt, language = 'en-US', count = 3 } = req.body;
+    const userId = (req.headers['x-user-id'] as string) || 'anonymous-user';
+
+    if (!textOrPrompt || typeof textOrPrompt !== 'string') {
+      return res.status(400).json({ error: 'Texto ou intenção é obrigatório.' });
+    }
+
+    const langMap: Record<string, string> = {
+      'en-US': 'Inglês falado nos Estados Unidos (coloquial americano contemporâneo)',
+      'it-IT': 'Italiano falado na Itália (linguagem coloquial cotidiana, gírias e reações expressivas)',
+      'ja-JP': 'Japonês falado no Japão (coloquial, aizuchi, expressões do dia a dia; obrigatório incluir romaji entre parênteses para pronúncia)',
+    };
+
+    const targetLangDesc = langMap[language] || 'Inglês coloquial';
+
+    const systemPrompt = `Você é um linguista nativo de ${targetLangDesc} e especialista internacional no Método Lexical (Chunking / Formulaic Language).
+Sua missão: a partir de uma ideia, situação informal ou texto de entrada, extrair ou criar exatamente ${count} blocos de fala natural (chunks coloquiais) prontos para a vida real.
+
+Regras estritas:
+1. NUNCA faça traduções literais de dicionário. Use frases que um falante nativo diria espontaneamente em uma conversa real.
+2. Forneça o sentimento real / nuance em português do Brasil (ex: "Tô dentro", "Resumindo a ópera", "Nem esquenta").
+3. Forneça um guia fonético aproximado simplificado em português (ex: "aim-dáun-fer-thæt", "ma fi-gú-ra-ti", "na-ru-ho-do-ne").
+4. Se o idioma for japonês, coloque o texto nativo com kanji/kana seguido da romanização entre parênteses no campo chunk: ex: "なるほどね (Naruhodo ne)".`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `Gere ${count} chunks coloquiais de alta fluência para a seguinte situação ou texto:\n"${textOrPrompt}"\n\nIdioma Alvo: ${language}`,
+            },
+          ],
+        },
+      ],
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.7,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            chunks: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  chunk: {
+                    type: Type.STRING,
+                    description: 'Expressão ou frase nativa no idioma alvo (com romaji entre parênteses se japonês)',
+                  },
+                  literalOrNuance: {
+                    type: Type.STRING,
+                    description: 'Equivalente coloquial / sentimento real falado no Brasil',
+                  },
+                  meaning: {
+                    type: Type.STRING,
+                    description: 'Explicação concisa do contexto de uso e tom da frase',
+                  },
+                  context: {
+                    type: Type.STRING,
+                    description: 'Contexto social curto (ex: Casual entre amigos, Restaurante, Reação espontânea)',
+                  },
+                  pronunciationHint: {
+                    type: Type.STRING,
+                    description: 'Guia fonético simplificado aproximado para falantes de português',
+                  },
+                },
+                required: ['chunk', 'literalOrNuance', 'meaning', 'context', 'pronunciationHint'],
+              },
+            },
+          },
+          required: ['chunks'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    const rawChunks = parsed.chunks || [];
+
+    const generatedChunks: ChunkItem[] = rawChunks.map((item: any, idx: number) => ({
+      id: `gen-${Date.now()}-${idx}-${randomUUID().slice(0, 6)}`,
+      chunk: item.chunk,
+      literalOrNuance: item.literalOrNuance,
+      meaning: item.meaning,
+      context: item.context,
+      pronunciationHint: item.pronunciationHint,
+      userId,
+      isCustom: true,
+      createdAt: Date.now(),
+    }));
+
+    for (const chunk of generatedChunks) {
+      await chunkStorage.saveUserChunk(userId, chunk);
+    }
+
+    return res.json({
+      success: true,
+      chunks: generatedChunks,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/generate-chunks:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha ao gerar chunks com Gemini.',
+    });
+  }
+});
+
+// 2. Listar Chunks do Usuário
+app.get('/api/chunks', async (req, res) => {
+  try {
+    const userId = (req.headers['x-user-id'] as string) || 'anonymous-user';
+    const lang = req.query.lang as TargetLang | undefined;
+    const userChunks = await chunkStorage.listUserChunks(userId, lang);
+    return res.json({
+      success: true,
+      chunks: userChunks,
+    });
+  } catch (error: any) {
+    console.error('Error in GET /api/chunks:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha ao buscar chunks do usuário.',
+    });
+  }
+});
+
+// 3. Salvar / Criar Chunk Manual
+app.post('/api/chunks', async (req, res) => {
+  try {
+    const userId = (req.headers['x-user-id'] as string) || 'anonymous-user';
+    const { chunk, literalOrNuance, meaning, context, pronunciationHint } = req.body;
+
+    if (!chunk || !literalOrNuance || !meaning) {
+      return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+    }
+
+    const newChunk: ChunkItem = {
+      id: req.body.id || `custom-${Date.now()}-${randomUUID().slice(0, 6)}`,
+      chunk,
+      literalOrNuance,
+      meaning,
+      context: context || 'Personalizado',
+      pronunciationHint: pronunciationHint || '',
+      userId,
+      isCustom: true,
+      createdAt: Date.now(),
+    };
+
+    await chunkStorage.saveUserChunk(userId, newChunk);
+    return res.json({
+      success: true,
+      chunk: newChunk,
+    });
+  } catch (error: any) {
+    console.error('Error in POST /api/chunks:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha ao salvar chunk.',
+    });
+  }
+});
+
+// 4. Remover Chunk Personalizado
+app.delete('/api/chunks/:id', async (req, res) => {
+  try {
+    const userId = (req.headers['x-user-id'] as string) || 'anonymous-user';
+    const chunkId = req.params.id;
+    const deleted = await chunkStorage.deleteUserChunk(userId, chunkId);
+    return res.json({
+      success: true,
+      deleted,
+    });
+  } catch (error: any) {
+    console.error('Error in DELETE /api/chunks/:id:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha ao excluir chunk.',
+    });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
-    service: 'DialecticPod AI Studio API',
-    modelTts: 'gemini-3.8-flash-tts',
+    service: 'DialecticPod & FastChunks API',
+    modelTts: 'gemini-3.1-flash-tts-preview',
+    modelGen: 'gemini-3.8-flash',
   });
 });
+
 
 // Vite Middleware for Dev, Static serving for Production
 async function startServer() {

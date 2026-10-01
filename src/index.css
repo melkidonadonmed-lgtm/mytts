@@ -1,17 +1,42 @@
 @import "tailwindcss";
 
+:root {
+  color-scheme: dark;
+}
+
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    scrollbar-color: rgba(71, 85, 105, 0.4) rgba(15, 23, 42, 0.6);
+    scrollbar-width: thin;
   }
   
+  /* Modern Web Guidance: Balanced headlines to avoid awkward wraps */
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+  }
+
+  /* Modern Web Guidance: Pretty text wrapping to eliminate orphans/runts */
+  p, blockquote, article {
+    text-wrap: pretty;
+  }
+
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-feature-settings: "tnum" 1;
   }
 }
 
-/* Custom slick dark scrollbar */
+/* View Transitions API: Reduced motion guard */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Custom dark scrollbar (Webkit fallback) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

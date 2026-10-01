@@ -5,13 +5,14 @@ import { DebateConfigPanel } from './components/DebateConfigPanel';
 import { ScriptViewer } from './components/ScriptViewer';
 import { BottomAudioDock } from './components/BottomAudioDock';
 import { ArchitectureModal } from './components/ArchitectureModal';
+import { FastChunkAudioApp } from './components/FastChunkAudioApp';
 import { DebateConfig, DebateScript } from './types/debate';
 import { LANGUAGE_OPTIONS, SAMPLE_DOCUMENTS, INITIAL_PRESET_SCRIPTS } from './data/sampleDebates';
 import { GaplessAudioPlayer } from './utils/audioEngine';
 import { AlertCircle } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'studio' | 'architecture' | 'docs'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'fastchunks' | 'architecture' | 'docs'>('studio');
   const [documentText, setDocumentText] = useState<string>(SAMPLE_DOCUMENTS[0].content);
 
   const [config, setConfig] = useState<DebateConfig>({
@@ -232,12 +233,30 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-      {/* Top Bar with Strict Contract */}
+      {/* Top Bar with Strict Contract and View Transitions API */}
       <TopBar
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={(tab) => {
+          if (tab === 'fastchunks' && isPlaying) {
+            player.pause();
+          }
+          if (!(document as any).startViewTransition) {
+            setActiveTab(tab);
+            return;
+          }
+          (document as any).startViewTransition(() => {
+            setActiveTab(tab);
+          });
+        }}
         onNewDebate={() => {
           setDocumentText('');
+          if (!(document as any).startViewTransition) {
+            setActiveTab('studio');
+          } else {
+            (document as any).startViewTransition(() => {
+              setActiveTab('studio');
+            });
+          }
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         isSynthesizing={isSynthesizing}
@@ -261,75 +280,82 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Container with Ergonomic pb-32 to protect against bottom dock overlap */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-28 md:pb-36 flex flex-col gap-6">
-        {/* Sub-header Kicker and Status Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-900">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
-              <span>Roteirizador Dialético & Estúdio de Voz Neural</span>
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Conversão de ensaios e relatórios em debates hiper-realistas com controle prosódico e reprodução contínua Web Audio.
-            </p>
-          </div>
+      {/* Condicional de Visualização: FastChunks vs DialecticPod Studio */}
+      {activeTab === 'fastchunks' ? (
+        <FastChunkAudioApp />
+      ) : (
+        <>
+          {/* Main Container with Ergonomic pb-32 to protect against bottom dock overlap */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-28 md:pb-36 flex flex-col gap-6">
+            {/* Sub-header Kicker and Status Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-900">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
+                  <span>Roteirizador Dialético & Estúdio de Voz Neural</span>
+                </h1>
+                <p className="text-xs text-slate-400 mt-1">
+                  Conversão de ensaios e relatórios em debates hiper-realistas com controle prosódico e reprodução contínua Web Audio.
+                </p>
+              </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
-            <span className="flex items-center gap-1.5 text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Gemini 3.8 Flash TTS</span>
-            </span>
-            <span aria-hidden="true" className="text-slate-700">·</span>
-            <span>Web Audio 24kHz</span>
-          </div>
-        </div>
+              <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Gemini 3.8 Flash TTS</span>
+                </span>
+                <span aria-hidden="true" className="text-slate-700">·</span>
+                <span>Web Audio 24kHz</span>
+              </div>
+            </div>
 
-        {/* 2-Column Responsive Layout: Inputs on Left, Debate on Right */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column (5 cols): Mobile-First Ingestion & Parameters */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <DocumentInputSection
-              currentLanguage={config.language}
-              textInput={documentText}
-              onChangeText={setDocumentText}
-              onGenerateDebate={handleGenerateDebate}
-              isGenerating={isGenerating}
-            />
+            {/* 2-Column Responsive Layout: Inputs on Left, Debate on Right */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column (5 cols): Mobile-First Ingestion & Parameters */}
+              <div className="lg:col-span-5 flex flex-col gap-6">
+                <DocumentInputSection
+                  currentLanguage={config.language}
+                  textInput={documentText}
+                  onChangeText={setDocumentText}
+                  onGenerateDebate={handleGenerateDebate}
+                  isGenerating={isGenerating}
+                />
 
-            <DebateConfigPanel config={config} onChangeConfig={setConfig} />
-          </div>
+                <DebateConfigPanel config={config} onChangeConfig={setConfig} />
+              </div>
 
-          {/* Right Column (7 cols): Script Viewer & Audio Turns */}
-          <div className="lg:col-span-7 flex flex-col gap-4">
-            <ScriptViewer
-              script={script}
-              currentTurnIndex={playerCurrentTurn}
-              isPlaying={isPlaying}
-              onPlayTurn={handlePlayTurn}
-              onSynthesizeTurn={handleSynthesizeSingleTurn}
-              onUpdateTurnText={handleUpdateTurnText}
-              isSynthesizing={isSynthesizing}
-            />
-          </div>
-        </div>
-      </main>
+              {/* Right Column (7 cols): Script Viewer & Audio Turns */}
+              <div className="lg:col-span-7 flex flex-col gap-4">
+                <ScriptViewer
+                  script={script}
+                  currentTurnIndex={playerCurrentTurn}
+                  isPlaying={isPlaying}
+                  onPlayTurn={handlePlayTurn}
+                  onSynthesizeTurn={handleSynthesizeSingleTurn}
+                  onUpdateTurnText={handleUpdateTurnText}
+                  isSynthesizing={isSynthesizing}
+                />
+              </div>
+            </div>
+          </main>
 
-      {/* Dock de Áudio Fixo no Rodapé (Spotify-inspired Bottom Audio Dock) */}
-      <BottomAudioDock
-        isPlaying={isPlaying}
-        onTogglePlay={handleTogglePlay}
-        currentTime={currentTime}
-        duration={duration}
-        onSeek={handleSeek}
-        playbackRate={playbackRate}
-        onChangePlaybackRate={handleChangePlaybackRate}
-        currentSpeaker={activeSpeaker}
-        currentTurn={activeTurn}
-        currentTurnText={activeTurn?.text}
-        turnIndex={playerCurrentTurn}
-        totalTurns={script?.turns.length || 0}
-        language={config.language}
-      />
+          {/* Dock de Áudio Fixo no Rodapé (Spotify-inspired Bottom Audio Dock) */}
+          <BottomAudioDock
+            isPlaying={isPlaying}
+            onTogglePlay={handleTogglePlay}
+            currentTime={currentTime}
+            duration={duration}
+            onSeek={handleSeek}
+            playbackRate={playbackRate}
+            onChangePlaybackRate={handleChangePlaybackRate}
+            currentSpeaker={activeSpeaker}
+            currentTurn={activeTurn}
+            currentTurnText={activeTurn?.text}
+            turnIndex={playerCurrentTurn}
+            totalTurns={script?.turns.length || 0}
+            language={config.language}
+          />
+        </>
+      )}
 
       {/* Architecture & Engineering Inspection Modal */}
       {(activeTab === 'architecture' || activeTab === 'docs') && (
@@ -338,3 +364,4 @@ export default function App() {
     </div>
   );
 }
+
