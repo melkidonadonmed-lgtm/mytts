@@ -1,24 +1,25 @@
-# Session Log - Voice Realism & Cloud Run Deployment
+# Session Log - ElevenLabs/Speechify Redesign & Documentation
 
-- **Data/Hora**: 2026-09-30 22:50 UTC-4
-- **Escopo**: Implementação da Fase 1 do Hiper-Realismo Neural (Director's Chair, Respiração, Pausas, Emoção), Dockerfile de produção e preparação de deploy no Cloud Run e GitHub.
+- **Data/Hora**: 2026-09-30 23:15 UTC-4
+- **Escopo**: Reformulação integral da interface inspirada em Speechify e ElevenLabs, integração de Sidebar com seletor de vozes, módulo de ditado/microfone, Leitor Neural rápido, `designe.md` e `README.md`.
 
 ## Arquivos Tocados e Criados
-- `[MODIFY]` [server.ts](file:///c:/Users/melki/Projetos/mytts/server.ts) (Director's Chair prompt, tags [deep breath], [sighs], [pause], [laughs], endpoint /api/synthesize-chunk)
-- `[MODIFY]` [src/components/FastChunkAudioApp.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/FastChunkAudioApp.tsx) (Integração de Voz Neural IA com fallback para Web Speech e cache em memória)
-- `[MODIFY]` [package.json](file:///c:/Users/melki/Projetos/mytts/package.json) (tsx promovido para dependencies de produção)
-- `[NEW]` [Dockerfile](file:///c:/Users/melki/Projetos/mytts/Dockerfile) (Multi-stage build Node 22-slim para Cloud Run)
-- `[NEW]` [.dockerignore](file:///c:/Users/melki/Projetos/mytts/.dockerignore)
+- `[NEW]` [designe.md](file:///c:/Users/melki/Projetos/mytts/designe.md) (Especificação completa de UX, navegação Mermaid e contratos de interface)
+- `[NEW]` [README.md](file:///c:/Users/melki/Projetos/mytts/README.md) (Documentação técnica de instalação, tecnologias e deploy)
+- `[NEW]` [src/types/voices.ts](file:///c:/Users/melki/Projetos/mytts/src/types/voices.ts) (Catálogo e metadados das 5 vozes neurais oficiais)
+- `[NEW]` [src/components/Sidebar.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/Sidebar.tsx) (Navegação lateral persistente responsiva)
+- `[NEW]` [src/components/QuickReader.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/QuickReader.tsx) (Modo colar texto e ler direto, tags prosódicas e player embutido)
+- `[NEW]` [src/components/LiveVoiceMic.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/LiveVoiceMic.tsx) (Módulo de microfone, gravação e transcrição inteligente)
+- `[NEW]` [src/components/VoiceLibraryModal.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/VoiceLibraryModal.tsx) (Catálogo visual com preview de amostras de 3s)
+- `[MODIFY]` [server.ts](file:///c:/Users/melki/Projetos/mytts/server.ts) (Endpoints /api/synthesize-speech e /api/transcribe-audio)
+- `[MODIFY]` [src/App.tsx](file:///c:/Users/melki/Projetos/mytts/src/App.tsx) (Layout unificado com Sidebar, estado global de voz e transições)
 - `[MODIFY]` [.context/CURRENT_STATE.md](file:///c:/Users/melki/Projetos/mytts/.context/CURRENT_STATE.md)
 - `[MODIFY]` [.context/SESSION_LOG.md](file:///c:/Users/melki/Projetos/mytts/.context/SESSION_LOG.md)
 
 ## Comandos Validados
 - `npm run lint` (`tsc --noEmit`, Exit code: 0)
 - `npm run build` (`vite build`, Exit code: 0)
-- `git commit` & `git push origin main` (Commit: `f964c45`, Exit code: 0)
-- `gcloud run deploy mytts ...` (Exit code: 0, Service URL: `https://mytts-1044179901556.us-central1.run.app`)
-- `Invoke-RestMethod /api/preview-voice` (Exit code: 0, 448.000 bytes áudio WAV 24kHz)
-- `Invoke-RestMethod /api/synthesize-chunk` (Exit code: 0, 133.120 bytes áudio WAV 24kHz)
 
 ## Próxima Ação Recomendada
-- Apresentar a comprovação factual e abrir o design arquitetural da Fase 2 (Gemini Live API via WebSockets para conversação por voz ao vivo).
+- Commit e push para o GitHub (`origin main`).
+- Deploy da nova revisão no Google Cloud Run (`gcloud run deploy`).

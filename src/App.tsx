@@ -1,20 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { TopBar } from './components/TopBar';
+import { Sidebar, AppTab } from './components/Sidebar';
+import { QuickReader } from './components/QuickReader';
+import { LiveVoiceMic } from './components/LiveVoiceMic';
+import { VoiceLibrary } from './components/VoiceLibraryModal';
+import { FastChunkAudioApp } from './components/FastChunkAudioApp';
 import { DocumentInputSection } from './components/DocumentInputSection';
 import { DebateConfigPanel } from './components/DebateConfigPanel';
 import { ScriptViewer } from './components/ScriptViewer';
 import { BottomAudioDock } from './components/BottomAudioDock';
 import { ArchitectureModal } from './components/ArchitectureModal';
-import { FastChunkAudioApp } from './components/FastChunkAudioApp';
 import { DebateConfig, DebateScript } from './types/debate';
 import { LANGUAGE_OPTIONS, SAMPLE_DOCUMENTS, INITIAL_PRESET_SCRIPTS } from './data/sampleDebates';
 import { GaplessAudioPlayer } from './utils/audioEngine';
-import { AlertCircle } from 'lucide-react';
+import { VoiceProfile, GEMINI_VOICES } from './types/voices';
+import { AlertCircle, Menu } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'studio' | 'fastchunks' | 'architecture' | 'docs'>('studio');
-  const [documentText, setDocumentText] = useState<string>(SAMPLE_DOCUMENTS[0].content);
+  const [activeTab, setActiveTab] = useState<AppTab>('reader');
+  const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(GEMINI_VOICES[0]); // Puck default
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
+  // Debate Studio State
+  const [documentText, setDocumentText] = useState<string>(SAMPLE_DOCUMENTS[0].content);
   const [config, setConfig] = useState<DebateConfig>({
     language: 'pt-BR',
     audienceLevel: 'intermediate',
@@ -26,13 +33,9 @@ export default function App() {
   const [script, setScript] = useState<DebateScript>(INITIAL_PRESET_SCRIPTS['pt-BR']);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
-  const [synthesizingProgress, setSynthesizingProgress] = useState<{ current: number; total: number }>({
-    current: 0,
-    total: 0,
-  });
   const [globalError, setGlobalError] = useState<string | null>(null);
 
-  // Singleton Gapless Audio Player instance
+  // Singleton Gapless Audio Player instance para o estúdio dialético
   const player = useMemo(() => new GaplessAudioPlayer(), []);
   const [playerCurrentTurn, setPlayerCurrentTurn] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -40,7 +43,7 @@ export default function App() {
   const [duration, setDuration] = useState<number>(0);
   const [playbackRate, setPlaybackRate] = useState<number>(1.0);
 
-  // Subscribe to player state changes
+  // Assinatura do player
   useEffect(() => {
     const unsub = player.subscribe((state) => {
       setPlayerCurrentTurn(state.currentTurnIndex);
@@ -52,7 +55,6 @@ export default function App() {
     return () => unsub();
   }, [player]);
 
-  // When script turns with audio change, sync into player
   const syncTurnsToPlayer = (updatedScript: DebateScript) => {
     const readyTurns = updatedScript.turns
       .filter((t) => Boolean(t.audioBase64))
@@ -67,7 +69,7 @@ export default function App() {
     }
   };
 
-  // Generate Script from Text/Document
+  // Geração de Debate Dialético
   const handleGenerateDebate = async () => {
     setIsGenerating(true);
     setGlobalError(null);
@@ -91,7 +93,6 @@ export default function App() {
       }
 
       setScript(data.script);
-      // Auto-trigger speech synthesis for the fresh script
       await synthesizeTurns(data.script);
     } catch (err: any) {
       console.error(err);
@@ -101,14 +102,11 @@ export default function App() {
     }
   };
 
-  // Synthesize audio for all turns
   const synthesizeTurns = async (targetScript: DebateScript) => {
     setIsSynthesizing(true);
-    setSynthesizingProgress({ current: 0, total: targetScript.turns.length });
     setGlobalError(null);
 
     const updatedTurns = [...targetScript.turns];
-    let completedCount = 0;
 
     for (let i = 0; i < targetScript.turns.length; i++) {
       const turn = targetScript.turns[i];
@@ -148,10 +146,6 @@ export default function App() {
         };
       }
 
-      completedCount++;
-      setSynthesizingProgress({ current: completedCount, total: targetScript.turns.length });
-
-      // Update script state incrementally so user sees progress
       const intermediateScript = { ...targetScript, turns: [...updatedTurns] };
       setScript(intermediateScript);
       syncTurnsToPlayer(intermediateScript);
@@ -160,7 +154,6 @@ export default function App() {
     setIsSynthesizing(false);
   };
 
-  // Synthesize single turn
   const handleSynthesizeSingleTurn = async (turnIndex: number) => {
     const turn = script.turns[turnIndex];
     try {
@@ -205,148 +198,184 @@ export default function App() {
     setScript({ ...script, turns: updatedTurns });
   };
 
-  const handlePlayTurn = (turnIndex: number) => {
-    player.play(turnIndex);
-  };
-
-  const handleTogglePlay = () => {
-    const readyTurnsCount = script?.turns.filter((t) => Boolean(t.audioBase64)).length || 0;
-    if (readyTurnsCount === 0 && script) {
-      synthesizeTurns(script);
-    } else {
-      player.togglePlay();
-    }
-  };
-
-  const handleSeek = (newTime: number) => {
-    player.seek(newTime);
-  };
-
-  const handleChangePlaybackRate = (rate: number) => {
-    player.setSpeed(rate);
-  };
-
   const activeTurn = script?.turns[playerCurrentTurn];
   const activeSpeaker = activeTurn
     ? script?.speakers.find((s) => s.name === activeTurn.speaker) || script?.speakers[0]
     : script?.speakers[0];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-      {/* Top Bar with Strict Contract and View Transitions API */}
-      <TopBar
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200">
+      
+      {/* 1. Sidebar Persistente Estilo ElevenLabs */}
+      <Sidebar
         activeTab={activeTab}
         onSelectTab={(tab) => {
-          if (tab === 'fastchunks' && isPlaying) {
+          if (isPlaying && (tab === 'reader' || tab === 'fastchunks')) {
             player.pause();
           }
-          if (!(document as any).startViewTransition) {
-            setActiveTab(tab);
-            return;
-          }
-          (document as any).startViewTransition(() => {
-            setActiveTab(tab);
-          });
-        }}
-        onNewDebate={() => {
-          setDocumentText('');
-          if (!(document as any).startViewTransition) {
-            setActiveTab('studio');
+          if ((document as any).startViewTransition) {
+            (document as any).startViewTransition(() => setActiveTab(tab));
           } else {
-            (document as any).startViewTransition(() => {
-              setActiveTab('studio');
-            });
+            setActiveTab(tab);
           }
-          window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        isSynthesizing={isSynthesizing}
+        selectedVoice={selectedVoice}
+        isOpenMobile={isMobileSidebarOpen}
+        onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
+        onOpenVoiceLibrary={() => setActiveTab('voices')}
       />
 
-      {/* Global Error Banner if any */}
-      {globalError && (
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4">
-          <div className="bg-rose-950/80 border border-rose-800 text-rose-200 px-4 py-2.5 rounded-lg text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400" />
-              <span>{globalError}</span>
-            </div>
+      {/* 2. Área de Trabalho Principal (com margem para sidebar no desktop) */}
+      <div className="flex-1 flex flex-col lg:pl-72 min-h-screen">
+        
+        {/* Header Mobile com Hamburger */}
+        <header className="h-14 px-4 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl flex items-center justify-between lg:hidden sticky top-0 z-30">
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={() => setGlobalError(null)}
-              className="text-rose-400 hover:text-white font-mono text-[11px] cursor-pointer"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
+              aria-label="Abrir menu de navegação"
             >
-              dispensar
+              <Menu className="w-5 h-5" />
             </button>
+            <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
+              <span>MyTTS</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-400/10 text-amber-300 border border-amber-400/20 font-semibold">
+                Studio
+              </span>
+            </span>
           </div>
-        </div>
-      )}
 
-      {/* Condicional de Visualização: FastChunks vs DialecticPod Studio */}
-      {activeTab === 'fastchunks' ? (
-        <FastChunkAudioApp />
-      ) : (
-        <>
-          {/* Main Container with Ergonomic pb-32 to protect against bottom dock overlap */}
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-28 md:pb-36 flex flex-col gap-6">
-            {/* Sub-header Kicker and Status Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-900">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
-                  <span>Roteirizador Dialético & Estúdio de Voz Neural</span>
-                </h1>
-                <p className="text-xs text-slate-400 mt-1">
-                  Conversão de ensaios e relatórios em debates hiper-realistas com controle prosódico e reprodução contínua Web Audio.
-                </p>
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-[10px] font-bold`}
+            >
+              {selectedVoice.name[0]}
+            </div>
+            <span className="text-xs font-bold text-slate-300 font-mono">
+              {selectedVoice.name}
+            </span>
+          </div>
+        </header>
+
+        {/* Banner de Erro Global */}
+        {globalError && (
+          <div className="max-w-4xl mx-auto w-full px-4 pt-4">
+            <div className="bg-rose-950/80 border border-rose-800 text-rose-200 px-4 py-2.5 rounded-xl text-xs flex items-center justify-between shadow-lg">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{globalError}</span>
               </div>
+              <button
+                onClick={() => setGlobalError(null)}
+                className="text-rose-400 hover:text-white font-mono text-[11px] cursor-pointer"
+              >
+                dispensar
+              </button>
+            </div>
+          </div>
+        )}
 
-              <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
-                <span className="flex items-center gap-1.5 text-emerald-400">
+        {/* 3. Canvas de Conteúdo por Módulo */}
+        <main className="flex-1 flex flex-col">
+          {/* Módulo 1: Leitor & Síntese Rápida (Home / Speechify Style) */}
+          {activeTab === 'reader' && (
+            <QuickReader
+              selectedVoice={selectedVoice}
+              onSelectVoice={setSelectedVoice}
+              onNavigateToMic={() => setActiveTab('mic')}
+            />
+          )}
+
+          {/* Módulo 2: Ditado & Microfone ao Vivo */}
+          {activeTab === 'mic' && (
+            <LiveVoiceMic
+              selectedVoice={selectedVoice}
+              onSendToReader={(transcribedText) => {
+                setActiveTab('reader');
+              }}
+            />
+          )}
+
+          {/* Módulo 3: Biblioteca de Vozes Neurais */}
+          {activeTab === 'voices' && (
+            <VoiceLibrary
+              selectedVoice={selectedVoice}
+              onSelectVoice={(v) => {
+                setSelectedVoice(v);
+                setActiveTab('reader');
+              }}
+            />
+          )}
+
+          {/* Módulo 4: Estúdio de Debate com 2 Vozes */}
+          {activeTab === 'debate' && (
+            <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-36 flex flex-col gap-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                    Estúdio de Debate Dialético (2 Vozes)
+                  </h1>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Crie discussões estimulantes e embates de ideias a partir de documentos.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-xl">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Gemini 3.8 Flash TTS</span>
-                </span>
-                <span aria-hidden="true" className="text-slate-700">·</span>
-                <span>Web Audio 24kHz</span>
+                  <span>Dual Speaker TTS (Kore & Puck)</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-5 flex flex-col gap-6">
+                  <DocumentInputSection
+                    currentLanguage={config.language}
+                    textInput={documentText}
+                    onChangeText={setDocumentText}
+                    onGenerateDebate={handleGenerateDebate}
+                    isGenerating={isGenerating}
+                  />
+                  <DebateConfigPanel config={config} onChangeConfig={setConfig} />
+                </div>
+
+                <div className="lg:col-span-7 flex flex-col gap-4">
+                  <ScriptViewer
+                    script={script}
+                    currentTurnIndex={playerCurrentTurn}
+                    isPlaying={isPlaying}
+                    onPlayTurn={(idx) => player.play(idx)}
+                    onSynthesizeTurn={handleSynthesizeSingleTurn}
+                    onUpdateTurnText={handleUpdateTurnText}
+                    isSynthesizing={isSynthesizing}
+                  />
+                </div>
               </div>
             </div>
+          )}
 
-            {/* 2-Column Responsive Layout: Inputs on Left, Debate on Right */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Left Column (5 cols): Mobile-First Ingestion & Parameters */}
-              <div className="lg:col-span-5 flex flex-col gap-6">
-                <DocumentInputSection
-                  currentLanguage={config.language}
-                  textInput={documentText}
-                  onChangeText={setDocumentText}
-                  onGenerateDebate={handleGenerateDebate}
-                  isGenerating={isGenerating}
-                />
+          {/* Módulo 5: FastChunks (Treino de Idiomas) */}
+          {activeTab === 'fastchunks' && (
+            <FastChunkAudioApp />
+          )}
+        </main>
 
-                <DebateConfigPanel config={config} onChangeConfig={setConfig} />
-              </div>
-
-              {/* Right Column (7 cols): Script Viewer & Audio Turns */}
-              <div className="lg:col-span-7 flex flex-col gap-4">
-                <ScriptViewer
-                  script={script}
-                  currentTurnIndex={playerCurrentTurn}
-                  isPlaying={isPlaying}
-                  onPlayTurn={handlePlayTurn}
-                  onSynthesizeTurn={handleSynthesizeSingleTurn}
-                  onUpdateTurnText={handleUpdateTurnText}
-                  isSynthesizing={isSynthesizing}
-                />
-              </div>
-            </div>
-          </main>
-
-          {/* Dock de Áudio Fixo no Rodapé (Spotify-inspired Bottom Audio Dock) */}
+        {/* Dock de Áudio Inferior (Exibido no modo Debate) */}
+        {activeTab === 'debate' && (
           <BottomAudioDock
             isPlaying={isPlaying}
-            onTogglePlay={handleTogglePlay}
+            onTogglePlay={() => {
+              const ready = script?.turns.filter((t) => Boolean(t.audioBase64)).length || 0;
+              if (ready === 0 && script) {
+                synthesizeTurns(script);
+              } else {
+                player.togglePlay();
+              }
+            }}
             currentTime={currentTime}
             duration={duration}
-            onSeek={handleSeek}
+            onSeek={(t) => player.seek(t)}
             playbackRate={playbackRate}
-            onChangePlaybackRate={handleChangePlaybackRate}
+            onChangePlaybackRate={(r) => player.setSpeed(r)}
             currentSpeaker={activeSpeaker}
             currentTurn={activeTurn}
             currentTurnText={activeTurn?.text}
@@ -354,14 +383,13 @@ export default function App() {
             totalTurns={script?.turns.length || 0}
             language={config.language}
           />
-        </>
-      )}
+        )}
+      </div>
 
-      {/* Architecture & Engineering Inspection Modal */}
-      {(activeTab === 'architecture' || activeTab === 'docs') && (
-        <ArchitectureModal onClose={() => setActiveTab('studio')} />
+      {/* Modal de Arquitetura e Inspeção */}
+      {activeTab === 'architecture' && (
+        <ArchitectureModal onClose={() => setActiveTab('reader')} />
       )}
     </div>
   );
 }
-

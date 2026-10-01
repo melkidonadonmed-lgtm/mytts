@@ -1,22 +1,26 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Fase 1 Concluída e Implantada em Produção no Google Cloud Run (`https://mytts-1044179901556.us-central1.run.app`). Hiper-realismo com Director's Chair, respiração e pausas 100% validado em produção.
-- **Status da Branch**: `main` (commit `f964c45` sincronizado no GitHub e revision `mytts-00001-5sw` no Cloud Run).
+- **Fase**: Redesign Completo de Frontend Estilo Speechify & ElevenLabs Concluído. Sidebar persistente, Leitor Neural Direto (`QuickReader`), Módulo de Ditado por Microfone (`LiveVoiceMic`), Catálogo de Vozes (`VoiceLibrary`), especificação em `designe.md` e `README.md`.
+- **Status da Branch**: `main` (código testado com `tsc --noEmit` e `vite build` 100% exit code 0).
 
 ## Decisões Tomadas
-1. **Director's Chair Prompting Nativo**:
-   - Remoção de metadados inertes (`speechMetadata`) em favor de prompts diretoriais em linguagem natural no cabeçalho das requisições de TTS.
-   - Mapeamento estrito de tags prosódicas em inglês para o decodificador neural: `[deep breath]`, `[sighs]`, `[pause]`, `[laughs]`, `[gasp]`, `[whispers]`, combinados com pontuação dramática (`...`, `—`).
-2. **Síntese Neural para Chunks**: Novo endpoint `POST /api/synthesize-chunk` permitindo que tanto o DialecticPod quanto o FastChunks toquem áudio ultra-realista com fluência e sotaque nativo.
-3. **Containerização Pronta para Produção**: `Dockerfile` multi-stage (Node 22-slim) e `.dockerignore` configurados para Google Cloud Run na porta dinâmica 8080 (`PORT`).
-4. **Resiliência do Player**: Fallback automático entre áudio neural (`/api/synthesize-chunk`) e Web Speech nativo caso haja indisponibilidade de rede ou chave de API.
+1. **Arquitetura de Navegação Estilo ElevenLabs/Speechify**:
+   - Sidebar lateral persistente (`Sidebar.tsx`) substituindo o cabeçalho sobrecarregado, com transições fluídas via View Transitions API.
+   - A página inicial agora é o **Leitor Neural Direto** (`QuickReader.tsx`), focado em colar/digitar texto e ouvir imediatamente.
+2. **Novos Endpoints de Serviço**:
+   - `POST /api/synthesize-speech`: Síntese direta de texto corrido com Director's Chair, pausas de respiração e emoção.
+   - `POST /api/transcribe-audio`: Transcrição de áudio do microfone com pontuação inteligente via Gemini 3.8 Flash.
+3. **Módulo de Ditado & Gravação por Microfone**:
+   - `LiveVoiceMic.tsx` com captura de microfone do navegador, timer reativo, transcrição inteligente e botão para transferir diretamente para o leitor.
+4. **Documentação e Design System**:
+   - `designe.md`: Especificação detalhada de UX, mapa de navegação (Mermaid) e contratos de dados.
+   - `README.md`: Documentação técnica para execução local e deploy no Cloud Run.
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
 - **Débitos**:
-  - `[MÉDIO]`: Implementar arquitetura da Fase 2 com WebSocket bidirecional para `gemini-3.1-flash-live-preview` (Live API).
-  - `[BAIXO]`: Configurar regras de segurança do Firestore (`firestore.rules`) quando Firebase Auth for adicionado.
+  - `[MÉDIO]`: Adicionar WebSockets para conversação bidirecional streaming ao vivo (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Iniciar arquitetura e prototipagem da Fase 2 (Gemini Live API via WebSockets para conversa interativa em tempo real com áudio nativo).
+- Deploy da nova revisão no Google Cloud Run e push para o GitHub.

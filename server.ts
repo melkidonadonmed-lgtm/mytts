@@ -597,6 +597,106 @@ app.post('/api/synthesize-chunk', async (req, res) => {
   }
 });
 
+// 7. Quick Reader Speech Synthesis (Speechify/ElevenLabs Style com Director's Chair)
+app.post('/api/synthesize-speech', async (req, res) => {
+  try {
+    const { text, voiceId = 'Puck', emotion = 'thoughtful', speed = 1.0, language = 'pt-BR' } = req.body;
+
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ error: 'O texto para leitura é obrigatório.' });
+    }
+
+    const emotionStyle = getEmotionStyle(emotion, speed);
+    const formattedText = formatForTts(text);
+
+    // Director's Chair prompt
+    const directorPrompt = `Read the following text with authentic human conversational realism, natural breathiness, organic hesitation pauses, and convincing emotional delivery.
+Performance Direction: Deliver with ${emotionStyle}. Ensure natural breathing between sentences and realistic vocal cadence.
+
+Text:
+${formattedText}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-tts-preview',
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: directorPrompt }],
+        },
+      ],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voiceId },
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+    if (!base64Audio) {
+      throw new Error('Nenhum dado de áudio retornado pelo modelo neural de voz.');
+    }
+
+    const audioByteLength = Buffer.from(base64Audio, 'base64').length;
+    const durationEstimateSec = Math.max(1.0, (audioByteLength - 44) / 48000);
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+    return res.json({
+      success: true,
+      audioBase64: base64Audio,
+      mimeType: 'audio/wav',
+      durationSec: durationEstimateSec,
+      wordCount,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/synthesize-speech:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha na síntese de áudio do leitor.',
+    });
+  }
+});
+
+// 8. Transcrição de Áudio do Microfone (Ditado Inteligente via Gemini 3.8 Flash)
+app.post('/api/transcribe-audio', async (req, res) => {
+  try {
+    const { audioData, mimeType = 'audio/webm' } = req.body;
+
+    if (!audioData) {
+      return res.status(400).json({ error: 'Nenhum dado de áudio recebido para transcrição.' });
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [
+        {
+          inlineData: {
+            mimeType: mimeType || 'audio/webm',
+            data: audioData,
+          },
+        },
+        {
+          text: 'Transcreva este áudio com máxima fidelidade, pontuação natural e inteligente (vírgulas, pontos e parágrafos). Retorne estritamente o texto transcrito, sem preâmbulos, aspas extras ou explicações.',
+        },
+      ],
+    });
+
+    const transcript = response.text?.trim() || '';
+    return res.json({
+      success: true,
+      transcript,
+      wordCount: transcript.split(/\s+/).filter(Boolean).length,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/transcribe-audio:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha ao transcrever gravação do microfone.',
+    });
+  }
+});
+
 // ==========================================
 // FastChunks: Endpoints de Treino de Idiomas
 // ==========================================
