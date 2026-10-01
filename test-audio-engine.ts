@@ -123,7 +123,16 @@ const longSentence = 'Este é um parágrafo bastante extenso que discute os fund
 const prosodyResult = applyAcousticProsody(longSentence, { enabled: true });
 assert.ok(prosodyResult.includes('...') || prosodyResult.includes('—'), 'Frase longa sem quebras deve receber pontuação acústica de fôlego.');
 
-console.log('  ✓ applyAcousticProsody: Sanitização anti-leitura de tags e pontuação de fôlego validadas.');
+// 5.4 Testar Casos de Borda Críticos (Edge Cases: Texto Sujo, Emojis, Moeda e Código)
+const dirtyText = 'Excelente novidade! 🚀 O pacote custa R$ 1.500,00 e o link é https://example.com/api?id=123. Veja o log: console.log("ok");';
+const cleanEdgeCase = applyAcousticProsody(dirtyText, { enabled: true });
+assert.ok(cleanEdgeCase.includes('R$ 1.500,00'), 'Valores monetários formatados devem ser preservados.');
+assert.ok(cleanEdgeCase.includes('https://example.com/api?id=123'), 'URLs devem ser preservadas sem quebrar.');
+assert.ok(cleanEdgeCase.includes('🚀'), 'Emojis devem ser preservados sem travar a sanitização.');
+assert.ok(cleanEdgeCase.includes('console.log("ok");'), 'Trechos de código devem ser preservados.');
+
+console.log('  ✓ Casos de borda (emojis, moeda, URLs e código) validados com sucesso.');
 
 console.log('\n🎉 Todos os testes de Engenharia de Áudio e Prosódia passaram com 100% de conformidade!');
+
 
