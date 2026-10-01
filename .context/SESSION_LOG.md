@@ -19,7 +19,10 @@
 ## Comandos Validados
 - `npm run lint` (`tsc --noEmit`, Exit code: 0)
 - `npm run build` (`vite build`, Exit code: 0)
+- `git commit` & `git push origin main` (Commit `9ee8654`, Exit code: 0)
+- `gcloud run deploy mytts ...` (Exit code: 0, Revision `mytts-00002-b5z`)
+- `Invoke-RestMethod /api/synthesize-speech` (Exit code: 0, 865.280 bytes de áudio WAV 24kHz)
+- Validação de ativos de produção servindo em `https://mytts-1044179901556.us-central1.run.app`
 
 ## Próxima Ação Recomendada
-- Commit e push para o GitHub (`origin main`).
-- Deploy da nova revisão no Google Cloud Run (`gcloud run deploy`).
+- Disponibilizar a URL para validação do usuário e coletar feedback ergonômico.

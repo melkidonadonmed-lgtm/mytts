@@ -1,8 +1,8 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Redesign Completo de Frontend Estilo Speechify & ElevenLabs Concluído. Sidebar persistente, Leitor Neural Direto (`QuickReader`), Módulo de Ditado por Microfone (`LiveVoiceMic`), Catálogo de Vozes (`VoiceLibrary`), especificação em `designe.md` e `README.md`.
-- **Status da Branch**: `main` (código testado com `tsc --noEmit` e `vite build` 100% exit code 0).
+- **Fase**: Redesign Completo de Frontend Estilo Speechify & ElevenLabs Concluído e Implantado no Cloud Run (Revision `mytts-00002-b5z`).
+- **Status da Branch**: `main` (commit `9ee8654` sincronizado no GitHub e revision `mytts-00002-b5z` servindo 100% do tráfego).
 
 ## Decisões Tomadas
 1. **Arquitetura de Navegação Estilo ElevenLabs/Speechify**:
@@ -23,4 +23,4 @@
   - `[MÉDIO]`: Adicionar WebSockets para conversação bidirecional streaming ao vivo (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Deploy da nova revisão no Google Cloud Run e push para o GitHub.
+- Teste prático pelo usuário no navegador através da URL pública do Cloud Run.
