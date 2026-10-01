@@ -1,28 +1,28 @@
-# Session Log - ElevenLabs/Speechify Redesign & Documentation
+# Checkpoint da Sessão (mytts)
 
-- **Data/Hora**: 2026-09-30 23:15 UTC-4
-- **Escopo**: Reformulação integral da interface inspirada em Speechify e ElevenLabs, integração de Sidebar com seletor de vozes, módulo de ditado/microfone, Leitor Neural rápido, `designe.md` e `README.md`.
+## Data e Hora
+- **Data/Hora**: 2026-10-01T03:27:00Z (Horário UTC)
 
-## Arquivos Tocados e Criados
-- `[NEW]` [designe.md](file:///c:/Users/melki/Projetos/mytts/designe.md) (Especificação completa de UX, navegação Mermaid e contratos de interface)
-- `[NEW]` [README.md](file:///c:/Users/melki/Projetos/mytts/README.md) (Documentação técnica de instalação, tecnologias e deploy)
-- `[NEW]` [src/types/voices.ts](file:///c:/Users/melki/Projetos/mytts/src/types/voices.ts) (Catálogo e metadados das 5 vozes neurais oficiais)
-- `[NEW]` [src/components/Sidebar.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/Sidebar.tsx) (Navegação lateral persistente responsiva)
-- `[NEW]` [src/components/QuickReader.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/QuickReader.tsx) (Modo colar texto e ler direto, tags prosódicas e player embutido)
-- `[NEW]` [src/components/LiveVoiceMic.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/LiveVoiceMic.tsx) (Módulo de microfone, gravação e transcrição inteligente)
-- `[NEW]` [src/components/VoiceLibraryModal.tsx](file:///c:/Users/melki/Projetos/mytts/src/components/VoiceLibraryModal.tsx) (Catálogo visual com preview de amostras de 3s)
-- `[MODIFY]` [server.ts](file:///c:/Users/melki/Projetos/mytts/server.ts) (Endpoints /api/synthesize-speech e /api/transcribe-audio)
-- `[MODIFY]` [src/App.tsx](file:///c:/Users/melki/Projetos/mytts/src/App.tsx) (Layout unificado com Sidebar, estado global de voz e transições)
-- `[MODIFY]` [.context/CURRENT_STATE.md](file:///c:/Users/melki/Projetos/mytts/.context/CURRENT_STATE.md)
-- `[MODIFY]` [.context/SESSION_LOG.md](file:///c:/Users/melki/Projetos/mytts/.context/SESSION_LOG.md)
+## Arquivos Tocados
+- `server.ts`: Implementação do helper `pcmToWav` e `ensureWavContainer` garantindo cabeçalho WAV canônico de 44 bytes para todos os endpoints de síntese neural.
+- `src/utils/audio.ts`: Criação do utilitário com `base64ToBlobUrl` e `revokeAudioUrl` para liberação segura de recursos do navegador.
+- `src/components/QuickReader.tsx`: Migração para Blob URLs com revogação limpa ao desmontar e ao sintetizar novo áudio.
+- `src/components/VoiceLibraryModal.tsx`: Migração do preview de vozes para Blob URLs com limpeza de memória.
+- `src/components/FastChunkAudioApp.tsx`: Migração da síntese de chunks para Blob URLs.
+- `.context/CURRENT_STATE.md`: Atualização da fase operacional e decisões técnicas.
+- `.context/SESSION_LOG.md`: Registro factual do turno.
 
 ## Comandos Validados
-- `npm run lint` (`tsc --noEmit`, Exit code: 0)
-- `npm run build` (`vite build`, Exit code: 0)
-- `git commit` & `git push origin main` (Commit `9ee8654`, Exit code: 0)
-- `gcloud run deploy mytts ...` (Exit code: 0, Revision `mytts-00002-b5z`)
-- `Invoke-RestMethod /api/synthesize-speech` (Exit code: 0, 865.280 bytes de áudio WAV 24kHz)
-- Validação de ativos de produção servindo em `https://mytts-1044179901556.us-central1.run.app`
+1. `npm run build; if ($LASTEXITCODE -ne 0) { throw "Falha no build" }`:
+   - Código de saída: `0`.
+   - Build do Vite concluído com sucesso em 285ms.
+2. `node -e "... (teste ponta a ponta com API Gemini e verificação de assinatura RIFF/WAVE)"`:
+   - Código de saída: `0`.
+   - Assinatura `RIFF` confirmada nos 4 primeiros bytes.
+   - Formato `WAVE` confirmado nos bytes 8..12.
+   - Subchunk `fmt ` confirmado nos bytes 12..16.
+   - Sample rate: 24000 Hz, Byte rate: 48000 bytes/s, formato PCM: 1.
 
 ## Próxima Ação Recomendada
-- Disponibilizar a URL para validação do usuário e coletar feedback ergonômico.
+- Commit atômico no Git e push para branch `main` no GitHub.
+- Execução do deploy no Google Cloud Run via `gcloud run deploy`.

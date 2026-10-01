@@ -58,6 +58,52 @@ function formatForTts(text: string): string {
     .trim();
 }
 
+/**
+ * Converte PCM Raw (24kHz 16-bit Mono) para arquivo WAV com cabeçalho RIFF canônico de 44 bytes.
+ * Necessário pois a API gemini-3.1-flash-tts-preview retorna áudio raw PCM sem container WAV.
+ */
+function pcmToWav(
+  pcmBuffer: Buffer,
+  sampleRate: number = 24000,
+  numChannels: number = 1,
+  bitsPerSample: number = 16
+): Buffer {
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const dataSize = pcmBuffer.length;
+  const chunkSize = 36 + dataSize;
+  const header = Buffer.alloc(44);
+
+  // RIFF container descriptor
+  header.write('RIFF', 0);
+  header.writeUInt32LE(chunkSize, 4);
+  header.write('WAVE', 8);
+
+  // "fmt " sub-chunk
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+  header.writeUInt16LE(1, 20); // AudioFormat (1 = PCM)
+  header.writeUInt16LE(numChannels, 22); // NumChannels
+  header.writeUInt32LE(sampleRate, 24); // SampleRate
+  header.writeUInt32LE(byteRate, 28); // ByteRate
+  header.writeUInt16LE(blockAlign, 32); // BlockAlign
+  header.writeUInt16LE(bitsPerSample, 34); // BitsPerSample
+
+  // "data" sub-chunk
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+function ensureWavContainer(base64Audio: string, sampleRate: number = 24000): string {
+  const rawPcm = Buffer.from(base64Audio, 'base64');
+  if (rawPcm.length >= 4 && rawPcm.toString('ascii', 0, 4) === 'RIFF') {
+    return base64Audio;
+  }
+  return pcmToWav(rawPcm, sampleRate).toString('base64');
+}
+
 // 1. Text Ingestion & Parsing
 app.post('/api/extract-text', async (req, res) => {
   try {
@@ -366,14 +412,16 @@ ${effectiveSpeaker}: ${formattedText}`;
       throw new Error('Nenhum dado de áudio retornado pelo modelo neural de voz.');
     }
 
+    const wavBase64 = ensureWavContainer(base64Audio, 24000);
+
     // Estimate duration: 24kHz, 16-bit mono = 48,000 bytes per second
-    const audioByteLength = Buffer.from(base64Audio, 'base64').length;
-    const durationEstimateSec = Math.max(1.0, (audioByteLength - 44) / 48000);
+    const rawPcmByteLength = Buffer.from(base64Audio, 'base64').length;
+    const durationEstimateSec = Math.max(1.0, rawPcmByteLength / 48000);
 
     return res.json({
       success: true,
       turnNumber: turn.turn,
-      audioBase64: base64Audio,
+      audioBase64: wavBase64,
       mimeType: 'audio/wav',
       durationSec: durationEstimateSec,
     });
@@ -453,9 +501,11 @@ ${formattedLines}`;
       throw new Error('Falha ao gerar o master estéreo do debate.');
     }
 
+    const wavBase64 = ensureWavContainer(base64Audio, 24000);
+
     return res.json({
       success: true,
-      audioBase64: base64Audio,
+      audioBase64: wavBase64,
       mimeType: 'audio/wav',
     });
   } catch (error: any) {
@@ -523,11 +573,12 @@ ${speakerName}: ${phrase}`;
       throw new Error('Nenhum dado retornado para a amostra de voz.');
     }
 
-    voicePreviewCache.set(cacheKey, base64Audio);
+    const wavBase64 = ensureWavContainer(base64Audio, 24000);
+    voicePreviewCache.set(cacheKey, wavBase64);
 
     return res.json({
       success: true,
-      audioBase64: base64Audio,
+      audioBase64: wavBase64,
       mimeType: 'audio/wav',
       durationSec: 3.0,
     });
@@ -584,9 +635,11 @@ app.post('/api/synthesize-chunk', async (req, res) => {
       throw new Error('Falha ao sintetizar áudio neural para o chunk.');
     }
 
+    const wavBase64 = ensureWavContainer(base64Audio, 24000);
+
     return res.json({
       success: true,
-      audioBase64: base64Audio,
+      audioBase64: wavBase64,
       mimeType: 'audio/wav',
     });
   } catch (error: any) {
@@ -640,13 +693,15 @@ ${formattedText}`;
       throw new Error('Nenhum dado de áudio retornado pelo modelo neural de voz.');
     }
 
-    const audioByteLength = Buffer.from(base64Audio, 'base64').length;
-    const durationEstimateSec = Math.max(1.0, (audioByteLength - 44) / 48000);
+    const wavBase64 = ensureWavContainer(base64Audio, 24000);
+
+    const rawPcmByteLength = Buffer.from(base64Audio, 'base64').length;
+    const durationEstimateSec = Math.max(1.0, rawPcmByteLength / 48000);
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
     return res.json({
       success: true,
-      audioBase64: base64Audio,
+      audioBase64: wavBase64,
       mimeType: 'audio/wav',
       durationSec: durationEstimateSec,
       wordCount,

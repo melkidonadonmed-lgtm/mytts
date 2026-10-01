@@ -12,6 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
+import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 
 interface VoiceLibraryProps {
   selectedVoice: VoiceProfile;
@@ -25,6 +26,14 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [loadingVoiceId, setLoadingVoiceId] = useState<string | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const currentAudioUrlRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (audioRef.current) audioRef.current.pause();
+      revokeAudioUrl(currentAudioUrlRef.current);
+    };
+  }, []);
 
   const previewVoice = async (voice: VoiceProfile) => {
     if (playingVoiceId === voice.id) {
@@ -48,12 +57,22 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
       const data = await res.json();
       if (data.success && data.audioBase64) {
         if (audioRef.current) audioRef.current.pause();
-        const audio = new Audio(`data:audio/wav;base64,${data.audioBase64}`);
+        revokeAudioUrl(currentAudioUrlRef.current);
+        const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
+        currentAudioUrlRef.current = blobUrl;
+
+        const audio = new Audio(blobUrl);
         audioRef.current = audio;
         setPlayingVoiceId(voice.id);
 
-        audio.onended = () => setPlayingVoiceId(null);
-        audio.onerror = () => setPlayingVoiceId(null);
+        audio.onended = () => {
+          setPlayingVoiceId(null);
+          revokeAudioUrl(blobUrl);
+        };
+        audio.onerror = () => {
+          setPlayingVoiceId(null);
+          revokeAudioUrl(blobUrl);
+        };
         await audio.play();
       }
     } catch (err) {

@@ -1,21 +1,20 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Redesign Completo de Frontend Estilo Speechify & ElevenLabs Concluído e Implantado no Cloud Run (Revision `mytts-00002-b5z`).
-- **Status da Branch**: `main` (commit `9ee8654` sincronizado no GitHub e revision `mytts-00002-b5z` servindo 100% do tráfego).
+- **Fase**: Correção Definitiva de Reprodução de Áudio Neural (Encapsulamento Canônico WAV RIFF de 44 Bytes + Blob URLs no Frontend).
+- **Status da Branch**: `main` pronta para deploy no Cloud Run e push no GitHub.
 
 ## Decisões Tomadas
-1. **Arquitetura de Navegação Estilo ElevenLabs/Speechify**:
-   - Sidebar lateral persistente (`Sidebar.tsx`) substituindo o cabeçalho sobrecarregado, com transições fluídas via View Transitions API.
-   - A página inicial agora é o **Leitor Neural Direto** (`QuickReader.tsx`), focado em colar/digitar texto e ouvir imediatamente.
-2. **Novos Endpoints de Serviço**:
-   - `POST /api/synthesize-speech`: Síntese direta de texto corrido com Director's Chair, pausas de respiração e emoção.
-   - `POST /api/transcribe-audio`: Transcrição de áudio do microfone com pontuação inteligente via Gemini 3.8 Flash.
-3. **Módulo de Ditado & Gravação por Microfone**:
-   - `LiveVoiceMic.tsx` com captura de microfone do navegador, timer reativo, transcrição inteligente e botão para transferir diretamente para o leitor.
-4. **Documentação e Design System**:
-   - `designe.md`: Especificação detalhada de UX, mapa de navegação (Mermaid) e contratos de dados.
-   - `README.md`: Documentação técnica para execução local e deploy no Cloud Run.
+1. **Container WAV RIFF 44-Bytes no Backend (`server.ts`)**:
+   - A API `gemini-3.1-flash-tts-preview` retorna áudio PCM raw mono a 24.000 Hz, 16-bit little-endian, sem container de arquivo.
+   - Implementadas as funções `pcmToWav` e `ensureWavContainer` que anexam o cabeçalho canônico de 44 bytes (`RIFF....WAVEfmt ...data...`) caso o payload não possua a assinatura RIFF.
+   - Aplicado a todos os endpoints de voz: `/api/synthesize-speech`, `/api/synthesize-turn`, `/api/synthesize-full`, `/api/preview-voice` e `/api/synthesize-chunk`.
+2. **Substituição de Data URIs por Blob URLs no Frontend**:
+   - Criado `src/utils/audio.ts` com `base64ToBlobUrl` e `revokeAudioUrl`.
+   - Atualizados `QuickReader.tsx`, `VoiceLibraryModal.tsx` e `FastChunkAudioApp.tsx` para tocar via Blob URL, eliminando limites de tamanho de string do navegador e vazamentos de memória.
+3. **Validação Factual Rigorosa**:
+   - Vite build executado com sucesso (zero erros).
+   - Teste de integração real com a API Gemini comprovou a geração do header `RIFF` / `WAVE` a 24.000 Hz com `ExitCode: 0`.
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
@@ -23,4 +22,4 @@
   - `[MÉDIO]`: Adicionar WebSockets para conversação bidirecional streaming ao vivo (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Teste prático pelo usuário no navegador através da URL pública do Cloud Run.
+- Deploy no Cloud Run e sincronização com GitHub.

@@ -16,6 +16,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { ChunkItem, TargetLang } from '../types/chunks';
+import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 
 // Banco inicial offline para teste imediato de alta fluência
 const CHUNK_PRESETS: Record<TargetLang, Record<string, ChunkItem[]>> = {
@@ -286,12 +287,19 @@ export const FastChunkAudioApp: React.FC = () => {
 
     try {
       if (neuralAudioMap[id]) {
-        const audio = new Audio(`data:audio/wav;base64,${neuralAudioMap[id]}`);
+        const blobUrl = base64ToBlobUrl(neuralAudioMap[id], 'audio/wav');
+        const audio = new Audio(blobUrl);
         audio.playbackRate = playbackRate;
         audioPlayerRef.current = audio;
         setSpeakingId(id);
-        audio.onended = () => setSpeakingId(null);
-        audio.onerror = () => setSpeakingId(null);
+        audio.onended = () => {
+          setSpeakingId(null);
+          revokeAudioUrl(blobUrl);
+        };
+        audio.onerror = () => {
+          setSpeakingId(null);
+          revokeAudioUrl(blobUrl);
+        };
         await audio.play();
         return;
       }
@@ -305,12 +313,19 @@ export const FastChunkAudioApp: React.FC = () => {
       const data = await res.json();
       if (data.success && data.audioBase64) {
         setNeuralAudioMap((prev) => ({ ...prev, [id]: data.audioBase64 }));
-        const audio = new Audio(`data:audio/wav;base64,${data.audioBase64}`);
+        const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
+        const audio = new Audio(blobUrl);
         audio.playbackRate = playbackRate;
         audioPlayerRef.current = audio;
         setSpeakingId(id);
-        audio.onended = () => setSpeakingId(null);
-        audio.onerror = () => setSpeakingId(null);
+        audio.onended = () => {
+          setSpeakingId(null);
+          revokeAudioUrl(blobUrl);
+        };
+        audio.onerror = () => {
+          setSpeakingId(null);
+          revokeAudioUrl(blobUrl);
+        };
         await audio.play();
       } else {
         // Fallback gracioso para Web Speech

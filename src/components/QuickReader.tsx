@@ -18,6 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
+import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 
 interface QuickReaderProps {
   selectedVoice: VoiceProfile;
@@ -47,6 +48,7 @@ Você pode colar qualquer texto, notícia ou documento aqui... [pause] e ouvir a
   const [isDictating, setIsDictating] = useState<boolean>(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioUrlRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -74,6 +76,7 @@ Você pode colar qualquer texto, notícia ou documento aqui... [pause] e ouvir a
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      revokeAudioUrl(currentAudioUrlRef.current);
     };
   }, []);
 
@@ -256,7 +259,10 @@ Você pode colar qualquer texto, notícia ou documento aqui... [pause] e ouvir a
         throw new Error(data.error || 'Falha ao sintetizar áudio com Gemini TTS.');
       }
 
-      const audioUrl = `data:audio/wav;base64,${data.audioBase64}`;
+      // Revogar Blob URL anterior para economizar memória
+      revokeAudioUrl(currentAudioUrlRef.current);
+      const audioUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
+      currentAudioUrlRef.current = audioUrl;
       setCurrentAudioUrl(audioUrl);
       setAudioDuration(data.durationSec || 10);
 
