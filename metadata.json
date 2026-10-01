@@ -1,0 +1,6 @@
+{
+  "name": "DialecticPod - AI Audio Debate Studio",
+  "description": "Transform documents and texts into hyper-realistic dual-speaker AI debates and audio discussions with neural TTS, gapless Web Audio playback, and prosodic direction.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
