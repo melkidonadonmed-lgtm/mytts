@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar, AppTab } from './components/Sidebar';
 import { QuickReader } from './components/QuickReader';
+import { StudioWorkspace } from './components/StudioWorkspace';
 import { LiveVoiceMic } from './components/LiveVoiceMic';
 import { VoiceLibrary } from './components/VoiceLibraryModal';
 import { FastChunkAudioApp } from './components/FastChunkAudioApp';
@@ -9,7 +10,7 @@ import { DebateConfigPanel } from './components/DebateConfigPanel';
 import { ScriptViewer } from './components/ScriptViewer';
 import { BottomAudioDock } from './components/BottomAudioDock';
 import { ArchitectureModal } from './components/ArchitectureModal';
-import { DebateConfig, DebateScript } from './types/debate';
+import { DebateConfig, DebateScript, SpeakerProfile } from './types/debate';
 import { LANGUAGE_OPTIONS, SAMPLE_DOCUMENTS, INITIAL_PRESET_SCRIPTS } from './data/sampleDebates';
 import { GaplessAudioPlayer } from './utils/audioEngine';
 import { VoiceProfile, GEMINI_VOICES } from './types/voices';
@@ -101,6 +102,42 @@ export default function App() {
       setIsGenerating(false);
     }
   };
+
+  const handleGenerateDebateWithCustomSpeakers = async (
+    customSpeakers: [SpeakerProfile, SpeakerProfile],
+    tensionIntensity: 'friendly' | 'balanced' | 'provocative'
+  ) => {
+    setIsGenerating(true);
+    setGlobalError(null);
+    try {
+      const resp = await fetch('/api/generate-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentText,
+          language: config.language,
+          audienceLevel: config.audienceLevel,
+          tensionIntensity,
+          speakers: customSpeakers,
+          maxTurns: config.maxTurns,
+        }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || 'Falha na geração do roteiro.');
+      }
+
+      setScript(data.script);
+      await synthesizeTurns(data.script);
+    } catch (err: any) {
+      console.error(err);
+      setGlobalError(err.message || 'Erro ao gerar o debate dialético.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
 
   const synthesizeTurns = async (targetScript: DebateScript) => {
     setIsSynthesizing(true);
@@ -278,12 +315,23 @@ export default function App() {
 
         {/* 3. Canvas de Conteúdo por Módulo */}
         <main className="flex-1 flex flex-col">
-          {/* Módulo 1: Leitor & Síntese Rápida (Home / Speechify Style) */}
+          {/* Módulo 1: Central de Criação Unificada (Solo + Debate) */}
           {activeTab === 'reader' && (
-            <QuickReader
+            <StudioWorkspace
+              text={documentText}
+              onChangeText={setDocumentText}
               selectedVoice={selectedVoice}
               onSelectVoice={setSelectedVoice}
-              onNavigateToMic={() => setActiveTab('mic')}
+              player={player}
+              isPlaying={isPlaying}
+              playerCurrentTurn={playerCurrentTurn}
+              script={script}
+              setScript={setScript}
+              onGenerateDebate={handleGenerateDebateWithCustomSpeakers}
+              isGeneratingDebate={isGenerating}
+              isSynthesizingDebate={isSynthesizing}
+              onSynthesizeSingleTurn={handleSynthesizeSingleTurn}
+              onUpdateTurnText={handleUpdateTurnText}
             />
           )}
 
@@ -292,10 +340,12 @@ export default function App() {
             <LiveVoiceMic
               selectedVoice={selectedVoice}
               onSendToReader={(transcribedText) => {
+                setDocumentText((prev) => (prev.trim() ? `${prev.trim()}\n\n${transcribedText}` : transcribedText));
                 setActiveTab('reader');
               }}
             />
           )}
+
 
           {/* Módulo 3: Biblioteca de Vozes Neurais */}
           {activeTab === 'voices' && (

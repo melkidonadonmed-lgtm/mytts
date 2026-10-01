@@ -37,11 +37,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     {
       id: 'reader' as AppTab,
-      label: 'Leitor & Síntese',
+      label: 'Estúdio de Criação',
       badge: 'Principal',
       badgeColor: 'bg-amber-400/10 text-amber-300 border-amber-400/20',
       icon: Headphones,
-      description: 'Colar texto e ler instantâneo',
+      description: 'Leitura Solo & Debate 2 Vozes',
     },
     {
       id: 'mic' as AppTab,
