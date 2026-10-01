@@ -1,0 +1,12 @@
+.gcloudignore
+.git
+.gitignore
+node_modules/
+dist/
+build/
+coverage/
+.context/
+.data/
+*.log
+.env*
+!.env.example
