@@ -1,28 +1,31 @@
 # Checkpoint da Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-01T04:20:00Z (Horário UTC)
+- **Data/Hora**: 2026-10-01T17:36:00Z (Horário UTC)
 
 ## Arquivos Tocados
-- `src/services/firebase.ts`: Integração com SDK oficial do Firebase Modular (`firebase@12.19.0`), `GoogleAIBackend`, `gemini-2.5-flash`, Firestore e Auth.
-- `firebase.json` e `firebase-config.json`: Configuração dos serviços e metadados oficiais do projeto `agent-md-506215`.
-- `firestore.rules` e `firestore.indexes.json`: Regras de segurança implantadas com sucesso no Firestore.
-- `.context/FIREBASE_SETUP_PLAN.md`: Plano de execução e validação da conformidade do Firebase AI Logic e Backend.
-- `.context/CURRENT_STATE.md` e `.context/SESSION_LOG.md`: Documentação viva do workspace.
+- `src/utils/prosodyEngine.ts`: Criação do motor de auto-prosódia acústica e calibração fonética estrita em pt-BR com mapeamento de velocidade.
+- `src/components/VoiceCardGrid.tsx`: Grade tátil das 5 vozes neurais com prévia de 3s e navegação por teclado.
+- `src/components/StudioTextEditor.tsx`: Editor de texto com colar da área de transferência, upload de PDF/TXT/MD, arrastar e soltar, e ditado.
+- `src/components/StudioWorkspace.tsx`: Central de Criação unificando Leitura Solo e Debate 2 Vozes em 1 tela sem perda de texto.
+- `src/App.tsx`: Integração do `StudioWorkspace` na rota principal e orquestração de estado.
+- `src/components/Sidebar.tsx`: Atualização dos itens de navegação para "Estúdio de Criação".
+- `server.ts`: Integração do `prosodyEngine` no endpoint `/api/synthesize-speech`.
+- `test-audio-engine.ts`: Adição de testes de calibração PT-BR, anti-leitura de tags e casos de borda (emojis, moedas formatadas, URLs, código).
+- `docs/superpowers/specs/2026-10-01-unified-studio-flow-design.md`: Especificação técnica aprovada.
+- `docs/superpowers/plans/2026-10-01-unified-studio-flow.md`: Plano de tarefas detalhado.
+- `.context/CURRENT_STATE.md` e `.context/SESSION_LOG.md`: Governança viva do workspace.
 
 ## Comandos Validados
-1. `npm run lint` (`tsc --noEmit`):
+1. `npm test` (`tsx test-audio-engine.ts`):
    - Código de saída: `0`.
-2. `npm test` (`tsx test-audio-engine.ts`):
-   - Código de saída: `0`.
-   - 100% de conformidade matemática (auto-ducking, voice boost, presets procedurais e WAV canônico de 44 bytes).
-3. `npm run build` (Vite 8.3.1):
-   - Código de saída: `0` (build concluído em 284ms).
-4. `firebase_deploy` (Firestore & Auth):
-   - Status: `100% success` no projeto `agent-md-506215`.
-5. `git push origin main`:
-   - Commit: `12be822` enviado com sucesso para `git@github.com:melkidonadonmed-lgtm/mytts.git`.
-6. `gcloud run deploy mytts` (Revision `mytts-00004-ldl`):
-   - Código de saída: `0`.
-   - 100% do tráfego servido em `https://mytts-1044179901556.us-central1.run.app` / `https://mytts-syqnqsm4iq-uc.a.run.app`.
-   - Verificação HTTP HEAD retornou status `200 OK`.
+   - 100% de conformidade: presets de soundscape, auto-ducking em dB, voice boost, WAV RIFF de 44 bytes, calibração PT-BR, pontuação acústica e casos de borda (emojis, moeda, URLs e código).
+2. `npm run lint` (`tsc --noEmit`):
+   - Código de saída: `0` (zero erros de tipagem estrita TypeScript).
+3. `npm run build` (`vite build`):
+   - Código de saída: `0` (bundle compilado em 282ms).
+4. `git status`:
+   - Working tree limpo e todas as tarefas commitadas atomicamente no `main`.
+
+## Próxima Ação Recomendada
+- Deploy para Cloud Run (`gcloud run deploy mytts ...`) para disponibilizar as novas funcionalidades ao vivo.
