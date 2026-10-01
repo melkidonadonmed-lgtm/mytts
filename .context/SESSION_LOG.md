@@ -15,8 +15,10 @@
 ## Comandos Validados
 - `npm run lint` (`tsc --noEmit`, Exit code: 0)
 - `npm run build` (`vite build`, Exit code: 0)
-- `gcloud config get-value project` (Exit code: 0 - Projeto: agent-md-506215)
+- `git commit` & `git push origin main` (Commit: `f964c45`, Exit code: 0)
+- `gcloud run deploy mytts ...` (Exit code: 0, Service URL: `https://mytts-1044179901556.us-central1.run.app`)
+- `Invoke-RestMethod /api/preview-voice` (Exit code: 0, 448.000 bytes áudio WAV 24kHz)
+- `Invoke-RestMethod /api/synthesize-chunk` (Exit code: 0, 133.120 bytes áudio WAV 24kHz)
 
 ## Próxima Ação Recomendada
-- Executar `git add`, `git commit` e `git push origin main`.
-- Executar deploy do serviço `mytts` no Cloud Run via `gcloud run deploy`.
+- Apresentar a comprovação factual e abrir o design arquitetural da Fase 2 (Gemini Live API via WebSockets para conversação por voz ao vivo).

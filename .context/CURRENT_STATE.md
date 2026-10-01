@@ -1,8 +1,8 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Fase 1 Concluída — Hiper-Realismo Neural em Gemini 3.1 Flash TTS (Director's Chair Prompting, Pausas, Respiração, Emoção e Dockerfile Cloud Run). Preparando deploy em nuvem e arquitetura da Fase 2 (Gemini Live API).
-- **Status da Branch**: `main` (código testado com `tsc --noEmit` e `vite build` 100% exit code 0).
+- **Fase**: Fase 1 Concluída e Implantada em Produção no Google Cloud Run (`https://mytts-1044179901556.us-central1.run.app`). Hiper-realismo com Director's Chair, respiração e pausas 100% validado em produção.
+- **Status da Branch**: `main` (commit `f964c45` sincronizado no GitHub e revision `mytts-00001-5sw` no Cloud Run).
 
 ## Decisões Tomadas
 1. **Director's Chair Prompting Nativo**:
@@ -19,4 +19,4 @@
   - `[BAIXO]`: Configurar regras de segurança do Firestore (`firestore.rules`) quando Firebase Auth for adicionado.
 
 ## Próximo Ponto de Entrada
-- Push do commit no GitHub (`origin main`) e subida do serviço para o Google Cloud Run.
+- Iniciar arquitetura e prototipagem da Fase 2 (Gemini Live API via WebSockets para conversa interativa em tempo real com áudio nativo).
