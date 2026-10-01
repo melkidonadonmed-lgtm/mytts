@@ -1,8 +1,10 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Central de Criação Unificada & Motor de Auto-Prosódia em Português Brasileiro (pt-BR) Concluídos com Sucesso.
-- **Status da Branch**: `main`.
+- **Fase**: Deploy em Produção no Google Cloud Run e Sincronização do Repositório GitHub Concluídos com Sucesso.
+- **Status da Branch**: `main` (100% sincronizado com `origin/main`).
+- **Revisão Ativa Cloud Run**: `mytts-00005-mjz` (100% do tráfego).
+- **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
 
 ## Decisões Tomadas
 1. **Central de Ingestão Unificada (`src/components/StudioWorkspace.tsx` e `StudioTextEditor.tsx`)**:
@@ -19,9 +21,12 @@
 4. **Resiliência e Fallback Suave**:
    - Preservação estrita do container WAV RIFF canônico de 44 bytes.
    - Fallback de contingência opcional para a Web Speech API do navegador caso a API do Gemini apresente oscilação de rede ou quota.
-5. **Bateria de Testes Automatizados**:
-   - Expandido `test-audio-engine.ts` cobrindo 100% das asserções de calibração PT-BR, sanitização anti-leitura de tags e casos de borda críticos (emojis `🚀`, moedas `R$ 1.500,00`, URLs e trechos de código).
-   - `npm test`, `npm run lint` e `npm run build` aprovados com código de saída 0.
+5. **Otimização de Build & Containerização**:
+   - Adicionado `.gcloudignore` prevenindo uploads desnecessários de `node_modules` e pastas locais para o Cloud Build.
+   - Container multi-stage com Node 22 e FFmpeg compilado e servido no Cloud Run.
+6. **Validação em Produção**:
+   - Resposta HTTP 200 servindo os assets Vite atualizados (`index-CeB3QRxI.js` e `index-C_JvaTrL.css`).
+   - Endpoint `/api/preview-voice` validado ao vivo gerando áudio WAV RIFF de 44 bytes canônico.
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
@@ -29,4 +34,4 @@
   - `[MÉDIO]`: Adicionar WebSockets para conversação bidirecional streaming ao vivo (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Deploy da nova revisão no Google Cloud Run e validação em produção.
+- Monitoramento de uso das novas funcionalidades em produção e planejamento do streaming bidirecional de baixa latência.

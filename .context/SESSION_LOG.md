@@ -1,31 +1,27 @@
 # Checkpoint da Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-01T17:36:00Z (Horário UTC)
+- **Data/Hora**: 2026-10-01T20:47:00Z (Horário UTC)
 
 ## Arquivos Tocados
-- `src/utils/prosodyEngine.ts`: Criação do motor de auto-prosódia acústica e calibração fonética estrita em pt-BR com mapeamento de velocidade.
-- `src/components/VoiceCardGrid.tsx`: Grade tátil das 5 vozes neurais com prévia de 3s e navegação por teclado.
-- `src/components/StudioTextEditor.tsx`: Editor de texto com colar da área de transferência, upload de PDF/TXT/MD, arrastar e soltar, e ditado.
-- `src/components/StudioWorkspace.tsx`: Central de Criação unificando Leitura Solo e Debate 2 Vozes em 1 tela sem perda de texto.
-- `src/App.tsx`: Integração do `StudioWorkspace` na rota principal e orquestração de estado.
-- `src/components/Sidebar.tsx`: Atualização dos itens de navegação para "Estúdio de Criação".
-- `server.ts`: Integração do `prosodyEngine` no endpoint `/api/synthesize-speech`.
-- `test-audio-engine.ts`: Adição de testes de calibração PT-BR, anti-leitura de tags e casos de borda (emojis, moedas formatadas, URLs, código).
-- `docs/superpowers/specs/2026-10-01-unified-studio-flow-design.md`: Especificação técnica aprovada.
-- `docs/superpowers/plans/2026-10-01-unified-studio-flow.md`: Plano de tarefas detalhado.
-- `.context/CURRENT_STATE.md` e `.context/SESSION_LOG.md`: Governança viva do workspace.
+- `.gcloudignore`: Criado arquivo de exclusão de artefatos locais para otimizar uploads do Cloud Build.
+- `.context/CURRENT_STATE.md` e `.context/SESSION_LOG.md`: Atualização da persistência de estado do workspace.
 
 ## Comandos Validados
 1. `npm test` (`tsx test-audio-engine.ts`):
    - Código de saída: `0`.
-   - 100% de conformidade: presets de soundscape, auto-ducking em dB, voice boost, WAV RIFF de 44 bytes, calibração PT-BR, pontuação acústica e casos de borda (emojis, moeda, URLs e código).
+   - 100% de conformidade nos 5 grupos de teste (soundscapes, ducking em dB, boost de voz, cabeçalho WAV RIFF de 44 bytes, calibração PT-BR e casos de borda).
 2. `npm run lint` (`tsc --noEmit`):
-   - Código de saída: `0` (zero erros de tipagem estrita TypeScript).
+   - Código de saída: `0`.
 3. `npm run build` (`vite build`):
-   - Código de saída: `0` (bundle compilado em 282ms).
-4. `git status`:
-   - Working tree limpo e todas as tarefas commitadas atomicamente no `main`.
+   - Código de saída: `0` (build concluído em 279ms).
+4. `git push origin main`:
+   - Código de saída: `0` (11 commits enviados para `melkidonadonmed-lgtm/mytts.git`).
+5. `gcloud run deploy mytts --source . --region=us-central1 --project=agent-md-506215 --allow-unauthenticated`:
+   - Código de saída: `0` (Revisão `mytts-00005-mjz` criada e 100% do tráfego roteado).
+6. Teste de Sanidade em Produção (Live Smoke Test):
+   - `Invoke-RestMethod` no frontend: HTML servido com os novos bundles JS/CSS da UI unificada.
+   - `Invoke-RestMethod` em `/api/preview-voice`: Sucesso retornado com áudio WAV canônico (`RIFF` header verificado).
 
 ## Próxima Ação Recomendada
-- Deploy para Cloud Run (`gcloud run deploy mytts ...`) para disponibilizar as novas funcionalidades ao vivo.
+- Validar a experiência de ponta a ponta na URL pública: `https://mytts-1044179901556.us-central1.run.app`.
