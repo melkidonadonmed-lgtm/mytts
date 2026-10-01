@@ -1,34 +1,28 @@
 # Checkpoint da Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-01T03:27:00Z (Horário UTC)
+- **Data/Hora**: 2026-10-01T04:20:00Z (Horário UTC)
 
 ## Arquivos Tocados
-- `server.ts`: Implementação do helper `pcmToWav` e `ensureWavContainer` garantindo cabeçalho WAV canônico de 44 bytes para todos os endpoints de síntese neural.
-- `src/utils/audio.ts`: Criação do utilitário com `base64ToBlobUrl` e `revokeAudioUrl` para liberação segura de recursos do navegador.
-- `src/components/QuickReader.tsx`: Migração para Blob URLs com revogação limpa ao desmontar e ao sintetizar novo áudio.
-- `src/components/VoiceLibraryModal.tsx`: Migração do preview de vozes para Blob URLs com limpeza de memória.
-- `src/components/FastChunkAudioApp.tsx`: Migração da síntese de chunks para Blob URLs.
-- `.context/CURRENT_STATE.md`: Atualização da fase operacional e decisões técnicas.
-- `.context/SESSION_LOG.md`: Registro factual do turno.
+- `src/services/firebase.ts`: Integração com SDK oficial do Firebase Modular (`firebase@12.19.0`), `GoogleAIBackend`, `gemini-2.5-flash`, Firestore e Auth.
+- `firebase.json` e `firebase-config.json`: Configuração dos serviços e metadados oficiais do projeto `agent-md-506215`.
+- `firestore.rules` e `firestore.indexes.json`: Regras de segurança implantadas com sucesso no Firestore.
+- `.context/FIREBASE_SETUP_PLAN.md`: Plano de execução e validação da conformidade do Firebase AI Logic e Backend.
+- `.context/CURRENT_STATE.md` e `.context/SESSION_LOG.md`: Documentação viva do workspace.
 
 ## Comandos Validados
-1. `npm run build; if ($LASTEXITCODE -ne 0) { throw "Falha no build" }`:
+1. `npm run lint` (`tsc --noEmit`):
    - Código de saída: `0`.
-   - Build do Vite concluído com sucesso em 285ms.
-2. `node -e "... (teste ponta a ponta com API Gemini e verificação de assinatura RIFF/WAVE)"`:
+2. `npm test` (`tsx test-audio-engine.ts`):
    - Código de saída: `0`.
-   - Assinatura `RIFF` confirmada nos 4 primeiros bytes.
-   - Formato `WAVE` confirmado nos bytes 8..12.
-   - Subchunk `fmt ` confirmado nos bytes 12..16.
-   - Sample rate: 24000 Hz, Byte rate: 48000 bytes/s, formato PCM: 1.
-
-3. `gcloud run deploy mytts` (Revision `mytts-00003-b9j`):
+   - 100% de conformidade matemática (auto-ducking, voice boost, presets procedurais e WAV canônico de 44 bytes).
+3. `npm run build` (Vite 8.3.1):
+   - Código de saída: `0` (build concluído em 284ms).
+4. `firebase_deploy` (Firestore & Auth):
+   - Status: `100% success` no projeto `agent-md-506215`.
+5. `git push origin main`:
+   - Commit: `12be822` enviado com sucesso para `git@github.com:melkidonadonmed-lgtm/mytts.git`.
+6. `gcloud run deploy mytts` (Revision `mytts-00004-ldl`):
    - Código de saída: `0`.
-   - Serviço servindo 100% do tráfego em `https://mytts-1044179901556.us-central1.run.app`.
-4. `node -e "... (teste HTTP live na URL de produção)"`:
-   - Código de saída: `0`.
-   - Retorno: `Success: true, MimeType: audio/wav, RIFF magic bytes: RIFF, Byte length: 253484`.
-
-## Próxima Ação Recomendada
-- Teste prático do usuário diretamente na interface pública do Cloud Run.
+   - 100% do tráfego servido em `https://mytts-1044179901556.us-central1.run.app` / `https://mytts-syqnqsm4iq-uc.a.run.app`.
+   - Verificação HTTP HEAD retornou status `200 OK`.
