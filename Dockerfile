@@ -19,7 +19,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Install production dependencies
+# Install production dependencies and FFmpeg for studio broadcast audio mixing
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 RUN npm ci --omit=dev
 

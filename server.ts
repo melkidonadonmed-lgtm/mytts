@@ -1,11 +1,17 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { GoogleGenAI, Type } from '@google/genai';
 import { chunkStorage } from './src/services/chunkStorage';
 import { ChunkItem, TargetLang } from './src/types/chunks';
+
+const execFileAsync = promisify(execFile);
 
 dotenv.config();
 
@@ -516,7 +522,117 @@ ${formattedLines}`;
   }
 });
 
-// 5. Short Voice Sample Preview (3-second demonstration)
+// 5. Studio Multi-Track Mixer & Auto-Ducking (FFmpeg Broadcast Engine)
+app.post('/api/mix-audio', async (req, res) => {
+  let tempVoicePath: string | null = null;
+  let tempMusicPath: string | null = null;
+  let tempOutputPath: string | null = null;
+
+  try {
+    const {
+      voiceAudioBase64,
+      soundtrackPreset = 'lofi-warmth',
+      musicVolume = 0.20,
+      duckingDepthDb = -14,
+      voiceBoostDb = 3,
+      customMusicBase64,
+    } = req.body;
+
+    if (!voiceAudioBase64) {
+      return res.status(400).json({ error: 'Nenhum áudio de voz fornecido para mixagem.' });
+    }
+
+    // Se o preset for silêncio e não houver customMusic, retorna a voz com container garantido
+    if (soundtrackPreset === 'none' && !customMusicBase64) {
+      return res.json({
+        success: true,
+        audioBase64: ensureWavContainer(voiceAudioBase64, 24000),
+        mimeType: 'audio/wav',
+      });
+    }
+
+    const tempId = randomUUID();
+    tempVoicePath = path.join(os.tmpdir(), `mytts_voice_${tempId}.wav`);
+    tempOutputPath = path.join(os.tmpdir(), `mytts_master_${tempId}.wav`);
+
+    const voiceWavBuffer = Buffer.from(ensureWavContainer(voiceAudioBase64, 24000), 'base64');
+    await fs.promises.writeFile(tempVoicePath, voiceWavBuffer);
+
+    const ratio = Math.max(2, Math.min(20, Math.round(Math.abs(duckingDepthDb) / 2.3)));
+    const voiceVol = Math.pow(10, voiceBoostDb / 20).toFixed(2);
+    const bgVol = Math.max(0.01, Math.min(1.0, musicVolume)).toFixed(2);
+
+    let ffmpegArgs: string[] = [];
+
+    if (customMusicBase64) {
+      tempMusicPath = path.join(os.tmpdir(), `mytts_music_${tempId}.wav`);
+      const musicBuf = Buffer.from(customMusicBase64, 'base64');
+      await fs.promises.writeFile(tempMusicPath, musicBuf);
+
+      ffmpegArgs = [
+        '-y',
+        '-i', tempVoicePath,
+        '-stream_loop', '-1',
+        '-i', tempMusicPath,
+        '-filter_complex',
+        `[0:a]volume=${voiceVol}[voice];[1:a]volume=${bgVol}[bg];[voice][bg]sidechaincompress=threshold=0.08:ratio=${ratio}:attack=100:release=500[ducked];[voice][ducked]amix=inputs=2:duration=first:dropout_transition=2[out]`,
+        '-map', '[out]',
+        '-c:a', 'pcm_s16le',
+        '-ar', '44100',
+        tempOutputPath,
+      ];
+    } else {
+      const synthTone =
+        soundtrackPreset === 'deep-focus'
+          ? 'sine=frequency=432:sample_rate=44100'
+          : soundtrackPreset === 'cinematic-pulse'
+          ? 'sine=frequency=55:sample_rate=44100'
+          : 'sine=frequency=220:sample_rate=44100';
+
+      ffmpegArgs = [
+        '-y',
+        '-i', tempVoicePath,
+        '-f', 'lavfi',
+        '-i', synthTone,
+        '-filter_complex',
+        `[0:a]volume=${voiceVol}[voice];[1:a]volume=${bgVol}[bg];[voice][bg]sidechaincompress=threshold=0.08:ratio=${ratio}:attack=100:release=500[ducked];[voice][ducked]amix=inputs=2:duration=first:dropout_transition=2[out]`,
+        '-map', '[out]',
+        '-c:a', 'pcm_s16le',
+        '-ar', '44100',
+        tempOutputPath,
+      ];
+    }
+
+    try {
+      await execFileAsync('ffmpeg', ffmpegArgs);
+      const outputBuffer = await fs.promises.readFile(tempOutputPath);
+      return res.json({
+        success: true,
+        audioBase64: outputBuffer.toString('base64'),
+        mimeType: 'audio/wav',
+      });
+    } catch (ffmpegErr: any) {
+      console.warn('FFmpeg mix fallback to direct voiceover:', ffmpegErr?.message);
+      return res.json({
+        success: true,
+        audioBase64: ensureWavContainer(voiceAudioBase64, 24000),
+        mimeType: 'audio/wav',
+        warning: 'FFmpeg não disponível; retornado áudio de voz direto.',
+      });
+    }
+  } catch (error: any) {
+    console.error('Error in /api/mix-audio:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha ao realizar a mixagem de estúdio.',
+    });
+  } finally {
+    if (tempVoicePath) fs.promises.unlink(tempVoicePath).catch(() => {});
+    if (tempMusicPath) fs.promises.unlink(tempMusicPath).catch(() => {});
+    if (tempOutputPath) fs.promises.unlink(tempOutputPath).catch(() => {});
+  }
+});
+
+// 6. Short Voice Sample Preview (3-second demonstration)
 const voicePreviewCache = new Map<string, string>();
 
 app.post('/api/preview-voice', async (req, res) => {

@@ -362,6 +362,8 @@ export default function App() {
         {/* Dock de Áudio Inferior (Exibido no modo Debate) */}
         {activeTab === 'debate' && (
           <BottomAudioDock
+            player={player}
+            script={script}
             isPlaying={isPlaying}
             onTogglePlay={() => {
               const ready = script?.turns.filter((t) => Boolean(t.audioBase64)).length || 0;
