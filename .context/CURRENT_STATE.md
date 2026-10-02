@@ -28,6 +28,11 @@
    - Resposta HTTP 200 servindo os assets Vite atualizados (`index-CeB3QRxI.js` e `index-C_JvaTrL.css`).
    - Endpoint `/api/preview-voice` validado ao vivo gerando áudio WAV RIFF de 44 bytes canônico.
 
+7. **Consolidação da Pasta Canônica de Design (`design/`)**:
+   - Criação da pasta `design/` contendo `design/design.md` (especificação atualizada com StudioWorkspace, VoiceCardGrid, Auto-Prosody e master multitrack) e `design/README.md`.
+   - Remoção do arquivo redundante `designe.md` da raiz e atualização dos links do `README.md`.
+
+
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
 - **Débitos**:
@@ -35,3 +40,4 @@
 
 ## Próximo Ponto de Entrada
 - Monitoramento de uso das novas funcionalidades em produção e planejamento do streaming bidirecional de baixa latência.
+

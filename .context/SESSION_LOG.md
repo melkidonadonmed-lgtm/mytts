@@ -1,27 +1,23 @@
 # Checkpoint da Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-01T20:47:00Z (Horário UTC)
+- **Data/Hora**: 2026-10-02T22:54:00Z (Horário UTC)
 
 ## Arquivos Tocados
-- `.gcloudignore`: Criado arquivo de exclusão de artefatos locais para otimizar uploads do Cloud Build.
-- `.context/CURRENT_STATE.md` e `.context/SESSION_LOG.md`: Atualização da persistência de estado do workspace.
+- `design/design.md`: Documento canônico atualizado de especificação do Design System e UX do MyTTS Studio.
+- `design/README.md`: Índice explicativo da pasta de design.
+- `README.md`: Atualizado link da documentação para apontar para `design/design.md`.
+- `designe.md`: Arquivo redundante removido da raiz via `git rm`.
+- `.context/CURRENT_STATE.md`: Atualização do estado do workspace.
+- `.context/SESSION_LOG.md`: Registro do checkpoint deste turno.
 
 ## Comandos Validados
-1. `npm test` (`tsx test-audio-engine.ts`):
+1. `git rm designe.md`:
    - Código de saída: `0`.
-   - 100% de conformidade nos 5 grupos de teste (soundscapes, ducking em dB, boost de voz, cabeçalho WAV RIFF de 44 bytes, calibração PT-BR e casos de borda).
-2. `npm run lint` (`tsc --noEmit`):
+   - Remoção com rastreamento no Git.
+2. `git status`:
    - Código de saída: `0`.
-3. `npm run build` (`vite build`):
-   - Código de saída: `0` (build concluído em 279ms).
-4. `git push origin main`:
-   - Código de saída: `0` (11 commits enviados para `melkidonadonmed-lgtm/mytts.git`).
-5. `gcloud run deploy mytts --source . --region=us-central1 --project=agent-md-506215 --allow-unauthenticated`:
-   - Código de saída: `0` (Revisão `mytts-00005-mjz` criada e 100% do tráfego roteado).
-6. Teste de Sanidade em Produção (Live Smoke Test):
-   - `Invoke-RestMethod` no frontend: HTML servido com os novos bundles JS/CSS da UI unificada.
-   - `Invoke-RestMethod` em `/api/preview-voice`: Sucesso retornado com áudio WAV canônico (`RIFF` header verificado).
+   - Modificações encadeadas prontas para commit.
 
 ## Próxima Ação Recomendada
-- Validar a experiência de ponta a ponta na URL pública: `https://mytts-1044179901556.us-central1.run.app`.
+- Executar `git commit` consolidando a nova estrutura de documentação.

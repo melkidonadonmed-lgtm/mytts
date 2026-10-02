@@ -98,4 +98,5 @@ gcloud run deploy mytts `
 
 ## 📄 Documentação Adicional
 
-- [designe.md](./designe.md): Especificação arquitetural, fluxos de navegabilidade e design system.
+- [design/design.md](./design/design.md): Especificação arquitetural, fluxos de navegabilidade e design system.
+
