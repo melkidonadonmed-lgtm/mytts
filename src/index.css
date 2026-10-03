@@ -4,19 +4,40 @@
   color-scheme: dark;
 }
 
+/* Material Symbols Rounded Google Font configuration */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga';
+}
+
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    scrollbar-color: rgba(71, 85, 105, 0.4) rgba(15, 23, 42, 0.6);
+    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    scrollbar-color: rgba(63, 63, 70, 0.4) rgba(9, 9, 11, 0.8);
     scrollbar-width: thin;
+    background-color: #09090b;
   }
   
-  /* Modern Web Guidance: Balanced headlines to avoid awkward wraps */
+  /* Headlines com Outfit para visual editorial premium */
   h1, h2, h3, h4 {
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
     text-wrap: balance;
+    letter-spacing: -0.02em;
   }
 
-  /* Modern Web Guidance: Pretty text wrapping to eliminate orphans/runts */
   p, blockquote, article {
     text-wrap: pretty;
   }
@@ -25,6 +46,144 @@
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-feature-settings: "tnum" 1;
   }
+}
+
+/* 1. Cartão com Acabamento Mate Aveludado */
+.card-matte {
+  background: rgba(18, 18, 22, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 
+    0 1px 2px 0 rgba(0, 0, 0, 0.35),
+    0 8px 24px -4px rgba(0, 0, 0, 0.45);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-matte:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.card-matte-active {
+  background: rgba(24, 24, 30, 0.95);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 
+    0 0 0 1px rgba(245, 158, 11, 0.3),
+    0 8px 30px -4px rgba(0, 0, 0, 0.6);
+}
+
+/* 2. Botões Táteis com Acabamento Mate (Tactile Press) */
+.btn-matte {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-matte:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.btn-matte-amber {
+  background: #f59e0b;
+  color: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    0 2px 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.btn-matte-amber:hover {
+  background: #fbbf24;
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    0 4px 8px 0 rgba(245, 158, 11, 0.25);
+}
+
+.btn-matte-amber:active {
+  background: #d97706;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+}
+
+.btn-matte-dark {
+  background: #18181b;
+  color: #e4e4e7;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    0 2px 4px 0 rgba(0, 0, 0, 0.3);
+}
+
+.btn-matte-dark:hover {
+  background: #27272a;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.btn-matte-dark:active {
+  background: #141416;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* 3. Dock Flutuante Mate */
+.dock-matte {
+  background: rgba(18, 18, 22, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 16px 36px -4px rgba(0, 0, 0, 0.6);
+}
+
+/* 4. Scrubber Range Slider Mate */
+.slider-matte {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: #27272a;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.slider-matte::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  border: 2px solid #09090b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.slider-matte::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.slider-matte::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  border: 2px solid #09090b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.slider-matte::-moz-range-thumb:hover {
+  transform: scale(1.2);
 }
 
 /* View Transitions API: Reduced motion guard */

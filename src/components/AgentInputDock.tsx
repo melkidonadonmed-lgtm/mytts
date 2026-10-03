@@ -1,17 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { 
-  Send, 
-  Paperclip, 
-  Mic, 
-  MicOff, 
-  Radio, 
-  Sparkles, 
-  Loader2, 
-  FileText,
-  X 
-} from 'lucide-react';
+import { GoogleIcon } from './GoogleIcon';
 
-interface AgentInputDockProps {
+export interface AgentInputDockProps {
   onSendMessage: (text: string) => Promise<void>;
   isLoading: boolean;
   onOpenLive?: () => void;
@@ -108,7 +98,6 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
         stream.getTracks().forEach((track) => track.stop());
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         
-        // Transcrever áudio via backend Gemini 3.8
         try {
           setIsTranscribing(true);
           const reader = new FileReader();
@@ -142,25 +131,26 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
 
   const quickSuggestions = [
     'Estou planejando uma viagem para o Japão e Itália',
-    'Como pedir um café e uma conta educadamente?',
-    'Estou participando de uma reunião de trabalho importante',
+    'Como pedir um café e a conta educadamente?',
+    'Preciso de frases para uma reunião de negócios',
   ];
 
   return (
-    <div className="sticky bottom-0 z-20 w-full bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-xl px-4 py-3 sm:px-6">
-      <div className="max-w-7xl mx-auto flex flex-col gap-2.5">
+    <div className="sticky bottom-0 z-30 w-full bg-zinc-950/90 backdrop-blur-2xl border-t border-zinc-850 px-4 py-3 sm:px-6">
+      <div className="max-w-7xl mx-auto flex flex-col gap-2">
         
-        {/* Sugestões Rápidas (Pills) se o campo estiver vazio */}
+        {/* Sugestões Rápidas (Pills Táteis) se o campo estiver vazio */}
         {!inputText && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-[11px] text-slate-400">
-            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] shrink-0">
-              Ideias:
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+            <span className="font-semibold text-zinc-500 uppercase tracking-wider text-[10px] shrink-0 font-mono">
+              Sugestões:
             </span>
             {quickSuggestions.map((sug, idx) => (
               <button
                 key={idx}
+                type="button"
                 onClick={() => setInputText(sug)}
-                className="shrink-0 bg-slate-900/90 border border-slate-800 hover:border-amber-400/50 hover:text-amber-200 px-2.5 py-1 rounded-lg transition-all cursor-pointer truncate max-w-[280px]"
+                className="btn-matte btn-matte-dark px-2.5 py-1 text-xs text-zinc-300 rounded-lg shrink-0 truncate max-w-[280px]"
               >
                 {sug}
               </button>
@@ -170,21 +160,24 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
 
         {/* Indicador de Arquivo Anexado */}
         {attachedFileName && (
-          <div className="flex items-center gap-2 text-xs text-amber-300 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-lg w-fit">
-            <FileText className="w-3.5 h-3.5" />
-            <span className="truncate max-w-[200px]">{attachedFileName}</span>
+          <div className="flex items-center gap-2 text-xs text-amber-300 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-xl w-fit">
+            <GoogleIcon name="description" size={16} />
+            <span className="truncate max-w-[220px] font-medium">{attachedFileName}</span>
             <button
+              type="button"
               onClick={() => setAttachedFileName(null)}
-              className="text-amber-400 hover:text-white ml-1 cursor-pointer"
+              className="text-amber-400 hover:text-white p-0.5 cursor-pointer ml-1"
             >
-              <X className="w-3 h-3" />
+              <GoogleIcon name="close" size={14} />
             </button>
           </div>
         )}
 
-        {/* Barra Central de Entrada (Design Matte Sólido) */}
-        <form onSubmit={handleSubmit} className="flex items-end gap-2 bg-slate-900 border border-slate-800 rounded-2xl p-2 focus-within:border-amber-400/70 transition-colors shadow-lg shadow-black/20">
-          
+        {/* Barra Central de Entrada (Design Matte Sofisticado) */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-end gap-2 card-matte rounded-2xl p-2 focus-within:border-amber-400/50 transition-all shadow-xl"
+        >
           {/* Botão de Anexo */}
           <input
             type="file"
@@ -197,41 +190,41 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             title="Anexar arquivo (PDF, TXT, MD)"
-            className="p-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors cursor-pointer shrink-0"
+            className="btn-matte btn-matte-dark h-10 w-10 rounded-xl text-zinc-400 hover:text-zinc-100 shrink-0"
           >
-            <Paperclip className="w-4 h-4" />
+            <GoogleIcon name="attach_file" size={20} />
           </button>
 
-          {/* Botão de Gravação de Voz */}
+          {/* Botão de Microfone */}
           <button
             type="button"
             onClick={toggleRecording}
             title={isRecording ? 'Parar gravação' : 'Falar pelo microfone'}
-            className={`p-2.5 rounded-xl transition-all cursor-pointer shrink-0 ${
+            className={`btn-matte h-10 w-10 rounded-xl shrink-0 transition-all ${
               isRecording
-                ? 'bg-rose-500 text-white animate-pulse'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/30'
+                : 'btn-matte-dark text-zinc-400 hover:text-zinc-100'
             }`}
           >
             {isTranscribing ? (
-              <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+              <GoogleIcon name="progress_activity" size={20} className="animate-spin text-amber-400" />
             ) : isRecording ? (
-              <MicOff className="w-4 h-4" />
+              <GoogleIcon name="mic_off" size={20} />
             ) : (
-              <Mic className="w-4 h-4" />
+              <GoogleIcon name="mic" size={20} />
             )}
           </button>
 
-          {/* Botão Gemini Live (Fase 2) */}
+          {/* Botão Gemini Live (se ativo) */}
           {onOpenLive && (
             <button
               type="button"
               onClick={onOpenLive}
               title="Abrir sessão de voz bidirecional (Gemini Live)"
-              className="p-2.5 rounded-xl text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10 transition-colors cursor-pointer shrink-0 hidden sm:flex items-center gap-1.5 text-xs font-semibold"
+              className="btn-matte h-10 px-3 rounded-xl text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 hover:bg-emerald-400/20 transition-all shrink-0 hidden sm:inline-flex text-xs font-semibold"
             >
-              <Radio className="w-4 h-4 animate-pulse" />
-              <span className="text-[11px] font-mono">Live</span>
+              <GoogleIcon name="podcasts" size={18} className="animate-pulse" />
+              <span>Live</span>
             </button>
           )}
 
@@ -240,28 +233,27 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Digite, cole um texto ou fale pelo microfone para estudar em 3 idiomas..."
+            placeholder="Digite, cole um texto ou fale pelo microfone para alinhar em 3 idiomas..."
             rows={1}
             disabled={isLoading}
-            className="flex-1 bg-transparent border-0 text-slate-100 placeholder-slate-500 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-32 min-h-[38px] leading-relaxed"
+            className="flex-1 bg-transparent border-0 text-zinc-100 placeholder-zinc-500 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-32 min-h-[38px] leading-relaxed"
           />
 
-          {/* Botão Enviar / Gerar Chunks */}
+          {/* Botão Enviar / Traduzir */}
           <button
             type="submit"
             disabled={!inputText.trim() || isLoading}
-            className="min-h-[40px] px-4 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-amber-500/10 cursor-pointer shrink-0 active:scale-95"
+            className="btn-matte btn-matte-amber h-10 px-4 rounded-xl text-xs font-bold text-zinc-950 shrink-0 disabled:opacity-40"
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="hidden sm:inline">Processando...</span>
+                <GoogleIcon name="progress_activity" size={18} className="animate-spin text-zinc-950" />
+                <span className="hidden sm:inline">Alinhando...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 fill-current" />
+                <GoogleIcon name="auto_awesome" size={18} filled className="text-zinc-950" />
                 <span className="hidden sm:inline">Traduzir Chunks</span>
-                <Send className="w-3.5 h-3.5 sm:hidden" />
               </>
             )}
           </button>

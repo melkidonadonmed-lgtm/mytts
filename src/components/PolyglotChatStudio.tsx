@@ -1,21 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Sparkles, 
-  BookOpen, 
-  RotateCcw, 
-  Download, 
-  MessageSquare,
-  Globe,
-  Radio,
-  Check
-} from 'lucide-react';
-import { PolyglotMessage, AlignedChunk, FlashcardItem } from '../types/polyglot';
+import { PolyglotMessage, FlashcardItem } from '../types/polyglot';
 import { ParallelMessageBlock } from './ParallelMessageBlock';
 import { AgentInputDock } from './AgentInputDock';
 import { FlashcardDeckDrawer } from './FlashcardDeckDrawer';
+import { GoogleIcon } from './GoogleIcon';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 
-// Mensagem inicial de exemplo para o usuário ver a experiência multi-pane imediatamente
+// Mensagem inicial de exemplo de alta fluência
 const INITIAL_DEMO_MESSAGE: PolyglotMessage = {
   id: 'msg-demo-1',
   userPrompt: 'Gostaria de pedir um café expresso e a conta com gentileza.',
@@ -59,10 +50,47 @@ export const PolyglotChatStudio: React.FC = () => {
   const [isDeckDrawerOpen, setIsDeckDrawerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Estados de áudio
+  // Idioma selecionado por mensagem (padrão 'en')
+  const [selectedLanguageByMsg, setSelectedLanguageByMsg] = useState<Record<string, 'en' | 'it' | 'ja'>>({
+    'msg-demo-1': 'en',
+  });
+
+  // Configurações de voz por idioma
+  const [voiceByLang, setVoiceByLang] = useState<Record<'en' | 'it' | 'ja', string>>({
+    en: 'Puck',
+    it: 'Kore',
+    ja: 'Aoede',
+  });
+
+  // Velocidade de reprodução
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+
+  // Estados do Player de Áudio Flutuante
+  const [playingBlockInfo, setPlayingBlockInfo] = useState<{
+    messageId: string;
+    lang: 'en' | 'it' | 'ja';
+  } | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  // Modo Sequencial (Trilogia EN -> IT -> JA)
+  const [isPlayingSequence, setIsPlayingSequence] = useState(false);
+  const [sequenceStep, setSequenceStep] = useState<string | null>(null);
+  const sequenceAbortRef = useRef<boolean>(false);
+
+  // Estado de chunk avulso e flashcard
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
   const [generatingCardKey, setGeneratingCardKey] = useState<string | null>(null);
-  const activeAudioRef = useRef<{ audio: HTMLAudioElement; blobUrl: string } | null>(null);
+
+  const activeAudioRef = useRef<{
+    audio: HTMLAudioElement;
+    blobUrl: string;
+    messageId: string;
+    lang: 'en' | 'it' | 'ja';
+  } | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Salvar deck no localStorage
@@ -84,15 +112,200 @@ export const PolyglotChatStudio: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Parar áudio em execução com limpeza segura de memória
+  const getLanguageTag = (code: string) => {
+    if (code === 'it') return 'it-IT';
+    if (code === 'ja') return 'ja-JP';
+    return 'en-US';
+  };
+
+  // Parar qualquer áudio em execução com limpeza de memória
   const stopCurrentAudio = useCallback(() => {
     if (activeAudioRef.current) {
       activeAudioRef.current.audio.pause();
       revokeAudioUrl(activeAudioRef.current.blobUrl);
       activeAudioRef.current = null;
     }
+    setIsPlayingAudio(false);
+    setIsLoadingAudio(false);
+    setPlayingBlockInfo(null);
     setPlayingAudioKey(null);
   }, []);
+
+  // Seleção de card / idioma para uma mensagem
+  const handleSelectLanguage = (messageId: string, lang: 'en' | 'it' | 'ja') => {
+    setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
+    if (
+      activeAudioRef.current &&
+      activeAudioRef.current.messageId === messageId &&
+      activeAudioRef.current.lang !== lang
+    ) {
+      stopCurrentAudio();
+    }
+  };
+
+  // Reprodução ou Pausa do Áudio do Card Selecionado
+  const handleTogglePlay = async (messageId: string, lang: 'en' | 'it' | 'ja') => {
+    if (
+      activeAudioRef.current &&
+      activeAudioRef.current.messageId === messageId &&
+      activeAudioRef.current.lang === lang
+    ) {
+      if (isPlayingAudio) {
+        activeAudioRef.current.audio.pause();
+        setIsPlayingAudio(false);
+      } else {
+        await activeAudioRef.current.audio.play();
+        setIsPlayingAudio(true);
+      }
+      return;
+    }
+
+    stopCurrentAudio();
+    const targetMsg = messages.find((m) => m.id === messageId);
+    if (!targetMsg || !targetMsg.fullText[lang]) return;
+
+    setIsLoadingAudio(true);
+    setPlayingBlockInfo({ messageId, lang });
+
+    try {
+      const resp = await fetch('/api/synthesize-speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: targetMsg.fullText[lang],
+          voiceId: voiceByLang[lang],
+          language: getLanguageTag(lang),
+          speed: playbackSpeed,
+          emotion: 'natural',
+        }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data.success || !data.audioBase64) {
+        throw new Error(data.error || 'Falha ao sintetizar áudio da voz neural.');
+      }
+
+      const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
+      const audio = new Audio(blobUrl);
+      audio.playbackRate = playbackSpeed;
+
+      audio.onloadedmetadata = () => {
+        setDuration(audio.duration || data.durationSec || 0);
+      };
+
+      audio.ontimeupdate = () => {
+        setCurrentTime(audio.currentTime);
+      };
+
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        setCurrentTime(0);
+      };
+
+      audio.onerror = () => {
+        stopCurrentAudio();
+      };
+
+      activeAudioRef.current = { audio, blobUrl, messageId, lang };
+      await audio.play();
+      setIsPlayingAudio(true);
+    } catch (e: any) {
+      console.warn('Erro na síntese neural do card:', e);
+      stopCurrentAudio();
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  };
+
+  // Replay do áudio do card
+  const handleReplay = (messageId: string, lang: 'en' | 'it' | 'ja') => {
+    if (
+      activeAudioRef.current &&
+      activeAudioRef.current.messageId === messageId &&
+      activeAudioRef.current.lang === lang
+    ) {
+      activeAudioRef.current.audio.currentTime = 0;
+      setCurrentTime(0);
+      activeAudioRef.current.audio.play();
+      setIsPlayingAudio(true);
+    } else {
+      handleTogglePlay(messageId, lang);
+    }
+  };
+
+  // Seek na barra de progresso (scrubber)
+  const handleSeek = (time: number) => {
+    if (activeAudioRef.current) {
+      activeAudioRef.current.audio.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  // Alteração de velocidade
+  const handleChangeSpeed = (newSpeed: number) => {
+    setPlaybackSpeed(newSpeed);
+    if (activeAudioRef.current) {
+      activeAudioRef.current.audio.playbackRate = newSpeed;
+    }
+  };
+
+  // Alteração de voz
+  const handleChangeVoice = (lang: 'en' | 'it' | 'ja', voice: string) => {
+    setVoiceByLang((prev) => ({ ...prev, [lang]: voice }));
+    if (activeAudioRef.current && activeAudioRef.current.lang === lang) {
+      stopCurrentAudio();
+    }
+  };
+
+  // Modo Trilogia Sequencial (EN -> IT -> JA)
+  const handlePlaySequence = async (messageId: string) => {
+    if (isPlayingSequence) {
+      sequenceAbortRef.current = true;
+      setIsPlayingSequence(false);
+      setSequenceStep(null);
+      stopCurrentAudio();
+      return;
+    }
+
+    const targetMsg = messages.find((m) => m.id === messageId);
+    if (!targetMsg) return;
+
+    sequenceAbortRef.current = false;
+    setIsPlayingSequence(true);
+
+    const languages: Array<'en' | 'it' | 'ja'> = ['en', 'it', 'ja'];
+    const stepNames: Record<string, string> = {
+      en: '🇺🇸 Inglês',
+      it: '🇮🇹 Italiano',
+      ja: '🇯🇵 Japonês',
+    };
+
+    for (const lang of languages) {
+      if (sequenceAbortRef.current) break;
+
+      setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
+      setSequenceStep(stepNames[lang]);
+
+      await new Promise<void>(async (resolve) => {
+        await handleTogglePlay(messageId, lang);
+
+        const checkEndInterval = setInterval(() => {
+          if (sequenceAbortRef.current || !activeAudioRef.current) {
+            clearInterval(checkEndInterval);
+            resolve();
+            return;
+          }
+          if (activeAudioRef.current.audio.ended) {
+            clearInterval(checkEndInterval);
+            setTimeout(resolve, 800);
+          }
+        }, 100);
+      });
+    }
+
+    setIsPlayingSequence(false);
+    setSequenceStep(null);
+  };
 
   // Envio de nova mensagem para alinhamento em 3 línguas
   const handleSendMessage = async (text: string) => {
@@ -107,6 +320,7 @@ export const PolyglotChatStudio: React.FC = () => {
     };
 
     setMessages((prev) => [...prev, placeholderMessage]);
+    setSelectedLanguageByMsg((prev) => ({ ...prev, [newMessageId]: 'en' }));
     setIsLoading(true);
 
     try {
@@ -167,59 +381,16 @@ export const PolyglotChatStudio: React.FC = () => {
       if (data.success && data.audioBase64) {
         const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
         const audio = new Audio(blobUrl);
-        activeAudioRef.current = { audio, blobUrl };
+        activeAudioRef.current = { audio, blobUrl, messageId: 'chunk', lang: 'en' };
 
         audio.onended = () => stopCurrentAudio();
         audio.onerror = () => stopCurrentAudio();
         await audio.play();
       } else {
-        throw new Error(data.error || 'Falha ao reproduzir áudio.');
+        throw new Error(data.error || 'Falha ao reproduzir áudio do chunk.');
       }
     } catch (e: any) {
       console.warn('Erro ao tocar áudio do chunk:', e);
-      stopCurrentAudio();
-    }
-  };
-
-  // Reprodução do texto completo de uma coluna
-  const handlePlayFullText = async (
-    text: string,
-    language: string,
-    voiceId: string,
-    speed: number
-  ) => {
-    stopCurrentAudio();
-    const playKey = `${text.slice(0, 20)}-full`;
-    setPlayingAudioKey(playKey);
-
-    try {
-      const resp = await fetch('/api/synthesize-speech', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          voiceId,
-          language,
-          speed,
-          emotion: 'natural',
-        }),
-      });
-
-      const data = await resp.json();
-      if (data.success && data.audioBase64) {
-        const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
-        const audio = new Audio(blobUrl);
-        audio.playbackRate = speed;
-        activeAudioRef.current = { audio, blobUrl };
-
-        audio.onended = () => stopCurrentAudio();
-        audio.onerror = () => stopCurrentAudio();
-        await audio.play();
-      } else {
-        throw new Error(data.error || 'Falha ao sintetizar coluna.');
-      }
-    } catch (e) {
-      console.warn('Erro ao tocar áudio da coluna:', e);
       stopCurrentAudio();
     }
   };
@@ -251,35 +422,37 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans">
+    <div className="flex-1 flex flex-col min-h-screen bg-zinc-950 text-zinc-100 font-sans">
       
-      {/* 1. Header do Estúdio Poliglota */}
-      <header className="sticky top-0 z-10 bg-slate-950/85 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-400">
-            <Globe className="w-4 h-4" />
+      {/* 1. Header Minimalista do Estúdio Poliglota */}
+      <header className="sticky top-0 z-20 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-850 px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-400">
+            <GoogleIcon name="translate" size={20} />
           </div>
           <div>
-            <h1 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
+            <h1 className="text-sm sm:text-base font-bold text-white flex items-center gap-2 font-display">
               <span>Chat Poliglota Multimodal</span>
-              <span className="text-[10px] font-mono bg-emerald-400/15 text-emerald-300 border border-emerald-400/25 px-2 py-0.2 rounded-full">
+              <span className="text-[10px] font-mono bg-emerald-400/10 text-emerald-300 border border-emerald-400/20 px-2 py-0.5 rounded-full font-medium">
                 🇺🇸 EN • 🇮🇹 IT • 🇯🇵 JA
               </span>
             </h1>
-            <p className="text-[11px] text-slate-400">
-              Tradução paralela em chunks interativos com sotaque neural nativo
+            <p className="text-[11px] text-zinc-400">
+              Tradução paralela em 3 línguas com controle de áudio individual e foco tátil
             </p>
           </div>
         </div>
 
         {/* Botão de Acesso ao Deck de Flashcards */}
         <button
+          type="button"
           onClick={() => setIsDeckDrawerOpen(true)}
-          className="min-h-[36px] px-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-amber-400/50 hover:bg-slate-850 text-xs font-semibold text-slate-200 flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95"
+          className="btn-matte btn-matte-dark px-3 py-1.5 text-xs text-zinc-200"
+          title="Ver Flashcards salvos"
         >
-          <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+          <GoogleIcon name="style" size={16} className="text-amber-400" />
           <span>Meu Deck</span>
-          <span className="bg-amber-400 text-slate-950 font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono">
+          <span className="bg-amber-400 text-zinc-950 font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono">
             {deck.length}
           </span>
         </button>
@@ -287,25 +460,48 @@ export const PolyglotChatStudio: React.FC = () => {
 
       {/* 2. Toast de Feedback Suave */}
       {toastMessage && (
-        <div className="fixed top-16 right-4 z-40 bg-emerald-950/90 border border-emerald-600/80 text-emerald-200 px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xl animate-in fade-in slide-in-from-top-2">
-          <Check className="w-4 h-4 text-emerald-400" />
+        <div className="fixed top-16 right-4 z-40 bg-zinc-900 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
+          <GoogleIcon name="check_circle" size={16} filled className="text-emerald-400" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* 3. Feed de Mensagens do Chat (Canvas Multi-Pane) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-28 flex flex-col gap-6">
-        {messages.map((message) => (
-          <ParallelMessageBlock
-            key={message.id}
-            message={message}
-            onPlayChunkAudio={handlePlayChunkAudio}
-            onPlayFullText={handlePlayFullText}
-            onCreateFlashcard={handleCreateFlashcard}
-            playingAudioKey={playingAudioKey}
-            generatingCardKey={generatingCardKey}
-          />
-        ))}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-32 flex flex-col gap-6">
+        {messages.map((message) => {
+          const selectedLang = selectedLanguageByMsg[message.id] || 'en';
+          const isThisBlockPlaying =
+            playingBlockInfo?.messageId === message.id && isPlayingAudio;
+          const isThisBlockLoading =
+            playingBlockInfo?.messageId === message.id && isLoadingAudio;
+
+          return (
+            <ParallelMessageBlock
+              key={message.id}
+              message={message}
+              onPlayChunkAudio={handlePlayChunkAudio}
+              onCreateFlashcard={handleCreateFlashcard}
+              playingAudioKey={playingAudioKey}
+              generatingCardKey={generatingCardKey}
+              selectedLanguage={selectedLang}
+              onSelectLanguage={(lang) => handleSelectLanguage(message.id, lang)}
+              isPlaying={isThisBlockPlaying}
+              isLoading={isThisBlockLoading}
+              onTogglePlay={(lang) => handleTogglePlay(message.id, lang)}
+              onReplay={(lang) => handleReplay(message.id, lang)}
+              currentTime={currentTime}
+              duration={duration}
+              onSeek={handleSeek}
+              speed={playbackSpeed}
+              onChangeSpeed={handleChangeSpeed}
+              voiceByLang={voiceByLang}
+              onChangeVoice={handleChangeVoice}
+              onPlaySequence={() => handlePlaySequence(message.id)}
+              isPlayingSequence={isPlayingSequence}
+              sequenceStep={sequenceStep}
+            />
+          );
+        })}
         <div ref={messagesEndRef} />
       </main>
 
