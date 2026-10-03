@@ -129,6 +129,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               fullText={message.fullText.en}
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'en'}
+              isPlaying={isPlaying && selectedLanguage === 'en'}
+              isLoading={isLoading && selectedLanguage === 'en'}
               onSelectCard={() => onSelectLanguage('en')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -144,6 +146,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               fullText={message.fullText.it}
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'it'}
+              isPlaying={isPlaying && selectedLanguage === 'it'}
+              isLoading={isLoading && selectedLanguage === 'it'}
               onSelectCard={() => onSelectLanguage('it')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -159,6 +163,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               fullText={message.fullText.ja}
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'ja'}
+              isPlaying={isPlaying && selectedLanguage === 'ja'}
+              isLoading={isLoading && selectedLanguage === 'ja'}
               onSelectCard={() => onSelectLanguage('ja')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}

@@ -832,20 +832,36 @@ app.post('/api/synthesize-speech', async (req, res) => {
   try {
     const {
       text,
-      voiceId = 'Puck',
+      voiceId,
       emotion = 'natural',
       speed = 1.0,
       autoProsody = true,
+      language = 'pt-BR',
     } = req.body;
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({ error: 'O texto para leitura é obrigatório.' });
     }
 
-    const emotionStyle = getEmotionStyle(emotion, speed);
-    const formattedText = applyAcousticProsody(capText(text), { enabled: autoProsody, speed });
+    // Mapeamento de voz padrão por idioma caso não seja especificada
+    const resolvedVoiceId =
+      voiceId ||
+      (language === 'it-IT' || language === 'it'
+        ? 'Kore'
+        : language === 'ja-JP' || language === 'ja'
+        ? 'Aoede'
+        : language === 'en-US' || language === 'en'
+        ? 'Puck'
+        : 'Puck');
+
+    const emotionStyle = getEmotionStyle(emotion, speed, language);
+    const formattedText = applyAcousticProsody(capText(text), {
+      enabled: autoProsody,
+      speed,
+      language,
+    });
 
     // Director's Chair prompt
-    const directorPrompt = `Performance Direction for ${voiceId}:
+    const directorPrompt = `Performance Direction for ${resolvedVoiceId}:
 ${emotionStyle}
 
 Text:
@@ -864,7 +880,7 @@ ${formattedText}`;
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceId },
+            prebuiltVoiceConfig: { voiceName: resolvedVoiceId },
           },
         },
       },

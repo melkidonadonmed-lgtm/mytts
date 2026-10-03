@@ -110,6 +110,18 @@ assert.ok(fastSpontaneous.includes('agile, fast and energetic'), 'Velocidade 1.3
 
 console.log('  ✓ getEmotionStyle: Instrução estrita de PT-BR e mapeamento de velocidade validados.');
 
+// 5.1.1 Testar Calibração Multilíngue (EN, IT, JA)
+const englishPrompt = getEmotionStyle('natural', 1.0, 'en-US');
+assert.ok(englishPrompt.includes('American English'), 'Deve calibrar instrução para American English.');
+
+const italianPrompt = getEmotionStyle('natural', 1.0, 'it-IT');
+assert.ok(italianPrompt.includes('authentic, natural Italian'), 'Deve calibrar instrução para Italiano nativo.');
+
+const japanesePrompt = getEmotionStyle('natural', 1.0, 'ja-JP');
+assert.ok(japanesePrompt.includes('Tokyo pitch-accent'), 'Deve calibrar instrução para Japonês padrão Tóquio.');
+
+console.log('  ✓ getEmotionStyle: Instruções fonéticas multilíngues (EN, IT, JA) validadas com sucesso.');
+
 // 5.2 Testar applyAcousticProsody: sanitização de tags perigosas e pontuação acústica
 const rawTextWithTags = 'Olá [deep breath] a todos! <pause> Vamos começar [sighs] agora.';
 const sanitized = applyAcousticProsody(rawTextWithTags, { enabled: true });

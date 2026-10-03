@@ -13,11 +13,11 @@ export interface ProsodyOptions {
   speed?: number;
 }
 
-/**
- * Mapeia o estilo e a velocidade para uma diretriz de palco (Director's Chair)
- * com instrução mandatória de língua portuguesa (pt-BR).
- */
-export function getEmotionStyle(emotion: string = 'natural', speed: number = 1.0): string {
+export function getEmotionStyle(
+  emotion: string = 'natural',
+  speed: number = 1.0,
+  language: string = 'pt-BR'
+): string {
   const speedAdj =
     speed < 0.9
       ? 'slow, deliberate and well-paced'
@@ -25,7 +25,14 @@ export function getEmotionStyle(emotion: string = 'natural', speed: number = 1.0
       ? 'agile, fast and energetic'
       : 'natural and steady-paced';
 
-  const langInstruction = 'Speak strictly in natural Brazilian Portuguese (pt-BR). ';
+  let langInstruction = 'Speak strictly in natural Brazilian Portuguese (pt-BR). ';
+  if (language === 'en-US' || language === 'en') {
+    langInstruction = 'Speak strictly in natural American English with authentic native accent, clear articulation, and natural conversational cadence. ';
+  } else if (language === 'it-IT' || language === 'it') {
+    langInstruction = 'Speak strictly in authentic, natural Italian with native Italian cadence, lively tempo, open/closed vowels, natural double consonant rhythm, and authentic colloquial intonation. Avoid any foreign accent. ';
+  } else if (language === 'ja-JP' || language === 'ja') {
+    langInstruction = 'Speak strictly in natural, native Japanese with standard Tokyo pitch-accent, authentic mora timing, and native colloquial inflection. Avoid any English or foreign accent. ';
+  }
 
   switch (emotion) {
     case 'storytelling':
@@ -36,7 +43,7 @@ export function getEmotionStyle(emotion: string = 'natural', speed: number = 1.0
       return `${langInstruction}Agile colloquial cadence, ${speedAdj} friendly inflections, subtle conversational hesitations, and warm energetic presence like a casual podcast dialogue.`;
     case 'natural':
     default:
-      return `${langInstruction}Human, balanced, and fluent delivery with subtle breath intakes before long clauses, ${speedAdj} organic rhythm, and natural Brazilian Portuguese prosody.`;
+      return `${langInstruction}Human, balanced, and fluent delivery with subtle breath intakes before long clauses, ${speedAdj} organic rhythm, and natural prosody.`;
   }
 }
 
@@ -45,10 +52,10 @@ export function getEmotionStyle(emotion: string = 'natural', speed: number = 1.0
  * 1. Remove tags brutas (como [deep breath], [pause], <sigh>) para impedir que o modelo as leia em voz alta.
  * 2. Emprega pontuação acústica sutil (reticências, travessões e quebras duplas) para induzir respiração humana natural.
  */
-export function applyAcousticProsody(text: string, options: ProsodyOptions = {}): string {
+export function applyAcousticProsody(text: string, options: ProsodyOptions & { language?: string } = {}): string {
   if (!text) return '';
 
-  const { enabled = true } = options;
+  const { enabled = true, language = 'pt-BR' } = options;
 
   // 1. Sanitização estrita: remove tags colchetes ou angulares e seus nomes literais para evitar leitura em voz alta
   let cleaned = text
@@ -59,6 +66,11 @@ export function applyAcousticProsody(text: string, options: ProsodyOptions = {})
     .trim();
 
   if (!enabled) {
+    return cleaned;
+  }
+
+  // Idiomas sem espaços ou pontuação ocidental (ex: Japonês) não devem sofrer divisões por vírgula arbitrárias
+  if (language === 'ja-JP' || language === 'ja') {
     return cleaned;
   }
 

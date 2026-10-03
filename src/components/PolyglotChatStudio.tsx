@@ -78,8 +78,13 @@ export const PolyglotChatStudio: React.FC = () => {
   // Modo Sequencial (Trilogia EN -> IT -> JA)
   const [isPlayingSequence, setIsPlayingSequence] = useState(false);
   const [sequenceStep, setSequenceStep] = useState<string | null>(null);
+  const [sequenceMessageId, setSequenceMessageId] = useState<string | null>(null);
   const sequenceAbortRef = useRef<boolean>(false);
   const isMountedRef = useRef<boolean>(true);
+
+  // Controle estrito de concorrência e cancelamento de requisições pendentes
+  const activeSynthesisIdRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Estado de chunk avulso e flashcard
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
@@ -114,6 +119,9 @@ export const PolyglotChatStudio: React.FC = () => {
     return () => {
       isMountedRef.current = false;
       sequenceAbortRef.current = true;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []);
 
@@ -128,10 +136,16 @@ export const PolyglotChatStudio: React.FC = () => {
     return 'en-US';
   };
 
-  // Parar qualquer áudio em execução com limpeza de memória
+  // Parar qualquer áudio em execução com limpeza de memória e cancelamento de requisições em trânsito
   const stopCurrentAudio = useCallback(() => {
+    activeSynthesisIdRef.current++;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     if (activeAudioRef.current) {
       activeAudioRef.current.audio.pause();
+      activeAudioRef.current.audio.currentTime = 0;
       revokeAudioUrl(activeAudioRef.current.blobUrl);
       activeAudioRef.current = null;
     }
@@ -139,21 +153,11 @@ export const PolyglotChatStudio: React.FC = () => {
     setIsLoadingAudio(false);
     setPlayingBlockInfo(null);
     setPlayingAudioKey(null);
+    setCurrentTime(0);
+    setDuration(0);
   }, []);
 
-  // Seleção de card / idioma para uma mensagem
-  const handleSelectLanguage = (messageId: string, lang: 'en' | 'it' | 'ja') => {
-    setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
-    if (
-      activeAudioRef.current &&
-      activeAudioRef.current.messageId === messageId &&
-      activeAudioRef.current.lang !== lang
-    ) {
-      stopCurrentAudio();
-    }
-  };
-
-  // Reprodução ou Pausa do Áudio do Card Selecionado
+  // Reprodução ou Pausa do Áudio do Card Selecionado com Proteção Anti-Corrida
   const handleTogglePlay = async (messageId: string, lang: 'en' | 'it' | 'ja') => {
     if (
       activeAudioRef.current &&
@@ -170,9 +174,14 @@ export const PolyglotChatStudio: React.FC = () => {
       return;
     }
 
+    // Aborta qualquer áudio ou requisição em andamento para impedir sobreposição de vozes
     stopCurrentAudio();
     const targetMsg = messages.find((m) => m.id === messageId);
     if (!targetMsg || !targetMsg.fullText[lang]) return;
+
+    const currentSynthesisId = ++activeSynthesisIdRef.current;
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     setIsLoadingAudio(true);
     setPlayingBlockInfo({ messageId, lang });
@@ -188,6 +197,7 @@ export const PolyglotChatStudio: React.FC = () => {
           speed: playbackSpeed,
           emotion: 'natural',
         }),
+        signal: abortController.signal,
       });
 
       const data = await resp.json();
@@ -195,42 +205,97 @@ export const PolyglotChatStudio: React.FC = () => {
         throw new Error(data.error || 'Falha ao sintetizar áudio da voz neural.');
       }
 
-      const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
-
-      // Componente desmontado durante a síntese: não criar áudio órfão nem setState
-      if (!isMountedRef.current) {
-        revokeAudioUrl(blobUrl);
+      // Verificação estrita anti-corrida: descarta se outra ação foi disparada enquanto aguardava a API
+      if (
+        currentSynthesisId !== activeSynthesisIdRef.current ||
+        !isMountedRef.current
+      ) {
         return;
       }
+
+      const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
 
       const audio = new Audio(blobUrl);
       audio.playbackRate = playbackSpeed;
 
       audio.onloadedmetadata = () => {
-        setDuration(audio.duration || data.durationSec || 0);
+        if (currentSynthesisId === activeSynthesisIdRef.current) {
+          setDuration(audio.duration || data.durationSec || 0);
+        }
       };
 
       audio.ontimeupdate = () => {
-        setCurrentTime(audio.currentTime);
+        if (currentSynthesisId === activeSynthesisIdRef.current) {
+          setCurrentTime(audio.currentTime);
+        }
       };
 
       audio.onended = () => {
-        setIsPlayingAudio(false);
-        setCurrentTime(0);
+        if (currentSynthesisId === activeSynthesisIdRef.current) {
+          setIsPlayingAudio(false);
+          setCurrentTime(0);
+        }
       };
 
       audio.onerror = () => {
-        stopCurrentAudio();
+        if (currentSynthesisId === activeSynthesisIdRef.current) {
+          stopCurrentAudio();
+        }
       };
+
+      if (currentSynthesisId !== activeSynthesisIdRef.current) {
+        revokeAudioUrl(blobUrl);
+        return;
+      }
+
+      // Garante que nenhum outro áudio esteja tocando
+      if (activeAudioRef.current) {
+        activeAudioRef.current.audio.pause();
+        revokeAudioUrl(activeAudioRef.current.blobUrl);
+      }
 
       activeAudioRef.current = { audio, blobUrl, messageId, lang };
       await audio.play();
-      setIsPlayingAudio(true);
+      if (currentSynthesisId === activeSynthesisIdRef.current) {
+        setIsPlayingAudio(true);
+      }
     } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        // Requisição cancelada intencionalmente (troca rápida de idioma)
+        return;
+      }
       console.warn('Erro na síntese neural do card:', e);
-      stopCurrentAudio();
+      if (currentSynthesisId === activeSynthesisIdRef.current) {
+        stopCurrentAudio();
+      }
     } finally {
-      setIsLoadingAudio(false);
+      if (currentSynthesisId === activeSynthesisIdRef.current) {
+        setIsLoadingAudio(false);
+      }
+    }
+  };
+
+  // Seleção de card / idioma para uma mensagem (atualiza reprodutor e inicia reprodução)
+  const handleSelectLanguage = (messageId: string, lang: 'en' | 'it' | 'ja', autoPlay: boolean = true) => {
+    // Interrompe imediatamente qualquer trilogia sequencial em andamento
+    if (isPlayingSequence) {
+      sequenceAbortRef.current = true;
+      setIsPlayingSequence(false);
+      setSequenceStep(null);
+      setSequenceMessageId(null);
+    }
+
+    setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
+
+    if (autoPlay) {
+      // Dispara a reprodução do idioma selecionado
+      handleTogglePlay(messageId, lang);
+    } else if (
+      activeAudioRef.current &&
+      activeAudioRef.current.messageId === messageId &&
+      activeAudioRef.current.lang !== lang
+    ) {
+      stopCurrentAudio();
     }
   };
 
@@ -326,6 +391,7 @@ export const PolyglotChatStudio: React.FC = () => {
       sequenceAbortRef.current = true;
       setIsPlayingSequence(false);
       setSequenceStep(null);
+      setSequenceMessageId(null);
       stopCurrentAudio();
       return;
     }
@@ -335,6 +401,7 @@ export const PolyglotChatStudio: React.FC = () => {
 
     sequenceAbortRef.current = false;
     setIsPlayingSequence(true);
+    setSequenceMessageId(messageId);
 
     const languages: Array<'en' | 'it' | 'ja'> = ['en', 'it', 'ja'];
     const stepNames: Record<string, string> = {
@@ -362,6 +429,7 @@ export const PolyglotChatStudio: React.FC = () => {
       if (isMountedRef.current) {
         setIsPlayingSequence(false);
         setSequenceStep(null);
+        setSequenceMessageId(null);
       }
     }
   };
@@ -543,21 +611,21 @@ export const PolyglotChatStudio: React.FC = () => {
               playingAudioKey={playingAudioKey}
               generatingCardKey={generatingCardKey}
               selectedLanguage={selectedLang}
-              onSelectLanguage={(lang) => handleSelectLanguage(message.id, lang)}
+              onSelectLanguage={(lang) => handleSelectLanguage(message.id, lang, true)}
               isPlaying={isThisBlockPlaying}
               isLoading={isThisBlockLoading}
               onTogglePlay={(lang) => handleTogglePlay(message.id, lang)}
               onReplay={(lang) => handleReplay(message.id, lang)}
-              currentTime={currentTime}
-              duration={duration}
+              currentTime={isThisBlockPlaying || isThisBlockLoading ? currentTime : 0}
+              duration={isThisBlockPlaying || isThisBlockLoading ? duration : 0}
               onSeek={handleSeek}
               speed={playbackSpeed}
               onChangeSpeed={handleChangeSpeed}
               voiceByLang={voiceByLang}
               onChangeVoice={handleChangeVoice}
               onPlaySequence={() => handlePlaySequence(message.id)}
-              isPlayingSequence={isPlayingSequence}
-              sequenceStep={sequenceStep}
+              isPlayingSequence={isPlayingSequence && sequenceMessageId === message.id}
+              sequenceStep={sequenceMessageId === message.id ? sequenceStep : null}
             />
           );
         })}
