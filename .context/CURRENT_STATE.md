@@ -1,8 +1,9 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Implementação e Validação do Cache Local de Áudio (IndexedDB + L1 RAM).
-- **Status da Branch**: `main` (código testado e compilado com 100% de conformidade).
+- **Fase**: Deploy em Produção da Revisão `mytts-00012-jqk` Concluído com Sucesso.
+- **Status da Branch**: `main` (commit `f001d03` sincronizado com `origin/main`).
+- **Revisão Ativa Cloud Run**: `mytts-00012-jqk` (100% do tráfego).
 - **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
 
 ## Decisões Tomadas
@@ -23,7 +24,9 @@
    - **Geração Determinística de Chaves**: Normalização estrita de espaços, Unicode NFC, velocidade e tags prosódicas.
    - **Feedback Visual na UI**: Badges `⚡ 0ms` nos cards de idioma e botão dinâmico `⚡ Neural (0ms)` no `FastChunkAudioApp`, `LanguageColumnCard` e `FloatingCardAudioController`.
 
-## Testes Reais em Produção e Testes Unitários
+## Testes Reais em Produção (Smoke Tests Comprovados)
+- `GET /api/health`: Status `online`, Uptime ativo, modelos `gemini-3.1-flash-tts-preview` e `gemini-3.8-flash`.
+- `POST /api/synthesize-chunk` (Inglês `en-US`): Status `True`, áudio WAV canônico sintetizado com sucesso.
 - `test-audio-engine.ts`: 7 baterias de testes com 100% de conformidade (Soundscapes, Auto-Ducking, Voice Boost, WAV RIFF 44B, Prosódia PT-BR, CSV Anki e Cache Local IndexedDB/L1).
 - `tsc --noEmit`: 0 erros de tipagem estrita no TypeScript.
 - `vite build`: Compilação de produção aprovada em 300ms.
@@ -34,4 +37,4 @@
   - `[MÉDIO]`: Integração streaming bidirecional via WebSocket (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Deploy da nova revisão no Cloud Run ou teste funcional do cache no navegador.
+- Testar interativamente no navegador a eliminação de latência na repetição de frases: `https://mytts-1044179901556.us-central1.run.app`.

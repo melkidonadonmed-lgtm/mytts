@@ -1,7 +1,7 @@
 # Checkpoint da Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-03T16:05:00Z (Horário UTC)
+- **Data/Hora**: 2026-10-03T16:20:00Z (Horário UTC)
 
 ## Arquivos Tocados
 - `src/utils/audioCache.ts`: Criação do motor universal de cache local (L1 Memória + L2 IndexedDB) com política LRU, geração determinística de chaves, Cache-Aside (`synthesizeWithCache`), checagem em lote (`getCachedKeySet`) e fallback transparente.
@@ -30,6 +30,15 @@
 3. `npm run build` (`vite build`):
    - Código de saída: `0`.
    - Bundle de produção compilado em 300ms.
+4. `git push origin main`:
+   - Código de saída: `0`.
+   - Branch sincronizada com GitHub no commit `f001d03`.
+5. `gcloud run deploy mytts --source . --region us-central1 --allow-unauthenticated --project agent-md-506215`:
+   - Código de saída: `0`.
+   - Revisão `mytts-00012-jqk` criada e servindo 100% do tráfego.
+6. Smoke Tests Reais em Produção (`https://mytts-1044179901556.us-central1.run.app`):
+   - `GET /api/health`: HTTP 200, status `online`, modelos ativos.
+   - `POST /api/synthesize-chunk`: HTTP 200, `success: true`, payload de áudio válido.
 
 ## Próxima Ação Recomendada
-- Realizar deploy da nova revisão no Google Cloud Run ou validar interativamente no navegador a eliminação de latência na repetição de frases.
+- Validar no navegador com recarregamento da página (`Ctrl + F5`): `https://mytts-1044179901556.us-central1.run.app`.
