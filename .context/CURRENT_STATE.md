@@ -1,43 +1,29 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Deploy em Produção no Google Cloud Run e Sincronização do Repositório GitHub Concluídos com Sucesso.
+- **Fase**: Deploy em Produção da Revisão do Controlador de Áudio Flutuante e Design Mate Concluído com Sucesso.
 - **Status da Branch**: `main` (100% sincronizado com `origin/main`).
-- **Revisão Ativa Cloud Run**: `mytts-00005-mjz` (100% do tráfego).
+- **Revisão Ativa Cloud Run**: `mytts-00007-x9v` (100% do tráfego).
 - **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
 
 ## Decisões Tomadas
-1. **Central de Ingestão Unificada (`src/components/StudioWorkspace.tsx` e `StudioTextEditor.tsx`)**:
-   - Ponto de entrada único para colar texto, arrastar e subir arquivos (PDF, TXT, MD) ou ditar por microfone com IA.
-   - Alternância em 1 toque entre `[🎙️ Apenas Ler (Solo)]` e `[👥 Transformar em Conversa (2 Vozes)]`, com persistência 100% íntegra do texto durante a troca.
-2. **Grade Tátil de Vozes Neurais (`src/components/VoiceCardGrid.tsx`)**:
-   - Cards visuais para as 5 vozes (Kore, Puck, Aoede, Fenrir, Enceladus) com avatar, arquétipo, gênero e prévia rápida de 3 segundos embutida no card.
-   - Acessibilidade completa por teclado (`tabIndex={0}`, `role="radio"`, `focus-visible`).
-   - Gerenciamento atômico de memória revogando Blob URLs anteriores via `URL.revokeObjectURL(url)`.
-3. **Motor de Calibração e Auto-Prosódia Acústica (`src/utils/prosodyEngine.ts` e `server.ts`)**:
-   - `getEmotionStyle`: Inclusão obrigatória de `Speak strictly in natural Brazilian Portuguese (pt-BR)` e mapeamento de velocidade (`speedAdj`).
-   - 4 Presets Práticos em Português: `Natural & Fluido`, `Narrativo & Envolvente`, `Técnico & Notícia`, `Espontâneo & Conversa`.
-   - `applyAcousticProsody`: Elimina injeção literal de tags perigosas (como `[deep breath]`, `[pause]`) que corriam risco de serem pronunciadas em voz alta pela IA, substituindo por micro-pontuação acústica orgânica (`...`, `—`, quebras duplas).
-4. **Resiliência e Fallback Suave**:
-   - Preservação estrita do container WAV RIFF canônico de 44 bytes.
-   - Fallback de contingência opcional para a Web Speech API do navegador caso a API do Gemini apresente oscilação de rede ou quota.
-5. **Otimização de Build & Containerização**:
-   - Adicionado `.gcloudignore` prevenindo uploads desnecessários de `node_modules` e pastas locais para o Cloud Build.
-   - Container multi-stage com Node 22 e FFmpeg compilado e servido no Cloud Run.
-6. **Validação em Produção**:
-   - Resposta HTTP 200 servindo os assets Vite atualizados (`index-CeB3QRxI.js` e `index-C_JvaTrL.css`).
-   - Endpoint `/api/preview-voice` validado ao vivo gerando áudio WAV RIFF de 44 bytes canônico.
-
-7. **Consolidação da Pasta Canônica de Design (`design/`)**:
-   - Criação da pasta `design/` contendo `design/design.md` (especificação atualizada com StudioWorkspace, VoiceCardGrid, Auto-Prosody e master multitrack) e `design/README.md`.
-   - Remoção do arquivo redundante `designe.md` da raiz e atualização dos links do `README.md`.
-
-8. **Estúdio Poliglota Multimodal em Chat (`src/components/PolyglotChatStudio.tsx`)**:
-   - Dock inferior multimodal estilo Agent (`AgentInputDock.tsx`): suporte a texto, anexos (PDF, TXT, MD), microfone com transcrição Gemini 3.8 e botão Live.
-   - Canvas multi-pane em 3 colunas paralelas (`ParallelMessageBlock.tsx` e `LanguageColumnCard.tsx`) para 🇺🇸 Inglês, 🇮🇹 Italiano e 🇯🇵 Japonês com hover sync reativo de chunks alinhados.
-   - Menu flutuante tátil (`ChunkActionMenu.tsx`) para ouvir frase, gerar flashcard com IA e copiar.
-   - Gaveta lateral de flashcards (`FlashcardDeckDrawer.tsx`) com exportador CSV sanitizado para Anki/Notion (`csvExporter.ts`).
-   - Novos endpoints no backend (`server.ts`): `/api/translate-parallel-chunks` e `/api/generate-flashcard` via Gemini 3.8 Flash com schema estruturado e calibração fonética estrita para IT e JA.
+1. **Controlador de Áudio Flutuante Tátil (`src/components/FloatingCardAudioController.tsx`)**:
+   - Posicionado logo abaixo dos 3 cards de cada mensagem, eliminando rodapés redundantes de cada coluna que geravam poluição visual extrema.
+   - Apresenta pills táteis para focar os idiomas (`[🇺🇸 EN] [🇮🇹 IT] [🇯🇵 JA]`), botão Play/Pause grande tátil (44px) mate que reproduz **apenas** o card selecionado (corrigindo o problema de disparar todos os áudios), scrubber de progresso suave com seekbar, seletor de velocidade (`0.8x`, `1.0x`, `1.25x`), botão de Replay e seletor rápido de voz neural.
+   - Modo "Trilogia Sequencial (EN → IT → JA)" disponibilizado como ação explícita e opcional, sem disparos acidentais.
+2. **Despoluição e Foco Tátil dos Cards de Idioma (`src/components/LanguageColumnCard.tsx`)**:
+   - Cartões com acabamento fosco profundo (`card-matte`), cabeçalho minimalista, badge de foco ativo e preservação do hover sync alinhado de chunks.
+   - Remoção de botões duplicados e menus em excesso nos cards.
+3. **Conjunto Oficial de Ícones do Google & Google Fonts**:
+   - Integração de **Material Symbols Rounded** via CDN no `index.html` e componente tipado reutilizável `src/components/GoogleIcon.tsx`.
+   - Adição das fontes Google **Outfit** (títulos e botões táteis), **Inter** / **Plus Jakarta Sans** (corpo de texto de alta densidade) e **JetBrains Mono** (métricas).
+4. **Design System Mate & Tátil (`src/index.css`)**:
+   - Implementação de classes táteis foscas (`btn-matte`, `btn-matte-amber`, `btn-matte-dark`, `dock-matte`, `card-matte`, `slider-matte`), acabamento fosco aveludado sem reflexos de plástico, e micro-feedback tátil (`:active:translate-y-[1px]`).
+5. **Atualização da Suíte de Testes (`test-audio-engine.ts`)**:
+   - Adicionado grupo [7/7] comprovando empiricamente o isolamento estrito de card/idioma, mapeamento canônico de vozes e locales (`en-US`/Puck, `it-IT`/Kore, `ja-JP`/Aoede).
+6. **Validação e Deploy em Produção**:
+   - Revisão `mytts-00007-x9v` servindo 100% do tráfego no Google Cloud Run.
+   - Live smoke test comprovado: HTTP 200 no `/api/health` e `/` com `Material+Symbols+Rounded` e `Outfit` ativos.
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
@@ -45,6 +31,4 @@
   - `[MÉDIO]`: Adicionar WebSockets para conversação bidirecional streaming ao vivo (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Deploy da nova revisão no Google Cloud Run e teste em ambiente real de produção.
-
-
+- Acompanhar utilização em produção e feedbacks dos usuários sobre o novo controlador flutuante.
