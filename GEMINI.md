@@ -53,7 +53,7 @@ gcloud run deploy mytts `
 - `src/utils/proceduralSoundtracks.ts`: Gerador de soundscapes musicais procedurais via `OfflineAudioContext` (4 presets: Lo-Fi Study com calor analógico, Foco Profundo 432Hz com batimentos Theta, Tensão Cinemática com sub-bass pulsante e Tecnologia Minimalista) sem necessidade de download externo.
 - `src/utils/audio.ts`: Utilitários para conversão segura de áudio base64 em Blob URLs e revogação de memória.
 - `src/components/BottomAudioDock.tsx`: Barra de controle ergonômica tátil (Thumb Zone) com scrubber de progresso, seletor de velocidade, controle de play/pause, gaveta de abas (*Voz & Prosódia* e *Trilha Sonora & Auto-Ducking*) e botão de exportação master.
-- `src/components/QuickReader.tsx`: Interface de leitura rápida estilo Speechify com tags prosódicas injetáveis, estimativa de tempo e download de WAV.
+- `src/components/StudioWorkspace.tsx`: Central de criação unificada (Solo 1 voz vs Conversa 2 vozes) com ingestão de texto/arquivo/ditado, grade tática de vozes e calibração prosódica pt-BR.
 - `src/components/ScriptViewer.tsx` & `DebateConfigPanel.tsx`: Visualização e geração do roteiro dramatúrgico de debates dialéticos com cards alternados e avatares.
 - `src/components/FastChunkAudioApp.tsx`: Treinamento de frases coloquiais de idiomas com repetição espaçada e síntese neural.
 - `src/components/LiveVoiceMic.tsx`: Gravação de microfone com transcrição inteligente via Gemini 3.8.

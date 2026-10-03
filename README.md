@@ -24,10 +24,9 @@ Estúdio de voz neural de altíssima fidelidade e usabilidade imediata baseado n
 5. **FastChunks (Treino de Idiomas)**:
    - Blocos lexicais da vida real (inglês, italiano, japonês) com guia fonético e repetição espaçada (*Shadowing loop*).
    - Síntese neural Gemini IA com cache em memória e fallback local.
-6. **Chat Poliglota Multimodal (Multi-Pane)**:
-   - Tradução simultânea em 3 colunas paralelas (🇺🇸 Inglês, 🇮🇹 Italiano, 🇯🇵 Japonês) com alinhamento fonético e hover sync interativo.
-   - Controlador de áudio flutuante tátil isolado por card de idioma com seekbar, velocidades (0.8x a 1.25x) e modo sequencial.
-   - Deck de Flashcards integrado com exportador CSV sanitizado para Anki e Notion (UTF-8 BOM).
+6. **Chat Poliglota Multimodal (EN / IT / JA)**:
+   - Conversas paralelas em 3 idiomas com tradução alinhada de chunks e flashcards exportáveis (Anki/Notion via CSV).
+   - Controlador de áudio flutuante com reprodução isolada por idioma e modo Trilogia Sequencial (EN → IT → JA).
 
 ---
 
@@ -35,32 +34,29 @@ Estúdio de voz neural de altíssima fidelidade e usabilidade imediata baseado n
 
 ```mermaid
 graph TD
-    Client[Frontend React 19 + Tailwind v4] -->|POST /api/synthesize-speech| Server[Express Server / Cloud Run]
+    Client[Frontend React 19 + Tailwind] -->|POST /api/synthesize-speech| Server[Express Server / Cloud Run]
     Client -->|POST /api/transcribe-audio| Server
     Client -->|POST /api/generate-script| Server
-    Client -->|POST /api/translate-parallel-chunks| Server
-    Client -->|POST /api/generate-flashcard| Server
-    Client -->|POST /api/mix-audio| Server
+    Client -->|POST /api/synthesize-chunk| Server
     
     Server -->|Director's Chair + Audio Tags| GeminiTTS[Gemini 3.1 Flash TTS Preview]
-    Server -->|Multimodal LLM & Structured Schema| GeminiFlash[Gemini 3.8 Flash]
-    Server -->|Broadcast Mixing| FFmpeg[FFmpeg Sidechain Compressor]
+    Server -->|Multimodal LLM| GeminiFlash[Gemini 3.8 Flash]
     Server -->|Persistência Chunks| Firestore[Google Cloud Firestore]
     
     GeminiTTS -->|WAV 24kHz Base64| Server
-    Server -->|WAV RIFF 44 Bytes Canônico| Client
+    Server -->|Audio Buffer| Client
 ```
 
 ---
 
 ## 🛠️ Tecnologias
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Motion, Google Material Symbols Rounded, Lucide Icons, Plus Jakarta Sans, Outfit, Inter & JetBrains Mono.
-- **Backend**: Node.js 22, Express, FFmpeg 9.x, `@google/genai` SDK v2.4+, `@google-cloud/firestore`.
+- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Motion, Lucide Icons & Material Symbols, Outfit (display), Inter / Plus Jakarta Sans (corpo) & JetBrains Mono (métricas).
+- **Backend**: Node.js 22, Express, `@google/genai` SDK v2.4+, `@google-cloud/firestore`, `helmet` + `express-rate-limit`.
 - **Infraestrutura**: Google Cloud Run (Container multi-stage Linux), Google Cloud Build, GitHub Actions.
 - **Modelos de IA**:
   - `gemini-3.1-flash-tts-preview`: Síntese neural de voz com Director's Chair.
-  - `gemini-3.8-flash`: Roteirização, extração de PDFs, tradução de chunks paralelos e transcrição de áudio.
+  - `gemini-3.8-flash`: Roteirização, extração de PDFs e transcrição de áudio.
   - `gemini-3.1-flash-live-preview`: Conversação em tempo real (Fase 2).
 
 ---
@@ -105,5 +101,7 @@ gcloud run deploy mytts `
 
 ## 📄 Documentação Adicional
 
+- [CONTEXT.md](./CONTEXT.md): Regras de negócio, fronteiras do MVP e restrições de segurança inegociáveis.
+- [GEMINI.md](./GEMINI.md): Especificação técnica central e diretrizes de engenharia de áudio.
 - [design/design.md](./design/design.md): Especificação arquitetural, fluxos de navegabilidade e design system.
 

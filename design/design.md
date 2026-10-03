@@ -25,6 +25,7 @@ graph TD
     A --> E["4. FastChunks (Treino de Idiomas)"]
     A --> F["5. Biblioteca de Vozes (Voice Library)"]
     A --> G["6. Arquitetura & Governança"]
+    A --> P["Chat Poliglota Multimodal (EN / IT / JA)"]
     
     B --> B1["Editor Focado (Colar / Upload PDF / MD / TXT)"]
     B --> B2["Alternância Ágil: Solo (1 Voz) vs Conversa (2 Vozes)"]
@@ -107,7 +108,7 @@ sequenceDiagram
 - **Superfície Secundária (`Card / Canvas`)**: `slate-900` (`#0f172a`) com bordas em `slate-800/80` (`#1e293b`).
 - **Acento Primário (`Primary Accent`)**: `amber-400` / `amber-500` (dourado estúdio) para ações de destaque (Play, Gerar, Ler Agora).
 - **Acento Secundário (`Voz & Sucesso`)**: `emerald-400` / `emerald-500` para status online, reprodução e confirmações.
-- **Tipografia**: `Plus Jakarta Sans` para textos corridos, títulos e botões; `JetBrains Mono` para durações, velocidades e indicadores técnicos.
+- **Tipografia**: `Outfit` para títulos e botões táteis (utility `font-display` registrada no `@theme` do Tailwind v4); `Inter` / `Plus Jakarta Sans` para textos corridos e alta densidade; `JetBrains Mono` para durações, velocidades e indicadores técnicos.
 
 ### 5.2. Padrões de Microinteração e Acessibilidade
 - **Área Tátil (Touch Targets)**: Altura e largura mínimas de 44px a 56px para botões primários no dock inferior e cards de ação rápida.
@@ -128,4 +129,11 @@ sequenceDiagram
 * `POST /api/mix-audio` — Mixagem broadcast no servidor via FFmpeg com compressor sidechain nativo.
 * `POST /api/synthesize-chunk` — Síntese de bloco coloquial de idioma para o FastChunks.
 * `GET /api/chunks` — Recuperação de chunks do Firestore.
-* `GET /api/health` — Monitoramento de integridade e versões de modelo.
+* `GET /api/health` — Monitoramento de integridade com probe real (chave Gemini configurada, modo de storage, uptime).
+* `POST /api/generate-chunks` — Geração de chunks coloquiais via Gemini com persistência (count clampado a 1–20).
+* `POST /api/chunks` — Criação manual de chunk personalizado.
+* `DELETE /api/chunks/:id` — Remoção de chunk do usuário.
+* `POST /api/translate-parallel-chunks` — Tradução paralela e alinhamento de chunks EN/IT/JA (Chat Poliglota).
+* `POST /api/generate-flashcard` — Geração de flashcard para exportação Anki/Notion.
+
+> **Salvaguardas de segurança ativas**: rate limiting (300 req/15min geral, 120 req/15min em endpoints de IA), payloads de 2 MB por padrão (25 MB em `/api/transcribe-audio`, 50 MB em `/api/mix-audio`), truncamento de textos para síntese (20k caracteres), sanitização do header `X-User-Id`, headers Helmet e 404 JSON estruturado para rotas de API desconhecidas.
