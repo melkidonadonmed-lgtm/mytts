@@ -2,7 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar, AppTab } from './components/Sidebar';
 import { QuickReader } from './components/QuickReader';
 import { StudioWorkspace } from './components/StudioWorkspace';
+import { PolyglotChatStudio } from './components/PolyglotChatStudio';
 import { LiveVoiceMic } from './components/LiveVoiceMic';
+
 import { VoiceLibrary } from './components/VoiceLibraryModal';
 import { FastChunkAudioApp } from './components/FastChunkAudioApp';
 import { DocumentInputSection } from './components/DocumentInputSection';
@@ -335,7 +337,13 @@ export default function App() {
             />
           )}
 
+          {/* Módulo: Chat Poliglota Multimodal (EN, IT, JA) */}
+          {activeTab === 'polyglot' && (
+            <PolyglotChatStudio />
+          )}
+
           {/* Módulo 2: Ditado & Microfone ao Vivo */}
+
           {activeTab === 'mic' && (
             <LiveVoiceMic
               selectedVoice={selectedVoice}

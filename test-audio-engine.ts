@@ -133,6 +133,48 @@ assert.ok(cleanEdgeCase.includes('console.log("ok");'), 'Trechos de código deve
 
 console.log('  ✓ Casos de borda (emojis, moeda, URLs e código) validados com sucesso.');
 
-console.log('\n🎉 Todos os testes de Engenharia de Áudio e Prosódia passaram com 100% de conformidade!');
+// 6. Validar Exportador CSV de Flashcards para Anki & Notion
+console.log('\n[6/6] Validando Exportador CSV de Flashcards (Anki & Notion UTF-8):');
+import { formatFlashcardsToCsv } from './src/utils/csvExporter';
+import { FlashcardItem } from './src/types/polyglot';
+
+const sampleCards: FlashcardItem[] = [
+  {
+    id: 'c1',
+    chunkText: 'Devo davvero imparare',
+    language: 'it-IT',
+    front: 'Devo davvero imparare',
+    back: 'Eu realmente preciso aprender',
+    nuance: 'Uso coloquial com "davvero" indicando ênfase.',
+    pronunciation: 'de-vo da-vé-ro im-pa-rá-re',
+    example: 'Devo davvero imparare l\'italiano.',
+    exampleTranslation: 'Eu realmente preciso aprender italiano.',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'c2',
+    chunkText: 'なるほどね',
+    language: 'ja-JP',
+    front: 'なるほどね (Naruhodo ne)',
+    back: 'Ah, entendi / faz sentido total',
+    nuance: 'Aizuchi de escuta ativa.',
+    pronunciation: 'na-ru-ho-do-ne',
+    example: 'なるほどね、そうだったんだ。',
+    exampleTranslation: 'Entendi, era isso então.',
+    createdAt: Date.now(),
+  },
+];
+
+const csvOutput = formatFlashcardsToCsv(sampleCards);
+assert.ok(csvOutput.startsWith('\uFEFF'), 'CSV deve iniciar com UTF-8 BOM para suporte a caracteres japoneses e acentos.');
+assert.ok(csvOutput.includes('Frente (Original);Verso (Tradução)'), 'Delimitador padrão do cabeçalho deve ser ponto e vírgula (;).');
+assert.ok(csvOutput.includes('"Devo davvero imparare"'), 'Campos de texto devem ser sanitizados entre aspas.');
+assert.ok(csvOutput.includes('なるほどね (Naruhodo ne)'), 'Caracteres japoneses e romaji devem ser preservados sem corrupção.');
+assert.ok(csvOutput.includes('Uso coloquial com ""davvero""'), 'Aspas internas no texto devem ser escapadas com aspas duplas ("").');
+
+console.log('  ✓ Exportador CSV validado: UTF-8 BOM, delimitador Anki (;), escape e caracteres japoneses conformes.');
+
+console.log('\n🎉 Todos os testes de Engenharia de Áudio, Prosódia e Estúdio Poliglota passaram com 100% de conformidade!');
+
 
 

@@ -11,11 +11,13 @@ import {
   Github,
   ChevronRight,
   Menu,
-  X
+  X,
+  Globe
 } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 
-export type AppTab = 'reader' | 'mic' | 'debate' | 'fastchunks' | 'voices' | 'architecture';
+export type AppTab = 'reader' | 'polyglot' | 'mic' | 'debate' | 'fastchunks' | 'voices' | 'architecture';
+
 
 interface SidebarProps {
   activeTab: AppTab;
@@ -43,6 +45,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Headphones,
       description: 'Leitura Solo & Debate 2 Vozes',
     },
+    {
+      id: 'polyglot' as AppTab,
+      label: 'Chat Poliglota',
+      badge: '3 Línguas',
+      badgeColor: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/25',
+      icon: Globe,
+      description: 'EN, IT & JA com Chunks e Hover Sync',
+    },
+
     {
       id: 'mic' as AppTab,
       label: 'Microfone & Ditado',

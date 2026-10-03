@@ -32,6 +32,12 @@
    - Criação da pasta `design/` contendo `design/design.md` (especificação atualizada com StudioWorkspace, VoiceCardGrid, Auto-Prosody e master multitrack) e `design/README.md`.
    - Remoção do arquivo redundante `designe.md` da raiz e atualização dos links do `README.md`.
 
+8. **Estúdio Poliglota Multimodal em Chat (`src/components/PolyglotChatStudio.tsx`)**:
+   - Dock inferior multimodal estilo Agent (`AgentInputDock.tsx`): suporte a texto, anexos (PDF, TXT, MD), microfone com transcrição Gemini 3.8 e botão Live.
+   - Canvas multi-pane em 3 colunas paralelas (`ParallelMessageBlock.tsx` e `LanguageColumnCard.tsx`) para 🇺🇸 Inglês, 🇮🇹 Italiano e 🇯🇵 Japonês com hover sync reativo de chunks alinhados.
+   - Menu flutuante tátil (`ChunkActionMenu.tsx`) para ouvir frase, gerar flashcard com IA e copiar.
+   - Gaveta lateral de flashcards (`FlashcardDeckDrawer.tsx`) com exportador CSV sanitizado para Anki/Notion (`csvExporter.ts`).
+   - Novos endpoints no backend (`server.ts`): `/api/translate-parallel-chunks` e `/api/generate-flashcard` via Gemini 3.8 Flash com schema estruturado e calibração fonética estrita para IT e JA.
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
@@ -39,5 +45,6 @@
   - `[MÉDIO]`: Adicionar WebSockets para conversação bidirecional streaming ao vivo (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Monitoramento de uso das novas funcionalidades em produção e planejamento do streaming bidirecional de baixa latência.
+- Deploy da nova revisão no Google Cloud Run e teste em ambiente real de produção.
+
 

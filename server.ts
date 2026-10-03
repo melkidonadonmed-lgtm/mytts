@@ -708,8 +708,17 @@ app.post('/api/synthesize-chunk', async (req, res) => {
     const selectedVoice = voiceId || defaultVoices[language] || 'Puck';
     const cleanText = text.replace(/\(.*?\)/g, '').trim();
 
-    const directorPrompt = `Read this conversational chunk in ${language} with maximum native fluency, authentic colloquial emotion, and natural breathing:
+    let phoneticDirection = 'Speak with natural American English conversational flow, natural breathing, and smooth pauses.';
+    if (language === 'it-IT' || language === 'it') {
+      phoneticDirection = 'Speak strictly in authentic, natural Italian with native Italian accent and cadence, lively tempo, open/closed vowels and natural double consonant rhythm. Avoid any English accent.';
+    } else if (language === 'ja-JP' || language === 'ja') {
+      phoneticDirection = 'Speak strictly in natural, native Japanese with standard Tokyo pitch-accent, authentic mora timing, and native inflection. Avoid any English or foreign accent.';
+    }
+
+    const directorPrompt = `Performance Direction: ${phoneticDirection}
+Read this conversational text in ${language} with maximum native fluency, authentic colloquial emotion, and natural breathing:
 "${cleanText}"`;
+
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.1-flash-tts-preview',
@@ -1044,6 +1053,174 @@ app.delete('/api/chunks/:id', async (req, res) => {
     console.error('Error in DELETE /api/chunks/:id:', error);
     return res.status(500).json({
       error: error?.message || 'Falha ao excluir chunk.',
+    });
+  }
+});
+
+// ==========================================
+// Estúdio Poliglota: Chunks Paralelos & Flashcards
+// ==========================================
+
+// 1. Tradução Paralela e Alinhamento de Chunks (EN, IT, JA) via Gemini 3.8 Flash
+app.post('/api/translate-parallel-chunks', async (req, res) => {
+  try {
+    const { text, sourceLanguage = 'auto' } = req.body;
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ error: 'Texto de entrada é obrigatório.' });
+    }
+
+    const systemPrompt = `Você é um linguista computacional poliglota de altíssimo nível especializado em Inglês (EN), Italiano (IT) e Japonês (JA).
+Sua missão: receber um texto de entrada em qualquer idioma e convertê-lo em uma estrutura alinhada de frases/chunks semânticos paralelos nas 3 línguas para estudo comparativo interativo em tempo real.
+
+Regras Invioláveis:
+1. Segmentação de Chunks: Divida o texto em partes coerentes com sentido completo (chunks entre 3 a 15 palavras).
+2. Para CADA chunk:
+   - "id": número sequencial inteiro começando em 0.
+   - "en": versão em inglês coloquial natural e moderno (American/Global English).
+   - "it": versão em italiano coloquial cotidiano e espontâneo (autêntico da Itália).
+   - "ja": versão em japonês nativo padrão com kanji e kana naturais.
+   - "jaPronunciation": romanização correspondente (Romaji) com espaçamento limpo entre palavras para facilitar a leitura fonética.
+3. No campo "fullText": Forneça o texto completo e contínuo montado para cada um dos 3 idiomas ("en", "it", "ja").
+4. Mantenha correspondência semântica exata entre os chunks com o mesmo id, para que o usuário possa passar o mouse em um idioma e ver exatamente o mesmo trecho correspondente nos outros dois.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `Texto de entrada para tradução paralela e alinhamento de chunks:\n"${text.trim()}"\n\nIdioma de origem detectado/declarado: ${sourceLanguage}`,
+            },
+          ],
+        },
+      ],
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.4,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            chunks: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.INTEGER },
+                  en: { type: Type.STRING },
+                  it: { type: Type.STRING },
+                  ja: { type: Type.STRING },
+                  jaPronunciation: { type: Type.STRING },
+                },
+                required: ['id', 'en', 'it', 'ja'],
+              },
+            },
+            fullText: {
+              type: Type.OBJECT,
+              properties: {
+                en: { type: Type.STRING },
+                it: { type: Type.STRING },
+                ja: { type: Type.STRING },
+              },
+              required: ['en', 'it', 'ja'],
+            },
+          },
+          required: ['chunks', 'fullText'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    if (!parsed.chunks || !parsed.fullText) {
+      throw new Error('Formato inválido retornado pelo modelo Gemini.');
+    }
+
+    return res.json({
+      success: true,
+      chunks: parsed.chunks,
+      fullText: parsed.fullText,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/translate-parallel-chunks:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha ao processar tradução paralela dos chunks.',
+    });
+  }
+});
+
+// 2. Geração de Flashcard com Nuance e Dicionário (Gemini 3.8 Flash)
+app.post('/api/generate-flashcard', async (req, res) => {
+  try {
+    const { chunkText, language, contextSentence } = req.body;
+    if (!chunkText || typeof chunkText !== 'string') {
+      return res.status(400).json({ error: 'Texto da expressão (chunk) é obrigatório.' });
+    }
+
+    const systemPrompt = `Você é um professor poliglota e especialista na metodologia Anki de repetição espaçada.
+A partir de uma frase ou chunk em ${language} extraído de um contexto de conversa real, elabore um Flashcard pedagógico de altíssima fidelidade com explicações claras em Português do Brasil (pt-BR).
+
+Regras de Estrutura:
+1. "front": O chunk original exatamente como selecionado pelo estudante.
+2. "back": Tradução precisa e natural em português do Brasil (pt-BR).
+3. "nuance": Explicação concisa (1 a 2 frases) sobre tom, formalidade, contexto social ou nuances culturais de uso.
+4. "pronunciation": Guia fonético simplificado aproximado em português (ex: "de-vo da-vé-ro", "na-ru-ho-do-ne").
+5. "example": Frase curta de exemplo da vida real utilizando a expressão.
+6. "exampleTranslation": Tradução da frase de exemplo para português do Brasil.`;
+
+    const userPrompt = `Chunk selecionado: "${chunkText}"
+Idioma: ${language}
+Contexto da conversa: "${contextSentence || chunkText}"`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: userPrompt }],
+        },
+      ],
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.5,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            front: { type: Type.STRING },
+            back: { type: Type.STRING },
+            nuance: { type: Type.STRING },
+            pronunciation: { type: Type.STRING },
+            example: { type: Type.STRING },
+            exampleTranslation: { type: Type.STRING },
+          },
+          required: ['front', 'back', 'nuance', 'pronunciation', 'example', 'exampleTranslation'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    const cardId = `card_${Date.now()}_${randomUUID().slice(0, 6)}`;
+
+    return res.json({
+      success: true,
+      card: {
+        id: cardId,
+        chunkText,
+        language: language || 'en',
+        front: parsed.front || chunkText,
+        back: parsed.back || '',
+        nuance: parsed.nuance || '',
+        pronunciation: parsed.pronunciation || '',
+        example: parsed.example || '',
+        exampleTranslation: parsed.exampleTranslation || '',
+        createdAt: Date.now(),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error in /api/generate-flashcard:', error);
+    return res.status(500).json({
+      error: error?.message || 'Falha ao gerar flashcard com Gemini.',
     });
   }
 });
