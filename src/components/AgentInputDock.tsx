@@ -18,6 +18,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -29,7 +30,18 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     const textToSend = inputText.trim();
     setInputText('');
     setAttachedFileName(null);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     await onSendMessage(textToSend);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+    }
   };
 
   // Tecla Enter para envio (Shift+Enter para quebra de linha)
@@ -229,21 +241,37 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
           )}
 
           {/* Área de Texto Autoexpansível */}
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Digite, cole um texto ou fale pelo microfone para alinhar em 3 idiomas..."
-            rows={1}
-            disabled={isLoading}
-            className="flex-1 bg-transparent border-0 text-slate-100 placeholder-slate-500 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-32 min-h-[38px] leading-relaxed"
-          />
+          <div className="flex-1 flex items-center gap-1.5 min-w-0">
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Digite, cole um texto ou fale pelo microfone para alinhar em 3 idiomas..."
+              rows={1}
+              disabled={isLoading}
+              className="w-full bg-transparent border-0 text-slate-100 placeholder-slate-500 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-40 min-h-[38px] leading-relaxed"
+            />
+            {inputText && (
+              <button
+                type="button"
+                onClick={() => {
+                  setInputText('');
+                  if (textareaRef.current) textareaRef.current.style.height = 'auto';
+                }}
+                className="text-slate-500 hover:text-slate-300 p-1 rounded-lg text-xs shrink-0 cursor-pointer transition-colors"
+                title="Limpar texto digitado"
+              >
+                <GoogleIcon name="close" size={16} />
+              </button>
+            )}
+          </div>
 
           {/* Botão Enviar / Traduzir */}
           <button
             type="submit"
             disabled={!inputText.trim() || isLoading}
-            className="btn-matte btn-matte-amber h-10 px-4 rounded-xl text-xs font-bold text-slate-950 shrink-0 disabled:opacity-40"
+            className="btn-matte btn-matte-amber h-10 px-4 rounded-xl text-xs font-bold text-slate-950 shrink-0 disabled:opacity-40 transition-all cursor-pointer"
           >
             {isLoading ? (
               <>
@@ -258,6 +286,16 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             )}
           </button>
         </form>
+
+        {/* Rodapé Sutil de Atalho */}
+        <div className="flex items-center justify-between px-2 text-[10px] font-mono text-slate-500">
+          <span className="hidden sm:inline">Pressione Enter para traduzir ou Shift + Enter para quebra de linha</span>
+          {inputText && (
+            <span className="text-slate-400">
+              {inputText.trim().split(/\s+/).filter(Boolean).length} palavras · {inputText.length} caracteres
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

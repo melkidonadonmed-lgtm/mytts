@@ -276,7 +276,72 @@ assert.strictEqual(existsAfterClear, false, 'Chave não deve mais existir após 
 
 console.log('  ✓ Operações CRUD, Hit Count, verificação de existência e limpeza validadas.');
 
-console.log('\n🎉 Todos os testes de Engenharia de Áudio, Prosódia, Estúdio Poliglota e Cache Local passaram com 100% de conformidade!');
+// 8. Validar Exportador de Fast Chunks da Interação (interactionExporter)
+console.log('\n[8/8] Validando Exportador de Fast Chunks da Interação:');
+const {
+  generateInteractionAnkiCsv,
+  generateInteractionMarkdown,
+  generateInteractionJson,
+  convertInteractionToFlashcards,
+} = await import('./src/utils/interactionExporter');
+
+const mockMessage = {
+  id: 'msg-test-123',
+  userPrompt: 'Gostaria de pedir um café espresso, por favor.',
+  timestamp: 1727980000000,
+  chunks: [
+    {
+      id: 0,
+      en: 'Could I please get an espresso,',
+      it: 'Potrei avere un caffè espresso, per favore,',
+      ja: 'エスプレッソを一杯お願いします、',
+      jaPronunciation: 'Esupuresso o ippai onegai shimasu,',
+    },
+    {
+      id: 1,
+      en: 'and the check?',
+      it: 'e il conto?',
+      ja: 'そしてお会計も？',
+      jaPronunciation: 'soshite okaikei mo?',
+    },
+  ],
+  fullText: {
+    en: 'Could I please get an espresso, and the check?',
+    it: 'Potrei avere un caffè espresso, per favore, e il conto?',
+    ja: 'エスプレッソを一杯お願いします、そしてお会計も？',
+  },
+  status: 'ready' as const,
+};
+
+// 8.1 Teste Anki CSV
+const csv = generateInteractionAnkiCsv(mockMessage);
+assert.ok(csv.startsWith('\uFEFF'), 'CSV deve iniciar com UTF-8 BOM.');
+assert.ok(csv.includes('Frente (Original);Verso (Tradução / Contexto)'), 'Cabeçalho Anki presente.');
+assert.ok(csv.includes('Esupuresso o ippai onegai shimasu,'), 'Pronúncia fonética japonesa presente no CSV.');
+assert.strictEqual(csv.split('\n').length, 3, 'CSV deve conter cabeçalho + 2 linhas de chunks.');
+
+// 8.2 Teste Markdown
+const md = generateInteractionMarkdown(mockMessage);
+assert.ok(md.includes('# Interação de Estudo Poliglota — MyTTS Studio'));
+assert.ok(md.includes('| # | 🇺🇸 Inglês | 🇮🇹 Italiano | 🇯🇵 Japonês | Pronúncia Fonética (Rōmaji) |'));
+assert.ok(md.includes('Could I please get an espresso,'));
+
+// 8.3 Teste JSON
+const json = generateInteractionJson(mockMessage);
+const parsed = JSON.parse(json);
+assert.strictEqual(parsed.sourceApp, 'MyTTS Studio Polyglot Chat');
+assert.strictEqual(parsed.interaction.chunks.length, 2);
+
+// 8.4 Teste Conversão para Deck
+const deckCards = convertInteractionToFlashcards(mockMessage);
+assert.strictEqual(deckCards.length, 6, '2 chunks * 3 idiomas = 6 flashcards criados.');
+assert.strictEqual(deckCards[0].language, 'en-US');
+assert.strictEqual(deckCards[1].language, 'it-IT');
+assert.strictEqual(deckCards[2].language, 'ja-JP');
+
+console.log('  ✓ Anki CSV, Markdown, JSON e injeção no Deck local 100% validados.');
+
+console.log('\n🎉 Todos os testes de Engenharia de Áudio, Prosódia, Estúdio Poliglota, Fast Chunks e Cache Local passaram com 100% de conformidade!');
 
 
 

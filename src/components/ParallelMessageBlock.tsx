@@ -17,11 +17,8 @@ export interface ParallelMessageBlockProps {
   onSelectLanguage: (lang: 'en' | 'it' | 'ja') => void;
   isPlaying: boolean;
   isLoading: boolean;
-  isPlayingAccent?: boolean;
-  isLoadingAccent?: boolean;
   isCachedByLang?: Record<'en' | 'it' | 'ja', boolean>;
   onTogglePlay: (lang: 'en' | 'it' | 'ja') => void;
-  onPlayAccent?: (lang: 'en' | 'it' | 'ja') => void;
   onReplay: (lang: 'en' | 'it' | 'ja') => void;
   currentTime: number;
   duration: number;
@@ -33,6 +30,7 @@ export interface ParallelMessageBlockProps {
   onPlaySequence: () => void;
   isPlayingSequence: boolean;
   sequenceStep: string | null;
+  onOpenExport?: (message: PolyglotMessage) => void;
 }
 
 export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
@@ -45,11 +43,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
   onSelectLanguage,
   isPlaying,
   isLoading,
-  isPlayingAccent,
-  isLoadingAccent,
   isCachedByLang,
   onTogglePlay,
-  onPlayAccent,
   onReplay,
   currentTime,
   duration,
@@ -61,6 +56,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
   onPlaySequence,
   isPlayingSequence,
   sequenceStep,
+  onOpenExport,
 }) => {
   const [hoveredChunkId, setHoveredChunkId] = useState<number | null>(null);
   const [activeMenu, setActiveMenu] = useState<{
@@ -92,9 +88,22 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <span className="text-xs font-bold text-slate-300 font-display">Você</span>
-            <span className="text-[10px] font-mono text-slate-500">
-              {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono text-slate-500">
+                {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              {message.status === 'ready' && onOpenExport && (
+                <button
+                  type="button"
+                  onClick={() => onOpenExport(message)}
+                  className="btn-matte btn-matte-dark px-2 py-0.5 text-[11px] text-amber-300 hover:text-white rounded-lg flex items-center gap-1 border border-amber-400/20 hover:border-amber-400/40 transition-all cursor-pointer"
+                  title="Exportar Fast Chunks desta interação (Anki, Markdown, JSON ou Deck)"
+                >
+                  <GoogleIcon name="download" size={13} className="text-amber-400" />
+                  <span>Exportar Chunks</span>
+                </button>
+              )}
+            </div>
           </div>
           <p className="text-xs sm:text-sm text-slate-100 whitespace-pre-wrap leading-relaxed">
             {message.userPrompt}
@@ -138,8 +147,6 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'en'}
               isCached={isCachedByLang?.en}
-              isPlayingAccent={Boolean(isPlayingAccent && selectedLanguage === 'en')}
-              onPlayAccent={onPlayAccent ? () => onPlayAccent('en') : undefined}
               onSelectCard={() => onSelectLanguage('en')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -156,8 +163,6 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'it'}
               isCached={isCachedByLang?.it}
-              isPlayingAccent={Boolean(isPlayingAccent && selectedLanguage === 'it')}
-              onPlayAccent={onPlayAccent ? () => onPlayAccent('it') : undefined}
               onSelectCard={() => onSelectLanguage('it')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -174,8 +179,6 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'ja'}
               isCached={isCachedByLang?.ja}
-              isPlayingAccent={Boolean(isPlayingAccent && selectedLanguage === 'ja')}
-              onPlayAccent={onPlayAccent ? () => onPlayAccent('ja') : undefined}
               onSelectCard={() => onSelectLanguage('ja')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -188,9 +191,6 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
             onSelectLanguage={onSelectLanguage}
             isPlaying={isPlaying}
             isLoading={isLoading}
-            onPlayAccent={onPlayAccent ? () => onPlayAccent(selectedLanguage) : undefined}
-            isPlayingAccent={isPlayingAccent}
-            isLoadingAccent={isLoadingAccent}
             isCached={isCachedByLang?.[selectedLanguage]}
             isCachedByLang={isCachedByLang}
             onTogglePlay={() => onTogglePlay(selectedLanguage)}
@@ -205,6 +205,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
             onPlaySequence={onPlaySequence}
             isPlayingSequence={isPlayingSequence}
             sequenceStep={sequenceStep}
+            onOpenExport={onOpenExport ? () => onOpenExport(message) : undefined}
           />
         </div>
       )}

@@ -12,8 +12,6 @@ export interface LanguageColumnCardProps {
   hoveredChunkId: number | null;
   isSelected: boolean;
   isCached?: boolean;
-  onPlayAccent?: () => void;
-  isPlayingAccent?: boolean;
   onSelectCard: () => void;
   onHoverChunk: (id: number | null) => void;
   onClickChunk: (chunkText: string, language: string, event: React.MouseEvent) => void;
@@ -29,8 +27,6 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
   hoveredChunkId,
   isSelected,
   isCached,
-  onPlayAccent,
-  isPlayingAccent,
   onSelectCard,
   onHoverChunk,
   onClickChunk,
@@ -96,29 +92,6 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
             <span className="text-[10px] text-slate-500 hover:text-slate-300 font-mono hidden sm:inline">
               Clique para focar
             </span>
-          )}
-
-          {/* Botão Reproduzir com Sotaque (Card Inteiro) */}
-          {onPlayAccent && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPlayAccent();
-              }}
-              title={
-                isPlayingAccent
-                  ? 'Pausar áudio com sotaque nativo'
-                  : 'Reproduzir frase inteira com sotaque nativo autêntico'
-              }
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                isPlayingAccent
-                  ? 'text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 animate-pulse'
-                  : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800'
-              }`}
-            >
-              <GoogleIcon name={isPlayingAccent ? 'pause' : 'record_voice_over'} size={16} />
-            </button>
           )}
 
           {/* Botão Copiar */}

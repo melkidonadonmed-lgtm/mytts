@@ -1,39 +1,37 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Deploy em Produção da Revisão `mytts-00013-pdd` Concluído com Sucesso.
-- **Status da Branch**: `main` (commit `c1d66c3` sincronizado com `origin/main`).
+- **Fase**: Consolidação Arquitetural do Chat Poliglota com Fast Chunks, Modal de Exportação e Remoção de Redundância Concluída.
+- **Status da Branch**: `main`.
 - **Revisão Ativa Cloud Run**: `mytts-00013-pdd` (100% do tráfego).
 - **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
 
-## Decisões Tomadas
-1. **Botão Dedicado de Sotaque Nativo no Player Flutuante (`FloatingCardAudioController.tsx`)**:
-   - Inserido botão ergonômico (altura 44px, alvo tátil do polegar) "Reproduzir com Sotaque" (`record_voice_over`) diretamente na linha de controles do player.
-   - Estado visual reativo: quando em reprodução fonética, destaca-se em esmeralda com pulso (`animate-pulse`) e muda o rótulo para "Pausar Sotaque".
-   - Exibe indicador de loading (`progress_activity` spin) durante a síntese.
-2. **Ação Rápida de Sotaque no Cabeçalho do Card (`LanguageColumnCard.tsx`)**:
-   - Adicionado botão tátil ao lado do botão de cópia no cabeçalho de cada coluna de idioma, permitindo acionar a reprodução fonética instantânea sem depender de menus de chunks avulsos.
-3. **Orquestração Multimodal e Separação de Modos de Áudio (`PolyglotChatStudio.tsx`)**:
-   - Adicionado `activeAudioMode` (`'standard' | 'accent' | null`) e `isLoadingAccent` para distinguir com precisão se a reprodução em andamento é da voz padrão do estúdio ou da síntese fonética.
-   - Função `handlePlayCardWithAccent(messageId, lang)` sintetiza a frase completa via `/api/synthesize-chunk` com instruções fonéticas nativas rigorosas e salva no cache `IndexedDB` com chave determinística (`type: 'chunk'`).
-   - Sincronização completa de barra de progresso (scrubber), seek, velocidade de reprodução e tempo decorrido.
-4. **Propagação Hierárquica Limpa (`ParallelMessageBlock.tsx`)**:
-   - Encaminha `onPlayAccent`, `isPlayingAccent` e `isLoadingAccent` tanto para o controlador flutuante quanto para cada coluna de idioma (EN, IT, JA).
-5. **Motor de Cache Local Universal de Áudio (L1 RAM + L2 IndexedDB) (`src/utils/audioCache.ts`)**:
-   - Eliminação completa de latência de rede em reproduções repetidas de frases, chunks e cards do feed.
-   - Camada L1 (RAM) + Camada L2 (IndexedDB `mytts_audio_cache`) com política LRU (máx. 300 áudios).
+## Decisões Arquiteturais e Implementações
+1. **Unificação do Estudo de Chunks no Polyglot Chat Studio**:
+   - Eliminada a aba redundante `fastchunks` (`FastChunkAudioApp.tsx`), consolidando toda a experiência de blocos lexicais, tradução paralela (EN, IT, JA) e áudio neural no `PolyglotChatStudio.tsx`.
+   - Navegação na `Sidebar.tsx` enxuta com 5 abas de alto impacto (Estúdio de Criação, Chat Poliglota, Microfone & Ditado, Estúdio de Debate, Biblioteca de Vozes).
+2. **Modal Tátil de Exportação de Interação / Fast Chunks (`ExportInteractionModal.tsx`)**:
+   - Diálogo amigável disparado via botão "Exportar Chunks" no cabeçalho da mensagem e no player flutuante.
+   - Oferece 4 formatos de alta conveniência:
+     - 📇 **Anki Flashcards (.csv)** com UTF-8 BOM e delimitador `;`.
+     - 📋 **Tabela de Estudo Markdown (.md)** pronta para Obsidian/Notion.
+     - 📦 **JSON Estruturado (.json)** com metadados e blocos.
+     - 📚 **Injeção Direta no Deck Local**: Gera cartões trilíngues instantaneamente no `localStorage` sem precisar de download.
+3. **Ergonomia e Controle na Barra de Chat (`AgentInputDock.tsx`) e Player (`FloatingCardAudioController.tsx`)**:
+   - Auto-expansão dinâmica da área de texto com `textareaRef`, botão de limpeza rápida e atalho `Enter`/`Shift+Enter`.
+   - Adicionada velocidade `1.5x` no player flutuante e atalho direto de exportação.
+4. **Módulo de Exportação Universal (`src/utils/interactionExporter.ts`)**:
+   - Rotinas canônicas e tipadas para geração dos arquivos e acionamento de download no navegador.
 
-## Testes Reais em Produção (Smoke Tests Comprovados)
-- `GET /api/health`: Status `online`, Uptime ativo, modelos `gemini-3.1-flash-tts-preview` e `gemini-3.8-flash`.
-- `POST /api/synthesize-chunk` (Inglês `en-US`): Status `True`, áudio WAV canônico sintetizado (125.500 bytes) com sucesso.
-- `test-audio-engine.ts`: 7 baterias de testes com 100% de conformidade.
-- `tsc --noEmit`: 0 erros de tipagem estrita no TypeScript.
-- `vite build`: Compilação de produção aprovada em 526ms.
+## Testes Reais e Verificações Auditáveis
+- `npm run lint` (`tsc --noEmit`): Exit code `0` (Zero erros de tipagem estrita).
+- `npm test` (`tsx test-audio-engine.ts`): Exit code `0` (8 baterias de testes com 100% de conformidade, incluindo validação de Anki CSV, Markdown, JSON e conversão de Flashcards).
+- `npm run build` (`vite build`): Exit code `0` (Bundle reduzido para 554 kB compilado em 321ms).
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
 - **Débitos**:
-  - `[MÉDIO]`: Integração streaming bidirecional via WebSocket (Gemini Live API).
+  - `[BAIXO]`: Manter o arquivo `FastChunkAudioApp.tsx` no repositório como referência ou excluí-lo em limpeza futura caso não seja mais necessário.
 
 ## Próximo Ponto de Entrada
-- Testar interativamente no navegador (`Ctrl + F5`) a reprodução com sotaque nativo direto do reprodutor: `https://mytts-1044179901556.us-central1.run.app`.
+- Testar no navegador a nova experiência unificada de chat poliglota e o modal de exportação de fast chunks.

@@ -10,9 +10,6 @@ export interface FloatingCardAudioControllerProps {
   isCached?: boolean;
   isCachedByLang?: Record<'en' | 'it' | 'ja', boolean>;
   onTogglePlay: () => void;
-  onPlayAccent?: () => void;
-  isPlayingAccent?: boolean;
-  isLoadingAccent?: boolean;
   onReplay: () => void;
   currentTime: number;
   duration: number;
@@ -24,6 +21,7 @@ export interface FloatingCardAudioControllerProps {
   onPlaySequence?: () => void;
   isPlayingSequence?: boolean;
   sequenceStep?: string | null;
+  onOpenExport?: () => void;
 }
 
 export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerProps> = ({
@@ -34,9 +32,6 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
   isCached,
   isCachedByLang,
   onTogglePlay,
-  onPlayAccent,
-  isPlayingAccent,
-  isLoadingAccent,
   onReplay,
   currentTime,
   duration,
@@ -48,6 +43,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
   onPlaySequence,
   isPlayingSequence,
   sequenceStep,
+  onOpenExport,
 }) => {
   const formatTime = (secs: number) => {
     if (!secs || isNaN(secs) || secs < 0) return '0:00';
@@ -213,38 +209,6 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               )}
             </button>
 
-            {/* Botão Reproduzir com Sotaque (Card Inteiro) */}
-            {onPlayAccent && (
-              <button
-                type="button"
-                onClick={onPlayAccent}
-                disabled={isLoading || isLoadingAccent}
-                className={`btn-matte h-11 px-4 text-xs sm:text-sm rounded-xl font-bold flex items-center gap-2 border transition-all cursor-pointer ${
-                  isPlayingAccent
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
-                    : 'btn-matte-dark text-slate-200 hover:text-white border-slate-700/80 hover:border-emerald-500/40'
-                }`}
-                title="Reproduzir o card inteiro com direção fonética e sotaque nativo autêntico"
-              >
-                {isLoadingAccent ? (
-                  <>
-                    <GoogleIcon name="progress_activity" size={20} className="animate-spin text-emerald-400" />
-                    <span>Sintetizando...</span>
-                  </>
-                ) : isPlayingAccent ? (
-                  <>
-                    <GoogleIcon name="pause" size={20} filled className="text-emerald-400" />
-                    <span>Pausar Sotaque</span>
-                  </>
-                ) : (
-                  <>
-                    <GoogleIcon name="record_voice_over" size={20} className="text-emerald-400" />
-                    <span>Reproduzir com Sotaque</span>
-                  </>
-                )}
-              </button>
-            )}
-
             {/* Botão Replay Tátil */}
             <button
               type="button"
@@ -257,25 +221,40 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
             </button>
           </div>
 
-          {/* Lado Direito: Seletor Tátil de Velocidade */}
-          <div className="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80">
-            <span className="text-[10px] font-mono uppercase text-slate-500 px-1 hidden sm:inline">
-              Velocidade:
-            </span>
-            {[0.8, 1.0, 1.25].map((s) => (
+          {/* Lado Direito: Ações de Exportação e Velocidade */}
+          <div className="flex flex-wrap items-center gap-2">
+            {onOpenExport && (
               <button
-                key={s}
                 type="button"
-                onClick={() => onChangeSpeed(s)}
-                className={`btn-matte px-2.5 py-1 text-xs rounded-lg font-mono transition-all ${
-                  speed === s
-                    ? 'btn-matte-amber'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
+                onClick={onOpenExport}
+                className="btn-matte btn-matte-dark h-9 px-3 rounded-xl text-xs text-amber-300 hover:text-white flex items-center gap-1.5 border border-amber-400/20 hover:border-amber-400/40 transition-all cursor-pointer"
+                title="Exportar Chunks desta interação (Anki, Markdown, JSON ou Deck)"
               >
-                {s}x
+                <GoogleIcon name="download" size={16} className="text-amber-400" />
+                <span>Exportar Chunks</span>
               </button>
-            ))}
+            )}
+
+            {/* Seletor Tátil de Velocidade */}
+            <div className="flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80">
+              <span className="text-[10px] font-mono uppercase text-slate-500 px-1 hidden sm:inline">
+                Velocidade:
+              </span>
+              {[0.8, 1.0, 1.25, 1.5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => onChangeSpeed(s)}
+                  className={`btn-matte px-2 py-0.5 text-xs rounded-lg font-mono transition-all ${
+                    speed === s
+                      ? 'btn-matte-amber'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {s}x
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

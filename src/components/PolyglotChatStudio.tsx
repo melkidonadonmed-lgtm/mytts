@@ -3,6 +3,7 @@ import { PolyglotMessage, FlashcardItem } from '../types/polyglot';
 import { ParallelMessageBlock } from './ParallelMessageBlock';
 import { AgentInputDock } from './AgentInputDock';
 import { FlashcardDeckDrawer } from './FlashcardDeckDrawer';
+import { ExportInteractionModal } from './ExportInteractionModal';
 import { GoogleIcon } from './GoogleIcon';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 import {
@@ -54,6 +55,7 @@ export const PolyglotChatStudio: React.FC = () => {
   });
 
   const [isDeckDrawerOpen, setIsDeckDrawerOpen] = useState(false);
+  const [exportingMessage, setExportingMessage] = useState<PolyglotMessage | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Idioma selecionado por mensagem (padrão 'en')
@@ -78,8 +80,6 @@ export const PolyglotChatStudio: React.FC = () => {
   } | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-  const [isLoadingAccent, setIsLoadingAccent] = useState(false);
-  const [activeAudioMode, setActiveAudioMode] = useState<'standard' | 'accent' | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
@@ -98,7 +98,6 @@ export const PolyglotChatStudio: React.FC = () => {
     blobUrl: string;
     messageId: string;
     lang: 'en' | 'it' | 'ja';
-    mode?: 'standard' | 'accent';
   } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -198,8 +197,6 @@ export const PolyglotChatStudio: React.FC = () => {
     }
     setIsPlayingAudio(false);
     setIsLoadingAudio(false);
-    setIsLoadingAccent(false);
-    setActiveAudioMode(null);
     setPlayingBlockInfo(null);
     setPlayingAudioKey(null);
   }, []);
@@ -216,13 +213,12 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Reprodução ou Pausa do Áudio do Card Selecionado (Voz Padrão do Estúdio)
+  // Reprodução ou Pausa do Áudio do Card Selecionado
   const handleTogglePlay = async (messageId: string, lang: 'en' | 'it' | 'ja') => {
     if (
       activeAudioRef.current &&
       activeAudioRef.current.messageId === messageId &&
-      activeAudioRef.current.lang === lang &&
-      activeAudioMode === 'standard'
+      activeAudioRef.current.lang === lang
     ) {
       if (isPlayingAudio) {
         activeAudioRef.current.audio.pause();
@@ -253,7 +249,6 @@ export const PolyglotChatStudio: React.FC = () => {
       setIsLoadingAudio(true);
     }
     setPlayingBlockInfo({ messageId, lang });
-    setActiveAudioMode('standard');
 
     try {
       const data = await synthesizeWithCache({
@@ -303,105 +298,14 @@ export const PolyglotChatStudio: React.FC = () => {
         stopCurrentAudio();
       };
 
-      activeAudioRef.current = { audio, blobUrl, messageId, lang, mode: 'standard' };
+      activeAudioRef.current = { audio, blobUrl, messageId, lang };
       await audio.play();
       setIsPlayingAudio(true);
-      setActiveAudioMode('standard');
     } catch (e: unknown) {
       console.warn('Erro na síntese neural do card:', e);
       stopCurrentAudio();
     } finally {
       setIsLoadingAudio(false);
-    }
-  };
-
-  // Reprodução com Sotaque Nativo e Direção Fonética do Card Inteiro
-  const handlePlayCardWithAccent = async (messageId: string, lang: 'en' | 'it' | 'ja') => {
-    if (
-      activeAudioRef.current &&
-      activeAudioRef.current.messageId === messageId &&
-      activeAudioRef.current.lang === lang &&
-      activeAudioMode === 'accent'
-    ) {
-      if (isPlayingAudio) {
-        activeAudioRef.current.audio.pause();
-        setIsPlayingAudio(false);
-      } else {
-        await activeAudioRef.current.audio.play();
-        setIsPlayingAudio(true);
-      }
-      return;
-    }
-
-    stopCurrentAudio();
-    const targetMsg = messages.find((m) => m.id === messageId);
-    if (!targetMsg || !targetMsg.fullText[lang]) return;
-
-    const fullSentence = targetMsg.fullText[lang];
-    const languageTag = getLanguageTag(lang);
-
-    const cacheKey = generateAudioCacheKey({
-      type: 'chunk',
-      text: fullSentence,
-      language: languageTag,
-    });
-
-    const cached = await getCachedAudio(cacheKey);
-    if (!cached) {
-      setIsLoadingAccent(true);
-    }
-    setPlayingBlockInfo({ messageId, lang });
-    setActiveAudioMode('accent');
-
-    try {
-      const data = await synthesizeWithCache({
-        endpoint: '/api/synthesize-chunk',
-        body: { text: fullSentence, language: languageTag },
-        cacheKey,
-        metadata: { language: languageTag },
-      });
-
-      if (!data.audioBase64) {
-        throw new Error('Áudio com sotaque não retornado pela API.');
-      }
-
-      setCachedKeysSet((prev) => new Set(prev).add(cacheKey));
-      const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
-
-      if (!isMountedRef.current) {
-        revokeAudioUrl(blobUrl);
-        return;
-      }
-
-      const audio = new Audio(blobUrl);
-      audio.playbackRate = playbackSpeed;
-
-      audio.onloadedmetadata = () => {
-        setDuration(audio.duration || data.durationSec || 0);
-      };
-
-      audio.ontimeupdate = () => {
-        setCurrentTime(audio.currentTime);
-      };
-
-      audio.onended = () => {
-        setIsPlayingAudio(false);
-        setCurrentTime(0);
-      };
-
-      audio.onerror = () => {
-        stopCurrentAudio();
-      };
-
-      activeAudioRef.current = { audio, blobUrl, messageId, lang, mode: 'accent' };
-      await audio.play();
-      setIsPlayingAudio(true);
-      setActiveAudioMode('accent');
-    } catch (e: unknown) {
-      console.warn('Erro ao reproduzir card com sotaque nativo:', e);
-      stopCurrentAudio();
-    } finally {
-      setIsLoadingAccent(false);
     }
   };
 
@@ -706,13 +610,10 @@ export const PolyglotChatStudio: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-32 flex flex-col gap-6">
         {messages.map((message) => {
           const selectedLang = selectedLanguageByMsg[message.id] || 'en';
-          const isThisBlockActive = playingBlockInfo?.messageId === message.id;
-          const isThisBlockPlaying = isThisBlockActive && isPlayingAudio;
-          const isThisBlockLoading = isThisBlockActive && isLoadingAudio;
-
-          const isPlayingStandard = isThisBlockPlaying && activeAudioMode === 'standard';
-          const isPlayingAccent = isThisBlockPlaying && activeAudioMode === 'accent';
-          const isThisBlockLoadingAccent = isThisBlockActive && isLoadingAccent;
+          const isThisBlockPlaying =
+            playingBlockInfo?.messageId === message.id && isPlayingAudio;
+          const isThisBlockLoading =
+            playingBlockInfo?.messageId === message.id && isLoadingAudio;
 
           const isCachedByLang = {
             en: cachedKeysSet.has(getMessageAudioCacheKey(message.id, 'en')),
@@ -730,13 +631,10 @@ export const PolyglotChatStudio: React.FC = () => {
               generatingCardKey={generatingCardKey}
               selectedLanguage={selectedLang}
               onSelectLanguage={(lang) => handleSelectLanguage(message.id, lang)}
-              isPlaying={isPlayingStandard}
+              isPlaying={isThisBlockPlaying}
               isLoading={isThisBlockLoading}
-              isPlayingAccent={isPlayingAccent}
-              isLoadingAccent={isThisBlockLoadingAccent}
               isCachedByLang={isCachedByLang}
               onTogglePlay={(lang) => handleTogglePlay(message.id, lang)}
-              onPlayAccent={(lang) => handlePlayCardWithAccent(message.id, lang)}
               onReplay={(lang) => handleReplay(message.id, lang)}
               currentTime={currentTime}
               duration={duration}
@@ -748,6 +646,7 @@ export const PolyglotChatStudio: React.FC = () => {
               onPlaySequence={() => handlePlaySequence(message.id)}
               isPlayingSequence={isPlayingSequence}
               sequenceStep={sequenceStep}
+              onOpenExport={(msg) => setExportingMessage(msg)}
             />
           );
         })}
@@ -768,6 +667,17 @@ export const PolyglotChatStudio: React.FC = () => {
         onDeleteCard={(id) => setDeck((prev) => prev.filter((c) => c.id !== id))}
         onClearDeck={() => setDeck([])}
         onPlayCardAudio={handlePlayChunkAudio}
+      />
+
+      {/* 6. Modal de Exportação de Fast Chunks da Interação */}
+      <ExportInteractionModal
+        isOpen={Boolean(exportingMessage)}
+        onClose={() => setExportingMessage(null)}
+        message={exportingMessage}
+        onAddCardsToDeck={(newCards) => {
+          setDeck((prev) => [...newCards, ...prev]);
+        }}
+        onShowToast={showToast}
       />
     </div>
   );

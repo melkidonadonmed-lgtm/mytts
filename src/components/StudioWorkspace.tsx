@@ -10,6 +10,7 @@ import {
   Headphones,
   Users,
   Zap,
+  RotateCw,
 } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { DebateScript, SpeakerProfile } from '../types/debate';
@@ -111,13 +112,29 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     },
   ];
 
-  // Limpeza de áudio ao desmontar
+  // Invalidação e limpeza atômica do áudio solo anterior
+  const invalidateSoloAudio = () => {
+    if (soloAudioRef.current) {
+      soloAudioRef.current.pause();
+      soloAudioRef.current = null;
+    }
+    revokeAudioUrl(currentBlobUrlRef.current);
+    currentBlobUrlRef.current = null;
+    setSoloAudioUrl(null);
+    setIsSoloPlaying(false);
+    setSoloCurrentTime(0);
+    setSoloErrorMessage(null);
+  };
+
+  // Reação atômica: quando a voz selecionada ou calibração mudarem, invalida o áudio antigo imediatamente
+  useEffect(() => {
+    invalidateSoloAudio();
+  }, [selectedVoice.id, calibration, autoProsody]);
+
+  // Limpeza de áudio ao desmontar o componente
   useEffect(() => {
     return () => {
-      if (soloAudioRef.current) {
-        soloAudioRef.current.pause();
-      }
-      revokeAudioUrl(currentBlobUrlRef.current);
+      invalidateSoloAudio();
     };
   }, []);
 
@@ -133,26 +150,30 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   };
 
   // 1. Síntese Solo (Gemini 3.1 Flash TTS com Director's Chair e Auto-Prosódia em PT-BR)
-  const handleSoloSynthesizeAndPlay = async () => {
+  const handleSoloSynthesizeAndPlay = async (forceRegenerate = false) => {
     if (!text.trim()) return;
 
-    if (isSoloPlaying) {
+    if (isSoloPlaying && !forceRegenerate) {
       if (soloAudioRef.current) soloAudioRef.current.pause();
       setIsSoloPlaying(false);
       return;
     }
 
-    // Se já temos o áudio pronto para este texto, tocar direto
-    if (soloAudioUrl && soloAudioRef.current) {
+    // Se já temos o áudio pronto para este texto e NÃO é regeração forçada, tocar direto
+    if (!forceRegenerate && soloAudioUrl && soloAudioRef.current) {
       soloAudioRef.current.playbackRate = playbackSpeed;
       soloAudioRef.current.play();
       setIsSoloPlaying(true);
       return;
     }
 
+    if (forceRegenerate) {
+      invalidateSoloAudio();
+    }
+
     setIsSoloSynthesizing(true);
     setSoloErrorMessage(null);
-    setSoloStatusMessage('Sintetizando voz com respiração natural e direção em português...');
+    setSoloStatusMessage(`Sintetizando voz com ${selectedVoice.name} (${calibration})...`);
 
     try {
       const resp = await fetch('/api/synthesize-speech', {
@@ -322,13 +343,28 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         <section aria-label="Configuração de Voz e Calibração Solo" className="flex flex-col gap-4">
           
           {/* 3.1 Seleção de Voz Tátil */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Volume2 className="w-4 h-4 text-amber-400" />
-              <span>Selecione a Voz Neural:</span>
-            </h2>
-            <span className="text-[11px] text-slate-500 font-mono">
-              Voz ativa: <strong className="text-amber-400">{selectedVoice.name}</strong>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-slate-900/40 border border-slate-800/60">
+            <div className="flex items-center gap-2.5">
+              <div
+                className={`w-8 h-8 rounded-xl bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-extrabold shadow-sm`}
+              >
+                {selectedVoice.name[0]}
+              </div>
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Voz Ativa no Leitor:</span>
+                  <span className="text-amber-400 font-extrabold normal-case text-sm tracking-normal">
+                    {selectedVoice.name}
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-normal">
+                    · {selectedVoice.archetype}
+                  </span>
+                </h2>
+              </div>
+            </div>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Clique em qualquer card abaixo para trocar de voz instantaneamente
             </span>
           </div>
 
@@ -336,7 +372,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             selectedVoice={selectedVoice}
             onSelectVoice={(voice) => {
               onSelectVoice(voice);
-              setSoloAudioUrl(null);
+              invalidateSoloAudio();
             }}
           />
 
@@ -462,38 +498,55 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <button
               type="button"
-              onClick={handleSoloSynthesizeAndPlay}
+              onClick={() => handleSoloSynthesizeAndPlay(false)}
               disabled={isSoloSynthesizing || !text.trim()}
               className="w-full sm:flex-1 min-h-[52px] rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
             >
               {isSoloSynthesizing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Sintetizando com Direção Vocal...</span>
+                  <span>Sintetizando com {selectedVoice.name}...</span>
                 </>
               ) : isSoloPlaying ? (
                 <>
                   <Pause className="w-5 h-5 fill-current" />
-                  <span>Pausar Leitura</span>
+                  <span>Pausar Leitura ({selectedVoice.name})</span>
                 </>
               ) : (
                 <>
                   <Play className="w-5 h-5 fill-current" />
-                  <span>{soloAudioUrl ? 'Ouvir Novamente' : 'Ler Texto em Voz Alta'}</span>
+                  <span>
+                    {soloAudioUrl
+                      ? `Ouvir Leitura (${selectedVoice.name})`
+                      : `Ler Texto com ${selectedVoice.name}`}
+                  </span>
                 </>
               )}
             </button>
 
             {soloAudioUrl && (
-              <button
-                type="button"
-                onClick={handleDownloadSoloWav}
-                className="w-full sm:w-auto min-h-[52px] px-5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
-                title="Baixar arquivo WAV canônico (24kHz)"
-              >
-                <Download className="w-4 h-4 text-emerald-400" />
-                <span>Baixar WAV (24kHz)</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleSoloSynthesizeAndPlay(true)}
+                  disabled={isSoloSynthesizing || !text.trim()}
+                  className="w-full sm:w-auto min-h-[52px] px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                  title="Gerar nova síntese forçada com a voz ativa atual"
+                >
+                  <RotateCw className="w-4 h-4 text-amber-400" />
+                  <span>Regerar Áudio</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadSoloWav}
+                  className="w-full sm:w-auto min-h-[52px] px-5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                  title="Baixar arquivo WAV canônico (24kHz)"
+                >
+                  <Download className="w-4 h-4 text-emerald-400" />
+                  <span>Baixar WAV</span>
+                </button>
+              </>
             )}
           </div>
 

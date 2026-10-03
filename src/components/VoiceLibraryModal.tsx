@@ -104,10 +104,19 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
           return (
             <div
               key={voice.id}
-              className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectVoice(voice)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectVoice(voice);
+                }
+              }}
+              className={`p-5 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-400 group ${
                 isSelected
                   ? 'bg-slate-900/90 border-amber-500/60 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/30'
-                  : 'bg-slate-900/50 border-slate-800/80 hover:border-slate-700/80 hover:bg-slate-900/80'
+                  : 'bg-slate-900/50 border-slate-800/80 hover:border-amber-400/50 hover:bg-slate-900/80'
               }`}
             >
               <div>
@@ -162,7 +171,10 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                 {/* Botão Ouvir Amostra */}
                 <button
                   type="button"
-                  onClick={() => previewVoice(voice)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    previewVoice(voice);
+                  }}
                   className={`flex-1 min-h-[42px] rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 ${
                     isPlaying
                       ? 'bg-amber-400 text-slate-950 font-bold border-amber-300 shadow-sm'
@@ -190,7 +202,10 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                 {/* Botão Selecionar */}
                 <button
                   type="button"
-                  onClick={() => onSelectVoice(voice)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectVoice(voice);
+                  }}
                   className={`min-h-[42px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
                     isSelected
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default'

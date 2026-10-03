@@ -5,7 +5,6 @@ import { PolyglotChatStudio } from './components/PolyglotChatStudio';
 import { LiveVoiceMic } from './components/LiveVoiceMic';
 
 import { VoiceLibrary } from './components/VoiceLibraryModal';
-import { FastChunkAudioApp } from './components/FastChunkAudioApp';
 import { DocumentInputSection } from './components/DocumentInputSection';
 import { DebateConfigPanel } from './components/DebateConfigPanel';
 import { ScriptViewer } from './components/ScriptViewer';
@@ -248,7 +247,7 @@ export default function App() {
       <Sidebar
         activeTab={activeTab}
         onSelectTab={(tab) => {
-          if (isPlaying && (tab === 'reader' || tab === 'fastchunks')) {
+          if (isPlaying && tab === 'reader') {
             player.pause();
           }
           if ((document as any).startViewTransition) {
@@ -410,10 +409,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Módulo 5: FastChunks (Treino de Idiomas) */}
-          {activeTab === 'fastchunks' && (
-            <FastChunkAudioApp />
-          )}
         </main>
 
         {/* Dock de Áudio Inferior (Exibido no modo Debate) */}

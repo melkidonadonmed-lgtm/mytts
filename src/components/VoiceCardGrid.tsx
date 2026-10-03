@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Loader2, UserCheck } from 'lucide-react';
+import { Play, Pause, Loader2, Check } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 
@@ -121,7 +121,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3"
     >
       {GEMINI_VOICES.map((voice) => {
-        const isSelectedSolo = !multiSpeakerMode && selectedVoice.id === voice.id;
+        const isSelectedSolo = !multiSpeakerMode && selectedVoice?.id === voice.id;
         const isSpk1 = multiSpeakerMode && speaker1?.id === voice.id;
         const isSpk2 = multiSpeakerMode && speaker2?.id === voice.id;
         const isSelected = isSelectedSolo || isSpk1 || isSpk2;
@@ -137,9 +137,9 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
             tabIndex={0}
             onClick={() => handleSelect(voice)}
             onKeyDown={(e) => handleKeyDown(e, voice)}
-            className={`relative group rounded-2xl p-3.5 border transition-all cursor-pointer flex flex-col justify-between gap-3 text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+            className={`relative group rounded-2xl p-4 border transition-all cursor-pointer flex flex-col justify-between gap-3 text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
               isSelected
-                ? 'bg-slate-900 border-amber-400 shadow-md shadow-amber-400/10'
+                ? 'bg-slate-900 border-amber-400/90 shadow-lg shadow-amber-400/15 ring-1 ring-amber-400/30'
                 : 'bg-slate-900/60 border-slate-800/90 hover:border-slate-700 hover:bg-slate-900/90'
             }`}
           >
@@ -147,13 +147,18 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div
-                  className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${voice.avatarColor} flex items-center justify-center text-white text-sm font-extrabold shadow-sm`}
+                  className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${voice.avatarColor} flex items-center justify-center text-white text-base font-extrabold shadow-sm relative`}
                 >
-                  {voice.name[0]}
+                  <span>{voice.name[0]}</span>
+                  {isSelectedSolo && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full flex items-center justify-center shadow-sm">
+                      <Check className="w-2.5 h-2.5 text-slate-950 stroke-[3]" />
+                    </span>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-sm text-slate-100">{voice.name}</span>
+                    <span className="font-extrabold text-sm text-slate-100">{voice.name}</span>
                     {isSelectedSolo && (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                     )}
@@ -169,6 +174,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                 type="button"
                 onClick={(e) => handlePlayPreview(e, voice)}
                 disabled={isLoading}
+                title={isPlaying ? `Pausar amostra de ${voice.name}` : `Ouvir amostra de 3s da voz ${voice.name}`}
                 aria-label={`Ouvir amostra de 3 segundos da voz ${voice.name}`}
                 className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                   isPlaying
@@ -187,8 +193,8 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
             </div>
 
             {/* Descrição e Arquétipo */}
-            <div>
-              <p className="text-xs font-semibold text-amber-300/90 mb-1 flex items-center gap-1">
+            <div className="flex-1">
+              <p className="text-xs font-bold text-amber-300/95 mb-1 flex items-center gap-1">
                 <span>{voice.archetype}</span>
               </p>
               <p className="text-[11px] text-slate-400 leading-snug line-clamp-2">
@@ -196,26 +202,68 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
               </p>
             </div>
 
-            {/* Badges de Modo Debate (Speaker 1 / Speaker 2) */}
-            {multiSpeakerMode && (
-              <div className="flex items-center gap-1.5 pt-1 border-t border-slate-800/60">
-                {isSpk1 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-bold">
-                    <UserCheck className="w-3 h-3" /> Interlocutor 1
-                  </span>
-                )}
-                {isSpk2 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-bold">
-                    <UserCheck className="w-3 h-3" /> Interlocutor 2
-                  </span>
-                )}
-                {!isSpk1 && !isSpk2 && (
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    Toque para atribuir à Voz {activeSlot}
-                  </span>
-                )}
-              </div>
-            )}
+            {/* Rodapé de Ação e Seleção Tátil Explícita */}
+            <div className="pt-2 border-t border-slate-800/60">
+              {!multiSpeakerMode ? (
+                /* Modo Solo: Botão de Seleção para Leitura */
+                isSelectedSolo ? (
+                  <div className="w-full py-1.5 px-3 rounded-xl bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-amber-400/20">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>Voz Ativa no Leitor</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelect(voice);
+                    }}
+                    className="w-full py-1.5 px-3 rounded-xl bg-slate-800/80 hover:bg-amber-400 hover:text-slate-950 text-slate-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <span>Selecionar esta Voz</span>
+                  </button>
+                )
+              ) : (
+                /* Modo Debate: Atribuição Direta para Orador 1 ou Orador 2 */
+                <div className="flex flex-col gap-1.5 w-full">
+                  <div className="grid grid-cols-2 gap-1.5 w-full">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectSpeakerSlot && onSelectSpeakerSlot(1, voice);
+                      }}
+                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                        isSpk1
+                          ? 'bg-amber-400 text-slate-950 shadow-sm'
+                          : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                      }`}
+                    >
+                      {isSpk1 ? '✓ Orador 1' : 'Definir Orador 1'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectSpeakerSlot && onSelectSpeakerSlot(2, voice);
+                      }}
+                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                        isSpk2
+                          ? 'bg-emerald-400 text-slate-950 shadow-sm'
+                          : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                      }`}
+                    >
+                      {isSpk2 ? '✓ Orador 2' : 'Definir Orador 2'}
+                    </button>
+                  </div>
+                  {!isSpk1 && !isSpk2 && (
+                    <span className="text-[10px] text-slate-500 font-mono text-center block">
+                      Toque para Orador {activeSlot}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         );
       })}

@@ -2,7 +2,7 @@ import React from 'react';
 import { VoiceProfile } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
 
-export type AppTab = 'reader' | 'polyglot' | 'mic' | 'debate' | 'fastchunks' | 'voices' | 'architecture';
+export type AppTab = 'reader' | 'polyglot' | 'mic' | 'debate' | 'voices' | 'architecture';
 
 interface SidebarProps {
   activeTab: AppTab;
@@ -33,10 +33,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'polyglot' as AppTab,
       label: 'Chat Poliglota',
-      badge: '3 Línguas',
+      badge: '3 Línguas & Chunks',
       badgeColor: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/25',
       iconName: 'translate',
-      description: 'EN, IT & JA com Áudio Individual',
+      description: 'EN, IT & JA com Áudio e Fast Chunks',
     },
     {
       id: 'mic' as AppTab,
@@ -53,14 +53,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badgeColor: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/20',
       iconName: 'group',
       description: 'Discussão dialética antagônica',
-    },
-    {
-      id: 'fastchunks' as AppTab,
-      label: 'FastChunks',
-      badge: 'Idiomas',
-      badgeColor: 'bg-blue-400/10 text-blue-300 border-blue-400/20',
-      iconName: 'menu_book',
-      description: 'Treino de blocos lexicais e áudio',
     },
     {
       id: 'voices' as AppTab,

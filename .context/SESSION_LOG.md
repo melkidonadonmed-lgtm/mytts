@@ -1,43 +1,40 @@
 # Checkpoint da Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-03T17:55:00Z (Horário UTC)
+- **Data/Hora**: 2026-10-03T18:27:00Z (Horário UTC)
 
 ## Arquivos Tocados
+- `src/utils/interactionExporter.ts`:
+  - Utilitário criado para conversão e download de chunks nos formatos Anki CSV (UTF-8 BOM, delimitador `;`), Markdown (tabela para Obsidian/Notion), JSON estruturado e conversão para o Deck interno.
+- `src/components/ExportInteractionModal.tsx`:
+  - Modal interativo com seleção de formato, contagem de chunks e confirmação de exportação ou salvamento no deck.
+- `src/components/AgentInputDock.tsx`:
+  - Aprimoramento da barra de chat com auto-crescimento (`textareaRef`), botão de limpar, contador de palavras e atalho de teclado `Enter`.
 - `src/components/FloatingCardAudioController.tsx`:
-  - Adicionadas props `onPlayAccent?: () => void`, `isPlayingAccent?: boolean`, `isLoadingAccent?: boolean`.
-  - Inserido botão ergonômico "Reproduzir com Sotaque" (`record_voice_over`) com feedback visual esmeralda e pulso tátil durante a reprodução.
-- `src/components/LanguageColumnCard.tsx`:
-  - Adicionadas props `onPlayAccent?: () => void`, `isPlayingAccent?: boolean`.
-  - Inserido botão de ação rápida de reprodução fonética com sotaque no cabeçalho ao lado do botão de cópia.
+  - Adicionado botão "Exportar Chunks", velocidade 1.5x e prop `onOpenExport`.
 - `src/components/ParallelMessageBlock.tsx`:
-  - Propagação de `onPlayAccent`, `isPlayingAccent` e `isLoadingAccent` para os três cards de idioma e para o `FloatingCardAudioController`.
+  - Adicionado botão tátil "Exportar Chunks" no cabeçalho de cada mensagem e conexão com o controlador de áudio.
 - `src/components/PolyglotChatStudio.tsx`:
-  - Gerenciamento de `activeAudioMode` (`'standard' | 'accent' | null`) e `isLoadingAccent`.
-  - Implementação de `handlePlayCardWithAccent` integrando com o endpoint `/api/synthesize-chunk` e cache local `IndexedDB`.
-  - Sincronização do scrubber, seek e taxa de reprodução entre os dois modos de áudio.
-- `.context/CURRENT_STATE.md`: Registro da revisão `mytts-00013-pdd` e testes de produção.
-- `.context/SESSION_LOG.md`: Registro do checkpoint atual.
+  - Integrado o modal de exportação com gerenciamento do estado `exportingMessage` e feedback via toast.
+- `src/components/Sidebar.tsx`:
+  - Removida a aba redundante `fastchunks` e atualizada a badge do Chat Poliglota para `3 Línguas & Chunks`.
+- `src/App.tsx`:
+  - Removida a rota e importação de `FastChunkAudioApp`.
+- `test-audio-engine.ts`:
+  - Adicionada a bateria 8/8 testando formalmente o gerador de Anki CSV, Markdown, JSON e Flashcards.
+- `.context/CURRENT_STATE.md`: Atualizado.
+- `.context/SESSION_LOG.md`: Atualizado.
 
 ## Comandos Validados
-1. `npm test` (`tsx test-audio-engine.ts`):
+1. `npm run lint` (`tsc --noEmit`):
    - Código de saída: `0`.
-   - 7 baterias de testes aprovadas com 100% de conformidade.
-2. `npm run lint` (`tsc --noEmit`):
+   - Zero erros ou advertências de tipagem.
+2. `npm test` (`tsx test-audio-engine.ts`):
    - Código de saída: `0`.
-   - Zero erros de tipagem estrita no TypeScript.
+   - 8 baterias de testes aprovadas com 100% de conformidade.
 3. `npm run build` (`vite build`):
    - Código de saída: `0`.
-   - Bundle de produção compilado em 526ms sem erros.
-4. `git commit` & `git push origin main`:
-   - Código de saída: `0`.
-   - Commit `c1d66c3` enviado com sucesso para o repositório remoto.
-5. `gcloud run deploy mytts --source . --region us-central1 --allow-unauthenticated --project agent-md-506215`:
-   - Código de saída: `0`.
-   - Revisão `mytts-00013-pdd` criada e servindo 100% do tráfego.
-6. Smoke Tests Reais em Produção (`https://mytts-1044179901556.us-central1.run.app`):
-   - `GET /api/health`: HTTP 200, status `online`, modelos ativos.
-   - `POST /api/synthesize-chunk`: HTTP 200, `success: true`, payload de áudio válido (125.500 bytes).
+   - Compilação limpa concluída em 321ms, bundle reduzido para 554 kB.
 
 ## Próxima Ação Recomendada
-- Validar no navegador com recarregamento da página (`Ctrl + F5`): `https://mytts-1044179901556.us-central1.run.app`.
+- Validar visualmente o modal de exportação no navegador e realizar commit / deploy se desejado.
