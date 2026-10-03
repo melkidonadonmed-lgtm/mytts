@@ -35,6 +35,13 @@
 3. `npm run build` (`vite build`):
    - Código de saída: `0`.
    - Compilação limpa concluída em 321ms, bundle reduzido para 554 kB.
+4. `git push origin main`:
+   - Código de saída: `0` (commit `601c38b` sincronizado).
+5. `gcloud run deploy mytts`:
+   - Código de saída: `0`.
+   - Revisão `mytts-00014-vc6` servindo 100% do tráfego em `https://mytts-1044179901556.us-central1.run.app`.
+6. Smoke test `GET /api/health`:
+   - Status `online`, uptime ativo, modelos operacionais.
 
 ## Próxima Ação Recomendada
-- Validar visualmente o modal de exportação no navegador e realizar commit / deploy se desejado.
+- Validar interativamente no navegador (`Ctrl + F5`): `https://mytts-1044179901556.us-central1.run.app`.

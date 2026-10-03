@@ -1,9 +1,9 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Consolidação Arquitetural do Chat Poliglota com Fast Chunks, Modal de Exportação e Remoção de Redundância Concluída.
-- **Status da Branch**: `main`.
-- **Revisão Ativa Cloud Run**: `mytts-00013-pdd` (100% do tráfego).
+- **Fase**: Deploy em Produção da Revisão `mytts-00014-vc6` Concluído com Sucesso.
+- **Status da Branch**: `main` (commit `601c38b` sincronizado com `origin/main`).
+- **Revisão Ativa Cloud Run**: `mytts-00014-vc6` (100% do tráfego).
 - **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
 
 ## Decisões Arquiteturais e Implementações
