@@ -11,8 +11,7 @@ export interface LanguageColumnCardProps {
   fullText: string;
   hoveredChunkId: number | null;
   isSelected: boolean;
-  isPlaying?: boolean;
-  isLoading?: boolean;
+  isCached?: boolean;
   onSelectCard: () => void;
   onHoverChunk: (id: number | null) => void;
   onClickChunk: (chunkText: string, language: string, event: React.MouseEvent) => void;
@@ -27,8 +26,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
   fullText,
   hoveredChunkId,
   isSelected,
-  isPlaying = false,
-  isLoading = false,
+  isCached,
   onSelectCard,
   onHoverChunk,
   onClickChunk,
@@ -58,10 +56,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
       }`}
     >
       {/* 1. Cabeçalho Minimalista e Tátil */}
-      <div 
-        onClick={onSelectCard}
-        className="px-4 py-3 bg-slate-950/60 border-b border-slate-800/70 flex items-center justify-between cursor-pointer"
-      >
+      <div className="px-4 py-3 bg-slate-950/60 border-b border-slate-800/70 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="text-xl select-none" role="img" aria-label={languageTitle}>
             {flag}
@@ -77,25 +72,25 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Badge de Seleção / Reprodução / Foco */}
-          {isLoading ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-              <span>Sintetizando...</span>
+          {/* Badge de Cache Local 0ms */}
+          {isCached && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 px-1.5 py-0.5 rounded-md"
+              title="Áudio persistido no cache local IndexedDB (0ms de latência)"
+            >
+              <span>⚡ 0ms</span>
             </span>
-          ) : isPlaying ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Ouvindo</span>
-            </span>
-          ) : isSelected ? (
+          )}
+
+          {/* Badge de Seleção / Foco */}
+          {isSelected ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
               <span>Focado</span>
             </span>
           ) : (
             <span className="text-[10px] text-slate-500 hover:text-slate-300 font-mono hidden sm:inline">
-              Ouvir / Focar
+              Clique para focar
             </span>
           )}
 
@@ -129,7 +124,6 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
                 onMouseEnter={() => onHoverChunk(chunk.id)}
                 onMouseLeave={() => onHoverChunk(null)}
                 onClick={(e) => {
-                  onSelectCard(); // Garante ativação imediata do card e sincronia do reprodutor
                   e.stopPropagation();
                   onClickChunk(chunkText, getLanguageTag(languageCode), e);
                 }}

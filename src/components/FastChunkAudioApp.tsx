@@ -14,6 +14,12 @@ import {
 } from 'lucide-react';
 import { ChunkItem, TargetLang } from '../types/chunks';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
+import {
+  generateAudioCacheKey,
+  synthesizeWithCache,
+  getCachedAudio,
+  getCachedKeySet,
+} from '../utils/audioCache';
 
 // Banco inicial offline para teste imediato de alta fluência
 const CHUNK_PRESETS: Record<TargetLang, Record<string, ChunkItem[]>> = {
@@ -139,8 +145,8 @@ export const FastChunkAudioApp: React.FC = () => {
   const [customChunks, setCustomChunks] = useState<ChunkItem[]>([]);
   const [isLoadingBackend, setIsLoadingBackend] = useState(false);
 
-  // Cache e estado de síntese neural Gemini (Director's Chair TTS)
-  const [neuralAudioMap, setNeuralAudioMap] = useState<Record<string, string>>({});
+  // Cache e estado de síntese neural Gemini (Director's Chair TTS com IndexedDB)
+  const [cachedChunkIds, setCachedChunkIds] = useState<Set<string>>(new Set());
   const [loadingNeuralId, setLoadingNeuralId] = useState<string | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
@@ -275,55 +281,60 @@ export const FastChunkAudioApp: React.FC = () => {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Reprodução de Áudio Ultra-Realista via Gemini 3.1 Flash TTS (Director's Chair)
+  // Reproduz áudio WAV a partir do Base64 com ciclo de vida seguro de memória
+  const playAudioBase64 = useCallback(async (base64Audio: string, id: string) => {
+    const blobUrl = base64ToBlobUrl(base64Audio, 'audio/wav');
+    const audio = new Audio(blobUrl);
+    audio.playbackRate = playbackRate;
+    audioPlayerRef.current = audio;
+    setSpeakingId(id);
+
+    audio.onended = () => {
+      setSpeakingId(null);
+      revokeAudioUrl(blobUrl);
+    };
+    audio.onerror = () => {
+      setSpeakingId(null);
+      revokeAudioUrl(blobUrl);
+    };
+
+    await audio.play();
+  }, [playbackRate]);
+
+  // Reprodução de Áudio Ultra-Realista via Gemini 3.1 Flash TTS (Director's Chair) com Cache Local (0ms)
   const speakNeuralChunk = async (text: string, id: string) => {
     window.speechSynthesis?.cancel();
     if (audioPlayerRef.current) {
       audioPlayerRef.current.pause();
     }
 
+    const cacheKey = generateAudioCacheKey({
+      type: 'chunk',
+      text,
+      language: selectedLang,
+    });
+
     try {
-      if (neuralAudioMap[id]) {
-        const blobUrl = base64ToBlobUrl(neuralAudioMap[id], 'audio/wav');
-        const audio = new Audio(blobUrl);
-        audio.playbackRate = playbackRate;
-        audioPlayerRef.current = audio;
-        setSpeakingId(id);
-        audio.onended = () => {
-          setSpeakingId(null);
-          revokeAudioUrl(blobUrl);
-        };
-        audio.onerror = () => {
-          setSpeakingId(null);
-          revokeAudioUrl(blobUrl);
-        };
-        await audio.play();
+      // 1. Tenta recuperar do cache local persistente (IndexedDB / L1) com latência 0ms
+      const cached = await getCachedAudio(cacheKey);
+      if (cached && cached.audioBase64) {
+        setCachedChunkIds((prev) => new Set(prev).add(id));
+        await playAudioBase64(cached.audioBase64, id);
         return;
       }
 
+      // 2. Não está em cache: exibe loading e executa síntese via Cache-Aside
       setLoadingNeuralId(id);
-      const res = await fetch('/api/synthesize-chunk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, language: selectedLang }),
+      const res = await synthesizeWithCache({
+        endpoint: '/api/synthesize-chunk',
+        body: { text, language: selectedLang },
+        cacheKey,
+        metadata: { language: selectedLang },
       });
-      const data = await res.json();
-      if (data.success && data.audioBase64) {
-        setNeuralAudioMap((prev) => ({ ...prev, [id]: data.audioBase64 }));
-        const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
-        const audio = new Audio(blobUrl);
-        audio.playbackRate = playbackRate;
-        audioPlayerRef.current = audio;
-        setSpeakingId(id);
-        audio.onended = () => {
-          setSpeakingId(null);
-          revokeAudioUrl(blobUrl);
-        };
-        audio.onerror = () => {
-          setSpeakingId(null);
-          revokeAudioUrl(blobUrl);
-        };
-        await audio.play();
+
+      if (res.audioBase64) {
+        setCachedChunkIds((prev) => new Set(prev).add(id));
+        await playAudioBase64(res.audioBase64, id);
       } else {
         // Fallback gracioso para Web Speech
         speakChunk(text, id);
@@ -433,6 +444,30 @@ export const FastChunkAudioApp: React.FC = () => {
     item.meaning.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.pronunciationHint && item.pronunciationHint.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // Sincroniza em lote os IDs dos chunks que já possuem áudio gravado no cache local
+  useEffect(() => {
+    let isSubscribed = true;
+    const keys = filteredChunks.map((c) =>
+      generateAudioCacheKey({ type: 'chunk', text: c.chunk, language: selectedLang })
+    );
+
+    getCachedKeySet(keys).then((cachedKeys) => {
+      if (!isSubscribed) return;
+      const ids = new Set<string>();
+      filteredChunks.forEach((c) => {
+        const k = generateAudioCacheKey({ type: 'chunk', text: c.chunk, language: selectedLang });
+        if (cachedKeys.has(k)) {
+          ids.add(c.id);
+        }
+      });
+      setCachedChunkIds(ids);
+    });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [selectedLang, filteredChunks]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 selection:bg-amber-500/20">
@@ -559,12 +594,20 @@ export const FastChunkAudioApp: React.FC = () => {
                       : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700/80'
                   }`}
                 >
-                  {/* Cabeçalho do Card: Contexto, Tag de Custom e Botão Copiar */}
+                  {/* Cabeçalho do Card: Contexto, Tag de Custom, Badge de Cache e Botão Copiar */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">
                         {item.context}
                       </span>
+                      {cachedChunkIds.has(item.id) && (
+                        <span
+                          className="text-[9px] font-mono font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/25 flex items-center gap-0.5"
+                          title="Áudio persistido no cache local IndexedDB (0ms de latência)"
+                        >
+                          <span>⚡ 0ms</span>
+                        </span>
+                      )}
                       {item.isCustom && (
                         <span className="text-[9px] font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
                           Salvo na Nuvem
@@ -627,7 +670,11 @@ export const FastChunkAudioApp: React.FC = () => {
                       disabled={loadingNeuralId === item.id}
                       onClick={() => speakNeuralChunk(item.chunk, item.id)}
                       title="Ouvir com voz neural hiper-realista do Gemini (respiração e tom natural)"
-                      className="col-span-6 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 active:scale-95 transition-all text-xs font-bold cursor-pointer border border-amber-500/40 shadow-sm"
+                      className={`col-span-6 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl active:scale-95 transition-all text-xs font-bold cursor-pointer border shadow-sm ${
+                        cachedChunkIds.has(item.id)
+                          ? 'bg-gradient-to-r from-emerald-500/15 to-amber-500/15 hover:from-emerald-500/25 hover:to-amber-500/25 text-emerald-300 border-emerald-500/40'
+                          : 'bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 border-amber-500/40'
+                      }`}
                     >
                       {loadingNeuralId === item.id ? (
                         <>
@@ -636,8 +683,10 @@ export const FastChunkAudioApp: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-3.5 h-3.5 fill-current text-amber-400" />
-                          <span>{isSpeaking ? 'Tocando...' : 'Voz Neural IA'}</span>
+                          <Sparkles className={`w-3.5 h-3.5 fill-current ${cachedChunkIds.has(item.id) ? 'text-emerald-400' : 'text-amber-400'}`} />
+                          <span>
+                            {isSpeaking ? 'Tocando...' : cachedChunkIds.has(item.id) ? '⚡ Neural (0ms)' : 'Voz Neural IA'}
+                          </span>
                         </>
                       )}
                     </button>

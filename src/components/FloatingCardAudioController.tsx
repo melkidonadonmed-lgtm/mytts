@@ -7,6 +7,8 @@ export interface FloatingCardAudioControllerProps {
   onSelectLanguage: (lang: 'en' | 'it' | 'ja') => void;
   isPlaying: boolean;
   isLoading: boolean;
+  isCached?: boolean;
+  isCachedByLang?: Record<'en' | 'it' | 'ja', boolean>;
   onTogglePlay: () => void;
   onReplay: () => void;
   currentTime: number;
@@ -26,6 +28,8 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
   onSelectLanguage,
   isPlaying,
   isLoading,
+  isCached,
+  isCachedByLang,
   onTogglePlay,
   onReplay,
   currentTime,
@@ -80,6 +84,11 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 >
                   <span className="text-sm leading-none">{meta.flag}</span>
                   <span>{meta.title}</span>
+                  {isCachedByLang?.[lang] && !isActive && (
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold leading-none" title="Áudio pronto no cache local (0ms)">
+                      ⚡
+                    </span>
+                  )}
                   {isActive && (
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-950 shrink-0 ml-0.5" />
                   )}
@@ -189,6 +198,11 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 <>
                   <GoogleIcon name="play_arrow" size={20} filled className="text-slate-950" />
                   <span>Ouvir {languageLabels[selectedLanguage].title}</span>
+                  {isCached && (
+                    <span className="text-[10px] font-mono bg-slate-950/20 text-slate-900 px-1.5 py-0.5 rounded font-bold">
+                      ⚡ 0ms
+                    </span>
+                  )}
                 </>
               )}
             </button>

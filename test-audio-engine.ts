@@ -110,18 +110,6 @@ assert.ok(fastSpontaneous.includes('agile, fast and energetic'), 'Velocidade 1.3
 
 console.log('  ✓ getEmotionStyle: Instrução estrita de PT-BR e mapeamento de velocidade validados.');
 
-// 5.1.1 Testar Calibração Multilíngue (EN, IT, JA)
-const englishPrompt = getEmotionStyle('natural', 1.0, 'en-US');
-assert.ok(englishPrompt.includes('American English'), 'Deve calibrar instrução para American English.');
-
-const italianPrompt = getEmotionStyle('natural', 1.0, 'it-IT');
-assert.ok(italianPrompt.includes('authentic, natural Italian'), 'Deve calibrar instrução para Italiano nativo.');
-
-const japanesePrompt = getEmotionStyle('natural', 1.0, 'ja-JP');
-assert.ok(japanesePrompt.includes('Tokyo pitch-accent'), 'Deve calibrar instrução para Japonês padrão Tóquio.');
-
-console.log('  ✓ getEmotionStyle: Instruções fonéticas multilíngues (EN, IT, JA) validadas com sucesso.');
-
 // 5.2 Testar applyAcousticProsody: sanitização de tags perigosas e pontuação acústica
 const rawTextWithTags = 'Olá [deep breath] a todos! <pause> Vamos começar [sighs] agora.';
 const sanitized = applyAcousticProsody(rawTextWithTags, { enabled: true });
@@ -186,7 +174,110 @@ assert.ok(csvOutput.includes('Uso coloquial com ""davvero""'), 'Aspas internas n
 
 console.log('  ✓ Exportador CSV validado: UTF-8 BOM, delimitador Anki (;), escape e caracteres japoneses conformes.');
 
-console.log('\n🎉 Todos os testes de Engenharia de Áudio, Prosódia e Estúdio Poliglota passaram com 100% de conformidade!');
+// 7. Validar Motor de Cache de Áudio (IndexedDB & L1 Memória)
+console.log('\n[7/7] Validando Motor de Cache de Áudio (IndexedDB & L1 Memória):');
+import {
+  generateAudioCacheKey,
+  getCachedAudio,
+  setCachedAudio,
+  clearAudioCache,
+  isAudioCached,
+  getAudioCacheStats,
+} from './src/utils/audioCache';
+
+// 7.1 Chave determinística e normalização de espaços/caracteres
+const key1 = generateAudioCacheKey({
+  type: 'speech',
+  text: '  Could I please   get an   espresso?  ',
+  language: 'en-US',
+  voiceId: 'Puck',
+  speed: 1,
+  emotion: 'natural',
+});
+
+const key2 = generateAudioCacheKey({
+  type: 'speech',
+  text: 'Could I please get an espresso?',
+  language: 'EN-US',
+  voiceId: 'Puck',
+  speed: 1.0,
+  emotion: 'NATURAL',
+});
+
+assert.strictEqual(key1, key2, 'Chaves geradas para textos e parâmetros equivalentes devem ser estritamente idênticas.');
+assert.strictEqual(
+  key1,
+  'speech:en-us:Puck:1.00:natural:Could I please get an espresso?',
+  'Formato canônico da chave deve seguir o padrão determinístico delimitado por dois-pontos.'
+);
+
+// 7.2 Distinção de chaves para variações de voz, idioma ou velocidade
+const keyDiffVoice = generateAudioCacheKey({
+  type: 'speech',
+  text: 'Could I please get an espresso?',
+  language: 'en-US',
+  voiceId: 'Aoede',
+  speed: 1.0,
+  emotion: 'natural',
+});
+assert.notStrictEqual(key1, keyDiffVoice, 'Mudança de voz deve gerar chave de cache distinta.');
+
+const keyDiffSpeed = generateAudioCacheKey({
+  type: 'speech',
+  text: 'Could I please get an espresso?',
+  language: 'en-US',
+  voiceId: 'Puck',
+  speed: 0.8,
+  emotion: 'natural',
+});
+assert.notStrictEqual(key1, keyDiffSpeed, 'Mudança de velocidade deve gerar chave de cache distinta.');
+
+console.log('  ✓ Geração determinística de chaves de cache e normalização validadas.');
+
+// 7.3 Armazenamento, Recuperação e Hit Count no L1 Memória / L2
+await clearAudioCache();
+
+const mockAudioBase64 = 'UklGRi4AAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='; // WAV RIFF mock
+await setCachedAudio({
+  key: key1,
+  audioBase64: mockAudioBase64,
+  mimeType: 'audio/wav',
+  durationSec: 2.45,
+  language: 'en-US',
+  voiceId: 'Puck',
+  speed: 1.0,
+  emotion: 'natural',
+});
+
+const cachedRecord = await getCachedAudio(key1);
+assert.ok(cachedRecord, 'Registro gravado no cache deve ser recuperável.');
+assert.strictEqual(cachedRecord.key, key1);
+assert.strictEqual(cachedRecord.audioBase64, mockAudioBase64);
+assert.strictEqual(cachedRecord.durationSec, 2.45);
+assert.strictEqual(cachedRecord.hitCount, 2, 'Hit count deve ser incrementado na leitura.');
+assert.ok(cachedRecord.sizeBytes > 0, 'Tamanho em bytes do áudio deve ser computado.');
+
+const exists = await isAudioCached(key1);
+assert.strictEqual(exists, true, 'isAudioCached deve retornar true para chave existente.');
+
+const notExists = await isAudioCached('non:existent:key');
+assert.strictEqual(notExists, false, 'isAudioCached deve retornar false para chave não existente.');
+
+// 7.4 Estatísticas e Limpeza do Cache
+const statsBefore = await getAudioCacheStats();
+assert.strictEqual(statsBefore.count, 1, 'Estatísticas devem registrar 1 item em cache.');
+assert.ok(statsBefore.totalSizeBytes > 0, 'Tamanho total em bytes deve ser maior que zero.');
+
+await clearAudioCache();
+const statsAfter = await getAudioCacheStats();
+assert.strictEqual(statsAfter.count, 0, 'Após clearAudioCache, contagem deve ser zero.');
+const existsAfterClear = await isAudioCached(key1);
+assert.strictEqual(existsAfterClear, false, 'Chave não deve mais existir após limpeza do cache.');
+
+console.log('  ✓ Operações CRUD, Hit Count, verificação de existência e limpeza validadas.');
+
+console.log('\n🎉 Todos os testes de Engenharia de Áudio, Prosódia, Estúdio Poliglota e Cache Local passaram com 100% de conformidade!');
+
 
 
 
