@@ -3,6 +3,7 @@ import { Sidebar, AppTab } from './components/Sidebar';
 import { StudioWorkspace } from './components/StudioWorkspace';
 import { PolyglotChatStudio } from './components/PolyglotChatStudio';
 import { LiveVoiceMic } from './components/LiveVoiceMic';
+import { CommandPaletteModal } from './components/CommandPaletteModal';
 
 import { VoiceLibrary } from './components/VoiceLibraryModal';
 import { DocumentInputSection } from './components/DocumentInputSection';
@@ -20,6 +21,19 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('reader');
   const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(GEMINI_VOICES[0]); // Puck default
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+
+  // Atalho global Ctrl + K / Cmd + K para Command Palette Tátil
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Debate Studio State
   const [documentText, setDocumentText] = useState<string>(SAMPLE_DOCUMENTS[0].content);
@@ -260,6 +274,7 @@ export default function App() {
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
         onOpenVoiceLibrary={() => setActiveTab('voices')}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
       />
 
       {/* 2. Área de Trabalho Principal (com margem para sidebar no desktop) */}
@@ -444,6 +459,21 @@ export default function App() {
       {activeTab === 'architecture' && (
         <ArchitectureModal onClose={() => setActiveTab('reader')} />
       )}
+
+      {/* Command Palette Modal Tátil (Ctrl + K) */}
+      <CommandPaletteModal
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onSelectTab={(tab) => {
+          if ((document as any).startViewTransition) {
+            (document as any).startViewTransition(() => setActiveTab(tab));
+          } else {
+            setActiveTab(tab);
+          }
+        }}
+        onSelectVoice={(v) => setSelectedVoice(v)}
+        currentVoice={selectedVoice}
+      />
     </div>
   );
 }

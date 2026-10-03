@@ -11,6 +11,7 @@ interface SidebarProps {
   isOpenMobile: boolean;
   onToggleMobile: () => void;
   onOpenVoiceLibrary: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -20,6 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onToggleMobile,
   onOpenVoiceLibrary,
+  onOpenCommandPalette,
 }) => {
   const navItems = [
     {
@@ -143,6 +145,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Busca Rápida Tátil (Ctrl + K) */}
+        {onOpenCommandPalette && (
+          <div className="px-3 pt-3">
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              className="w-full px-3 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-between text-xs transition-colors cursor-pointer group"
+              title="Busca Rápida e Navegação (Ctrl + K)"
+            >
+              <div className="flex items-center gap-2">
+                <GoogleIcon name="search" size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                <span className="font-medium">Busca Rápida</span>
+              </div>
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded text-slate-300">
+                Ctrl K
+              </kbd>
+            </button>
+          </div>
+        )}
 
         {/* Navigation Items */}
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
