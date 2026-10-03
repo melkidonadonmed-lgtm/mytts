@@ -1,8 +1,9 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Botão de Reprodução Fonética com Sotaque Nativo no Reprodutor Flutuante e Cards de Idioma + Cache Local IndexedDB.
-- **Status da Branch**: `main` (código testado, verificado com lint e compilado com 100% de conformidade).
+- **Fase**: Deploy em Produção da Revisão `mytts-00013-pdd` Concluído com Sucesso.
+- **Status da Branch**: `main` (commit `c1d66c3` sincronizado com `origin/main`).
+- **Revisão Ativa Cloud Run**: `mytts-00013-pdd` (100% do tráfego).
 - **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
 
 ## Decisões Tomadas
@@ -22,8 +23,10 @@
    - Eliminação completa de latência de rede em reproduções repetidas de frases, chunks e cards do feed.
    - Camada L1 (RAM) + Camada L2 (IndexedDB `mytts_audio_cache`) com política LRU (máx. 300 áudios).
 
-## Testes Reais e Verificação
-- `test-audio-engine.ts`: 7 baterias de testes com 100% de conformidade (Soundscapes, Auto-Ducking, Voice Boost, WAV RIFF 44B, Prosódia PT-BR, CSV Anki e Cache Local IndexedDB/L1).
+## Testes Reais em Produção (Smoke Tests Comprovados)
+- `GET /api/health`: Status `online`, Uptime ativo, modelos `gemini-3.1-flash-tts-preview` e `gemini-3.8-flash`.
+- `POST /api/synthesize-chunk` (Inglês `en-US`): Status `True`, áudio WAV canônico sintetizado (125.500 bytes) com sucesso.
+- `test-audio-engine.ts`: 7 baterias de testes com 100% de conformidade.
 - `tsc --noEmit`: 0 erros de tipagem estrita no TypeScript.
 - `vite build`: Compilação de produção aprovada em 526ms.
 
@@ -33,4 +36,4 @@
   - `[MÉDIO]`: Integração streaming bidirecional via WebSocket (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Deploy da nova revisão no Google Cloud Run e smoke test em produção.
+- Testar interativamente no navegador (`Ctrl + F5`) a reprodução com sotaque nativo direto do reprodutor: `https://mytts-1044179901556.us-central1.run.app`.

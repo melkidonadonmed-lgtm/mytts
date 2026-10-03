@@ -1,7 +1,7 @@
 # Checkpoint da Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-03T17:50:00Z (Horário UTC)
+- **Data/Hora**: 2026-10-03T17:55:00Z (Horário UTC)
 
 ## Arquivos Tocados
 - `src/components/FloatingCardAudioController.tsx`:
@@ -16,7 +16,7 @@
   - Gerenciamento de `activeAudioMode` (`'standard' | 'accent' | null`) e `isLoadingAccent`.
   - Implementação de `handlePlayCardWithAccent` integrando com o endpoint `/api/synthesize-chunk` e cache local `IndexedDB`.
   - Sincronização do scrubber, seek e taxa de reprodução entre os dois modos de áudio.
-- `.context/CURRENT_STATE.md`: Atualização do estado do workspace.
+- `.context/CURRENT_STATE.md`: Registro da revisão `mytts-00013-pdd` e testes de produção.
 - `.context/SESSION_LOG.md`: Registro do checkpoint atual.
 
 ## Comandos Validados
@@ -29,6 +29,15 @@
 3. `npm run build` (`vite build`):
    - Código de saída: `0`.
    - Bundle de produção compilado em 526ms sem erros.
+4. `git commit` & `git push origin main`:
+   - Código de saída: `0`.
+   - Commit `c1d66c3` enviado com sucesso para o repositório remoto.
+5. `gcloud run deploy mytts --source . --region us-central1 --allow-unauthenticated --project agent-md-506215`:
+   - Código de saída: `0`.
+   - Revisão `mytts-00013-pdd` criada e servindo 100% do tráfego.
+6. Smoke Tests Reais em Produção (`https://mytts-1044179901556.us-central1.run.app`):
+   - `GET /api/health`: HTTP 200, status `online`, modelos ativos.
+   - `POST /api/synthesize-chunk`: HTTP 200, `success: true`, payload de áudio válido (125.500 bytes).
 
 ## Próxima Ação Recomendada
-- Commit no Git, push para a branch `main` e deploy no Google Cloud Run via `gcloud run deploy`.
+- Validar no navegador com recarregamento da página (`Ctrl + F5`): `https://mytts-1044179901556.us-central1.run.app`.
