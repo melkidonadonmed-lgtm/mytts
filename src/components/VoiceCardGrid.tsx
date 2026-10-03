@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Loader2, Volume2, UserCheck } from 'lucide-react';
+import { Play, Pause, Loader2, UserCheck } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 

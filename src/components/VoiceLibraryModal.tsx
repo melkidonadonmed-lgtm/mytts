@@ -2,14 +2,9 @@ import React, { useState } from 'react';
 import {
   Volume2,
   Check,
-  Sparkles,
   Loader2,
   Play,
-  Pause,
-  User,
-  Zap,
-  Sliders,
-  ShieldCheck
+  Pause
 } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';

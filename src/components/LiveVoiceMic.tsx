@@ -1,14 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Mic,
-  MicOff,
   Square,
   Sparkles,
   ArrowRight,
   Copy,
   Check,
-  Volume2,
-  RefreshCw,
   AlertCircle,
   Radio
 } from 'lucide-react';
@@ -20,7 +17,6 @@ interface LiveVoiceMicProps {
 }
 
 export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
-  selectedVoice,
   onSendToReader,
 }) => {
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -73,7 +69,7 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setErrorMessage(
         'Permissão de microfone negada ou dispositivo indisponível. Por favor, autorize o acesso ao microfone no navegador.'
@@ -123,16 +119,16 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
         setIsTranscribing(false);
       };
       reader.readAsDataURL(audioBlob);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMessage(err.message || 'Erro ao processar transcrição do áudio.');
+      setErrorMessage(err instanceof Error ? err.message : 'Erro ao processar transcrição do áudio.');
       setIsTranscribing(false);
     }
   };
 
   const handleCopy = () => {
     if (!transcript) return;
-    navigator.clipboard.writeText(transcript);
+    navigator.clipboard.writeText(transcript).catch((e) => console.warn('Clipboard indisponível:', e));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

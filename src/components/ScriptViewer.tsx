@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import {
   Play,
-  Volume2,
   RefreshCw,
   Edit2,
   Check,
   Download,
-  Flame,
-  Clock,
-  Sparkles,
-  Info,
 } from 'lucide-react';
 import { DebateScript, DebateTurn } from '../types/debate';
 import { base64ToArrayBuffer } from '../utils/audioEngine';
@@ -137,7 +132,6 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
           const isSelected = currentTurnIndex === index;
           const speakerInfo =
             script.speakers.find((s) => s.name === turn.speaker) || script.speakers[0];
-          const isSpk1 = speakerInfo.id === 'speaker1';
           const hasAudio = Boolean(turn.audioBase64);
           const isTurnSynthesizing = synthesizingTurnIndex === index;
 
@@ -218,16 +212,8 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                 </div>
               ) : (
                 <div
-                  role="button"
-                  tabIndex={0}
                   onClick={() => onPlayTurn(index)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onPlayTurn(index);
-                    }
-                  }}
-                  className="text-sm text-slate-200 leading-relaxed cursor-pointer hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/50 rounded-lg p-1 -m-1"
+                  className="text-sm text-slate-200 leading-relaxed cursor-pointer hover:text-white transition-colors"
                 >
                   {renderProsodicText(turn.text)}
                 </div>

@@ -33,7 +33,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
 
   const handleCopyFull = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(fullText);
+    navigator.clipboard.writeText(fullText).catch((e) => console.warn('Clipboard indisponível:', e));
     setCopiedFull(true);
     setTimeout(() => setCopiedFull(false), 1500);
   };
@@ -46,34 +46,24 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-pressed={isSelected}
-      aria-label={`Selecionar coluna de ${languageTitle}`}
       onClick={onSelectCard}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelectCard();
-        }
-      }}
-      className={`flex-1 flex flex-col rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
+      className={`flex-1 flex flex-col rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer ${
         isSelected
           ? 'card-matte-active'
-          : 'card-matte hover:border-zinc-700/80 opacity-90 hover:opacity-100'
+          : 'card-matte hover:border-slate-700/80 opacity-90 hover:opacity-100'
       }`}
     >
       {/* 1. Cabeçalho Minimalista e Tátil */}
-      <div className="px-4 py-3 bg-zinc-950/60 border-b border-zinc-800/70 flex items-center justify-between">
+      <div className="px-4 py-3 bg-slate-950/60 border-b border-slate-800/70 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="text-xl select-none" role="img" aria-label={languageTitle}>
             {flag}
           </span>
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-bold text-zinc-100 font-display">
+            <h3 className="text-xs font-bold text-slate-100 font-display">
               {languageTitle}
             </h3>
-            <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded-md border border-zinc-800">
+            <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded-md border border-slate-800">
               {badgeText}
             </span>
           </div>
@@ -87,7 +77,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
               <span>Focado</span>
             </span>
           ) : (
-            <span className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono hidden sm:inline">
+            <span className="text-[10px] text-slate-500 hover:text-slate-300 font-mono hidden sm:inline">
               Clique para focar
             </span>
           )}
@@ -97,7 +87,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
             type="button"
             onClick={handleCopyFull}
             title="Copiar texto completo deste idioma"
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-850 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors cursor-pointer"
           >
             {copiedFull ? (
               <GoogleIcon name="check" size={16} className="text-emerald-400" />
@@ -130,8 +120,8 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
                   isHovered
                     ? 'bg-amber-400/20 text-amber-200 font-semibold ring-1 ring-amber-400/40 shadow-sm'
                     : isSelected
-                    ? 'text-zinc-100 hover:bg-zinc-800/70'
-                    : 'text-zinc-300 hover:bg-zinc-800/60'
+                    ? 'text-slate-100 hover:bg-slate-800/70'
+                    : 'text-slate-300 hover:bg-slate-800/60'
                 }`}
               >
                 <span>{chunkText}</span>

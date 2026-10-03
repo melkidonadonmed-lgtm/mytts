@@ -10,9 +10,6 @@ import {
   Headphones,
   Users,
   Zap,
-  Sliders,
-  RotateCcw,
-  CheckCircle2,
 } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { DebateScript, SpeakerProfile } from '../types/debate';
@@ -51,7 +48,6 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   isPlaying,
   playerCurrentTurn,
   script,
-  setScript,
   onGenerateDebate,
   isGeneratingDebate,
   isSynthesizingDebate,
@@ -197,9 +193,9 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
 
       await audio.play();
       setIsSoloPlaying(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('Erro na síntese neural:', err);
-      setSoloErrorMessage(err.message || 'Erro ao conectar à API do Gemini.');
+      setSoloErrorMessage(err instanceof Error ? err.message : 'Erro ao conectar à API do Gemini.');
     } finally {
       setIsSoloSynthesizing(false);
       setSoloStatusMessage(null);

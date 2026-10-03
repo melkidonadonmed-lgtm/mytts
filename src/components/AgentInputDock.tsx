@@ -136,13 +136,13 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   ];
 
   return (
-    <div className="sticky bottom-0 z-30 w-full bg-zinc-950/90 backdrop-blur-2xl border-t border-zinc-850 px-4 py-3 sm:px-6">
+    <div className="sticky bottom-0 z-30 w-full bg-slate-950/90 backdrop-blur-2xl border-t border-slate-800 px-4 py-3 sm:px-6">
       <div className="max-w-7xl mx-auto flex flex-col gap-2">
         
         {/* Sugestões Rápidas (Pills Táteis) se o campo estiver vazio */}
         {!inputText && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
-            <span className="font-semibold text-zinc-500 uppercase tracking-wider text-[10px] shrink-0 font-mono">
+            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] shrink-0 font-mono">
               Sugestões:
             </span>
             {quickSuggestions.map((sug, idx) => (
@@ -150,7 +150,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                 key={idx}
                 type="button"
                 onClick={() => setInputText(sug)}
-                className="btn-matte btn-matte-dark px-2.5 py-1 text-xs text-zinc-300 rounded-lg shrink-0 truncate max-w-[280px]"
+                className="btn-matte btn-matte-dark px-2.5 py-1 text-xs text-slate-300 rounded-lg shrink-0 truncate max-w-[280px]"
               >
                 {sug}
               </button>
@@ -190,7 +190,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             title="Anexar arquivo (PDF, TXT, MD)"
-            className="btn-matte btn-matte-dark h-10 w-10 rounded-xl text-zinc-400 hover:text-zinc-100 shrink-0"
+            className="btn-matte btn-matte-dark h-10 w-10 rounded-xl text-slate-400 hover:text-slate-100 shrink-0"
           >
             <GoogleIcon name="attach_file" size={20} />
           </button>
@@ -203,7 +203,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             className={`btn-matte h-10 w-10 rounded-xl shrink-0 transition-all ${
               isRecording
                 ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/30'
-                : 'btn-matte-dark text-zinc-400 hover:text-zinc-100'
+                : 'btn-matte-dark text-slate-400 hover:text-slate-100'
             }`}
           >
             {isTranscribing ? (
@@ -236,23 +236,23 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             placeholder="Digite, cole um texto ou fale pelo microfone para alinhar em 3 idiomas..."
             rows={1}
             disabled={isLoading}
-            className="flex-1 bg-transparent border-0 text-zinc-100 placeholder-zinc-500 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-32 min-h-[38px] leading-relaxed"
+            className="flex-1 bg-transparent border-0 text-slate-100 placeholder-slate-500 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-32 min-h-[38px] leading-relaxed"
           />
 
           {/* Botão Enviar / Traduzir */}
           <button
             type="submit"
             disabled={!inputText.trim() || isLoading}
-            className="btn-matte btn-matte-amber h-10 px-4 rounded-xl text-xs font-bold text-zinc-950 shrink-0 disabled:opacity-40"
+            className="btn-matte btn-matte-amber h-10 px-4 rounded-xl text-xs font-bold text-slate-950 shrink-0 disabled:opacity-40"
           >
             {isLoading ? (
               <>
-                <GoogleIcon name="progress_activity" size={18} className="animate-spin text-zinc-950" />
+                <GoogleIcon name="progress_activity" size={18} className="animate-spin text-slate-950" />
                 <span className="hidden sm:inline">Alinhando...</span>
               </>
             ) : (
               <>
-                <GoogleIcon name="auto_awesome" size={18} filled className="text-zinc-950" />
+                <GoogleIcon name="auto_awesome" size={18} filled className="text-slate-950" />
                 <span className="hidden sm:inline">Traduzir Chunks</span>
               </>
             )}

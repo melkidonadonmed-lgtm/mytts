@@ -79,6 +79,7 @@ export const PolyglotChatStudio: React.FC = () => {
   const [isPlayingSequence, setIsPlayingSequence] = useState(false);
   const [sequenceStep, setSequenceStep] = useState<string | null>(null);
   const sequenceAbortRef = useRef<boolean>(false);
+  const isMountedRef = useRef<boolean>(true);
 
   // Estado de chunk avulso e flashcard
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
@@ -106,6 +107,15 @@ export const PolyglotChatStudio: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Sinaliza desmontagem e aborta qualquer trilogia sequencial em andamento
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      sequenceAbortRef.current = true;
+    };
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -186,6 +196,13 @@ export const PolyglotChatStudio: React.FC = () => {
       }
 
       const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
+
+      // Componente desmontado durante a síntese: não criar áudio órfão nem setState
+      if (!isMountedRef.current) {
+        revokeAudioUrl(blobUrl);
+        return;
+      }
+
       const audio = new Audio(blobUrl);
       audio.playbackRate = playbackSpeed;
 
@@ -209,7 +226,7 @@ export const PolyglotChatStudio: React.FC = () => {
       activeAudioRef.current = { audio, blobUrl, messageId, lang };
       await audio.play();
       setIsPlayingAudio(true);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.warn('Erro na síntese neural do card:', e);
       stopCurrentAudio();
     } finally {
@@ -257,6 +274,52 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
+  // Aguarda o fim do áudio em reprodução (polling com cleanup garantido em todos os caminhos)
+  const waitForAudioEnd = useCallback((isStopped: () => boolean) => {
+    return new Promise<void>((resolve, reject) => {
+      let pollId: ReturnType<typeof setInterval> | null = null;
+      let gapTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        if (pollId !== null) {
+          clearInterval(pollId);
+          pollId = null;
+        }
+        if (gapTimeoutId !== null) {
+          clearTimeout(gapTimeoutId);
+          gapTimeoutId = null;
+        }
+      };
+
+      const settle = (error?: unknown) => {
+        cleanup();
+        if (error === undefined) {
+          resolve();
+        } else {
+          reject(error);
+        }
+      };
+
+      pollId = setInterval(() => {
+        try {
+          if (isStopped() || !activeAudioRef.current) {
+            settle();
+            return;
+          }
+          if (activeAudioRef.current.audio.ended) {
+            cleanup();
+            gapTimeoutId = setTimeout(() => {
+              gapTimeoutId = null;
+              settle();
+            }, 800);
+          }
+        } catch (e) {
+          settle(e);
+        }
+      }, 100);
+    });
+  }, []);
+
   // Modo Trilogia Sequencial (EN -> IT -> JA)
   const handlePlaySequence = async (messageId: string) => {
     if (isPlayingSequence) {
@@ -279,32 +342,28 @@ export const PolyglotChatStudio: React.FC = () => {
       it: '🇮🇹 Italiano',
       ja: '🇯🇵 Japonês',
     };
+    const isStopped = () => sequenceAbortRef.current || !isMountedRef.current;
 
-    for (const lang of languages) {
-      if (sequenceAbortRef.current) break;
+    try {
+      for (const lang of languages) {
+        if (isStopped()) break;
 
-      setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
-      setSequenceStep(stepNames[lang]);
+        setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
+        setSequenceStep(stepNames[lang]);
 
-      await new Promise<void>(async (resolve) => {
-        await handleTogglePlay(messageId, lang);
-
-        const checkEndInterval = setInterval(() => {
-          if (sequenceAbortRef.current || !activeAudioRef.current) {
-            clearInterval(checkEndInterval);
-            resolve();
-            return;
-          }
-          if (activeAudioRef.current.audio.ended) {
-            clearInterval(checkEndInterval);
-            setTimeout(resolve, 800);
-          }
-        }, 100);
-      });
+        try {
+          await handleTogglePlay(messageId, lang);
+          await waitForAudioEnd(isStopped);
+        } catch (e) {
+          console.warn('Erro em uma etapa da trilogia sequencial:', e);
+        }
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsPlayingSequence(false);
+        setSequenceStep(null);
+      }
     }
-
-    setIsPlayingSequence(false);
-    setSequenceStep(null);
   };
 
   // Envio de nova mensagem para alinhamento em 3 línguas
@@ -347,7 +406,7 @@ export const PolyglotChatStudio: React.FC = () => {
             : msg
         )
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setMessages((prev) =>
         prev.map((msg) =>
@@ -355,7 +414,7 @@ export const PolyglotChatStudio: React.FC = () => {
             ? {
                 ...msg,
                 status: 'error',
-                error: err.message || 'Erro de conexão com o Gemini.',
+                error: err instanceof Error ? err.message : 'Erro de conexão com o Gemini.',
               }
             : msg
         )
@@ -389,7 +448,7 @@ export const PolyglotChatStudio: React.FC = () => {
       } else {
         throw new Error(data.error || 'Falha ao reproduzir áudio do chunk.');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.warn('Erro ao tocar áudio do chunk:', e);
       stopCurrentAudio();
     }
@@ -413,19 +472,19 @@ export const PolyglotChatStudio: React.FC = () => {
       } else {
         throw new Error(data.error || 'Falha ao criar flashcard.');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      alert('Erro ao criar flashcard: ' + e.message);
+      alert('Erro ao criar flashcard: ' + (e instanceof Error ? e.message : 'erro desconhecido'));
     } finally {
       setGeneratingCardKey(null);
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen bg-zinc-950 text-zinc-100 font-sans">
+    <div className="flex-1 flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans">
       
       {/* 1. Header Minimalista do Estúdio Poliglota */}
-      <header className="sticky top-0 z-20 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-850 px-4 sm:px-6 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 px-4 sm:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-400">
             <GoogleIcon name="translate" size={20} />
@@ -437,7 +496,7 @@ export const PolyglotChatStudio: React.FC = () => {
                 🇺🇸 EN • 🇮🇹 IT • 🇯🇵 JA
               </span>
             </h1>
-            <p className="text-[11px] text-zinc-400">
+            <p className="text-[11px] text-slate-400">
               Tradução paralela em 3 línguas com controle de áudio individual e foco tátil
             </p>
           </div>
@@ -447,12 +506,12 @@ export const PolyglotChatStudio: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsDeckDrawerOpen(true)}
-          className="btn-matte btn-matte-dark px-3 py-1.5 text-xs text-zinc-200"
+          className="btn-matte btn-matte-dark px-3 py-1.5 text-xs text-slate-200"
           title="Ver Flashcards salvos"
         >
           <GoogleIcon name="style" size={16} className="text-amber-400" />
           <span>Meu Deck</span>
-          <span className="bg-amber-400 text-zinc-950 font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono">
+          <span className="bg-amber-400 text-slate-950 font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono">
             {deck.length}
           </span>
         </button>
@@ -460,7 +519,7 @@ export const PolyglotChatStudio: React.FC = () => {
 
       {/* 2. Toast de Feedback Suave */}
       {toastMessage && (
-        <div className="fixed top-16 right-4 z-40 bg-zinc-900 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
+        <div className="fixed top-16 right-4 z-40 bg-slate-900 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
           <GoogleIcon name="check_circle" size={16} filled className="text-emerald-400" />
           <span>{toastMessage}</span>
         </div>

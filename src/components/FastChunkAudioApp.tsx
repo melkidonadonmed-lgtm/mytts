@@ -3,17 +3,14 @@ import {
   Volume2, 
   RotateCcw, 
   Sparkles, 
-  Play, 
   Pause, 
   Copy, 
   Check, 
   Search,
   BookOpen,
-  Plus,
   Trash2,
   X,
-  Loader2,
-  RefreshCw
+  Loader2
 } from 'lucide-react';
 import { ChunkItem, TargetLang } from '../types/chunks';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
@@ -365,7 +362,7 @@ export const FastChunkAudioApp: React.FC = () => {
 
   // Copia o chunk para a área de transferência
   const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch((e) => console.warn('Clipboard indisponível:', e));
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1800);
   };
@@ -414,9 +411,9 @@ export const FastChunkAudioApp: React.FC = () => {
       setCustomChunks((prev) => [...newChunks, ...prev]);
       setInputText('');
       setIsModalOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setGenerateError(err.message || 'Erro ao consultar o Gemini.');
+      setGenerateError(err instanceof Error ? err.message : 'Erro ao consultar o Gemini.');
     } finally {
       setIsGenerating(false);
     }
@@ -650,7 +647,7 @@ export const FastChunkAudioApp: React.FC = () => {
                       type="button"
                       onClick={() => speakChunk(item.chunk, item.id)}
                       title="Síntese rápida local do navegador"
-                      className="col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 active:scale-95 transition-all text-xs font-semibold cursor-pointer border border-slate-700/60"
+                      className="col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 active:scale-95 transition-all text-xs font-semibold cursor-pointer border border-slate-700/60"
                     >
                       <Volume2 className="w-3.5 h-3.5 text-slate-400" />
                       <span>Nativo</span>

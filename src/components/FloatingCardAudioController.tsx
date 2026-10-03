@@ -59,10 +59,10 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
       <div className="flex flex-col gap-3">
         
         {/* Linha Superior: Seletor Tátil de Card/Idioma + Status da Voz */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-zinc-800/80">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800/80">
           
           {/* Seletor Tátil dos 3 Idiomas em Pills Foscas */}
-          <div className="flex items-center gap-1.5 bg-zinc-950/70 p-1 rounded-xl border border-zinc-800/80">
+          <div className="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80">
             {(['en', 'it', 'ja'] as const).map((lang) => {
               const isActive = selectedLanguage === lang;
               const meta = languageLabels[lang];
@@ -74,14 +74,14 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                   className={`btn-matte px-3 py-1.5 text-xs rounded-lg transition-all ${
                     isActive
                       ? 'btn-matte-amber'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                   }`}
                   title={`Focar áudio em ${meta.title}`}
                 >
                   <span className="text-sm leading-none">{meta.flag}</span>
                   <span>{meta.title}</span>
                   {isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-950 shrink-0 ml-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-950 shrink-0 ml-0.5" />
                   )}
                 </button>
               );
@@ -92,16 +92,16 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
           <div className="flex items-center gap-2">
             
             {/* Seletor de Voz */}
-            <div className="flex items-center gap-1.5 bg-zinc-950/70 border border-zinc-800/80 px-2.5 py-1 rounded-xl text-xs">
+            <div className="flex items-center gap-1.5 bg-slate-950/70 border border-slate-800/80 px-2.5 py-1 rounded-xl text-xs">
               <GoogleIcon name="record_voice_over" size={16} className="text-amber-400/90" />
-              <span className="text-zinc-400 text-[11px] hidden sm:inline">Voz:</span>
+              <span className="text-slate-400 text-[11px] hidden sm:inline">Voz:</span>
               <select
                 value={selectedVoice}
                 onChange={(e) => onChangeVoice(e.target.value)}
-                className="bg-transparent text-zinc-200 font-medium text-xs focus:outline-none cursor-pointer pr-1"
+                className="bg-transparent text-slate-200 font-medium text-xs focus:outline-none cursor-pointer pr-1"
               >
                 {GEMINI_VOICES.map((v) => (
-                  <option key={v.name} value={v.name} className="bg-zinc-900 text-zinc-100">
+                  <option key={v.name} value={v.name} className="bg-slate-900 text-slate-100">
                     {v.name} ({v.gender === 'male' ? 'M' : 'F'})
                   </option>
                 ))}
@@ -118,13 +118,13 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 className={`btn-matte px-2.5 py-1 text-xs rounded-xl border transition-all ${
                   isPlayingSequence
                     ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse'
-                    : 'btn-matte-dark text-zinc-300 hover:text-white'
+                    : 'btn-matte-dark text-slate-300 hover:text-white'
                 }`}
               >
                 <GoogleIcon name="queue_music" size={16} className="text-amber-400" />
                 <span className="hidden md:inline">Ouvir Trilogia (EN→IT→JA)</span>
                 {isPlayingSequence && sequenceStep && (
-                  <span className="text-[10px] font-mono bg-amber-400 text-zinc-950 px-1.5 py-0.2 rounded font-bold">
+                  <span className="text-[10px] font-mono bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded font-bold">
                     {sequenceStep}
                   </span>
                 )}
@@ -135,7 +135,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
 
         {/* Linha Central: Barra de Progresso (Scrubber) Tátil */}
         <div className="flex items-center gap-3 w-full">
-          <span className="text-[11px] font-mono text-zinc-400 w-9 text-right shrink-0">
+          <span className="text-[11px] font-mono text-slate-400 w-9 text-right shrink-0">
             {formatTime(currentTime)}
           </span>
 
@@ -150,13 +150,13 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               onChange={(e) => onSeek(parseFloat(e.target.value))}
               className="slider-matte w-full"
               style={{
-                background: `linear-gradient(to right, #f59e0b ${progressPercent}%, #27272a ${progressPercent}%)`,
+                background: `linear-gradient(to right, #f59e0b ${progressPercent}%, #1e293b ${progressPercent}%)`,
               }}
               title="Arrastar para buscar posição no áudio"
             />
           </div>
 
-          <span className="text-[11px] font-mono text-zinc-500 w-9 shrink-0">
+          <span className="text-[11px] font-mono text-slate-500 w-9 shrink-0">
             {formatTime(duration)}
           </span>
         </div>
@@ -177,17 +177,17 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
             >
               {isLoading ? (
                 <>
-                  <GoogleIcon name="progress_activity" size={20} className="animate-spin text-zinc-950" />
+                  <GoogleIcon name="progress_activity" size={20} className="animate-spin text-slate-950" />
                   <span>Sintetizando...</span>
                 </>
               ) : isPlaying ? (
                 <>
-                  <GoogleIcon name="pause" size={20} filled className="text-zinc-950" />
+                  <GoogleIcon name="pause" size={20} filled className="text-slate-950" />
                   <span>Pausar</span>
                 </>
               ) : (
                 <>
-                  <GoogleIcon name="play_arrow" size={20} filled className="text-zinc-950" />
+                  <GoogleIcon name="play_arrow" size={20} filled className="text-slate-950" />
                   <span>Ouvir {languageLabels[selectedLanguage].title}</span>
                 </>
               )}
@@ -198,7 +198,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               type="button"
               onClick={onReplay}
               disabled={duration <= 0}
-              className="btn-matte btn-matte-dark h-11 w-11 rounded-xl text-zinc-300 hover:text-white"
+              className="btn-matte btn-matte-dark h-11 w-11 rounded-xl text-slate-300 hover:text-white"
               title="Reiniciar áudio do início"
             >
               <GoogleIcon name="replay" size={20} />
@@ -206,8 +206,8 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
           </div>
 
           {/* Lado Direito: Seletor Tátil de Velocidade */}
-          <div className="flex items-center gap-1.5 bg-zinc-950/70 p-1 rounded-xl border border-zinc-800/80">
-            <span className="text-[10px] font-mono uppercase text-zinc-500 px-1 hidden sm:inline">
+          <div className="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80">
+            <span className="text-[10px] font-mono uppercase text-slate-500 px-1 hidden sm:inline">
               Velocidade:
             </span>
             {[0.8, 1.0, 1.25].map((s) => (
@@ -218,7 +218,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 className={`btn-matte px-2.5 py-1 text-xs rounded-lg font-mono transition-all ${
                   speed === s
                     ? 'btn-matte-amber'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {s}x

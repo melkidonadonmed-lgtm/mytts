@@ -9,7 +9,6 @@ import {
   Clock,
   BookOpen
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import { SAMPLE_DOCUMENTS } from '../data/sampleDebates';
 import { LanguageCode } from '../types/debate';
 

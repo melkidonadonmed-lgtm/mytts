@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Sidebar, AppTab } from './components/Sidebar';
-import { QuickReader } from './components/QuickReader';
 import { StudioWorkspace } from './components/StudioWorkspace';
 import { PolyglotChatStudio } from './components/PolyglotChatStudio';
 import { LiveVoiceMic } from './components/LiveVoiceMic';
@@ -97,9 +96,9 @@ export default function App() {
 
       setScript(data.script);
       await synthesizeTurns(data.script);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setGlobalError(err.message || 'Erro ao gerar o debate dialético.');
+      setGlobalError(err instanceof Error ? err.message : 'Erro ao gerar o debate dialético.');
     } finally {
       setIsGenerating(false);
     }
@@ -132,9 +131,9 @@ export default function App() {
 
       setScript(data.script);
       await synthesizeTurns(data.script);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setGlobalError(err.message || 'Erro ao gerar o debate dialético.');
+      setGlobalError(err instanceof Error ? err.message : 'Erro ao gerar o debate dialético.');
     } finally {
       setIsGenerating(false);
     }
@@ -176,12 +175,12 @@ export default function App() {
             errorMessage: data.error,
           };
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.warn(`Turn ${turn.turn} synthesis error:`, e);
         updatedTurns[i] = {
           ...turn,
           audioStatus: 'error',
-          errorMessage: e.message,
+          errorMessage: e instanceof Error ? e.message : 'Erro na síntese do turno.',
         };
       }
 
@@ -222,8 +221,8 @@ export default function App() {
       } else {
         throw new Error(data.error || 'Falha ao sintetizar turno.');
       }
-    } catch (e: any) {
-      setGlobalError(e.message || 'Erro ao sintetizar áudio do turno.');
+    } catch (e: unknown) {
+      setGlobalError(e instanceof Error ? e.message : 'Erro ao sintetizar áudio do turno.');
     }
   };
 

@@ -74,7 +74,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 py-4 border-b border-zinc-850/80 last:border-0">
+    <div className="flex flex-col gap-3 py-4 border-b border-slate-800/80 last:border-0">
       
       {/* 1. Entrada / Pergunta do Usuário (Design Matte Limpo) */}
       <div className="flex items-start gap-3 card-matte rounded-2xl p-4 max-w-3xl">
@@ -83,12 +83,12 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-xs font-bold text-zinc-300 font-display">Você</span>
-            <span className="text-[10px] font-mono text-zinc-500">
+            <span className="text-xs font-bold text-slate-300 font-display">Você</span>
+            <span className="text-[10px] font-mono text-slate-500">
               {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-zinc-100 whitespace-pre-wrap leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-100 whitespace-pre-wrap leading-relaxed">
             {message.userPrompt}
           </p>
         </div>
@@ -98,7 +98,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
       {message.status === 'loading' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-6 card-matte rounded-2xl animate-pulse">
           {['Inglês', 'Italiano', 'Japonês'].map((lang, idx) => (
-            <div key={idx} className="h-40 bg-zinc-900/60 border border-zinc-800 rounded-xl flex flex-col items-center justify-center gap-2.5 text-zinc-400 text-xs">
+            <div key={idx} className="h-40 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-2.5 text-slate-400 text-xs">
               <GoogleIcon name="progress_activity" size={24} className="animate-spin text-amber-400" />
               <span>Alinhando chunks em {lang}...</span>
             </div>

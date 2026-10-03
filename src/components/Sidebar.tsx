@@ -84,15 +84,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-zinc-950 border-r border-zinc-850 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-slate-950 border-r border-slate-800 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="h-16 px-5 border-b border-zinc-850 flex items-center justify-between">
+        <div className="h-16 px-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl btn-matte-amber flex items-center justify-center text-zinc-950 font-bold shadow-md shadow-amber-500/20">
-              <GoogleIcon name="auto_awesome" size={20} filled className="text-zinc-950" />
+            <div className="w-9 h-9 rounded-xl btn-matte-amber flex items-center justify-center text-slate-950 font-bold shadow-md shadow-amber-500/20">
+              <GoogleIcon name="auto_awesome" size={20} filled className="text-slate-950" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -103,14 +103,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   Studio
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 font-medium">Áudio Neural com Emoção</p>
+              <p className="text-[11px] text-slate-400 font-medium">Áudio Neural com Emoção</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={onToggleMobile}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 lg:hidden cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 lg:hidden cursor-pointer"
             aria-label="Fechar navegação"
           >
             <GoogleIcon name="close" size={20} />
@@ -120,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Voz Ativa em Destaque (Card Rápido Mate) */}
         <div className="p-3.5 mx-3 mt-3.5 rounded-2xl card-matte">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider font-mono">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
               Voz Ativa
             </span>
             <button
@@ -142,10 +142,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {selectedVoice.name[0]}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-xs font-bold text-zinc-100 truncate font-display">
+              <h3 className="text-xs font-bold text-slate-100 truncate font-display">
                 {selectedVoice.name}
               </h3>
-              <p className="text-[11px] text-zinc-400 truncate">
+              <p className="text-[11px] text-slate-400 truncate">
                 {selectedVoice.archetype}
               </p>
             </div>
@@ -167,26 +167,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className={`btn-matte w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
                   isActive
                     ? 'card-matte-active text-white'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 border border-transparent'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
                 }`}
               >
                 <div
                   className={`mt-0.5 p-1.5 rounded-lg ${
-                    isActive ? 'btn-matte-amber text-zinc-950 font-bold' : 'bg-zinc-900 text-zinc-400'
+                    isActive ? 'btn-matte-amber text-slate-950 font-bold' : 'bg-slate-900 text-slate-400'
                   }`}
                 >
                   <GoogleIcon name={item.iconName} size={18} filled={isActive} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold font-display ${isActive ? 'text-white' : 'text-zinc-200'}`}>
+                    <span className={`text-xs font-bold font-display ${isActive ? 'text-white' : 'text-slate-200'}`}>
                       {item.label}
                     </span>
                     <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded border ${item.badgeColor}`}>
                       {item.badge}
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-500 mt-0.5 truncate">
+                  <p className="text-[11px] text-slate-500 mt-0.5 truncate">
                     {item.description}
                   </p>
                 </div>
@@ -196,12 +196,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Status e Footer da Sidebar */}
-        <div className="p-3 border-t border-zinc-850 space-y-2">
+        <div className="p-3 border-t border-slate-800 space-y-2">
           {/* Status do Modelo */}
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-zinc-900/70 border border-zinc-800 text-[11px]">
+          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px]">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-zinc-300 font-mono">Gemini 3.1 Flash TTS</span>
+              <span className="text-slate-300 font-mono">Gemini 3.1 Flash TTS</span>
             </div>
             <span className="text-[10px] font-mono text-emerald-400 bg-emerald-400/10 px-1.5 py-0.2 rounded border border-emerald-400/20">
               Cloud Run
@@ -209,11 +209,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Links e Info */}
-          <div className="flex items-center justify-between text-xs text-zinc-500 px-1">
+          <div className="flex items-center justify-between text-xs text-slate-500 px-1">
             <button
               type="button"
               onClick={() => onSelectTab('architecture')}
-              className="flex items-center gap-1 hover:text-zinc-300 transition-colors cursor-pointer text-[11px]"
+              className="flex items-center gap-1 hover:text-slate-300 transition-colors cursor-pointer text-[11px]"
             >
               <GoogleIcon name="terminal" size={16} />
               <span>Arquitetura</span>
@@ -222,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               href="https://github.com/melkidonadonmed-lgtm/mytts"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1 hover:text-zinc-300 transition-colors text-[11px]"
+              className="flex items-center gap-1 hover:text-slate-300 transition-colors text-[11px]"
             >
               <GoogleIcon name="code" size={16} />
               <span>GitHub</span>

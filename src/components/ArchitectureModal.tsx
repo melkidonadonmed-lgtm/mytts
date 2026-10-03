@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
 import {
-  Code,
   Layers,
   Cpu,
-  Radio,
   FileJson,
   Terminal,
   Check,
   Copy,
-  Sliders,
-  ChevronRight,
 } from 'lucide-react';
 
 interface ArchitectureModalProps {
@@ -20,7 +16,7 @@ export const ArchitectureModal: React.FC<ArchitectureModalProps> = ({ onClose })
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch((e) => console.warn('Clipboard indisponível:', e));
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
   };

@@ -119,9 +119,9 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           } else {
             throw new Error(data.error || 'Falha ao extrair texto do PDF.');
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(err);
-          showTempError(err.message || 'Erro ao processar PDF.');
+          showTempError(err instanceof Error ? err.message : 'Erro ao processar PDF.');
         }
       };
       reader.readAsDataURL(file);

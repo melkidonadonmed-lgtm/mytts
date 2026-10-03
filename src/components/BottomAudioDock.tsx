@@ -18,7 +18,6 @@ import {
   Check,
   Music,
   Download,
-  Upload,
   Radio,
   Layers,
   Loader2
@@ -308,9 +307,9 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
       URL.revokeObjectURL(url);
       setExportFeedback('Master WAV exportado com sucesso!');
       setTimeout(() => setExportFeedback(null), 3500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro na exportação:', err);
-      setExportFeedback(err.message || 'Erro ao exportar o master.');
+      setExportFeedback(err instanceof Error ? err.message : 'Erro ao exportar o master.');
       setTimeout(() => setExportFeedback(null), 4000);
     } finally {
       setIsExportingMaster(false);
@@ -1043,7 +1042,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               type="button"
               onClick={handleCycleSpeed}
               aria-label={`Velocidade atual: ${playbackRate}x. Toque para alterar.`}
-              className="flex min-h-[44px] min-w-[44px] sm:min-w-[52px] items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-amber-300 hover:border-amber-400/50 hover:bg-slate-850 active:scale-95 transition-all cursor-pointer shadow-sm"
+              className="flex min-h-[44px] min-w-[44px] sm:min-w-[52px] items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-amber-300 hover:border-amber-400/50 hover:bg-slate-800 active:scale-95 transition-all cursor-pointer shadow-sm"
             >
               <Gauge className="w-3.5 h-3.5 hidden sm:block text-slate-500" />
               <span>{playbackRate.toFixed(2).replace(/\.00$/, '')}x</span>
@@ -1056,7 +1055,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               disabled={isExportingMaster}
               title="Baixar Master de Estúdio (WAV com Trilha e Ducking)"
               aria-label="Baixar Master de Estúdio"
-              className="hidden lg:flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-amber-400 hover:border-amber-400/50 hover:bg-slate-850 active:scale-95 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              className="hidden lg:flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-amber-400 hover:border-amber-400/50 hover:bg-slate-800 active:scale-95 transition-all cursor-pointer shadow-sm disabled:opacity-50"
             >
               {isExportingMaster ? (
                 <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
