@@ -1,10 +1,11 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Deploy em Produção no Google Cloud Run e Sincronização do Repositório GitHub Concluídos com Sucesso.
+- **Fase**: Deploy em Produção da Revisão do Estúdio Poliglota Concluído com Sucesso.
 - **Status da Branch**: `main` (100% sincronizado com `origin/main`).
-- **Revisão Ativa Cloud Run**: `mytts-00005-mjz` (100% do tráfego).
+- **Revisão Ativa Cloud Run**: `mytts-00006-6gk` (100% do tráfego).
 - **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
+
 
 ## Decisões Tomadas
 1. **Central de Ingestão Unificada (`src/components/StudioWorkspace.tsx` e `StudioTextEditor.tsx`)**:

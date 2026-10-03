@@ -1,7 +1,7 @@
 # Checkpoint da Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-03T02:54:00Z (Horário UTC)
+- **Data/Hora**: 2026-10-03T03:16:00Z (Horário UTC)
 
 ## Arquivos Tocados
 - `src/types/polyglot.ts`: Interfaces TypeScript estritas para chunks paralelos, flashcards e mensagens.
@@ -26,7 +26,14 @@
    - Zero erros de tipagem estrita.
 3. `npm run build` (`vite build`):
    - Código de saída: `0`.
-   - Bundle de produção gerado com sucesso em 4.32s.
+   - Bundle de produção gerado com sucesso em 307ms.
+4. `gcloud run deploy mytts --source . --region=us-central1 --project=agent-md-506215 --allow-unauthenticated`:
+   - Código de saída: `0`.
+   - Revisão `mytts-00006-6gk` criada e roteando 100% do tráfego.
+5. Live Smoke Test em Produção:
+   - `GET /api/health`: Status `online`, modelTts `gemini-3.1-flash-tts-preview`, modelGen `gemini-3.8-flash`.
+   - `GET /`: Bundle Vite servido com sucesso.
+   - `POST /api/translate-parallel-chunks`: Alinhamento semântico executado com sucesso retornando chunks em EN, IT e JA.
 
 ## Próxima Ação Recomendada
-- Commit no repositório local e deploy da nova versão no Google Cloud Run.
+- Monitorar a utilização do Chat Poliglota em produção: `https://mytts-1044179901556.us-central1.run.app`.
