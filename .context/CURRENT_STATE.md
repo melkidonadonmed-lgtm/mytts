@@ -1,9 +1,9 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Deploy em Produção da Revisão de Blindagem de Segurança (Helmet, Rate Limit), Limpeza de Código Morto e Documentação Concluído com Sucesso.
-- **Status da Branch**: `main` (100% sincronizado com `origin/main` no hash `0fdc37f`).
-- **Revisão Ativa Cloud Run**: `mytts-00009-pb9` (100% do tráfego).
+- **Fase**: Deploy em Produção da Revisão do Controlador de Áudio Flutuante e Design Mate Concluído com Sucesso.
+- **Status da Branch**: `main` (100% sincronizado com `origin/main`).
+- **Revisão Ativa Cloud Run**: `mytts-00007-x9v` (100% do tráfego).
 - **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
 
 ## Decisões Tomadas
