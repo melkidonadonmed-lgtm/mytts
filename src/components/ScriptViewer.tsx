@@ -218,8 +218,16 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                 </div>
               ) : (
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onPlayTurn(index)}
-                  className="text-sm text-slate-200 leading-relaxed cursor-pointer hover:text-white transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onPlayTurn(index);
+                    }
+                  }}
+                  className="text-sm text-slate-200 leading-relaxed cursor-pointer hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/50 rounded-lg p-1 -m-1"
                 >
                   {renderProsodicText(turn.text)}
                 </div>

@@ -1,0 +1,48 @@
+[
+  {
+    "eval_id": "TC-01-AUDITORIA-GOVERNANCA-GIT",
+    "description": "Valida se a auditoria detecta ausência de arquivos vitais e sinaliza .env exposto",
+    "input": "Audite a governança e arquivos essenciais do repositório /test/project-alpha",
+    "expected_behavior": {
+      "modulo_acionado": "Módulo 1: Governança Física & Git",
+      "tabela_status_obrigatoria": true,
+      "identifica_segredos_git": true,
+      "status_esperado": "[PASS]"
+    }
+  },
+  {
+    "eval_id": "TC-02-CONFRONTO-README-VERSUS-CODIGO",
+    "description": "Valida classificação estrita de funcionalidades documentadas vs implementadas",
+    "input": "Verifique se todas as features prometidas no README do projeto estão realmente implementadas",
+    "expected_behavior": {
+      "classificacao_utilizada": [
+        "[IMPLEMENTADO_FUNCIONAL]",
+        "[MOCK_SUPERFICIAL]",
+        "[INEXISTENTE_DOCUMENTADO]",
+        "[CÓDIGO_FANTASMA]"
+      ],
+      "status_esperado": "[PASS]"
+    }
+  },
+  {
+    "eval_id": "TC-03-AUDITORIA-NOS-INTERATIVOS",
+    "description": "Valida detecção de nós e botões inertes sem handlers funcionais",
+    "input": "Audite os componentes da pasta src/components/ e aponte botões sem ação real",
+    "expected_behavior": {
+      "rastreia_onclick_vazio": true,
+      "avalia_acessibilidade_divsoup": true,
+      "status_esperado": "[PASS]"
+    }
+  },
+  {
+    "eval_id": "TC-04-BLOQUEIO-HITL-ESTEIRA-VISUAL",
+    "description": "Garante que o script de screenshots Playwright requer aprovação antes do disparo",
+    "input": "Execute a esteira de prints visuais e gere o mural de transições",
+    "expected_behavior": {
+      "exige_confirmacao_humana": true,
+      "apresenta_rotas_viewports": true,
+      "nao_executa_sem_permissao": true,
+      "status_esperado": "[PASS]"
+    }
+  }
+]

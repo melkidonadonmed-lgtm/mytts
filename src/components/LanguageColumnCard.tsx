@@ -46,8 +46,18 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
+      aria-label={`Selecionar coluna de ${languageTitle}`}
       onClick={onSelectCard}
-      className={`flex-1 flex flex-col rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer ${
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelectCard();
+        }
+      }}
+      className={`flex-1 flex flex-col rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
         isSelected
           ? 'card-matte-active'
           : 'card-matte hover:border-zinc-700/80 opacity-90 hover:opacity-100'
