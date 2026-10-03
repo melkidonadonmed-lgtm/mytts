@@ -1,4 +1,6 @@
 import express from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -17,12 +19,72 @@ const execFileAsync = promisify(execFile);
 
 dotenv.config();
 
+// Fail-fast: a chave da API Gemini é obrigatória para todos os fluxos principais do servidor
+if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.trim() === '') {
+  console.error('[BOOT] FATAL: GEMINI_API_KEY não configurada. Defina-a no .env ou nas variáveis de ambiente antes de iniciar.');
+  process.exit(1);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Cloud Run encaminha X-Forwarded-For: confiar em 1 hop para rate limiting por IP correto
+app.set('trust proxy', 1);
+// Headers de segurança (CSP desabilitada: o app consome Google Fonts/Material Symbols via CDN)
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// Payload grande apenas nas rotas que recebem áudio; o restante da API aceita no máximo 2 MB
+app.use('/api/transcribe-audio', express.json({ limit: '25mb' }));
+app.use('/api/mix-audio', express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
+// Rate limiting: proteção de custo e abuso nos endpoints pagos de IA
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Muitas requisições deste endereço. Tente novamente em alguns minutos.' },
+});
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Limite de requisições de IA atingido. Aguarde alguns minutos e tente novamente.' },
+});
+app.use('/api', apiLimiter);
+app.use(
+  [
+    '/api/extract-text',
+    '/api/generate-script',
+    '/api/synthesize-turn',
+    '/api/synthesize-full',
+    '/api/mix-audio',
+    '/api/preview-voice',
+    '/api/synthesize-chunk',
+    '/api/synthesize-speech',
+    '/api/transcribe-audio',
+    '/api/generate-chunks',
+    '/api/translate-parallel-chunks',
+    '/api/generate-flashcard',
+  ],
+  aiLimiter
+);
+
+// Identificador de sessão de dispositivo (X-User-Id): aceita apenas formato seguro
+const USER_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
+function sanitizeUserId(raw: unknown): string {
+  return typeof raw === 'string' && USER_ID_PATTERN.test(raw) ? raw : 'anonymous-user';
+}
+
+// Cap de caracteres para síntese neural (proteção de custo e quota da API)
+const MAX_TTS_CHARS = 20000;
+function capText(text: string, max: number = MAX_TTS_CHARS): string {
+  return text.length > max ? text.slice(0, max) : text;
+}
 
 // Server-side Gemini Client
 const ai = new GoogleGenAI({
@@ -136,10 +198,10 @@ app.post('/api/extract-text', async (req, res) => {
     }
 
     return res.status(400).json({ error: 'Nenhum texto ou arquivo recebido.' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/extract-text:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao processar e extrair documento.',
+      error: error instanceof Error ? error.message : 'Falha ao processar e extrair documento.',
     });
   }
 });
@@ -345,10 +407,10 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
         createdAt: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/generate-script:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao gerar roteiro dialético.',
+      error: error instanceof Error ? error.message : 'Falha ao gerar roteiro dialético.',
     });
   }
 });
@@ -356,7 +418,7 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
 // 3. Turn-by-Turn Neural TTS Synthesis (Gemini 3.8 Flash TTS)
 app.post('/api/synthesize-turn', async (req, res) => {
   try {
-    const { turn, speakerName, voiceId, language } = req.body;
+    const { turn, speakerName, voiceId } = req.body;
 
     if (!turn || !turn.text) {
       return res.status(400).json({ error: 'Dados do turno inválidos.' });
@@ -365,7 +427,7 @@ app.post('/api/synthesize-turn', async (req, res) => {
     const effectiveVoice = voiceId || turn.voice_id || 'Kore';
     const effectiveSpeaker = speakerName || turn.speaker || 'Speaker';
     const emotionStyle = getEmotionStyle(turn.emotion, turn.prosody?.speech_rate);
-    const formattedText = formatForTts(turn.text);
+    const formattedText = formatForTts(capText(String(turn.text), 5000));
 
     // Prompt no padrão canônico Director's Chair do Gemini 3.1 Flash TTS
     const directorPrompt = `Read the following dialogue turn as ${effectiveSpeaker} with live human conversational realism.
@@ -416,10 +478,10 @@ ${effectiveSpeaker}: ${formattedText}`;
       mimeType: 'audio/wav',
       durationSec: durationEstimateSec,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/synthesize-turn:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha na síntese de áudio do turno.',
+      error: error instanceof Error ? error.message : 'Falha na síntese de áudio do turno.',
     });
   }
 });
@@ -499,10 +561,10 @@ ${formattedLines}`;
       audioBase64: wavBase64,
       mimeType: 'audio/wav',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/synthesize-full:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao sintetizar o episódio completo.',
+      error: error instanceof Error ? error.message : 'Falha ao sintetizar o episódio completo.',
     });
   }
 });
@@ -543,8 +605,10 @@ app.post('/api/mix-audio', async (req, res) => {
     const voiceWavBuffer = Buffer.from(ensureWavContainer(voiceAudioBase64, 24000), 'base64');
     await fs.promises.writeFile(tempVoicePath, voiceWavBuffer);
 
-    const ratio = Math.max(2, Math.min(20, Math.round(Math.abs(duckingDepthDb) / 2.3)));
-    const voiceVol = Math.pow(10, voiceBoostDb / 20).toFixed(2);
+    const safeVoiceBoostDb = Math.max(-6, Math.min(12, Number(voiceBoostDb) || 0));
+    const safeDuckingDepthDb = Math.max(-24, Math.min(0, Number(duckingDepthDb) || -14));
+    const ratio = Math.max(2, Math.min(20, Math.round(Math.abs(safeDuckingDepthDb) / 2.3)));
+    const voiceVol = Math.pow(10, safeVoiceBoostDb / 20).toFixed(2);
     const bgVol = Math.max(0.01, Math.min(1.0, musicVolume)).toFixed(2);
 
     let ffmpegArgs: string[] = [];
@@ -596,8 +660,11 @@ app.post('/api/mix-audio', async (req, res) => {
         audioBase64: outputBuffer.toString('base64'),
         mimeType: 'audio/wav',
       });
-    } catch (ffmpegErr: any) {
-      console.warn('FFmpeg mix fallback to direct voiceover:', ffmpegErr?.message);
+    } catch (ffmpegErr: unknown) {
+      console.warn(
+        'FFmpeg mix fallback to direct voiceover:',
+        ffmpegErr instanceof Error ? ffmpegErr.message : ffmpegErr
+      );
       return res.json({
         success: true,
         audioBase64: ensureWavContainer(voiceAudioBase64, 24000),
@@ -605,10 +672,10 @@ app.post('/api/mix-audio', async (req, res) => {
         warning: 'FFmpeg não disponível; retornado áudio de voz direto.',
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/mix-audio:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao realizar a mixagem de estúdio.',
+      error: error instanceof Error ? error.message : 'Falha ao realizar a mixagem de estúdio.',
     });
   } finally {
     if (tempVoicePath) fs.promises.unlink(tempVoicePath).catch(() => {});
@@ -683,10 +750,10 @@ ${speakerName}: ${phrase}`;
       mimeType: 'audio/wav',
       durationSec: 3.0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/preview-voice:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao gerar preview da voz.',
+      error: error instanceof Error ? error.message : 'Falha ao gerar preview da voz.',
     });
   }
 });
@@ -706,7 +773,7 @@ app.post('/api/synthesize-chunk', async (req, res) => {
     };
 
     const selectedVoice = voiceId || defaultVoices[language] || 'Puck';
-    const cleanText = text.replace(/\(.*?\)/g, '').trim();
+    const cleanText = capText(text, 2000).replace(/\(.*?\)/g, '').trim();
 
     let phoneticDirection = 'Speak with natural American English conversational flow, natural breathing, and smooth pauses.';
     if (language === 'it-IT' || language === 'it') {
@@ -752,10 +819,10 @@ Read this conversational text in ${language} with maximum native fluency, authen
       audioBase64: wavBase64,
       mimeType: 'audio/wav',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/synthesize-chunk:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha na síntese do chunk.',
+      error: error instanceof Error ? error.message : 'Falha na síntese do chunk.',
     });
   }
 });
@@ -768,16 +835,14 @@ app.post('/api/synthesize-speech', async (req, res) => {
       voiceId = 'Puck',
       emotion = 'natural',
       speed = 1.0,
-      language = 'pt-BR',
       autoProsody = true,
     } = req.body;
-
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return res.status(400).json({ error: 'O texto para leitura é obrigatório.' });
     }
 
     const emotionStyle = getEmotionStyle(emotion, speed);
-    const formattedText = applyAcousticProsody(text, { enabled: autoProsody, speed });
+    const formattedText = applyAcousticProsody(capText(text), { enabled: autoProsody, speed });
 
     // Director's Chair prompt
     const directorPrompt = `Performance Direction for ${voiceId}:
@@ -824,10 +889,10 @@ ${formattedText}`;
       durationSec: durationEstimateSec,
       wordCount,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/synthesize-speech:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha na síntese de áudio do leitor.',
+      error: error instanceof Error ? error.message : 'Falha na síntese de áudio do leitor.',
     });
   }
 });
@@ -862,10 +927,10 @@ app.post('/api/transcribe-audio', async (req, res) => {
       transcript,
       wordCount: transcript.split(/\s+/).filter(Boolean).length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/transcribe-audio:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao transcrever gravação do microfone.',
+      error: error instanceof Error ? error.message : 'Falha ao transcrever gravação do microfone.',
     });
   }
 });
@@ -878,7 +943,8 @@ app.post('/api/transcribe-audio', async (req, res) => {
 app.post('/api/generate-chunks', async (req, res) => {
   try {
     const { textOrPrompt, language = 'en-US', count = 3 } = req.body;
-    const userId = (req.headers['x-user-id'] as string) || 'anonymous-user';
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const safeCount = Math.max(1, Math.min(20, Math.floor(Number(count)) || 3));
 
     if (!textOrPrompt || typeof textOrPrompt !== 'string') {
       return res.status(400).json({ error: 'Texto ou intenção é obrigatório.' });
@@ -893,7 +959,7 @@ app.post('/api/generate-chunks', async (req, res) => {
     const targetLangDesc = langMap[language] || 'Inglês coloquial';
 
     const systemPrompt = `Você é um linguista nativo de ${targetLangDesc} e especialista internacional no Método Lexical (Chunking / Formulaic Language).
-Sua missão: a partir de uma ideia, situação informal ou texto de entrada, extrair ou criar exatamente ${count} blocos de fala natural (chunks coloquiais) prontos para a vida real.
+Sua missão: a partir de uma ideia, situação informal ou texto de entrada, extrair ou criar exatamente ${safeCount} blocos de fala natural (chunks coloquiais) prontos para a vida real.
 
 Regras estritas:
 1. NUNCA faça traduções literais de dicionário. Use frases que um falante nativo diria espontaneamente em uma conversa real.
@@ -908,7 +974,7 @@ Regras estritas:
           role: 'user',
           parts: [
             {
-              text: `Gere ${count} chunks coloquiais de alta fluência para a seguinte situação ou texto:\n"${textOrPrompt}"\n\nIdioma Alvo: ${language}`,
+              text: `Gere ${safeCount} chunks coloquiais de alta fluência para a seguinte situação ou texto:\n"${textOrPrompt}"\n\nIdioma Alvo: ${language}`,
             },
           ],
         },
@@ -978,10 +1044,10 @@ Regras estritas:
       success: true,
       chunks: generatedChunks,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/generate-chunks:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao gerar chunks com Gemini.',
+      error: error instanceof Error ? error.message : 'Falha ao gerar chunks com Gemini.',
     });
   }
 });
@@ -989,17 +1055,17 @@ Regras estritas:
 // 2. Listar Chunks do Usuário
 app.get('/api/chunks', async (req, res) => {
   try {
-    const userId = (req.headers['x-user-id'] as string) || 'anonymous-user';
+    const userId = sanitizeUserId(req.headers['x-user-id']);
     const lang = req.query.lang as TargetLang | undefined;
     const userChunks = await chunkStorage.listUserChunks(userId, lang);
     return res.json({
       success: true,
       chunks: userChunks,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/chunks:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao buscar chunks do usuário.',
+      error: error instanceof Error ? error.message : 'Falha ao buscar chunks do usuário.',
     });
   }
 });
@@ -1007,7 +1073,7 @@ app.get('/api/chunks', async (req, res) => {
 // 3. Salvar / Criar Chunk Manual
 app.post('/api/chunks', async (req, res) => {
   try {
-    const userId = (req.headers['x-user-id'] as string) || 'anonymous-user';
+    const userId = sanitizeUserId(req.headers['x-user-id']);
     const { chunk, literalOrNuance, meaning, context, pronunciationHint } = req.body;
 
     if (!chunk || !literalOrNuance || !meaning) {
@@ -1031,10 +1097,10 @@ app.post('/api/chunks', async (req, res) => {
       success: true,
       chunk: newChunk,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in POST /api/chunks:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao salvar chunk.',
+      error: error instanceof Error ? error.message : 'Falha ao salvar chunk.',
     });
   }
 });
@@ -1042,17 +1108,17 @@ app.post('/api/chunks', async (req, res) => {
 // 4. Remover Chunk Personalizado
 app.delete('/api/chunks/:id', async (req, res) => {
   try {
-    const userId = (req.headers['x-user-id'] as string) || 'anonymous-user';
+    const userId = sanitizeUserId(req.headers['x-user-id']);
     const chunkId = req.params.id;
     const deleted = await chunkStorage.deleteUserChunk(userId, chunkId);
     return res.json({
       success: true,
       deleted,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in DELETE /api/chunks/:id:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao excluir chunk.',
+      error: error instanceof Error ? error.message : 'Falha ao excluir chunk.',
     });
   }
 });
@@ -1141,10 +1207,10 @@ Regras Invioláveis:
       chunks: parsed.chunks,
       fullText: parsed.fullText,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/translate-parallel-chunks:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao processar tradução paralela dos chunks.',
+      error: error instanceof Error ? error.message : 'Falha ao processar tradução paralela dos chunks.',
     });
   }
 });
@@ -1217,21 +1283,33 @@ Contexto da conversa: "${contextSentence || chunkText}"`;
         createdAt: Date.now(),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in /api/generate-flashcard:', error);
     return res.status(500).json({
-      error: error?.message || 'Falha ao gerar flashcard com Gemini.',
+      error: error instanceof Error ? error.message : 'Falha ao gerar flashcard com Gemini.',
     });
   }
 });
 
-// Health check
-app.get('/api/health', (req, res) => {
+// Health check com probe real: reflete o estado das dependências, não um status estático
+app.get('/api/health', (_req, res) => {
+  const storage = chunkStorage.getStorageMode();
   res.json({
     status: 'online',
     service: 'DialecticPod & FastChunks API',
     modelTts: 'gemini-3.1-flash-tts-preview',
     modelGen: 'gemini-3.8-flash',
+    geminiKeyConfigured: true,
+    storage,
+    uptimeSec: Math.round(process.uptime()),
+  });
+});
+
+// Rotas de API desconhecidas: 404 JSON estruturado (nunca o HTML do SPA)
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `Endpoint não encontrado: ${req.method} ${req.originalUrl}`,
   });
 });
 
@@ -1249,7 +1327,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   }

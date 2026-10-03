@@ -55,14 +55,9 @@ class LocalFsAdapter implements IChunkStorage {
     }
   }
 
-  async listUserChunks(userId: string, lang?: TargetLang): Promise<ChunkItem[]> {
+  async listUserChunks(userId: string, _lang?: TargetLang): Promise<ChunkItem[]> {
     const all = this.readAll();
-    const userChunks = all[userId] || [];
-    if (lang) {
-      // Chunk language can be inferred or filtered
-      return userChunks;
-    }
-    return userChunks;
+    return all[userId] || [];
   }
 
   async saveUserChunk(userId: string, chunk: ChunkItem): Promise<void> {
@@ -102,7 +97,7 @@ class FirestoreAdapter implements IChunkStorage {
     });
   }
 
-  async listUserChunks(userId: string, lang?: TargetLang): Promise<ChunkItem[]> {
+  async listUserChunks(userId: string, _lang?: TargetLang): Promise<ChunkItem[]> {
     let query = this.db.collection(this.collectionName).where('userId', '==', userId);
     const snapshot = await query.get();
     const results: ChunkItem[] = [];
@@ -167,6 +162,10 @@ class ChunkStorageManager implements IChunkStorage {
       console.log('[ChunkStorageManager] Sem credenciais GCP detectadas. Operando com repositório local (.data/chunks.json).');
       this.activeStorage = this.localFallback;
     }
+  }
+
+  public getStorageMode(): 'firestore' | 'local-fallback' {
+    return this.isFirestoreActive ? 'firestore' : 'local-fallback';
   }
 
   async listUserChunks(userId: string, lang?: TargetLang): Promise<ChunkItem[]> {
