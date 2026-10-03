@@ -1,35 +1,31 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Deploy em Produção da Revisão `mytts-00012-jqk` Concluído com Sucesso.
-- **Status da Branch**: `main` (commit `f001d03` sincronizado com `origin/main`).
-- **Revisão Ativa Cloud Run**: `mytts-00012-jqk` (100% do tráfego).
+- **Fase**: Botão de Reprodução Fonética com Sotaque Nativo no Reprodutor Flutuante e Cards de Idioma + Cache Local IndexedDB.
+- **Status da Branch**: `main` (código testado, verificado com lint e compilado com 100% de conformidade).
 - **URL de Produção**: `https://mytts-1044179901556.us-central1.run.app`.
 
 ## Decisões Tomadas
-1. **Desbloqueio de Seleção nos Chunks (`src/components/LanguageColumnCard.tsx`)**:
-   - `onClickChunk` executava `e.stopPropagation()` antes que o container do card pudesse registrar o clique. Corrigido para registrar `onSelectCard()` antes da exibição de menu.
-2. **Sincronização Bidirecional e Auto-Play (`src/components/PolyglotChatStudio.tsx`)**:
-   - Auto-play imediato ao focar card de idioma e vinculação bidirecional com o `FloatingCardAudioController`.
-3. **Erradicação Definitiva de Race Conditions e Ativação Múltipla**:
-   - `activeSynthesisIdRef` e `abortControllerRef` cancelando requisições em voo e impedindo áudio duplicado.
-4. **Isolamento de Estado por Mensagem no Feed**:
-   - Scrubbers e progresso condicionados exclusivamente ao bloco ativo.
-5. **Calibração de Prosódia e Vozes Nativas no Backend (`server.ts` & `src/utils/prosodyEngine.ts`)**:
-   - Mapeamento nativo de personas (`Puck` para EN, `Kore` para IT, `Aoede` para JA) sem sotaque forçado em PT-BR.
-6. **Motor de Cache Local Universal de Áudio (L1 RAM + L2 IndexedDB) (`src/utils/audioCache.ts`)**:
+1. **Botão Dedicado de Sotaque Nativo no Player Flutuante (`FloatingCardAudioController.tsx`)**:
+   - Inserido botão ergonômico (altura 44px, alvo tátil do polegar) "Reproduzir com Sotaque" (`record_voice_over`) diretamente na linha de controles do player.
+   - Estado visual reativo: quando em reprodução fonética, destaca-se em esmeralda com pulso (`animate-pulse`) e muda o rótulo para "Pausar Sotaque".
+   - Exibe indicador de loading (`progress_activity` spin) durante a síntese.
+2. **Ação Rápida de Sotaque no Cabeçalho do Card (`LanguageColumnCard.tsx`)**:
+   - Adicionado botão tátil ao lado do botão de cópia no cabeçalho de cada coluna de idioma, permitindo acionar a reprodução fonética instantânea sem depender de menus de chunks avulsos.
+3. **Orquestração Multimodal e Separação de Modos de Áudio (`PolyglotChatStudio.tsx`)**:
+   - Adicionado `activeAudioMode` (`'standard' | 'accent' | null`) e `isLoadingAccent` para distinguir com precisão se a reprodução em andamento é da voz padrão do estúdio ou da síntese fonética.
+   - Função `handlePlayCardWithAccent(messageId, lang)` sintetiza a frase completa via `/api/synthesize-chunk` com instruções fonéticas nativas rigorosas e salva no cache `IndexedDB` com chave determinística (`type: 'chunk'`).
+   - Sincronização completa de barra de progresso (scrubber), seek, velocidade de reprodução e tempo decorrido.
+4. **Propagação Hierárquica Limpa (`ParallelMessageBlock.tsx`)**:
+   - Encaminha `onPlayAccent`, `isPlayingAccent` e `isLoadingAccent` tanto para o controlador flutuante quanto para cada coluna de idioma (EN, IT, JA).
+5. **Motor de Cache Local Universal de Áudio (L1 RAM + L2 IndexedDB) (`src/utils/audioCache.ts`)**:
    - Eliminação completa de latência de rede em reproduções repetidas de frases, chunks e cards do feed.
-   - **Camada L1 (Memória RAM)**: Resolução instantânea (0ms) na sessão ativa via `Map<string, CachedAudioRecord>`.
-   - **Camada L2 (IndexedDB)**: Banco `mytts_audio_cache` (store `audio_records`) com persistência permanente entre reloads do navegador, índice temporal `lastAccessedAt` e política de evicção LRU (máx. 300 áudios).
-   - **Geração Determinística de Chaves**: Normalização estrita de espaços, Unicode NFC, velocidade e tags prosódicas.
-   - **Feedback Visual na UI**: Badges `⚡ 0ms` nos cards de idioma e botão dinâmico `⚡ Neural (0ms)` no `FastChunkAudioApp`, `LanguageColumnCard` e `FloatingCardAudioController`.
+   - Camada L1 (RAM) + Camada L2 (IndexedDB `mytts_audio_cache`) com política LRU (máx. 300 áudios).
 
-## Testes Reais em Produção (Smoke Tests Comprovados)
-- `GET /api/health`: Status `online`, Uptime ativo, modelos `gemini-3.1-flash-tts-preview` e `gemini-3.8-flash`.
-- `POST /api/synthesize-chunk` (Inglês `en-US`): Status `True`, áudio WAV canônico sintetizado com sucesso.
+## Testes Reais e Verificação
 - `test-audio-engine.ts`: 7 baterias de testes com 100% de conformidade (Soundscapes, Auto-Ducking, Voice Boost, WAV RIFF 44B, Prosódia PT-BR, CSV Anki e Cache Local IndexedDB/L1).
 - `tsc --noEmit`: 0 erros de tipagem estrita no TypeScript.
-- `vite build`: Compilação de produção aprovada em 300ms.
+- `vite build`: Compilação de produção aprovada em 526ms.
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
@@ -37,4 +33,4 @@
   - `[MÉDIO]`: Integração streaming bidirecional via WebSocket (Gemini Live API).
 
 ## Próximo Ponto de Entrada
-- Testar interativamente no navegador a eliminação de latência na repetição de frases: `https://mytts-1044179901556.us-central1.run.app`.
+- Deploy da nova revisão no Google Cloud Run e smoke test em produção.

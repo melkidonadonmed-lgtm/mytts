@@ -17,8 +17,11 @@ export interface ParallelMessageBlockProps {
   onSelectLanguage: (lang: 'en' | 'it' | 'ja') => void;
   isPlaying: boolean;
   isLoading: boolean;
+  isPlayingAccent?: boolean;
+  isLoadingAccent?: boolean;
   isCachedByLang?: Record<'en' | 'it' | 'ja', boolean>;
   onTogglePlay: (lang: 'en' | 'it' | 'ja') => void;
+  onPlayAccent?: (lang: 'en' | 'it' | 'ja') => void;
   onReplay: (lang: 'en' | 'it' | 'ja') => void;
   currentTime: number;
   duration: number;
@@ -42,8 +45,11 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
   onSelectLanguage,
   isPlaying,
   isLoading,
+  isPlayingAccent,
+  isLoadingAccent,
   isCachedByLang,
   onTogglePlay,
+  onPlayAccent,
   onReplay,
   currentTime,
   duration,
@@ -132,6 +138,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'en'}
               isCached={isCachedByLang?.en}
+              isPlayingAccent={Boolean(isPlayingAccent && selectedLanguage === 'en')}
+              onPlayAccent={onPlayAccent ? () => onPlayAccent('en') : undefined}
               onSelectCard={() => onSelectLanguage('en')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -148,6 +156,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'it'}
               isCached={isCachedByLang?.it}
+              isPlayingAccent={Boolean(isPlayingAccent && selectedLanguage === 'it')}
+              onPlayAccent={onPlayAccent ? () => onPlayAccent('it') : undefined}
               onSelectCard={() => onSelectLanguage('it')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -164,6 +174,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'ja'}
               isCached={isCachedByLang?.ja}
+              isPlayingAccent={Boolean(isPlayingAccent && selectedLanguage === 'ja')}
+              onPlayAccent={onPlayAccent ? () => onPlayAccent('ja') : undefined}
               onSelectCard={() => onSelectLanguage('ja')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -176,6 +188,9 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
             onSelectLanguage={onSelectLanguage}
             isPlaying={isPlaying}
             isLoading={isLoading}
+            onPlayAccent={onPlayAccent ? () => onPlayAccent(selectedLanguage) : undefined}
+            isPlayingAccent={isPlayingAccent}
+            isLoadingAccent={isLoadingAccent}
             isCached={isCachedByLang?.[selectedLanguage]}
             isCachedByLang={isCachedByLang}
             onTogglePlay={() => onTogglePlay(selectedLanguage)}

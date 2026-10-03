@@ -10,6 +10,9 @@ export interface FloatingCardAudioControllerProps {
   isCached?: boolean;
   isCachedByLang?: Record<'en' | 'it' | 'ja', boolean>;
   onTogglePlay: () => void;
+  onPlayAccent?: () => void;
+  isPlayingAccent?: boolean;
+  isLoadingAccent?: boolean;
   onReplay: () => void;
   currentTime: number;
   duration: number;
@@ -31,6 +34,9 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
   isCached,
   isCachedByLang,
   onTogglePlay,
+  onPlayAccent,
+  isPlayingAccent,
+  isLoadingAccent,
   onReplay,
   currentTime,
   duration,
@@ -206,6 +212,38 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 </>
               )}
             </button>
+
+            {/* Botão Reproduzir com Sotaque (Card Inteiro) */}
+            {onPlayAccent && (
+              <button
+                type="button"
+                onClick={onPlayAccent}
+                disabled={isLoading || isLoadingAccent}
+                className={`btn-matte h-11 px-4 text-xs sm:text-sm rounded-xl font-bold flex items-center gap-2 border transition-all cursor-pointer ${
+                  isPlayingAccent
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
+                    : 'btn-matte-dark text-slate-200 hover:text-white border-slate-700/80 hover:border-emerald-500/40'
+                }`}
+                title="Reproduzir o card inteiro com direção fonética e sotaque nativo autêntico"
+              >
+                {isLoadingAccent ? (
+                  <>
+                    <GoogleIcon name="progress_activity" size={20} className="animate-spin text-emerald-400" />
+                    <span>Sintetizando...</span>
+                  </>
+                ) : isPlayingAccent ? (
+                  <>
+                    <GoogleIcon name="pause" size={20} filled className="text-emerald-400" />
+                    <span>Pausar Sotaque</span>
+                  </>
+                ) : (
+                  <>
+                    <GoogleIcon name="record_voice_over" size={20} className="text-emerald-400" />
+                    <span>Reproduzir com Sotaque</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Botão Replay Tátil */}
             <button
