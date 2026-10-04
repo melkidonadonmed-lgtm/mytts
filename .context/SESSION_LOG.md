@@ -34,6 +34,11 @@
    - Código de saída: `0` (Índice atualizado).
 6. `agent-browser open "file:///C:/Users/melki/Projetos/mytts/mockup_tatil_referencia.html"`:
    - Mockup renderizado e validado visualmente.
+7. `gcloud run deploy mytts --source . --region us-central1 --project agent-md-506215`:
+   - Código de saída: `0`.
+   - Revisão `mytts-00016-czk` ativada servindo 100% do tráfego em `https://mytts-1044179901556.us-central1.run.app`.
+8. Smoke test `GET /api/health` e validação com `agent-browser`:
+   - Status `online`, modelos operacionais e Command Palette funcional na Sidebar em produção.
 
 ## Próxima Ação Recomendada
-- Apresentar a auditoria completa de frontend e arquitetura de sistema ao desenvolvedor com as opções de arquétipos.
+- Validar interativamente no navegador (`Ctrl + F5`): `https://mytts-1044179901556.us-central1.run.app`.

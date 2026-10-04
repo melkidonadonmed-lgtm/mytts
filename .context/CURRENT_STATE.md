@@ -3,7 +3,7 @@
 ## Fase Atual
 - **Fase**: Auditoria Completa de Design Tátil e Arquitetura do Sistema Concluída com 100% de Conformidade (DISC-01 a DISC-08 `[PASS]`).
 - **Status da Branch**: `main` (código testado e compilado com exit code 0).
-- **Revisão Ativa Cloud Run**: `mytts-00014-vc6` (100% do tráfego em `https://mytts-1044179901556.us-central1.run.app`).
+- **Revisão Ativa Cloud Run**: `mytts-00016-czk` (100% do tráfego em `https://mytts-1044179901556.us-central1.run.app`).
 
 ## Decisões Arquiteturais e Implementações
 1. **Auditoria de Design Tátil Melki & Inspeção com agent-browser**:

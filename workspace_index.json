@@ -1,10 +1,10 @@
 {
   "version": "2026.1",
-  "generated_at": "2026-10-04T02:36:04.886532+00:00",
+  "generated_at": "2026-10-04T02:42:49.359489+00:00",
   "workspace_root": "C:\\Users\\melki\\Projetos\\mytts",
-  "tree_hash": "c05ca262a11f162d",
+  "tree_hash": "a61e79ab02d24443",
   "stats": {
-    "total_files": 114,
+    "total_files": 107,
     "python_files": 0,
     "total_classes": 0,
     "total_functions": 0
@@ -32,7 +32,7 @@
     },
     ".gitignore": {
       "extension": "",
-      "size_bytes": 142
+      "size_bytes": 166
     },
     "CONTEXT.md": {
       "extension": ".md",
@@ -103,34 +103,6 @@
         "# MyTTS Studio (Speechify & ElevenLabs Inspired)"
       ]
     },
-    "screenshot_command_palette.png": {
-      "extension": ".png",
-      "size_bytes": 123972
-    },
-    "screenshot_debate.png": {
-      "extension": ".png",
-      "size_bytes": 135741
-    },
-    "screenshot_export_modal.png": {
-      "extension": ".png",
-      "size_bytes": 136320
-    },
-    "screenshot_mockup.png": {
-      "extension": ".png",
-      "size_bytes": 106662
-    },
-    "screenshot_polyglot.png": {
-      "extension": ".png",
-      "size_bytes": 116327
-    },
-    "screenshot_reader.png": {
-      "extension": ".png",
-      "size_bytes": 121062
-    },
-    "screenshot_voices.png": {
-      "extension": ".png",
-      "size_bytes": 117727
-    },
     "server.ts": {
       "extension": ".ts",
       "size_bytes": 51881
@@ -172,7 +144,7 @@
     },
     ".context/CURRENT_STATE.md": {
       "extension": ".md",
-      "size_bytes": 2743,
+      "size_bytes": 2935,
       "headings": [
         "# Estado Atual do Workspace (mytts)",
         "## Fase Atual"
@@ -188,7 +160,7 @@
     },
     ".context/SESSION_LOG.md": {
       "extension": ".md",
-      "size_bytes": 2479,
+      "size_bytes": 2597,
       "headings": [
         "# Checkpoint da Sessão (mytts)",
         "## Data e Hora"
