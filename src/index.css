@@ -50,171 +50,233 @@
    DESIGN SYSTEM TÁTIL MELKI — ARQUÉTIPOS CANÔNICOS (2026)
    ========================================================================== */
 
-/* 1. Tactile Matte Minimalist (Padrão Melki — Ardósia Fosca Pura) */
+/* 1. Tactile Matte Minimalist (Padrão Melki — Ardósia Fosca Refinada com Fundo Elevado) */
 :root,
 body,
 body[data-archetype="tactile-matte"] {
-  --bg-canvas: #090B0E;
-  --bg-card: #11141A;
-  --bg-card-hover: #161B24;
-  --bg-surface-2: #181D26;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
-  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
-  --accent-amber: #D97706;
-  --accent-amber-hover: #E5A125;
-}
-
-/* 2. Phantom Obsidian 4K */
-body[data-archetype="phantom-4k"] {
-  --bg-canvas: #040507;
-  --bg-card: rgba(14, 17, 24, 0.95);
-  --bg-card-hover: rgba(20, 24, 34, 0.98);
-  --bg-surface-2: #161b26;
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-hover: rgba(56, 189, 248, 0.4);
-  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.10);
-  --accent-amber: #38bdf8;
-  --accent-amber-hover: #7dd3fc;
-}
-
-body[data-archetype="phantom-4k"] .bg-slate-950 {
-  background-color: #040507 !important;
-}
-body[data-archetype="phantom-4k"] .bg-slate-900,
-body[data-archetype="phantom-4k"] .bg-slate-900\/80,
-body[data-archetype="phantom-4k"] .bg-slate-900\/60,
-body[data-archetype="phantom-4k"] .bg-slate-900\/90 {
-  background-color: #0e1118 !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* 3. Luxury Deep Blue */
-body[data-archetype="luxury-deepblue"] {
-  --bg-canvas: #070c18;
-  --bg-card: rgba(18, 28, 49, 0.94);
-  --bg-card-hover: rgba(24, 38, 66, 0.98);
-  --bg-surface-2: #1b2844;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(96, 165, 250, 0.4);
+  --bg-canvas: #12151D;
+  --bg-card: #1A202E;
+  --bg-card-hover: #222A3C;
+  --bg-surface-2: #263044;
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.22);
   --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
-  --accent-amber: #60a5fa;
-  --accent-amber-hover: #93c5fd;
+  --accent-primary: #3B82F6;
+  --accent-primary-hover: #60A5FA;
+  --accent-amber: #38BDF8;
+  --accent-amber-hover: #7DD3FC;
 }
 
-body[data-archetype="luxury-deepblue"] .bg-slate-950 {
-  background-color: #070c18 !important;
-}
-body[data-archetype="luxury-deepblue"] .bg-slate-900,
-body[data-archetype="luxury-deepblue"] .bg-slate-900\/80,
-body[data-archetype="luxury-deepblue"] .bg-slate-900\/60,
-body[data-archetype="luxury-deepblue"] .bg-slate-900\/90 {
-  background-color: #121c31 !important;
-  border-color: rgba(96, 165, 250, 0.15) !important;
-}
-
-/* 4. Gilded Navy Heritage */
-body[data-archetype="gilded-navy"] {
-  --bg-canvas: #05070d;
-  --bg-card: rgba(14, 20, 36, 0.95);
-  --bg-card-hover: rgba(20, 28, 50, 0.98);
-  --bg-surface-2: #162039;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(212, 175, 55, 0.45);
-  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
-  --accent-amber: #d4af37;
-  --accent-amber-hover: #e5c158;
+/* 2. The Deep Blue (#050A30 / #F4F6FC / #233DFF) */
+body[data-archetype="deep-blue"] {
+  --bg-canvas: #050A30;
+  --bg-card: #0D1645;
+  --bg-card-hover: #14205C;
+  --bg-surface-2: #162260;
+  --border-subtle: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(35, 61, 255, 0.5);
+  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.16);
+  --accent-primary: #233DFF;
+  --accent-primary-hover: #4D64FF;
+  --accent-amber: #233DFF;
+  --accent-amber-hover: #4D64FF;
 }
 
-body[data-archetype="gilded-navy"] .bg-slate-950 {
-  background-color: #05070d !important;
+body[data-archetype="deep-blue"] .bg-slate-950 {
+  background-color: #050A30 !important;
 }
-body[data-archetype="gilded-navy"] .bg-slate-900,
-body[data-archetype="gilded-navy"] .bg-slate-900\/80,
-body[data-archetype="gilded-navy"] .bg-slate-900\/60,
-body[data-archetype="gilded-navy"] .bg-slate-900\/90 {
-  background-color: #0e1424 !important;
-  border-color: rgba(212, 175, 55, 0.2) !important;
+body[data-archetype="deep-blue"] .bg-slate-900,
+body[data-archetype="deep-blue"] .bg-slate-900\/80,
+body[data-archetype="deep-blue"] .bg-slate-900\/60,
+body[data-archetype="deep-blue"] .bg-slate-900\/90 {
+  background-color: #0D1645 !important;
+  border-color: rgba(35, 61, 255, 0.2) !important;
 }
 
-/* 5. Polar Sand Light (Tema Claro Mineral) */
-body[data-archetype="polar-sand"] {
-  --bg-canvas: #eef2f6;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f8fafc;
-  --bg-surface-2: #e2e8f0;
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(2, 132, 199, 0.35);
-  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
-  --accent-amber: #0284c7;
-  --accent-amber-hover: #0369a1;
+/* 3. Van Gogh's Dream (#042698 / #FDFEE9 / #9BD4E4 — Tema Claro Marfim) */
+body[data-archetype="vangogh"] {
+  --bg-canvas: #FDFEE9;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F8F9DF;
+  --bg-surface-2: #F2F4CE;
+  --border-subtle: rgba(4, 38, 152, 0.14);
+  --border-hover: rgba(4, 38, 152, 0.4);
+  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+  --accent-primary: #042698;
+  --accent-primary-hover: #0735C9;
+  --accent-amber: #042698;
+  --accent-amber-hover: #0735C9;
   color-scheme: light;
-  background-color: #eef2f6 !important;
-  color: #0f172a !important;
+  background-color: #FDFEE9 !important;
+  color: #042698 !important;
 }
 
-body[data-archetype="polar-sand"] .bg-slate-950 {
-  background-color: #eef2f6 !important;
-  color: #0f172a !important;
+body[data-archetype="vangogh"] .bg-slate-950 {
+  background-color: #FDFEE9 !important;
+  color: #042698 !important;
 }
 
-body[data-archetype="polar-sand"] .bg-slate-900,
-body[data-archetype="polar-sand"] .bg-slate-900\/80,
-body[data-archetype="polar-sand"] .bg-slate-900\/60,
-body[data-archetype="polar-sand"] .bg-slate-900\/70,
-body[data-archetype="polar-sand"] .bg-slate-900\/90 {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 20px -4px rgba(0,0,0,0.04) !important;
+body[data-archetype="vangogh"] .bg-slate-900,
+body[data-archetype="vangogh"] .bg-slate-900\/80,
+body[data-archetype="vangogh"] .bg-slate-900\/60,
+body[data-archetype="vangogh"] .bg-slate-900\/70,
+body[data-archetype="vangogh"] .bg-slate-900\/90 {
+  background-color: #FFFFFF !important;
+  color: #042698 !important;
+  border-color: rgba(4, 38, 152, 0.14) !important;
+  box-shadow: 0 1px 3px rgba(4, 38, 152, 0.06), 0 8px 20px -4px rgba(4, 38, 152, 0.06) !important;
 }
 
-body[data-archetype="polar-sand"] .border-slate-800,
-body[data-archetype="polar-sand"] .border-slate-800\/80,
-body[data-archetype="polar-sand"] .border-slate-800\/90,
-body[data-archetype="polar-sand"] .border-slate-800\/60 {
-  border-color: rgba(0, 0, 0, 0.08) !important;
+body[data-archetype="vangogh"] .border-slate-800,
+body[data-archetype="vangogh"] .border-slate-800\/80,
+body[data-archetype="vangogh"] .border-slate-800\/90,
+body[data-archetype="vangogh"] .border-slate-800\/60 {
+  border-color: rgba(4, 38, 152, 0.14) !important;
 }
 
-body[data-archetype="polar-sand"] .text-white,
-body[data-archetype="polar-sand"] .text-slate-100 {
-  color: #0f172a !important;
+body[data-archetype="vangogh"] .text-white,
+body[data-archetype="vangogh"] .text-slate-100 {
+  color: #042698 !important;
 }
 
-body[data-archetype="polar-sand"] .text-slate-200,
-body[data-archetype="polar-sand"] .text-slate-300 {
-  color: #334155 !important;
+body[data-archetype="vangogh"] .text-slate-200,
+body[data-archetype="vangogh"] .text-slate-300 {
+  color: #1B2A56 !important;
 }
 
-body[data-archetype="polar-sand"] .text-slate-400 {
-  color: #64748b !important;
+body[data-archetype="vangogh"] .text-slate-400 {
+  color: #455787 !important;
 }
 
-body[data-archetype="polar-sand"] .text-slate-500 {
-  color: #94a3b8 !important;
+body[data-archetype="vangogh"] .text-slate-500 {
+  color: #6B7B9E !important;
 }
 
-body[data-archetype="polar-sand"] textarea,
-body[data-archetype="polar-sand"] input {
-  color: #0f172a !important;
+body[data-archetype="vangogh"] textarea,
+body[data-archetype="vangogh"] input {
+  color: #042698 !important;
 }
 
-body[data-archetype="polar-sand"] .input-sunken {
-  background: #f1f5f9 !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  color: #0f172a !important;
-  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.08), inset -1px -1px 1px rgba(255,255,255,0.8) !important;
+body[data-archetype="vangogh"] .input-sunken {
+  background: #F4F5D8 !important;
+  border-color: rgba(4, 38, 152, 0.16) !important;
+  color: #042698 !important;
+  box-shadow: inset 1px 1px 3px rgba(4, 38, 152, 0.08), inset -1px -1px 1px rgba(255,255,255,0.9) !important;
 }
 
-body[data-archetype="polar-sand"] .btn-matte-dark {
-  background: #f1f5f9 !important;
-  color: #334155 !important;
-  border-color: rgba(0,0,0,0.1) !important;
+body[data-archetype="vangogh"] .btn-matte-dark {
+  background: #F4F5D8 !important;
+  color: #1B2A56 !important;
+  border-color: rgba(4, 38, 152, 0.16) !important;
 }
 
-body[data-archetype="polar-sand"] .btn-matte-dark:hover {
-  background: #e2e8f0 !important;
-  color: #0f172a !important;
+body[data-archetype="vangogh"] .btn-matte-dark:hover {
+  background: #E8EACB !important;
+  color: #042698 !important;
+}
+
+/* 4. Mermaid Lagoon (#051D40 / #145DA0 / #56AEFF / #B1D4E0) */
+body[data-archetype="mermaid"] {
+  --bg-canvas: #051D40;
+  --bg-card: #0A2B5E;
+  --bg-card-hover: #0E3675;
+  --bg-surface-2: #145DA0;
+  --border-subtle: rgba(86, 174, 255, 0.22);
+  --border-hover: rgba(86, 174, 255, 0.5);
+  --rim-light: inset 0 1px 0 0 rgba(177, 212, 224, 0.25);
+  --accent-primary: #56AEFF;
+  --accent-primary-hover: #82C4FF;
+  --accent-amber: #56AEFF;
+  --accent-amber-hover: #82C4FF;
+}
+
+body[data-archetype="mermaid"] .bg-slate-950 {
+  background-color: #051D40 !important;
+}
+body[data-archetype="mermaid"] .bg-slate-900,
+body[data-archetype="mermaid"] .bg-slate-900\/80,
+body[data-archetype="mermaid"] .bg-slate-900\/60,
+body[data-archetype="mermaid"] .bg-slate-900\/90 {
+  background-color: #0A2B5E !important;
+  border-color: rgba(86, 174, 255, 0.2) !important;
+}
+
+/* 5. Cotton Dandelions (#2A3B19 / #E6E7E2 / #A4B792 / #3D5919) */
+body[data-archetype="cotton-dandelions"] {
+  --bg-canvas: #1B2612;
+  --bg-card: #2A3B19;
+  --bg-card-hover: #354B20;
+  --bg-surface-2: #3D5919;
+  --border-subtle: rgba(164, 183, 146, 0.25);
+  --border-hover: rgba(164, 183, 146, 0.5);
+  --rim-light: inset 0 1px 0 0 rgba(230, 231, 226, 0.15);
+  --accent-primary: #A4B792;
+  --accent-primary-hover: #BFCEB0;
+  --accent-amber: #A4B792;
+  --accent-amber-hover: #BFCEB0;
+}
+
+body[data-archetype="cotton-dandelions"] .bg-slate-950 {
+  background-color: #1B2612 !important;
+}
+body[data-archetype="cotton-dandelions"] .bg-slate-900,
+body[data-archetype="cotton-dandelions"] .bg-slate-900\/80,
+body[data-archetype="cotton-dandelions"] .bg-slate-900\/60,
+body[data-archetype="cotton-dandelions"] .bg-slate-900\/90 {
+  background-color: #2A3B19 !important;
+  border-color: rgba(164, 183, 146, 0.22) !important;
+}
+
+/* 6. Ocean Window (#21568A / #1D97BD / #57697D / #C7CDC0) */
+body[data-archetype="ocean-window"] {
+  --bg-canvas: #141C26;
+  --bg-card: #1B426B;
+  --bg-card-hover: #21568A;
+  --bg-surface-2: #2D68A1;
+  --border-subtle: rgba(29, 151, 189, 0.28);
+  --border-hover: rgba(29, 151, 189, 0.55);
+  --rim-light: inset 0 1px 0 0 rgba(199, 205, 192, 0.25);
+  --accent-primary: #1D97BD;
+  --accent-primary-hover: #3EC3EC;
+  --accent-amber: #1D97BD;
+  --accent-amber-hover: #3EC3EC;
+}
+
+body[data-archetype="ocean-window"] .bg-slate-950 {
+  background-color: #141C26 !important;
+}
+body[data-archetype="ocean-window"] .bg-slate-900,
+body[data-archetype="ocean-window"] .bg-slate-900\/80,
+body[data-archetype="ocean-window"] .bg-slate-900\/60,
+body[data-archetype="ocean-window"] .bg-slate-900\/90 {
+  background-color: #1B426B !important;
+  border-color: rgba(29, 151, 189, 0.25) !important;
+}
+
+/* 7. Nightfall Ambiance (#000B26 / #094886 / #2479DF / #73BBEE / #B4DFFC) */
+body[data-archetype="nightfall-ambiance"] {
+  --bg-canvas: #000B26;
+  --bg-card: #063360;
+  --bg-card-hover: #094886;
+  --bg-surface-2: #12559C;
+  --border-subtle: rgba(115, 187, 238, 0.25);
+  --border-hover: rgba(36, 121, 223, 0.6);
+  --rim-light: inset 0 1px 0 0 rgba(180, 223, 252, 0.2);
+  --accent-primary: #2479DF;
+  --accent-primary-hover: #529BEE;
+  --accent-amber: #73BBEE;
+  --accent-amber-hover: #9ED4FB;
+}
+
+body[data-archetype="nightfall-ambiance"] .bg-slate-950 {
+  background-color: #000B26 !important;
+}
+body[data-archetype="nightfall-ambiance"] .bg-slate-900,
+body[data-archetype="nightfall-ambiance"] .bg-slate-900\/80,
+body[data-archetype="nightfall-ambiance"] .bg-slate-900\/60,
+body[data-archetype="nightfall-ambiance"] .bg-slate-900\/90 {
+  background-color: #063360 !important;
+  border-color: rgba(115, 187, 238, 0.25) !important;
 }
 
 @layer base {
@@ -266,36 +328,36 @@ body[data-archetype="polar-sand"] .btn-matte-dark:hover {
 
 .card-matte-active {
   background: var(--bg-surface-2);
-  border: 1px solid rgba(217, 119, 6, 0.45);
-  border-top: 1px solid rgba(229, 161, 37, 0.65);
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  border-top: 1px solid rgba(96, 165, 250, 0.65);
   box-shadow: 
-    0 0 0 1px rgba(217, 119, 6, 0.25),
+    0 0 0 1px rgba(59, 130, 246, 0.25),
     0 8px 24px -4px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
 }
 
 /* Cavidade Tátil / Input Sunken (Search, Textareas, Filters) */
 .input-sunken {
-  background: #090B0E;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-canvas, #12151D);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
   border-radius: 0.75rem;
   padding: 0.5rem 0.875rem;
   color: #F8FAFC;
   box-shadow: 
-    inset 1px 1px 3px 0 rgba(0, 0, 0, 0.7),
+    inset 1px 1px 3px 0 rgba(0, 0, 0, 0.6),
     inset -1px -1px 1px 0 rgba(255, 255, 255, 0.02);
   outline: none;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .input-sunken:focus {
-  border-color: rgba(217, 119, 6, 0.5);
+  border-color: rgba(59, 130, 246, 0.6);
   box-shadow: 
-    inset 1px 1px 3px 0 rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(217, 119, 6, 0.3);
+    inset 1px 1px 3px 0 rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(59, 130, 246, 0.3);
 }
 
-/* 2. Botões Táteis com Acabamento Mate (Tactile Press) */
+/* 2. Botões Táteis com Acabamento Mate e Tipografia Nítida */
 .btn-matte {
   position: relative;
   display: inline-flex;
@@ -303,65 +365,111 @@ body[data-archetype="polar-sand"] .btn-matte-dark:hover {
   justify-content: center;
   gap: 0.5rem;
   border-radius: 0.75rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
   font-weight: 600;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.01em;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   cursor: pointer;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .btn-matte:active {
-  transform: translateY(1px) scale(0.98);
+  transform: translateY(1px);
 }
 
-.btn-matte-amber {
-  background: #D97706;
-  color: #090B0E;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
+/* Botão Primário Mineral Neutro (Substitui Laranja Estridente) */
+.btn-matte-primary {
+  background: #222C3E;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.20),
+    0 2px 6px 0 rgba(0, 0, 0, 0.35);
+  font-weight: 600;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.btn-matte-primary:hover {
+  background: #2D3A52;
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #FFFFFF !important;
   box-shadow: 
     inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
-    0 2px 4px 0 rgba(0, 0, 0, 0.25);
-  font-weight: 700;
+    0 4px 12px 0 rgba(0, 0, 0, 0.45);
+}
+
+.btn-matte-primary:active {
+  background: #1A2230;
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Alias neutro para componentes legados (elimina o laranja em toda a aplicação) */
+.btn-matte-amber {
+  background: #222C3E;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.20),
+    0 2px 6px 0 rgba(0, 0, 0, 0.35);
+  font-weight: 600;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .btn-matte-amber:hover {
-  background: #E5A125;
+  background: #2D3A52;
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #FFFFFF !important;
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
-    0 4px 10px 0 rgba(217, 119, 6, 0.3);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    0 4px 12px 0 rgba(0, 0, 0, 0.45);
 }
 
 .btn-matte-amber:active {
-  background: #B45309;
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.35);
+  background: #1A2230;
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
 }
 
 .btn-matte-dark {
-  background: #171B24;
+  background: #181E2B;
   color: #CBD5E1;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
     0 1px 2px 0 rgba(0, 0, 0, 0.25);
+  font-family: 'Inter', system-ui, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .btn-matte-dark:hover {
-  background: #1E232E;
+  background: #21293B;
   color: #F8FAFC;
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .btn-matte-dark:active {
-  background: #0F1218;
+  background: #11151E;
+  transform: translateY(1px);
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
 }
 
 /* 3. Dock Flutuante Mate */
 .dock-matte {
-  background: #11141A;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--bg-card, #1A202E);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 
     0 4px 6px -1px rgba(0, 0, 0, 0.4),
     0 16px 36px -4px rgba(0, 0, 0, 0.7);
@@ -385,30 +493,30 @@ body[data-archetype="polar-sand"] .btn-matte-dark:hover {
   width: 14px;
   height: 14px;
   border-radius: 9999px;
-  background: #f59e0b;
-  border: 2px solid #020617;
+  background: #38BDF8;
+  border: 2px solid #0F172A;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
 
 .slider-matte::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
 
 .slider-matte::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 9999px;
-  background: #f59e0b;
-  border: 2px solid #020617;
+  background: #38BDF8;
+  border: 2px solid #0F172A;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
 
 .slider-matte::-moz-range-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
 
 /* View Transitions API: Reduced motion guard */

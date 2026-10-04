@@ -478,9 +478,9 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveDrawerTab('voice')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                       activeDrawerTab === 'voice'
-                        ? 'bg-amber-400 text-slate-950 font-bold shadow-sm'
+                        ? 'btn-matte-primary text-white font-bold shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                     }`}
                   >
@@ -490,13 +490,13 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveDrawerTab('soundtrack')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                       activeDrawerTab === 'soundtrack'
-                        ? 'bg-amber-400 text-slate-950 font-bold shadow-sm'
+                        ? 'btn-matte-primary text-white font-bold shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                     }`}
                   >
-                    <Music className="w-3.5 h-3.5 text-amber-400" />
+                    <Music className="w-3.5 h-3.5 text-sky-400" />
                     <span>Trilha Sonora & Auto-Ducking</span>
                     {soundtrackConfig.preset !== 'none' && (
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
@@ -802,7 +802,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                             disabled={!soundtrackConfig.duckingEnabled}
                             className={`py-1 text-[11px] font-mono rounded border transition-all cursor-pointer ${
                               soundtrackConfig.duckingDepthDb === lvl.db
-                                ? 'bg-amber-400 text-slate-950 font-bold border-amber-300'
+                                ? 'btn-matte-primary text-white font-bold border-sky-400/50 shadow-sm'
                                 : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
                             } disabled:opacity-40`}
                           >
@@ -813,8 +813,8 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
 
                       {/* Status de Ducking em Tempo Real */}
                       <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                        <span className={`w-2 h-2 rounded-full ${isDucking ? 'bg-amber-400 animate-ping' : 'bg-slate-600'}`} />
-                        <span className={isDucking ? 'text-amber-300 font-semibold' : 'text-slate-500'}>
+                        <span className={`w-2 h-2 rounded-full ${isDucking ? 'bg-sky-400 animate-ping' : 'bg-slate-600'}`} />
+                        <span className={isDucking ? 'text-sky-300 font-semibold' : 'text-slate-500'}>
                           {isDucking ? `Ducking Ativo (${soundtrackConfig.duckingDepthDb}dB)` : 'Trilha em Volume Nominal'}
                         </span>
                       </div>
@@ -824,7 +824,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                     <div className="md:col-span-4 flex flex-col justify-between gap-2 border-t md:border-t-0 md:border-l border-slate-800/80 md:pl-3 pt-2 md:pt-0">
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
+                          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1 font-sans">
                             <Layers className="w-3.5 h-3.5 text-purple-400" />
                             Reforço Vocal
                           </span>
@@ -840,7 +840,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                               onClick={() => player?.setVoiceBoost(boost)}
                               className={`py-1 text-[11px] font-mono rounded border transition-all cursor-pointer ${
                                 soundtrackConfig.voiceBoostDb === boost
-                                  ? 'bg-purple-500 text-white font-bold border-purple-400'
+                                  ? 'bg-purple-600 text-white font-bold border-purple-400'
                                   : 'bg-slate-950 text-slate-400 border-slate-800'
                               }`}
                             >
@@ -855,16 +855,16 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                         type="button"
                         onClick={handleExportMasterMix}
                         disabled={isExportingMaster}
-                        className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                        className="w-full py-2 px-3 rounded-xl btn-matte-primary text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
                       >
                         {isExportingMaster ? (
                           <>
-                            <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                            <Loader2 className="w-4 h-4 animate-spin text-white" />
                             <span>Renderizando Master 44.1kHz...</span>
                           </>
                         ) : (
                           <>
-                            <Download className="w-4 h-4 text-slate-950" />
+                            <Download className="w-4 h-4 text-white" />
                             <span>Exportar Master Studio (.wav)</span>
                           </>
                         )}
@@ -999,40 +999,54 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
             </div>
           </div>
 
-          {/* Bloco Central: Controles de Áudio com Touch Targets Amplos */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Voltar 10s */}
-            <button
-              type="button"
-              onClick={() => handleSkip(-10)}
-              aria-label="Voltar 10 segundos"
-              className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:text-slate-200 active:scale-90 hover:bg-slate-900 transition-all cursor-pointer"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </button>
+          {/* Bloco Central: Controles de Áudio com Touch Targets Amplos e Sotaque Ativo */}
+          <div className="flex flex-col items-center gap-1 shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Voltar 10s */}
+              <button
+                type="button"
+                onClick={() => handleSkip(-10)}
+                aria-label="Voltar 10 segundos"
+                className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-slate-300 hover:text-white active:translate-y-px hover:bg-slate-900 transition-all cursor-pointer"
+              >
+                <RotateCcw className="w-5 h-5" />
+              </button>
 
-            {/* Botão Play/Pause Gigante */}
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              aria-label={isPlaying ? 'Pausar debate' : 'Reproduzir debate'}
-              className="flex h-13 w-13 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/25 active:scale-95 transition-all cursor-pointer"
-            >
-              {isPlaying ? (
-                <Pause className="w-6 h-6 fill-current" />
-              ) : (
-                <Play className="w-6 h-6 fill-current ml-0.5" />
-              )}
-            </button>
+              {/* Botão Play/Pause Gigante Neutro com Alto Contraste */}
+              <button
+                type="button"
+                onClick={onTogglePlay}
+                aria-label={isPlaying ? 'Pausar áudio' : 'Reproduzir áudio'}
+                className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl btn-matte-primary text-white shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer"
+              >
+                {isPlaying ? (
+                  <Pause className="w-6 h-6 fill-current" />
+                ) : (
+                  <Play className="w-6 h-6 fill-current ml-0.5 text-white" />
+                )}
+              </button>
 
-            {/* Avançar 10s */}
+              {/* Avançar 10s */}
+              <button
+                type="button"
+                onClick={() => handleSkip(10)}
+                aria-label="Avançar 10 segundos"
+                className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-slate-300 hover:text-white active:translate-y-px hover:bg-slate-900 transition-all cursor-pointer"
+              >
+                <RotateCw className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Pílula de Sotaque / Intenção Vocal em Tempo Real */}
             <button
               type="button"
-              onClick={() => handleSkip(10)}
-              aria-label="Avançar 10 segundos"
-              className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:text-slate-200 active:scale-90 hover:bg-slate-900 transition-all cursor-pointer"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-[10px] font-sans font-medium text-slate-300 hover:text-white hover:border-slate-500 cursor-pointer transition-all active:translate-y-px"
+              title="Toque para abrir configurações de sotaque, prosódia e voz"
             >
-              <RotateCw className="w-5 h-5" />
+              <span>{emotionMeta.icon}</span>
+              <span className="font-semibold text-sky-300 font-sans">{emotionMeta.ptLabel || 'Natural'}</span>
+              <span className="text-slate-400 font-mono">• {currentSpeaker?.name || 'Orador'}</span>
             </button>
           </div>
 
@@ -1042,9 +1056,9 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               type="button"
               onClick={handleCycleSpeed}
               aria-label={`Velocidade atual: ${playbackRate}x. Toque para alterar.`}
-              className="flex min-h-[44px] min-w-[44px] sm:min-w-[52px] items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-amber-300 hover:border-amber-400/50 hover:bg-slate-800 active:scale-95 transition-all cursor-pointer shadow-sm"
+              className="flex min-h-[44px] min-w-[44px] sm:min-w-[52px] items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-slate-200 hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm"
             >
-              <Gauge className="w-3.5 h-3.5 hidden sm:block text-slate-500" />
+              <Gauge className="w-3.5 h-3.5 hidden sm:block text-slate-400" />
               <span>{playbackRate.toFixed(2).replace(/\.00$/, '')}x</span>
             </button>
 
@@ -1055,10 +1069,10 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               disabled={isExportingMaster}
               title="Baixar Master de Estúdio (WAV com Trilha e Ducking)"
               aria-label="Baixar Master de Estúdio"
-              className="hidden lg:flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-amber-400 hover:border-amber-400/50 hover:bg-slate-800 active:scale-95 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              className="hidden lg:flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm disabled:opacity-50"
             >
               {isExportingMaster ? (
-                <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
               ) : (
                 <Download className="w-4 h-4" />
               )}

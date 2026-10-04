@@ -4,11 +4,11 @@ import {
   Globe2, 
   Gauge, 
   Flame, 
-  ChevronDown,
   Volume2,
   BrainCircuit,
   MessageSquareQuote,
-  Check
+  Check,
+  Users
 } from 'lucide-react';
 import {
   AudienceLevel,
@@ -18,6 +18,8 @@ import {
   TensionIntensity,
 } from '../types/debate';
 import { LANGUAGE_OPTIONS } from '../data/sampleDebates';
+import { VoiceCardGrid } from './VoiceCardGrid';
+import { GEMINI_VOICES, VoiceProfile } from '../types/voices';
 
 interface DebateConfigPanelProps {
   config: DebateConfig;
@@ -28,8 +30,8 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
   config,
   onChangeConfig,
 }) => {
-  // Controle de aba ativa no mobile (permite alternar entre os dois debatedores sem scroll gigante)
   const [activeMobileSpeaker, setActiveMobileSpeaker] = useState<0 | 1>(0);
+  const [activeSlot, setActiveSlot] = useState<1 | 2>(1);
 
   const handleLanguageChange = (langCode: LanguageCode) => {
     const matched = LANGUAGE_OPTIONS.find((l) => l.code === langCode);
@@ -54,6 +56,13 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
     });
   };
 
+  const spk1Voice: VoiceProfile =
+    GEMINI_VOICES.find((v) => v.id.toLowerCase() === (config.speakers[0]?.voiceId || '').toLowerCase()) ||
+    GEMINI_VOICES[1]; // Kore fallback
+  const spk2Voice: VoiceProfile =
+    GEMINI_VOICES.find((v) => v.id.toLowerCase() === (config.speakers[1]?.voiceId || '').toLowerCase()) ||
+    GEMINI_VOICES[0]; // Puck fallback
+
   const audienceLevels: { id: AudienceLevel; label: string; shortDesc: string }[] = [
     { id: 'layman', label: 'Leigo', shortDesc: 'Analogias' },
     { id: 'intermediate', label: 'Médio', shortDesc: 'Equilibrado' },
@@ -68,37 +77,39 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
 
   return (
     <section 
-      aria-label="Configurações do Estúdio"
-      className="w-full rounded-2xl border border-slate-800/80 bg-slate-900/80 p-4 sm:p-6 backdrop-blur-xl shadow-2xl transition-all"
+      aria-label="Painel de Calibração do Debate"
+      className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-5 shadow-lg backdrop-blur-md"
     >
-      {/* 1. Header Compacto Mobile-Friendly */}
-      <header className="mb-5 flex items-center justify-between border-b border-slate-800/70 pb-3.5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-400">
-            <SlidersHorizontal className="h-5 w-5" />
+      <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
+            <SlidersHorizontal className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm sm:text-base font-bold text-slate-100 tracking-tight flex items-center gap-2">
+            <h2 className="text-sm font-bold text-slate-100 font-sans">
               Calibração do Debate
             </h2>
-            <p className="text-xs text-slate-400 leading-tight">
+            <p className="text-[11px] text-slate-400">
               Ajuste idioma, profundidade e a postura dos debatedores.
             </p>
           </div>
         </div>
-        <span className="hidden sm:inline-flex items-center rounded-full bg-slate-800/80 px-2.5 py-1 text-[11px] font-mono text-amber-300 border border-slate-700">
-          24kHz Studio
-        </span>
-      </header>
 
-      {/* 2. Seleção de Idioma (Touch Targets de 48px) */}
-      <div className="mb-5 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
+        <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-slate-950 px-2.5 py-1 border border-slate-800 text-[11px] font-mono text-slate-400">
+          <span>24kHz</span>
+          <span>•</span>
+          <span className="text-sky-400">studio</span>
+        </div>
+      </div>
+
+      {/* 2. Seleção de Idioma Matriz */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-            <Globe2 className="h-4 w-4 text-amber-400" />
+            <Globe2 className="h-4 w-4 text-sky-400" />
             <span>Idioma Matriz (Vozes Nativas)</span>
           </label>
-          <span className="text-[11px] font-mono text-slate-500 uppercase">
+          <span className="text-[11px] font-mono text-slate-400 uppercase">
             {config.language}
           </span>
         </div>
@@ -111,23 +122,23 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                 key={lang.code}
                 type="button"
                 onClick={() => handleLanguageChange(lang.code)}
-                className={`relative min-h-[48px] w-full flex items-center justify-between px-3 py-2 rounded-xl border text-left transition-all active:scale-[0.98] cursor-pointer ${
+                className={`relative min-h-[48px] w-full flex items-center justify-between px-3 py-2 rounded-xl border text-left transition-all active:translate-y-px cursor-pointer ${
                   isSelected
-                    ? 'border-amber-400/60 bg-amber-400/10 text-white shadow-sm shadow-amber-500/10'
-                    : 'border-slate-800/90 bg-slate-950/50 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    ? 'border-sky-500/60 bg-sky-500/15 text-white shadow-sm ring-1 ring-sky-500/30'
+                    : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="text-xl leading-none">{lang.flag}</span>
                   <div className="truncate">
-                    <p className={`text-xs font-semibold truncate ${isSelected ? 'text-amber-200' : 'text-slate-200'}`}>
+                    <p className={`text-xs font-semibold truncate ${isSelected ? 'text-sky-200' : 'text-slate-200'}`}>
                       {lang.nativeName}
                     </p>
-                    <p className="text-[10px] text-slate-500 truncate">{lang.name.split(' ')[0]}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{lang.name.split(' ')[0]}</p>
                   </div>
                 </div>
                 {isSelected && (
-                  <Check className="h-4 w-4 text-amber-400 shrink-0 ml-1" />
+                  <Check className="h-4 w-4 text-sky-400 shrink-0 ml-1" />
                 )}
               </button>
             );
@@ -140,11 +151,11 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
         
         {/* Nível do Público */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5 font-sans">
             <Gauge className="h-4 w-4 text-sky-400" />
             <span>Nível do Público</span>
           </label>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-950/70 p-1 border border-slate-800">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-950/80 p-1 border border-slate-800">
             {audienceLevels.map((lvl) => {
               const active = config.audienceLevel === lvl.id;
               return (
@@ -152,14 +163,14 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                   key={lvl.id}
                   type="button"
                   onClick={() => onChangeConfig({ ...config, audienceLevel: lvl.id })}
-                  className={`min-h-[44px] flex flex-col items-center justify-center rounded-lg px-2 py-1 text-center transition-all active:scale-[0.97] cursor-pointer ${
+                  className={`min-h-[44px] flex flex-col items-center justify-center rounded-lg px-2 py-1 text-center transition-all active:translate-y-px cursor-pointer font-sans ${
                     active
-                      ? 'bg-sky-500/20 border border-sky-400/40 text-sky-200 font-bold shadow-sm'
+                      ? 'bg-sky-500/20 border border-sky-400/50 text-sky-200 font-bold shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <span className="text-xs font-semibold leading-tight">{lvl.label}</span>
-                  <span className="text-[10px] text-slate-500 leading-tight">{lvl.shortDesc}</span>
+                  <span className="text-[10px] text-slate-400 leading-tight">{lvl.shortDesc}</span>
                 </button>
               );
             })}
@@ -168,11 +179,11 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
 
         {/* Tensão Dialética */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-            <Flame className="h-4 w-4 text-orange-400" />
+          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5 font-sans">
+            <Flame className="h-4 w-4 text-sky-400" />
             <span>Intensidade do Conflito</span>
           </label>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-950/70 p-1 border border-slate-800">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-950/80 p-1 border border-slate-800">
             {tensionLevels.map((t) => {
               const active = config.tensionIntensity === t.id;
               return (
@@ -180,14 +191,14 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                   key={t.id}
                   type="button"
                   onClick={() => onChangeConfig({ ...config, tensionIntensity: t.id })}
-                  className={`min-h-[44px] flex flex-col items-center justify-center rounded-lg px-2 py-1 text-center transition-all active:scale-[0.97] cursor-pointer ${
+                  className={`min-h-[44px] flex flex-col items-center justify-center rounded-lg px-2 py-1 text-center transition-all active:translate-y-px cursor-pointer font-sans ${
                     active
-                      ? 'bg-orange-500/20 border border-orange-400/40 text-orange-200 font-bold shadow-sm'
+                      ? 'bg-sky-500/20 border border-sky-400/50 text-sky-200 font-bold shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <span className="text-xs font-semibold leading-tight">{t.label}</span>
-                  <span className="text-[10px] text-slate-500 leading-tight">{t.shortDesc}</span>
+                  <span className="text-[10px] text-slate-400 leading-tight">{t.shortDesc}</span>
                 </button>
               );
             })}
@@ -196,12 +207,56 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
 
       </div>
 
-      {/* 4. Personas dos Debatedores com Tab Switcher no Mobile */}
+      {/* 4. Grade de Seleção de Vozes por Card (Visual Tátil) */}
+      <div className="pt-2 border-t border-slate-800/80 mb-5">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-sky-400" />
+            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-sans">
+              Selecione as Vozes Neurais por Card:
+            </h3>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-mono">
+            <span className="text-slate-400">Atribuindo para:</span>
+            <button
+              type="button"
+              onClick={() => setActiveSlot(activeSlot === 1 ? 2 : 1)}
+              className="px-2.5 py-0.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/40 font-bold cursor-pointer"
+            >
+              Orador {activeSlot}
+            </button>
+          </div>
+        </div>
+
+        <VoiceCardGrid
+          selectedVoice={spk1Voice}
+          onSelectVoice={() => {}}
+          multiSpeakerMode={true}
+          speaker1={spk1Voice}
+          speaker2={spk2Voice}
+          activeSlot={activeSlot}
+          onSelectSpeakerSlot={(slot, voice) => {
+            if (slot === 1) {
+              handleSpeakerChange(0, 'voiceId', voice.id);
+              handleSpeakerChange(0, 'name', voice.name);
+              handleSpeakerChange(0, 'roleTitle', voice.archetype);
+              setActiveSlot(2);
+            } else {
+              handleSpeakerChange(1, 'voiceId', voice.id);
+              handleSpeakerChange(1, 'name', voice.name);
+              handleSpeakerChange(1, 'roleTitle', voice.archetype);
+              setActiveSlot(1);
+            }
+          }}
+        />
+      </div>
+
+      {/* 5. Personas dos Debatedores com Tab Switcher no Mobile */}
       <div className="pt-2 border-t border-slate-800/80">
         
         {/* Switcher visível apenas em telas menores que MD */}
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-300">Debatedores</span>
+          <span className="text-xs font-semibold text-slate-300 font-sans">Configuração dos Debatedores</span>
           
           <div className="flex md:hidden rounded-lg bg-slate-950 p-1 border border-slate-800">
             <button
@@ -220,7 +275,7 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
               onClick={() => setActiveMobileSpeaker(1)}
               className={`min-h-[38px] px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 activeMobileSpeaker === 1
-                  ? 'bg-orange-500/20 text-orange-300 border border-orange-400/30'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
                   : 'text-slate-400'
               }`}
             >
@@ -242,13 +297,13 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                   <BrainCircuit className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-sky-300 uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-sky-300 uppercase tracking-wider font-sans">
                     Orador 1 (Tese & Evidência)
                   </h3>
                   <p className="text-[11px] text-slate-400">Perfil metódico e analítico</p>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/10 px-2 py-1 text-[11px] font-mono text-sky-300 border border-sky-400/20">
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/10 px-2.5 py-1 text-[11px] font-mono text-sky-300 border border-sky-400/30 font-bold">
                 <Volume2 className="h-3.5 w-3.5" />
                 {config.speakers[0].voiceId}
               </span>
@@ -256,7 +311,7 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block">Nome do Debatedor</label>
+                <label className="text-xs font-medium text-slate-400 mb-1 block font-sans">Nome do Debatedor</label>
                 <input
                   type="text"
                   value={config.speakers[0].name}
@@ -266,23 +321,7 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block">Voz Neural</label>
-                <div className="relative">
-                  <select
-                    value={config.speakers[0].voiceId}
-                    onChange={(e) => handleSpeakerChange(0, 'voiceId', e.target.value)}
-                    className="min-h-[44px] w-full appearance-none rounded-xl border border-slate-800 bg-slate-950 px-3 pr-9 text-base md:text-xs text-slate-100 focus:border-sky-400 focus:outline-none cursor-pointer"
-                  >
-                    <option value="Kore">Kore (Articulada, clara)</option>
-                    <option value="Zephyr">Zephyr (Direta, firme)</option>
-                    <option value="Aoede">Aoede (Reflexiva, grave)</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block">Papel Conceitual</label>
+                <label className="text-xs font-medium text-slate-400 mb-1 block font-sans">Papel Conceitual</label>
                 <input
                   type="text"
                   value={config.speakers[0].roleTitle}
@@ -295,22 +334,22 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
           </div>
 
           {/* Card Interlocutor 2 (Antítese / Provocador) */}
-          <div className={`rounded-xl border border-orange-500/20 bg-gradient-to-b from-orange-500/5 to-slate-950/70 p-4 transition-all ${
+          <div className={`rounded-xl border border-emerald-500/20 bg-gradient-to-b from-emerald-500/5 to-slate-950/70 p-4 transition-all ${
             activeMobileSpeaker === 1 ? 'block' : 'hidden md:block'
           }`}>
-            <div className="mb-3 flex items-center justify-between border-b border-orange-500/10 pb-2.5">
+            <div className="mb-3 flex items-center justify-between border-b border-emerald-500/10 pb-2.5">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-400">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
                   <MessageSquareQuote className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-orange-300 uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-emerald-300 uppercase tracking-wider font-sans">
                     Orador 2 (Antítese & Prática)
                   </h3>
                   <p className="text-[11px] text-slate-400">Perfil cético e provocador</p>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-orange-400/10 px-2 py-1 text-[11px] font-mono text-orange-300 border border-orange-400/20">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-mono text-emerald-300 border border-emerald-400/30 font-bold">
                 <Volume2 className="h-3.5 w-3.5" />
                 {config.speakers[1].voiceId}
               </span>
@@ -318,39 +357,23 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block">Nome do Debatedor</label>
+                <label className="text-xs font-medium text-slate-400 mb-1 block font-sans">Nome do Debatedor</label>
                 <input
                   type="text"
                   value={config.speakers[1].name}
                   onChange={(e) => handleSpeakerChange(1, 'name', e.target.value)}
-                  className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-base md:text-xs text-slate-100 placeholder-slate-600 focus:border-orange-400 focus:outline-none"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-base md:text-xs text-slate-100 placeholder-slate-600 focus:border-emerald-400 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block">Voz Neural</label>
-                <div className="relative">
-                  <select
-                    value={config.speakers[1].voiceId}
-                    onChange={(e) => handleSpeakerChange(1, 'voiceId', e.target.value)}
-                    className="min-h-[44px] w-full appearance-none rounded-xl border border-slate-800 bg-slate-950 px-3 pr-9 text-base md:text-xs text-slate-100 focus:border-orange-400 focus:outline-none cursor-pointer"
-                  >
-                    <option value="Puck">Puck (Dinâmico, expressivo)</option>
-                    <option value="Fenrir">Fenrir (Ressonante, firme)</option>
-                    <option value="Charon">Charon (Sério, cético)</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block">Papel Conceitual</label>
+                <label className="text-xs font-medium text-slate-400 mb-1 block font-sans">Papel Conceitual</label>
                 <input
                   type="text"
                   value={config.speakers[1].roleTitle}
                   onChange={(e) => handleSpeakerChange(1, 'roleTitle', e.target.value)}
                   placeholder="ex.: Provocador Pragmático & Cético"
-                  className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-base md:text-xs text-slate-200 placeholder-slate-600 focus:border-orange-400 focus:outline-none"
+                  className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-base md:text-xs text-slate-200 placeholder-slate-600 focus:border-emerald-400 focus:outline-none"
                 />
               </div>
             </div>

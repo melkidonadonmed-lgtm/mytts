@@ -155,11 +155,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 
     // Temas Táteis Melki
     [
-      { id: 'tactile-matte', name: 'Tactile Matte Minimalist', desc: 'Padrão Melki com ardósia e âmbar mineral' },
-      { id: 'phantom-4k', name: 'Phantom Obsidian 4K', desc: 'Preto absoluto com acento ciano céu' },
-      { id: 'luxury-deepblue', name: 'Luxury Deep Blue', desc: 'Azul mineral noturno e safira' },
-      { id: 'gilded-navy', name: 'Gilded Navy Heritage', desc: 'Navy profundo e ouro champanhe' },
-      { id: 'polar-sand', name: 'Polar Sand Light', desc: 'Tema claro mineral suave e elegante' },
+      { id: 'tactile-matte', name: 'Tactile Matte Minimalist', desc: 'Padrão Melki com ardósia fosca e fundo elevado' },
+      { id: 'deep-blue', name: 'The Deep Blue', desc: 'Noturno profundo (#050A30 & #233DFF)' },
+      { id: 'vangogh', name: "Van Gogh's Dream", desc: 'Tema Claro Marfim (#FDFEE9 & #042698)' },
+      { id: 'mermaid', name: 'Mermaid Lagoon', desc: 'Oceano Cristalino (#051D40 & #56AEFF)' },
+      { id: 'cotton-dandelions', name: 'Cotton Dandelions', desc: 'Verde Musgo & Linho (#2A3B19 & #A4B792)' },
+      { id: 'ocean-window', name: 'Ocean Window', desc: 'Ardósia & Teal (#21568A & #1D97BD)' },
+      { id: 'nightfall-ambiance', name: 'Nightfall Ambiance', desc: 'Meia-Noite Safira (#000B26 & #2479DF)' },
     ].forEach((arch) => {
       list.push({
         id: `theme-${arch.id}`,

@@ -426,8 +426,8 @@ export default function App() {
 
         </main>
 
-        {/* Dock de Áudio Inferior (Exibido no modo Debate) */}
-        {activeTab === 'debate' && (
+        {/* Dock de Áudio Inferior (Exibido no modo Debate ou com roteiro ativo no Leitor) */}
+        {(activeTab === 'debate' || (Boolean(script?.turns?.length) && activeTab === 'reader')) && (
           <BottomAudioDock
             player={player}
             script={script}

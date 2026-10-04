@@ -2,10 +2,12 @@ import React from 'react';
 
 export type ArchetypeId =
   | 'tactile-matte'
-  | 'phantom-4k'
-  | 'luxury-deepblue'
-  | 'gilded-navy'
-  | 'polar-sand';
+  | 'deep-blue'
+  | 'vangogh'
+  | 'mermaid'
+  | 'cotton-dandelions'
+  | 'ocean-window'
+  | 'nightfall-ambiance';
 
 export interface ArchetypeOption {
   id: ArchetypeId;
@@ -20,36 +22,50 @@ export const ARCHETYPE_OPTIONS: ArchetypeOption[] = [
     id: 'tactile-matte',
     name: 'Tactile Matte',
     icon: '🌿',
-    accentColor: '#d97706',
-    tag: 'Padrão Melki',
-  },
-  {
-    id: 'phantom-4k',
-    name: 'Phantom 4K',
-    icon: '⚡',
     accentColor: '#38bdf8',
-    tag: 'Obsidian Ultra-Dark',
+    tag: 'Ardósia Mineral',
   },
   {
-    id: 'luxury-deepblue',
-    name: 'Luxury Deep Blue',
-    icon: '💎',
-    accentColor: '#60a5fa',
-    tag: 'Safira Mineral',
+    id: 'deep-blue',
+    name: 'The Deep Blue',
+    icon: '🌌',
+    accentColor: '#233dff',
+    tag: '#050A30 & #233DFF',
   },
   {
-    id: 'gilded-navy',
-    name: 'Gilded Navy',
-    icon: '👑',
-    accentColor: '#d4af37',
-    tag: 'Ouro Champanhe',
+    id: 'vangogh',
+    name: "Van Gogh's Dream",
+    icon: '🎨',
+    accentColor: '#042698',
+    tag: 'Marfim Claro #FDFEE9',
   },
   {
-    id: 'polar-sand',
-    name: 'Polar Sand',
-    icon: '☀️',
-    accentColor: '#0284c7',
-    tag: 'Tema Claro Mineral',
+    id: 'mermaid',
+    name: 'Mermaid Lagoon',
+    icon: '🌊',
+    accentColor: '#56aeff',
+    tag: 'Oceano Cristalino',
+  },
+  {
+    id: 'cotton-dandelions',
+    name: 'Cotton Dandelions',
+    icon: '🌾',
+    accentColor: '#a4b792',
+    tag: 'Verde Musgo & Linho',
+  },
+  {
+    id: 'ocean-window',
+    name: 'Ocean Window',
+    icon: '🪟',
+    accentColor: '#1d97bd',
+    tag: 'Ardósia & Teal',
+  },
+  {
+    id: 'nightfall-ambiance',
+    name: 'Nightfall Ambiance',
+    icon: '🌃',
+    accentColor: '#2479df',
+    tag: 'Meia-Noite Safira',
   },
 ];
 
@@ -65,8 +81,8 @@ export const ArchetypeBar: React.FC<ArchetypeBarProps> = ({
   return (
     <div className="card-matte p-3 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
       <div className="flex items-center gap-2 shrink-0">
-        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-        <span className="text-xs font-bold font-display uppercase tracking-wider text-slate-300">
+        <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse" />
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-300 font-sans">
           Arquétipo Visual Tátil:
         </span>
       </div>
@@ -79,9 +95,9 @@ export const ArchetypeBar: React.FC<ArchetypeBarProps> = ({
               key={opt.id}
               type="button"
               onClick={() => onSelectArchetype(opt.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap active:scale-95 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold font-sans flex items-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap active:translate-y-px ${
                 isActive
-                  ? 'btn-matte-amber text-slate-950 font-bold shadow-md'
+                  ? 'btn-matte-primary text-white font-bold shadow-md ring-1 ring-sky-400/40'
                   : 'btn-matte-dark text-slate-300 hover:text-white'
               }`}
               title={`${opt.name} — ${opt.tag}`}
@@ -89,7 +105,7 @@ export const ArchetypeBar: React.FC<ArchetypeBarProps> = ({
               <span>{opt.icon}</span>
               <span>{opt.name}</span>
               {isActive && (
-                <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-black/20 text-slate-950 font-extrabold uppercase ml-0.5">
+                <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-white/20 text-white font-extrabold uppercase ml-0.5">
                   Ativo
                 </span>
               )}

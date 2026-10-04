@@ -137,10 +137,10 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
             tabIndex={0}
             onClick={() => handleSelect(voice)}
             onKeyDown={(e) => handleKeyDown(e, voice)}
-            className={`relative group rounded-2xl p-4 border transition-all cursor-pointer flex flex-col justify-between gap-3 text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+            className={`relative group rounded-2xl p-4 border transition-all cursor-pointer flex flex-col justify-between gap-3 text-left outline-none select-none active:translate-y-px focus-visible:ring-2 focus-visible:ring-sky-500 ${
               isSelected
-                ? 'card-matte-active ring-1 ring-amber-500/30'
-                : 'card-matte hover:border-slate-700'
+                ? 'card-matte-active ring-1 ring-sky-500/40 border-sky-500/50'
+                : 'card-matte hover:border-slate-600'
             }`}
           >
             {/* Header do Card: Avatar, Nome e Botão de Preview */}
@@ -151,19 +151,19 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                 >
                   <span>{voice.name[0]}</span>
                   {isSelectedSolo && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 rounded-full flex items-center justify-center shadow-sm">
-                      <Check className="w-2.5 h-2.5 text-slate-950 stroke-[3]" />
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-sky-500 rounded-full flex items-center justify-center shadow-sm">
+                      <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
                     </span>
                   )}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-sm text-slate-100">{voice.name}</span>
+                    <span className="font-extrabold text-sm text-slate-100 font-sans">{voice.name}</span>
                     {isSelectedSolo && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
                     )}
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block font-sans">
                     {voice.gender === 'female' ? 'Feminina' : 'Masculina'}
                   </span>
                 </div>
@@ -178,8 +178,8 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                 aria-label={`Ouvir amostra de 3 segundos da voz ${voice.name}`}
                 className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                   isPlaying
-                    ? 'btn-matte-amber text-slate-950 shadow-md scale-105'
-                    : 'btn-matte-dark text-slate-300'
+                    ? 'btn-matte-primary text-white shadow-md'
+                    : 'btn-matte-dark text-slate-300 hover:text-white'
                 }`}
               >
                 {isLoading ? (
@@ -187,17 +187,17 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                 ) : isPlaying ? (
                   <Pause className="w-3.5 h-3.5 fill-current" />
                 ) : (
-                  <Play className="w-3.5 h-3.5 fill-current translate-x-0.5 text-amber-400" />
+                  <Play className="w-3.5 h-3.5 fill-current translate-x-0.5 text-sky-400" />
                 )}
               </button>
             </div>
 
             {/* Descrição e Arquétipo */}
             <div className="flex-1">
-              <p className="text-xs font-bold text-amber-300/95 mb-1 flex items-center gap-1">
+              <p className="text-xs font-bold text-sky-300 mb-1 flex items-center gap-1 font-sans">
                 <span>{voice.archetype}</span>
               </p>
-              <p className="text-[11px] text-slate-400 leading-snug line-clamp-2">
+              <p className="text-[11px] text-slate-300 leading-snug line-clamp-2 font-sans">
                 {voice.bestFor}
               </p>
             </div>
@@ -207,7 +207,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
               {!multiSpeakerMode ? (
                 /* Modo Solo: Botão de Seleção para Leitura */
                 isSelectedSolo ? (
-                  <div className="w-full py-1.5 px-3 rounded-xl btn-matte-amber text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm">
+                  <div className="w-full py-1.5 px-3 rounded-xl btn-matte-primary text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm font-sans">
                     <Check className="w-3.5 h-3.5 stroke-[3]" />
                     <span>Voz Ativa no Leitor</span>
                   </div>
@@ -218,7 +218,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                       e.stopPropagation();
                       handleSelect(voice);
                     }}
-                    className="w-full py-1.5 px-3 rounded-xl btn-matte-dark text-slate-300 hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    className="w-full py-1.5 px-3 rounded-xl btn-matte-dark text-slate-200 hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer font-sans"
                   >
                     <span>Selecionar esta Voz</span>
                   </button>
@@ -233,9 +233,9 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                         e.stopPropagation();
                         onSelectSpeakerSlot && onSelectSpeakerSlot(1, voice);
                       }}
-                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 font-sans ${
                         isSpk1
-                          ? 'btn-matte-amber text-slate-950 shadow-sm'
+                          ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/50'
                           : 'btn-matte-dark text-slate-300'
                       }`}
                     >
@@ -247,9 +247,9 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                         e.stopPropagation();
                         onSelectSpeakerSlot && onSelectSpeakerSlot(2, voice);
                       }}
-                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 font-sans ${
                         isSpk2
-                          ? 'bg-amber-600 text-white shadow-sm'
+                          ? 'btn-matte-primary text-white shadow-sm ring-1 ring-emerald-400/50'
                           : 'btn-matte-dark text-slate-300'
                       }`}
                     >
@@ -257,7 +257,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                     </button>
                   </div>
                   {!isSpk1 && !isSpk2 && (
-                    <span className="text-[10px] text-slate-500 font-mono text-center block">
+                    <span className="text-[10px] text-slate-400 font-mono text-center block">
                       Toque para Orador {activeSlot}
                     </span>
                   )}

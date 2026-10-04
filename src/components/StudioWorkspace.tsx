@@ -320,9 +320,9 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           <button
             type="button"
             onClick={() => setMode('solo')}
-            className={`min-h-[44px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+            className={`min-h-[44px] px-4 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
               mode === 'solo'
-                ? 'btn-matte-amber text-slate-950 shadow-md shadow-amber-900/20'
+                ? 'btn-matte-primary text-white shadow-md ring-1 ring-sky-400/40'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -333,9 +333,9 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           <button
             type="button"
             onClick={() => setMode('debate')}
-            className={`min-h-[44px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+            className={`min-h-[44px] px-4 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
               mode === 'debate'
-                ? 'btn-matte-amber text-slate-950 shadow-md shadow-amber-900/20'
+                ? 'btn-matte-primary text-white shadow-md ring-1 ring-sky-400/40'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -371,10 +371,10 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 {selectedVoice.name[0]}
               </div>
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5 font-sans">
+                  <Volume2 className="w-3.5 h-3.5 text-sky-400" />
                   <span>Voz Ativa no Leitor:</span>
-                  <span className="text-amber-400 font-extrabold normal-case text-sm tracking-normal">
+                  <span className="text-sky-300 font-extrabold normal-case text-sm tracking-normal">
                     {selectedVoice.name}
                   </span>
                   <span className="text-[11px] text-slate-400 font-normal">
@@ -401,7 +401,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             
             {/* 4 Presets de Calibração */}
             <div className="lg:col-span-8 flex flex-col gap-2">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
                 Intenção Vocal em Português:
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -415,9 +415,9 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                         setCalibration(preset.id);
                         setSoloAudioUrl(null);
                       }}
-                      className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                      className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer active:translate-y-px font-sans ${
                         isActive
-                          ? 'bg-amber-500/15 border-amber-500/50 text-amber-200 shadow-sm'
+                          ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-sm ring-1 ring-sky-400/30'
                           : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
                       }`}
                     >
@@ -438,7 +438,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             <div className="lg:col-span-4 flex flex-col justify-between gap-3 border-t lg:border-t-0 lg:border-l border-slate-800/80 pt-3 lg:pt-0 lg:pl-4">
               {/* Velocidade */}
               <div>
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5 font-sans">
                   Velocidade:
                 </span>
                 <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800">
@@ -450,9 +450,9 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                         setPlaybackSpeed(s);
                         if (soloAudioRef.current) soloAudioRef.current.playbackRate = s;
                       }}
-                      className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                      className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer active:translate-y-px ${
                         playbackSpeed === s
-                          ? 'btn-matte-amber text-slate-950 shadow-sm'
+                          ? 'btn-matte-primary text-white shadow-sm'
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
@@ -465,12 +465,12 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               {/* Interruptor de Auto-Respiração e Pausas */}
               <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
                   <div className="text-left">
-                    <span className="text-xs font-bold text-slate-200 block">
+                    <span className="text-xs font-bold text-slate-200 block font-sans">
                       Auto-Respiração & Pausas
                     </span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-[10px] text-slate-400 font-sans">
                       Calcula fôlego biológico sem ler tags
                     </span>
                   </div>
@@ -482,7 +482,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                     setAutoProsody(e.target.checked);
                     setSoloAudioUrl(null);
                   }}
-                  className="w-4 h-4 rounded text-amber-400 focus:ring-amber-400 focus:ring-offset-0 bg-slate-900 border-slate-700 accent-amber-400 cursor-pointer"
+                  className="w-4 h-4 rounded text-sky-400 focus:ring-sky-400 focus:ring-offset-0 bg-slate-900 border-slate-700 accent-sky-400 cursor-pointer"
                 />
               </label>
             </div>
@@ -520,21 +520,21 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               type="button"
               onClick={() => handleSoloSynthesizeAndPlay(false)}
               disabled={isSoloSynthesizing || !text.trim()}
-              className="btn-matte-amber w-full sm:flex-1 min-h-[52px] rounded-2xl text-slate-950 font-bold text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-lg shadow-amber-950/40 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+              className="btn-matte-primary w-full sm:flex-1 min-h-[52px] rounded-2xl text-white font-bold text-sm tracking-normal flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
             >
               {isSoloSynthesizing ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin text-white" />
                   <span>Sintetizando com {selectedVoice.name}...</span>
                 </>
               ) : isSoloPlaying ? (
                 <>
-                  <Pause className="w-5 h-5 fill-current" />
+                  <Pause className="w-5 h-5 fill-current text-white" />
                   <span>Pausar Leitura ({selectedVoice.name})</span>
                 </>
               ) : (
                 <>
-                  <Play className="w-5 h-5 fill-current" />
+                  <Play className="w-5 h-5 fill-current text-white" />
                   <span>
                     {soloAudioUrl
                       ? `Ouvir Leitura (${selectedVoice.name})`
@@ -550,17 +550,17 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   type="button"
                   onClick={() => handleSoloSynthesizeAndPlay(true)}
                   disabled={isSoloSynthesizing || !text.trim()}
-                  className="w-full sm:w-auto min-h-[52px] px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                  className="w-full sm:w-auto min-h-[52px] px-4 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px disabled:opacity-50"
                   title="Gerar nova síntese forçada com a voz ativa atual"
                 >
-                  <RotateCw className="w-4 h-4 text-amber-400" />
+                  <RotateCw className="w-4 h-4 text-sky-400" />
                   <span>Regerar Áudio</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleDownloadSoloWav}
-                  className="w-full sm:w-auto min-h-[52px] px-5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                  className="w-full sm:w-auto min-h-[52px] px-5 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px"
                   title="Baixar arquivo WAV canônico (24kHz)"
                 >
                   <Download className="w-4 h-4 text-emerald-400" />
@@ -574,8 +574,8 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           {soloAudioUrl && (
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-2 animate-in fade-in">
               <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                <span className="text-amber-400 font-bold flex items-center gap-1.5">
-                  <Volume2 className="w-3.5 h-3.5" />
+                <span className="text-sky-300 font-bold flex items-center gap-1.5 font-sans">
+                  <Volume2 className="w-3.5 h-3.5 text-sky-400" />
                   Áudio Pronto ({selectedVoice.name} · {calibration})
                 </span>
                 <span>
@@ -593,7 +593,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   setSoloCurrentTime(val);
                   if (soloAudioRef.current) soloAudioRef.current.currentTime = val;
                 }}
-                className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-amber-400"
+                className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-sky-400"
               />
             </div>
           )}
@@ -605,17 +605,17 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           {/* Seletor dos 2 Debatedores */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-emerald-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5 font-sans">
+                <Users className="w-4 h-4 text-sky-400" />
                 <span>Escolha os 2 Interlocutores do Debate:</span>
               </h2>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setActiveSpeakerSlot(1)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-xl text-xs font-bold font-sans transition-all cursor-pointer active:translate-y-px ${
                     activeSpeakerSlot === 1
-                      ? 'bg-amber-400 text-slate-950 shadow-sm'
+                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/40'
                       : 'bg-slate-900 text-slate-400 border border-slate-800'
                   }`}
                 >
@@ -624,9 +624,9 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveSpeakerSlot(2)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-xl text-xs font-bold font-sans transition-all cursor-pointer active:translate-y-px ${
                     activeSpeakerSlot === 2
-                      ? 'bg-emerald-400 text-slate-950 shadow-sm'
+                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-emerald-400/40'
                       : 'bg-slate-900 text-slate-400 border border-slate-800'
                   }`}
                 >
@@ -657,10 +657,10 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           {/* Intensidade de Tensão Dialética */}
           <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="text-xs font-bold text-slate-200 block">
+              <span className="text-xs font-bold text-slate-200 block font-sans">
                 Nível de Tensão Dialética:
               </span>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-slate-400 font-sans">
                 Define a energia dos argumentos e a firmeza dos contra-pontos.
               </span>
             </div>
@@ -675,9 +675,9 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   key={t.id}
                   type="button"
                   onClick={() => setDebateTension(t.id as any)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer active:translate-y-px ${
                     debateTension === t.id
-                      ? 'bg-emerald-400 text-slate-950 shadow-sm'
+                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/30'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -692,21 +692,21 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             type="button"
             onClick={handleTriggerDebate}
             disabled={isGeneratingDebate || isSynthesizingDebate || !text.trim()}
-            className="min-h-[52px] w-full rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+            className="min-h-[52px] w-full rounded-2xl btn-matte-primary text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
           >
             {isGeneratingDebate ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin text-white" />
                 <span>Roteirizando Discussão com Gemini 3.8 Flash...</span>
               </>
             ) : isSynthesizingDebate ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin text-slate-950" />
+                <Loader2 className="w-5 h-5 animate-spin text-white" />
                 <span>Sintetizando Vozes Neurais do Debate...</span>
               </>
             ) : (
               <>
-                <Zap className="w-5 h-5 fill-current" />
+                <Zap className="w-5 h-5 fill-current text-white" />
                 <span>Gerar Debate em Áudio ({speaker1.name} vs {speaker2.name})</span>
               </>
             )}
