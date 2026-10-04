@@ -306,7 +306,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
             <span>Estúdio de Criação de Áudio</span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-400/10 text-amber-300 border border-amber-400/20 font-semibold">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
               Gemini 3.1 Flash TTS
             </span>
           </h1>
@@ -322,7 +322,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             onClick={() => setMode('solo')}
             className={`min-h-[44px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
               mode === 'solo'
-                ? 'btn-matte-amber text-slate-950 shadow-md shadow-amber-500/20'
+                ? 'btn-matte-amber text-slate-950 shadow-md shadow-amber-900/20'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -335,7 +335,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             onClick={() => setMode('debate')}
             className={`min-h-[44px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
               mode === 'debate'
-                ? 'btn-matte-amber text-slate-950 shadow-md shadow-amber-500/20'
+                ? 'btn-matte-amber text-slate-950 shadow-md shadow-amber-900/20'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -417,8 +417,8 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                       }}
                       className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
                         isActive
-                          ? 'bg-amber-400/10 border-amber-400/60 text-amber-200'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                          ? 'bg-amber-500/15 border-amber-500/50 text-amber-200 shadow-sm'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
                       }`}
                     >
                       <span className="text-xs font-bold flex items-center gap-1">
@@ -452,7 +452,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                       }}
                       className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                         playbackSpeed === s
-                          ? 'bg-amber-400 text-slate-950 shadow-sm'
+                          ? 'btn-matte-amber text-slate-950 shadow-sm'
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
@@ -520,7 +520,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               type="button"
               onClick={() => handleSoloSynthesizeAndPlay(false)}
               disabled={isSoloSynthesizing || !text.trim()}
-              className="w-full sm:flex-1 min-h-[52px] rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+              className="btn-matte-amber w-full sm:flex-1 min-h-[52px] rounded-2xl text-slate-950 font-bold text-sm tracking-wide flex items-center justify-center gap-2.5 shadow-lg shadow-amber-950/40 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
             >
               {isSoloSynthesizing ? (
                 <>

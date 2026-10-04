@@ -20,7 +20,7 @@ export const ARCHETYPE_OPTIONS: ArchetypeOption[] = [
     id: 'tactile-matte',
     name: 'Tactile Matte',
     icon: '🌿',
-    accentColor: '#f59e0b',
+    accentColor: '#d97706',
     tag: 'Padrão Melki',
   },
   {

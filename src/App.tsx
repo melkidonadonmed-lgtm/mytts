@@ -292,7 +292,7 @@ export default function App() {
             </button>
             <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
               <span>MyTTS</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-400/10 text-amber-300 border border-amber-400/20 font-semibold">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
                 Studio
               </span>
             </span>

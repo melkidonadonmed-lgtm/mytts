@@ -1,8 +1,8 @@
 {
   "version": "2026.1",
-  "generated_at": "2026-10-04T02:59:40.999845+00:00",
+  "generated_at": "2026-10-04T10:52:46.344058+00:00",
   "workspace_root": "C:\\Users\\melki\\Projetos\\mytts",
-  "tree_hash": "46ba75f689c95342",
+  "tree_hash": "5150d0c6289f38bd",
   "stats": {
     "total_files": 108,
     "python_files": 0,
@@ -144,7 +144,7 @@
     },
     ".context/CURRENT_STATE.md": {
       "extension": ".md",
-      "size_bytes": 2935,
+      "size_bytes": 3022,
       "headings": [
         "# Estado Atual do Workspace (mytts)",
         "## Fase Atual"
@@ -160,9 +160,9 @@
     },
     ".context/SESSION_LOG.md": {
       "extension": ".md",
-      "size_bytes": 2597,
+      "size_bytes": 1922,
       "headings": [
-        "# Checkpoint da Sessão (mytts)",
+        "# Log de Sessão (mytts)",
         "## Data e Hora"
       ]
     },
@@ -304,13 +304,13 @@
       "extension": ".html",
       "size_bytes": 1946
     },
-    "dist/assets/index-Ft2AGJ9p.js": {
+    "dist/assets/index-BZzSlnkK.js": {
       "extension": ".js",
-      "size_bytes": 565079
+      "size_bytes": 564717
     },
-    "dist/assets/index-gTr-6aka.css": {
+    "dist/assets/index-N_NMlYM9.css": {
       "extension": ".css",
-      "size_bytes": 91772
+      "size_bytes": 90281
     },
     "docs/superpowers/plans/2026-10-01-unified-studio-flow.md": {
       "extension": ".md",
@@ -332,11 +332,11 @@
     },
     "src/App.tsx": {
       "extension": ".tsx",
-      "size_bytes": 18104
+      "size_bytes": 18107
     },
     "src/index.css": {
       "extension": ".css",
-      "size_bytes": 11876
+      "size_bytes": 12641
     },
     "src/main.tsx": {
       "extension": ".tsx",
@@ -356,7 +356,7 @@
     },
     "src/components/BottomAudioDock.tsx": {
       "extension": ".tsx",
-      "size_bytes": 49787
+      "size_bytes": 49784
     },
     "src/components/ChunkActionMenu.tsx": {
       "extension": ".tsx",
@@ -416,7 +416,7 @@
     },
     "src/components/Sidebar.tsx": {
       "extension": ".tsx",
-      "size_bytes": 10087
+      "size_bytes": 10101
     },
     "src/components/StudioTextEditor.tsx": {
       "extension": ".tsx",
@@ -424,11 +424,11 @@
     },
     "src/components/StudioWorkspace.tsx": {
       "extension": ".tsx",
-      "size_bytes": 29750
+      "size_bytes": 29708
     },
     "src/components/VoiceCardGrid.tsx": {
       "extension": ".tsx",
-      "size_bytes": 10742
+      "size_bytes": 10568
     },
     "src/components/VoiceLibraryModal.tsx": {
       "extension": ".tsx",
@@ -456,7 +456,7 @@
     },
     "src/types/voices.ts": {
       "extension": ".ts",
-      "size_bytes": 2239
+      "size_bytes": 2237
     },
     "src/utils/audio.ts": {
       "extension": ".ts",

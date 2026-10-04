@@ -28,15 +28,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'reader' as AppTab,
       label: 'Estúdio de Criação',
       badge: 'Principal',
-      badgeColor: 'bg-amber-400/10 text-amber-300 border-amber-400/20',
       iconName: 'headphones',
       description: 'Leitura Solo & Debate 2 Vozes',
     },
     {
       id: 'polyglot' as AppTab,
       label: 'Chat Poliglota',
-      badge: '3 Línguas & Chunks',
-      badgeColor: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/25',
+      badge: '3 Línguas',
       iconName: 'translate',
       description: 'EN, IT & JA com Áudio e Fast Chunks',
     },
@@ -44,7 +42,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'mic' as AppTab,
       label: 'Microfone & Ditado',
       badge: 'Ao Vivo',
-      badgeColor: 'bg-rose-400/10 text-rose-300 border-rose-400/20',
       iconName: 'mic',
       description: 'Gravar fala e transcrever com IA',
     },
@@ -52,7 +49,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'debate' as AppTab,
       label: 'Estúdio de Debate',
       badge: '2 Vozes',
-      badgeColor: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/20',
       iconName: 'group',
       description: 'Discussão dialética antagônica',
     },
@@ -60,7 +56,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'voices' as AppTab,
       label: 'Biblioteca de Vozes',
       badge: '5 Timbres',
-      badgeColor: 'bg-purple-400/10 text-purple-300 border-purple-400/20',
       iconName: 'record_voice_over',
       description: 'Catálogo e audição de amostras',
     },
@@ -93,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-extrabold text-base tracking-tight text-white font-display">
                   MyTTS
                 </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-amber-400/10 text-amber-300 border border-amber-400/20 font-semibold">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
                   Studio
                 </span>
               </div>
@@ -187,8 +182,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               >
                 <div
-                  className={`mt-0.5 p-1.5 rounded-lg ${
-                    isActive ? 'btn-matte-amber text-slate-950 font-bold' : 'bg-slate-900 text-slate-400'
+                  className={`mt-0.5 p-2 rounded-xl transition-colors ${
+                    isActive
+                      ? 'btn-matte-amber text-slate-950 font-bold shadow-md shadow-amber-900/20'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800'
                   }`}
                 >
                   <GoogleIcon name={item.iconName} size={18} filled={isActive} />
@@ -198,11 +195,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className={`text-xs font-bold font-display ${isActive ? 'text-white' : 'text-slate-200'}`}>
                       {item.label}
                     </span>
-                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded border ${item.badgeColor}`}>
+                    <span
+                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
+                        isActive
+                          ? 'bg-amber-500/15 text-amber-300 border-amber-500/30 font-semibold'
+                          : 'bg-white/[0.04] text-slate-400 border-white/[0.08]'
+                      }`}
+                    >
                       {item.badge}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">
                     {item.description}
                   </p>
                 </div>

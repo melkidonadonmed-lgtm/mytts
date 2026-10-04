@@ -2,6 +2,25 @@
 
 @theme {
   --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+
+  /* Paleta Mineral Melki Canônica (Substitui tons azulados por ardósia pura) */
+  --color-slate-950: #090B0E;
+  --color-slate-900: #11141A;
+  --color-slate-850: #141820;
+  --color-slate-800: #1B212C;
+  --color-slate-700: #26303F;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748B;
+  --color-slate-400: #94A3B8;
+  --color-slate-300: #CBD5E1;
+  --color-slate-200: #E2E8F0;
+  --color-slate-100: #F8FAFC;
+
+  /* Âmbar de Estúdio Nobre (Ocre mineral aquecido, eliminando amarelo canário neon) */
+  --color-amber-500: #D97706;
+  --color-amber-400: #E5A125;
+  --color-amber-300: #FCD34D;
+  --color-amber-200: #FDE68A;
 }
 
 :root {
@@ -31,19 +50,19 @@
    DESIGN SYSTEM TÁTIL MELKI — ARQUÉTIPOS CANÔNICOS (2026)
    ========================================================================== */
 
-/* 1. Tactile Matte Minimalist (Padrão Melki) */
+/* 1. Tactile Matte Minimalist (Padrão Melki — Ardósia Fosca Pura) */
 :root,
 body,
 body[data-archetype="tactile-matte"] {
-  --bg-canvas: #090b10;
-  --bg-card: rgba(20, 27, 45, 0.92);
-  --bg-card-hover: rgba(26, 36, 60, 0.95);
-  --bg-surface-2: #1e2b45;
+  --bg-canvas: #090B0E;
+  --bg-card: #11141A;
+  --bg-card-hover: #161B24;
+  --bg-surface-2: #181D26;
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.16);
-  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
-  --accent-amber: #f59e0b;
-  --accent-amber-hover: #fbbf24;
+  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  --accent-amber: #D97706;
+  --accent-amber-hover: #E5A125;
 }
 
 /* 2. Phantom Obsidian 4K */
@@ -224,55 +243,56 @@ body[data-archetype="polar-sand"] .btn-matte-dark:hover {
   }
 }
 
-/* 1. Cartão com Acabamento Mate Aveludado */
+/* 1. Cartão com Acabamento Mate Aveludado (Ardósia Mineral Sólida) */
 .card-matte {
   background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 
-    0 1px 2px 0 rgba(0, 0, 0, 0.35),
-    0 8px 24px -4px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.10);
+    0 1px 2px 0 rgba(0, 0, 0, 0.4),
+    0 8px 24px -4px rgba(0, 0, 0, 0.6),
+    var(--rim-light);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card-matte:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-hover);
+  border-top-color: rgba(255, 255, 255, 0.18);
   box-shadow: 
-    0 2px 6px 0 rgba(0, 0, 0, 0.4),
-    0 12px 28px -4px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
+    0 2px 6px 0 rgba(0, 0, 0, 0.45),
+    0 12px 28px -4px rgba(0, 0, 0, 0.7),
+    var(--rim-light);
 }
 
 .card-matte-active {
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: var(--bg-surface-2);
+  border: 1px solid rgba(217, 119, 6, 0.45);
+  border-top: 1px solid rgba(229, 161, 37, 0.65);
   box-shadow: 
-    0 0 0 1px rgba(245, 158, 11, 0.3),
-    0 8px 30px -4px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 0 rgba(245, 158, 11, 0.45);
+    0 0 0 1px rgba(217, 119, 6, 0.25),
+    0 8px 24px -4px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
 }
 
 /* Cavidade Tátil / Input Sunken (Search, Textareas, Filters) */
 .input-sunken {
-  background: rgba(2, 6, 23, 0.75);
+  background: #090B0E;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.75rem;
   padding: 0.5rem 0.875rem;
-  color: #f8fafc;
+  color: #F8FAFC;
   box-shadow: 
-    inset 1px 1px 3px 0 rgba(0, 0, 0, 0.6),
-    inset -1px -1px 1px 0 rgba(255, 255, 255, 0.03);
+    inset 1px 1px 3px 0 rgba(0, 0, 0, 0.7),
+    inset -1px -1px 1px 0 rgba(255, 255, 255, 0.02);
   outline: none;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .input-sunken:focus {
-  border-color: rgba(245, 158, 11, 0.5);
+  border-color: rgba(217, 119, 6, 0.5);
   box-shadow: 
     inset 1px 1px 3px 0 rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(245, 158, 11, 0.3);
+    0 0 0 1px rgba(217, 119, 6, 0.3);
 }
 
 /* 2. Botões Táteis com Acabamento Mate (Tactile Press) */
@@ -294,55 +314,57 @@ body[data-archetype="polar-sand"] .btn-matte-dark:hover {
 }
 
 .btn-matte-amber {
-  background: #f59e0b;
-  color: #020617;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #D97706;
+  color: #090B0E;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
     0 2px 4px 0 rgba(0, 0, 0, 0.25);
+  font-weight: 700;
 }
 
 .btn-matte-amber:hover {
-  background: #fbbf24;
+  background: #E5A125;
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
-    0 4px 8px 0 rgba(245, 158, 11, 0.25);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+    0 4px 10px 0 rgba(217, 119, 6, 0.3);
 }
 
 .btn-matte-amber:active {
-  background: #d97706;
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+  background: #B45309;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.35);
 }
 
 .btn-matte-dark {
-  background: #1e293b;
-  color: #e2e8f0;
+  background: #171B24;
+  color: #CBD5E1;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
-    0 2px 4px 0 rgba(0, 0, 0, 0.3);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px 0 rgba(0, 0, 0, 0.25);
 }
 
 .btn-matte-dark:hover {
-  background: #334155;
-  color: #ffffff;
+  background: #1E232E;
+  color: #F8FAFC;
   border-color: rgba(255, 255, 255, 0.14);
 }
 
 .btn-matte-dark:active {
-  background: #0f172a;
+  background: #0F1218;
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
 }
 
 /* 3. Dock Flutuante Mate */
 .dock-matte {
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #11141A;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.3),
-    0 16px 36px -4px rgba(0, 0, 0, 0.6);
+    0 4px 6px -1px rgba(0, 0, 0, 0.4),
+    0 16px 36px -4px rgba(0, 0, 0, 0.7);
 }
 
 /* 4. Scrubber Range Slider Mate */
