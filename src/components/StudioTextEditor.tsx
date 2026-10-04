@@ -209,13 +209,13 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
   return (
     <div className="flex flex-col gap-2.5 w-full">
       {/* 1. Barra de Ingestão Superior (Touch Targets Mínimos de 44px) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-2xl bg-slate-900/80 border border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl card-matte">
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Botão Colar */}
           <button
             type="button"
             onClick={handlePasteClipboard}
-            className="min-h-[40px] px-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
             title="Colar texto da área de transferência"
           >
             <Clipboard className="w-4 h-4 text-amber-400" />
@@ -226,10 +226,10 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="min-h-[40px] px-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
             title="Carregar PDF, TXT ou Markdown"
           >
-            <UploadCloud className="w-4 h-4 text-blue-400" />
+            <UploadCloud className="w-4 h-4 text-sky-400" />
             <span>Subir Arquivo (PDF / TXT)</span>
           </button>
           <input
@@ -247,7 +247,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
             className={`min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95 border ${
               isDictating
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
-                : 'bg-slate-950 hover:bg-slate-800 text-slate-200 border-slate-800'
+                : 'btn-matte-dark'
             }`}
             title={isDictating ? 'Parar microfone' : 'Ditar texto com a voz'}
           >
@@ -300,10 +300,10 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
         }}
         onDragLeave={() => setIsDraggingOver(false)}
         onDrop={handleDrop}
-        className={`relative rounded-2xl border transition-all overflow-hidden flex flex-col bg-slate-900/60 ${
+        className={`relative rounded-2xl border transition-all overflow-hidden flex flex-col card-matte ${
           isDraggingOver
             ? 'border-amber-400 ring-2 ring-amber-400/20 bg-amber-500/5'
-            : 'border-slate-800/90 focus-within:border-amber-500/80'
+            : 'focus-within:border-amber-500/80'
         }`}
       >
         <textarea

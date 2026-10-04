@@ -153,6 +153,28 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       });
     }
 
+    // Temas Táteis Melki
+    [
+      { id: 'tactile-matte', name: 'Tactile Matte Minimalist', desc: 'Padrão Melki com ardósia e âmbar mineral' },
+      { id: 'phantom-4k', name: 'Phantom Obsidian 4K', desc: 'Preto absoluto com acento ciano céu' },
+      { id: 'luxury-deepblue', name: 'Luxury Deep Blue', desc: 'Azul mineral noturno e safira' },
+      { id: 'gilded-navy', name: 'Gilded Navy Heritage', desc: 'Navy profundo e ouro champanhe' },
+      { id: 'polar-sand', name: 'Polar Sand Light', desc: 'Tema claro mineral suave e elegante' },
+    ].forEach((arch) => {
+      list.push({
+        id: `theme-${arch.id}`,
+        title: `Tema: ${arch.name}`,
+        subtitle: arch.desc,
+        category: 'Ações Rápidas',
+        icon: 'palette',
+        action: () => {
+          document.body.setAttribute('data-archetype', arch.id);
+          localStorage.setItem('mytts_archetype', arch.id);
+          onClose();
+        },
+      });
+    });
+
     return list;
   }, [onSelectTab, onSelectVoice, currentVoice, onOpenDeck, onClose]);
 

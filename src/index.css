@@ -27,12 +27,184 @@
   font-feature-settings: 'liga';
 }
 
+/* ==========================================================================
+   DESIGN SYSTEM TÁTIL MELKI — ARQUÉTIPOS CANÔNICOS (2026)
+   ========================================================================== */
+
+/* 1. Tactile Matte Minimalist (Padrão Melki) */
+:root,
+body,
+body[data-archetype="tactile-matte"] {
+  --bg-canvas: #090b10;
+  --bg-card: rgba(20, 27, 45, 0.92);
+  --bg-card-hover: rgba(26, 36, 60, 0.95);
+  --bg-surface-2: #1e2b45;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  --accent-amber: #f59e0b;
+  --accent-amber-hover: #fbbf24;
+}
+
+/* 2. Phantom Obsidian 4K */
+body[data-archetype="phantom-4k"] {
+  --bg-canvas: #040507;
+  --bg-card: rgba(14, 17, 24, 0.95);
+  --bg-card-hover: rgba(20, 24, 34, 0.98);
+  --bg-surface-2: #161b26;
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(56, 189, 248, 0.4);
+  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.10);
+  --accent-amber: #38bdf8;
+  --accent-amber-hover: #7dd3fc;
+}
+
+body[data-archetype="phantom-4k"] .bg-slate-950 {
+  background-color: #040507 !important;
+}
+body[data-archetype="phantom-4k"] .bg-slate-900,
+body[data-archetype="phantom-4k"] .bg-slate-900\/80,
+body[data-archetype="phantom-4k"] .bg-slate-900\/60,
+body[data-archetype="phantom-4k"] .bg-slate-900\/90 {
+  background-color: #0e1118 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 3. Luxury Deep Blue */
+body[data-archetype="luxury-deepblue"] {
+  --bg-canvas: #070c18;
+  --bg-card: rgba(18, 28, 49, 0.94);
+  --bg-card-hover: rgba(24, 38, 66, 0.98);
+  --bg-surface-2: #1b2844;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(96, 165, 250, 0.4);
+  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  --accent-amber: #60a5fa;
+  --accent-amber-hover: #93c5fd;
+}
+
+body[data-archetype="luxury-deepblue"] .bg-slate-950 {
+  background-color: #070c18 !important;
+}
+body[data-archetype="luxury-deepblue"] .bg-slate-900,
+body[data-archetype="luxury-deepblue"] .bg-slate-900\/80,
+body[data-archetype="luxury-deepblue"] .bg-slate-900\/60,
+body[data-archetype="luxury-deepblue"] .bg-slate-900\/90 {
+  background-color: #121c31 !important;
+  border-color: rgba(96, 165, 250, 0.15) !important;
+}
+
+/* 4. Gilded Navy Heritage */
+body[data-archetype="gilded-navy"] {
+  --bg-canvas: #05070d;
+  --bg-card: rgba(14, 20, 36, 0.95);
+  --bg-card-hover: rgba(20, 28, 50, 0.98);
+  --bg-surface-2: #162039;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(212, 175, 55, 0.45);
+  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  --accent-amber: #d4af37;
+  --accent-amber-hover: #e5c158;
+}
+
+body[data-archetype="gilded-navy"] .bg-slate-950 {
+  background-color: #05070d !important;
+}
+body[data-archetype="gilded-navy"] .bg-slate-900,
+body[data-archetype="gilded-navy"] .bg-slate-900\/80,
+body[data-archetype="gilded-navy"] .bg-slate-900\/60,
+body[data-archetype="gilded-navy"] .bg-slate-900\/90 {
+  background-color: #0e1424 !important;
+  border-color: rgba(212, 175, 55, 0.2) !important;
+}
+
+/* 5. Polar Sand Light (Tema Claro Mineral) */
+body[data-archetype="polar-sand"] {
+  --bg-canvas: #eef2f6;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-surface-2: #e2e8f0;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(2, 132, 199, 0.35);
+  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  --accent-amber: #0284c7;
+  --accent-amber-hover: #0369a1;
+  color-scheme: light;
+  background-color: #eef2f6 !important;
+  color: #0f172a !important;
+}
+
+body[data-archetype="polar-sand"] .bg-slate-950 {
+  background-color: #eef2f6 !important;
+  color: #0f172a !important;
+}
+
+body[data-archetype="polar-sand"] .bg-slate-900,
+body[data-archetype="polar-sand"] .bg-slate-900\/80,
+body[data-archetype="polar-sand"] .bg-slate-900\/60,
+body[data-archetype="polar-sand"] .bg-slate-900\/70,
+body[data-archetype="polar-sand"] .bg-slate-900\/90 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 20px -4px rgba(0,0,0,0.04) !important;
+}
+
+body[data-archetype="polar-sand"] .border-slate-800,
+body[data-archetype="polar-sand"] .border-slate-800\/80,
+body[data-archetype="polar-sand"] .border-slate-800\/90,
+body[data-archetype="polar-sand"] .border-slate-800\/60 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+body[data-archetype="polar-sand"] .text-white,
+body[data-archetype="polar-sand"] .text-slate-100 {
+  color: #0f172a !important;
+}
+
+body[data-archetype="polar-sand"] .text-slate-200,
+body[data-archetype="polar-sand"] .text-slate-300 {
+  color: #334155 !important;
+}
+
+body[data-archetype="polar-sand"] .text-slate-400 {
+  color: #64748b !important;
+}
+
+body[data-archetype="polar-sand"] .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+body[data-archetype="polar-sand"] textarea,
+body[data-archetype="polar-sand"] input {
+  color: #0f172a !important;
+}
+
+body[data-archetype="polar-sand"] .input-sunken {
+  background: #f1f5f9 !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #0f172a !important;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.08), inset -1px -1px 1px rgba(255,255,255,0.8) !important;
+}
+
+body[data-archetype="polar-sand"] .btn-matte-dark {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: rgba(0,0,0,0.1) !important;
+}
+
+body[data-archetype="polar-sand"] .btn-matte-dark:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
 @layer base {
   body {
     font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     scrollbar-color: rgba(51, 65, 85, 0.4) rgba(2, 6, 23, 0.8);
     scrollbar-width: thin;
-    background-color: #020617;
+    background-color: var(--bg-canvas);
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
   
   /* Headlines com Outfit para visual editorial premium */
@@ -54,10 +226,10 @@
 
 /* 1. Cartão com Acabamento Mate Aveludado */
 .card-matte {
-  background: rgba(15, 23, 42, 0.88);
+  background: var(--bg-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-subtle);
   box-shadow: 
     0 1px 2px 0 rgba(0, 0, 0, 0.35),
     0 8px 24px -4px rgba(0, 0, 0, 0.45),

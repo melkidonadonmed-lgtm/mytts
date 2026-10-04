@@ -139,8 +139,8 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
             onKeyDown={(e) => handleKeyDown(e, voice)}
             className={`relative group rounded-2xl p-4 border transition-all cursor-pointer flex flex-col justify-between gap-3 text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
               isSelected
-                ? 'bg-slate-900 border-amber-400/90 shadow-lg shadow-amber-400/15 ring-1 ring-amber-400/30'
-                : 'bg-slate-900/60 border-slate-800/90 hover:border-slate-700 hover:bg-slate-900/90'
+                ? 'card-matte-active ring-1 ring-amber-400/40'
+                : 'card-matte hover:border-amber-400/40'
             }`}
           >
             {/* Header do Card: Avatar, Nome e Botão de Preview */}

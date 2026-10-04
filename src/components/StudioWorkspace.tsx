@@ -19,6 +19,7 @@ import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 import { VoiceCardGrid } from './VoiceCardGrid';
 import { StudioTextEditor } from './StudioTextEditor';
 import { ScriptViewer } from './ScriptViewer';
+import { ArchetypeBar, ArchetypeId } from './ArchetypeBar';
 
 export type StudioMode = 'solo' | 'debate';
 export type CalibrationPreset = 'natural' | 'storytelling' | 'technical' | 'spontaneous';
@@ -56,6 +57,19 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   onUpdateTurnText,
 }) => {
   const [mode, setMode] = useState<StudioMode>('solo');
+  const [currentArchetype, setCurrentArchetype] = useState<ArchetypeId>(() => {
+    return (localStorage.getItem('mytts_archetype') as ArchetypeId) || 'tactile-matte';
+  });
+
+  const handleSelectArchetype = (id: ArchetypeId) => {
+    setCurrentArchetype(id);
+    document.body.setAttribute('data-archetype', id);
+    localStorage.setItem('mytts_archetype', id);
+  };
+
+  useEffect(() => {
+    document.body.setAttribute('data-archetype', currentArchetype);
+  }, [currentArchetype]);
 
   // Calibrações Solo
   const [calibration, setCalibration] = useState<CalibrationPreset>('natural');
@@ -281,6 +295,12 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   return (
     <div className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 py-6 pb-36 gap-6">
       
+      {/* 0. Barra Superior de Arquétipos Visuais Tátil Melki (5 Estilos Canônicos) */}
+      <ArchetypeBar
+        currentArchetype={currentArchetype}
+        onSelectArchetype={handleSelectArchetype}
+      />
+
       {/* 1. Header do Estúdio e Seletor de Modo Hero */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
         <div>
@@ -296,13 +316,13 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         </div>
 
         {/* Alternador de Modo em 1 Toque (Solo vs Debate) */}
-        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-900 p-1 border border-slate-800">
+        <div className="grid grid-cols-2 gap-1 rounded-2xl card-matte p-1">
           <button
             type="button"
             onClick={() => setMode('solo')}
             className={`min-h-[44px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
               mode === 'solo'
-                ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                ? 'btn-matte-amber text-slate-950 shadow-md shadow-amber-500/20'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -315,7 +335,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             onClick={() => setMode('debate')}
             className={`min-h-[44px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
               mode === 'debate'
-                ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                ? 'btn-matte-amber text-slate-950 shadow-md shadow-amber-500/20'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -343,7 +363,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         <section aria-label="Configuração de Voz e Calibração Solo" className="flex flex-col gap-4">
           
           {/* 3.1 Seleção de Voz Tátil */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-slate-900/40 border border-slate-800/60">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl card-matte">
             <div className="flex items-center gap-2.5">
               <div
                 className={`w-8 h-8 rounded-xl bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-extrabold shadow-sm`}
@@ -377,7 +397,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           />
 
           {/* 3.2 Calibração de Intenção e Velocidade */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-4 rounded-2xl card-matte">
             
             {/* 4 Presets de Calibração */}
             <div className="lg:col-span-8 flex flex-col gap-2">

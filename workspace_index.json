@@ -1,10 +1,10 @@
 {
   "version": "2026.1",
-  "generated_at": "2026-10-04T02:42:49.359489+00:00",
+  "generated_at": "2026-10-04T02:59:40.999845+00:00",
   "workspace_root": "C:\\Users\\melki\\Projetos\\mytts",
-  "tree_hash": "a61e79ab02d24443",
+  "tree_hash": "46ba75f689c95342",
   "stats": {
-    "total_files": 107,
+    "total_files": 108,
     "python_files": 0,
     "total_classes": 0,
     "total_functions": 0
@@ -51,7 +51,7 @@
     },
     "Dockerfile": {
       "extension": "",
-      "size_bytes": 848
+      "size_bytes": 933
     },
     "firebase-config.json": {
       "extension": ".json",
@@ -105,7 +105,7 @@
     },
     "server.ts": {
       "extension": ".ts",
-      "size_bytes": 51881
+      "size_bytes": 52614
     },
     "SPEC.md": {
       "extension": ".md",
@@ -304,13 +304,13 @@
       "extension": ".html",
       "size_bytes": 1946
     },
-    "dist/assets/index-BeZGDclp.css": {
-      "extension": ".css",
-      "size_bytes": 88047
-    },
-    "dist/assets/index-Ci8HTBBj.js": {
+    "dist/assets/index-Ft2AGJ9p.js": {
       "extension": ".js",
-      "size_bytes": 562795
+      "size_bytes": 565079
+    },
+    "dist/assets/index-gTr-6aka.css": {
+      "extension": ".css",
+      "size_bytes": 91772
     },
     "docs/superpowers/plans/2026-10-01-unified-studio-flow.md": {
       "extension": ".md",
@@ -336,7 +336,7 @@
     },
     "src/index.css": {
       "extension": ".css",
-      "size_bytes": 6081
+      "size_bytes": 11876
     },
     "src/main.tsx": {
       "extension": ".tsx",
@@ -345,6 +345,10 @@
     "src/components/AgentInputDock.tsx": {
       "extension": ".tsx",
       "size_bytes": 11798
+    },
+    "src/components/ArchetypeBar.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 2806
     },
     "src/components/ArchitectureModal.tsx": {
       "extension": ".tsx",
@@ -360,7 +364,7 @@
     },
     "src/components/CommandPaletteModal.tsx": {
       "extension": ".tsx",
-      "size_bytes": 11974
+      "size_bytes": 12929
     },
     "src/components/DebateConfigPanel.tsx": {
       "extension": ".tsx",
@@ -416,15 +420,15 @@
     },
     "src/components/StudioTextEditor.tsx": {
       "extension": ".tsx",
-      "size_bytes": 12541
+      "size_bytes": 12327
     },
     "src/components/StudioWorkspace.tsx": {
       "extension": ".tsx",
-      "size_bytes": 29139
+      "size_bytes": 29750
     },
     "src/components/VoiceCardGrid.tsx": {
       "extension": ".tsx",
-      "size_bytes": 10831
+      "size_bytes": 10742
     },
     "src/components/VoiceLibraryModal.tsx": {
       "extension": ".tsx",
