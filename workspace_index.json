@@ -1,0 +1,514 @@
+{
+  "version": "2026.1",
+  "generated_at": "2026-10-04T02:36:04.886532+00:00",
+  "workspace_root": "C:\\Users\\melki\\Projetos\\mytts",
+  "tree_hash": "c05ca262a11f162d",
+  "stats": {
+    "total_files": 114,
+    "python_files": 0,
+    "total_classes": 0,
+    "total_functions": 0
+  },
+  "files": {
+    ".dockerignore": {
+      "extension": "",
+      "size_bytes": 59
+    },
+    ".env": {
+      "extension": "",
+      "size_bytes": 82
+    },
+    ".env.example": {
+      "extension": ".example",
+      "size_bytes": 600
+    },
+    ".firebaserc": {
+      "extension": "",
+      "size_bytes": 57
+    },
+    ".gcloudignore": {
+      "extension": "",
+      "size_bytes": 110
+    },
+    ".gitignore": {
+      "extension": "",
+      "size_bytes": 142
+    },
+    "CONTEXT.md": {
+      "extension": ".md",
+      "size_bytes": 2936,
+      "headings": [
+        "# CONTEXT.md — Regras de Negócio, Fronteiras e Restrições do MyTTS Studio",
+        "## 1. Identidade e Propósito"
+      ]
+    },
+    "DESIGN.md": {
+      "extension": ".md",
+      "size_bytes": 11448,
+      "headings": [
+        "# DESIGN.md - Especificação Canônica do Design System Tátil Melki"
+      ]
+    },
+    "Dockerfile": {
+      "extension": "",
+      "size_bytes": 848
+    },
+    "firebase-config.json": {
+      "extension": ".json",
+      "size_bytes": 502
+    },
+    "firebase.json": {
+      "extension": ".json",
+      "size_bytes": 245
+    },
+    "firestore.indexes.json": {
+      "extension": ".json",
+      "size_bytes": 1238
+    },
+    "firestore.rules": {
+      "extension": ".rules",
+      "size_bytes": 779
+    },
+    "GEMINI.md": {
+      "extension": ".md",
+      "size_bytes": 9303,
+      "headings": [
+        "# GEMINI.md - Contexto de Engenharia e Instruções do Workspace"
+      ]
+    },
+    "index.html": {
+      "extension": ".html",
+      "size_bytes": 1848
+    },
+    "metadata.json": {
+      "extension": ".json",
+      "size_bytes": 347
+    },
+    "mockup_tatil_referencia.html": {
+      "extension": ".html",
+      "size_bytes": 20463
+    },
+    "package-lock.json": {
+      "extension": ".json",
+      "size_bytes": 180153
+    },
+    "package.json": {
+      "extension": ".json",
+      "size_bytes": 1110
+    },
+    "README.md": {
+      "extension": ".md",
+      "size_bytes": 4621,
+      "headings": [
+        "# MyTTS Studio (Speechify & ElevenLabs Inspired)"
+      ]
+    },
+    "screenshot_command_palette.png": {
+      "extension": ".png",
+      "size_bytes": 123972
+    },
+    "screenshot_debate.png": {
+      "extension": ".png",
+      "size_bytes": 135741
+    },
+    "screenshot_export_modal.png": {
+      "extension": ".png",
+      "size_bytes": 136320
+    },
+    "screenshot_mockup.png": {
+      "extension": ".png",
+      "size_bytes": 106662
+    },
+    "screenshot_polyglot.png": {
+      "extension": ".png",
+      "size_bytes": 116327
+    },
+    "screenshot_reader.png": {
+      "extension": ".png",
+      "size_bytes": 121062
+    },
+    "screenshot_voices.png": {
+      "extension": ".png",
+      "size_bytes": 117727
+    },
+    "server.ts": {
+      "extension": ".ts",
+      "size_bytes": 51881
+    },
+    "SPEC.md": {
+      "extension": ".md",
+      "size_bytes": 11839,
+      "headings": [
+        "# SPEC.md - Especificação Funcional, Arquitetura e Navegabilidade (MyTTS Studio)"
+      ]
+    },
+    "test-audio-engine.ts": {
+      "extension": ".ts",
+      "size_bytes": 15922
+    },
+    "tsconfig.json": {
+      "extension": ".json",
+      "size_bytes": 648
+    },
+    "vite.config.ts": {
+      "extension": ".ts",
+      "size_bytes": 737
+    },
+    ".agents/skills/auditoria-projetos-sistema/SKILL.md": {
+      "extension": ".md",
+      "size_bytes": 14182,
+      "headings": []
+    },
+    ".agents/skills/auditoria-projetos-sistema/evals/evals.json": {
+      "extension": ".json",
+      "size_bytes": 1826
+    },
+    ".agents/skills/auditoria-projetos-sistema/rules/criterios_auditoria.md": {
+      "extension": ".md",
+      "size_bytes": 3063,
+      "headings": [
+        "# CRITÉRIOS DETERMINÍSTICOS DE AUDITORIA E REJEIÇÃO"
+      ]
+    },
+    ".context/CURRENT_STATE.md": {
+      "extension": ".md",
+      "size_bytes": 2743,
+      "headings": [
+        "# Estado Atual do Workspace (mytts)",
+        "## Fase Atual"
+      ]
+    },
+    ".context/FIREBASE_SETUP_PLAN.md": {
+      "extension": ".md",
+      "size_bytes": 1463,
+      "headings": [
+        "# Plano de Implementação Firebase - MyTTS Studio",
+        "## 1. Contexto e Ambiente"
+      ]
+    },
+    ".context/SESSION_LOG.md": {
+      "extension": ".md",
+      "size_bytes": 2479,
+      "headings": [
+        "# Checkpoint da Sessão (mytts)",
+        "## Data e Hora"
+      ]
+    },
+    ".data/chunks.json": {
+      "extension": ".json",
+      "size_bytes": 2
+    },
+    ".vs/ProjectSettings.json": {
+      "extension": ".json",
+      "size_bytes": 37
+    },
+    ".vs/slnx.sqlite": {
+      "extension": ".sqlite",
+      "size_bytes": 114688
+    },
+    ".vs/VSWorkspaceState.json": {
+      "extension": ".json",
+      "size_bytes": 78
+    },
+    ".vs/mytts/CopilotIndices/18.10.1207.43936/SemanticSymbols.db": {
+      "extension": ".db",
+      "size_bytes": 77824
+    },
+    ".vs/mytts/FileContentIndex/b78da23d-9e2e-4e29-9dd2-4f30777c9deb.vsidx": {
+      "extension": ".vsidx",
+      "size_bytes": 669109
+    },
+    ".vs/mytts/v18/.wsuo": {
+      "extension": "",
+      "size_bytes": 11776
+    },
+    ".vs/mytts/v18/DocumentLayout.json": {
+      "extension": ".json",
+      "size_bytes": 244
+    },
+    ".vs/mytts.slnx/FileContentIndex/ca94eac9-757d-4593-bfa6-3b437152c5ce.vsidx": {
+      "extension": ".vsidx",
+      "size_bytes": 669109
+    },
+    ".vs/mytts.slnx/v18/.wsuo": {
+      "extension": "",
+      "size_bytes": 24576
+    },
+    ".vs/mytts.slnx/v18/DocumentLayout.backup.json": {
+      "extension": ".json",
+      "size_bytes": 517
+    },
+    ".vs/mytts.slnx/v18/DocumentLayout.json": {
+      "extension": ".json",
+      "size_bytes": 244
+    },
+    ".vscode/settings.json": {
+      "extension": ".json",
+      "size_bytes": 44
+    },
+    "audit-artifacts/screenshots/00_initial_desktop.png": {
+      "extension": ".png",
+      "size_bytes": 194466
+    },
+    "audit-artifacts/screenshots/00_initial_mobile.png": {
+      "extension": ".png",
+      "size_bytes": 126927
+    },
+    "audit-artifacts/screenshots/01_estudio_criacao_desktop.png": {
+      "extension": ".png",
+      "size_bytes": 194435
+    },
+    "audit-artifacts/screenshots/01_estudio_criacao_mobile.png": {
+      "extension": ".png",
+      "size_bytes": 126930
+    },
+    "audit-artifacts/screenshots/02_chat_poliglota_desktop.png": {
+      "extension": ".png",
+      "size_bytes": 152728
+    },
+    "audit-artifacts/screenshots/02_chat_poliglota_mobile.png": {
+      "extension": ".png",
+      "size_bytes": 77137
+    },
+    "audit-artifacts/screenshots/03_microfone_ditado_desktop.png": {
+      "extension": ".png",
+      "size_bytes": 101872
+    },
+    "audit-artifacts/screenshots/03_microfone_ditado_mobile.png": {
+      "extension": ".png",
+      "size_bytes": 42430
+    },
+    "audit-artifacts/screenshots/04_estudio_debate_desktop.png": {
+      "extension": ".png",
+      "size_bytes": 325784
+    },
+    "audit-artifacts/screenshots/04_estudio_debate_mobile.png": {
+      "extension": ".png",
+      "size_bytes": 236298
+    },
+    "audit-artifacts/screenshots/05_fastchunks_desktop.png": {
+      "extension": ".png",
+      "size_bytes": 173590
+    },
+    "audit-artifacts/screenshots/05_fastchunks_mobile.png": {
+      "extension": ".png",
+      "size_bytes": 102727
+    },
+    "audit-artifacts/screenshots/06_biblioteca_vozes_desktop.png": {
+      "extension": ".png",
+      "size_bytes": 155017
+    },
+    "audit-artifacts/screenshots/06_biblioteca_vozes_mobile.png": {
+      "extension": ".png",
+      "size_bytes": 107406
+    },
+    "audit-artifacts/screenshots/07_arquitetura_desktop.png": {
+      "extension": ".png",
+      "size_bytes": 130449
+    },
+    "audit-artifacts/screenshots/07_arquitetura_mobile.png": {
+      "extension": ".png",
+      "size_bytes": 51219
+    },
+    "audit-artifacts/screenshots/mural_visual.html": {
+      "extension": ".html",
+      "size_bytes": 5505
+    },
+    "design/design.md": {
+      "extension": ".md",
+      "size_bytes": 10003,
+      "headings": [
+        "# Especificação de Design, Arquitetura e Navegabilidade (MyTTS Studio)"
+      ]
+    },
+    "design/README.md": {
+      "extension": ".md",
+      "size_bytes": 411,
+      "headings": [
+        "# Pasta de Design do MyTTS Studio (`design/`)"
+      ]
+    },
+    "dist/index.html": {
+      "extension": ".html",
+      "size_bytes": 1946
+    },
+    "dist/assets/index-BeZGDclp.css": {
+      "extension": ".css",
+      "size_bytes": 88047
+    },
+    "dist/assets/index-Ci8HTBBj.js": {
+      "extension": ".js",
+      "size_bytes": 562795
+    },
+    "docs/superpowers/plans/2026-10-01-unified-studio-flow.md": {
+      "extension": ".md",
+      "size_bytes": 10213,
+      "headings": [
+        "# Central de Criação Unificada & Auto-Prosódia Implementation Plan"
+      ]
+    },
+    "docs/superpowers/specs/2026-10-01-unified-studio-flow-design.md": {
+      "extension": ".md",
+      "size_bytes": 8367,
+      "headings": [
+        "# Especificação de Design: Central de Criação Unificada & Auto-Prosódia"
+      ]
+    },
+    "scripts/visual-audit-mural.js": {
+      "extension": ".js",
+      "size_bytes": 6119
+    },
+    "src/App.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 18104
+    },
+    "src/index.css": {
+      "extension": ".css",
+      "size_bytes": 6081
+    },
+    "src/main.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 164
+    },
+    "src/components/AgentInputDock.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 11798
+    },
+    "src/components/ArchitectureModal.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 9160
+    },
+    "src/components/BottomAudioDock.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 49787
+    },
+    "src/components/ChunkActionMenu.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 4863
+    },
+    "src/components/CommandPaletteModal.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 11974
+    },
+    "src/components/DebateConfigPanel.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 17362
+    },
+    "src/components/DocumentInputSection.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 8012
+    },
+    "src/components/ExportInteractionModal.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 10928
+    },
+    "src/components/FastChunkAudioApp.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 33720
+    },
+    "src/components/FlashcardDeckDrawer.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 7598
+    },
+    "src/components/FloatingCardAudioController.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 10642
+    },
+    "src/components/GoogleIcon.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 1065
+    },
+    "src/components/LanguageColumnCard.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 5823
+    },
+    "src/components/LiveVoiceMic.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 10275
+    },
+    "src/components/ParallelMessageBlock.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 9360
+    },
+    "src/components/PolyglotChatStudio.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 23164
+    },
+    "src/components/ScriptViewer.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 11484
+    },
+    "src/components/Sidebar.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 10087
+    },
+    "src/components/StudioTextEditor.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 12541
+    },
+    "src/components/StudioWorkspace.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 29139
+    },
+    "src/components/VoiceCardGrid.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 10831
+    },
+    "src/components/VoiceLibraryModal.tsx": {
+      "extension": ".tsx",
+      "size_bytes": 8991
+    },
+    "src/data/sampleDebates.ts": {
+      "extension": ".ts",
+      "size_bytes": 15598
+    },
+    "src/services/chunkStorage.ts": {
+      "extension": ".ts",
+      "size_bytes": 6535
+    },
+    "src/types/chunks.ts": {
+      "extension": ".ts",
+      "size_bytes": 492
+    },
+    "src/types/debate.ts": {
+      "extension": ".ts",
+      "size_bytes": 2080
+    },
+    "src/types/polyglot.ts": {
+      "extension": ".ts",
+      "size_bytes": 762
+    },
+    "src/types/voices.ts": {
+      "extension": ".ts",
+      "size_bytes": 2239
+    },
+    "src/utils/audio.ts": {
+      "extension": ".ts",
+      "size_bytes": 1169
+    },
+    "src/utils/audioCache.ts": {
+      "extension": ".ts",
+      "size_bytes": 13578
+    },
+    "src/utils/audioEngine.ts": {
+      "extension": ".ts",
+      "size_bytes": 26641
+    },
+    "src/utils/csvExporter.ts": {
+      "extension": ".ts",
+      "size_bytes": 1894
+    },
+    "src/utils/interactionExporter.ts": {
+      "extension": ".ts",
+      "size_bytes": 5187
+    },
+    "src/utils/proceduralSoundtracks.ts": {
+      "extension": ".ts",
+      "size_bytes": 15009
+    },
+    "src/utils/prosodyEngine.ts": {
+      "extension": ".ts",
+      "size_bytes": 5004
+    }
+  }
+}

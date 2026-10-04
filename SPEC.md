@@ -86,10 +86,14 @@ graph TD
   * Trilhas musicais procedurais geradas via `OfflineAudioContext` (sem downloads externos).
   * Auto-ducking dinâmico em tempo real com envelopes de ataque (100ms) e release (450ms).
   * Chat Poliglota em 3 línguas com extração de blocos lexicais e modal de exportação multi-formato (Anki, MD, JSON).
-* **Fase 3 (Refinamento Tátil Melki & Produtividade - Próximo Ciclo):**
-  * Paleta e tokens táteis de elevação física integrados no `index.css` (`--elevation-card`, `--rim-light`).
-  * Command Palette com atalho global `Ctrl + K` para navegação instantânea com suporte a TDAH.
-  * Otimização de renderização e cache de áudio no cliente.
+* **Fase 3 (Refinamento Tátil Melki & Produtividade - Concluída):**
+  * Paleta mineral e tokens táteis integrados no `index.css` (`--elevation-card`, `--rim-light`, `.input-sunken`).
+  * Command Palette tátil com atalho global `Ctrl + K` (`CommandPaletteModal.tsx`), filtro rápido e navegação por setas.
+  * Artefato interativo de referência com os 5 arquétipos canônicos (`mockup_tatil_referencia.html`).
+* **Fase 4 (Próximos Passos & Expansão Cognitiva):**
+  * Cache estendido offline com persistência no IndexedDB para áudios sintetizados.
+  * Suporte a atalhos de playback globais (`Espaço` para Play/Pause, `J`/`L` para avanço/recuo de 5s).
+  * Ingestão direta de URLs de artigos web para conversão em debates instantâneos.
 
 ### 4.2. Contratos de Rotas e Endpoints REST
 
@@ -106,7 +110,22 @@ graph TD
 
 ---
 
-## 5. Checklist de Aceite e Qualidade
+## 5. Matriz de Discrepâncias com as Preferências Melki
+
+| Critério de Preferência | Status Determinístico | Evidência / Observação |
+| :--- | :---: | :--- |
+| **Paleta Mineral Anti-Cobalto (DISC-01)** | `[PASS]` | Uso estrito de Slate Navy, ardósia `#020617` e âmbar `#f59e0b`; zero cobalto neon. |
+| **Profundidade Dark Mode (DISC-02)** | `[PASS]` | Cartões `rgba(15, 23, 42, 0.88)` mais claros que canvas `#020617` (`L_card > L_canvas`). |
+| **Sombras Multicamadas (DISC-03)** | `[PASS]` | Sombra oclusiva próxima + projeção difusa ampla com oclusão volumétrica. |
+| **Rim Light Zenital (DISC-04)** | `[PASS]` | Micro-chanfro óptico refletivo `inset 0 1px 0 0 rgba(255, 255, 255, 0.10)` ativo nos cartões. |
+| **Anti-Glassmorphism (DISC-05)** | `[PASS]` | Superfícies ardósia foscas de alta solidez, sem blur transparente agressivo. |
+| **Anti-Squish em Botões/Tags (DISC-06)** | `[PASS]` | Blindagem com `flex-shrink: 0; white-space: nowrap;` em todas as ações e badges. |
+| **Ergonomia e Suporte a TDAH (DISC-07)** | `[PASS]` | Atalho `Ctrl+K` global para Command Palette, ausência total de `alert()` bloqueante. |
+| **Componentes Modulares Copy-Paste (DISC-08)** | `[PASS]` | Padrão desacoplado (Tailwind v4, Radix/shadcn-style, Lucide Icons e Google Icons). |
+
+---
+
+## 6. Checklist de Aceite e Qualidade
 
 * [x] **Zero Mocks Circulares:** Todos os testes unitários (`npm test`) validam cálculos matemáticos reais de dB, montagem de headers RIFF e geradores de arquivo (Anki CSV, Markdown, JSON).
 * [x] **Execução Auditável:** Código compilado com sucesso (`npm run build`), verificação estrita de tipos sem erros (`npm run lint`).

@@ -146,20 +146,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Busca Rápida Tátil (Ctrl + K) */}
+        {/* Botão de Busca Rápida (Ctrl + K) */}
         {onOpenCommandPalette && (
-          <div className="px-3 pt-3">
+          <div className="px-3 mt-2">
             <button
               type="button"
-              onClick={onOpenCommandPalette}
-              className="w-full px-3 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-between text-xs transition-colors cursor-pointer group"
-              title="Busca Rápida e Navegação (Ctrl + K)"
+              onClick={() => {
+                onOpenCommandPalette();
+                if (isOpenMobile) onToggleMobile();
+              }}
+              className="w-full px-3 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-between text-xs transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <GoogleIcon name="search" size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                <GoogleIcon name="search" size={16} className="text-amber-400" />
                 <span className="font-medium">Busca Rápida</span>
               </div>
-              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded text-slate-300">
+              <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">
                 Ctrl K
               </kbd>
             </button>

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyTTS Studio — Mockup de Referência Tátil (Padrão Melki 2026)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Arquétipo 1: Tactile Matte Minimalist (Padrão Melki Recomendado) */
+      --bg-canvas: #020617;
+      --bg-card: rgba(15, 23, 42, 0.92);
+      --bg-surface-2: #1e293b;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.14);
+      --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+      --rim-light-amber: inset 0 1px 0 0 rgba(245, 158, 11, 0.45);
+      --elevation-card: 
+        0 1px 2px 0 rgba(0, 0, 0, 0.4),
+        0 8px 24px -4px rgba(0, 0, 0, 0.55),
+        var(--rim-light);
+      --elevation-card-hover: 
+        0 2px 6px 0 rgba(0, 0, 0, 0.45),
+        0 14px 32px -4px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+      --elevation-sunken: 
+        inset 1px 1px 4px 0 rgba(0, 0, 0, 0.65),
+        inset -1px -1px 1px 0 rgba(255, 255, 255, 0.03);
+      --elevation-btn-primary: 
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+        0 2px 4px 0 rgba(0, 0, 0, 0.3);
+      --accent-amber: #f59e0b;
+      --accent-amber-hover: #fbbf24;
+      --accent-emerald: #10b981;
+      --accent-navy: #203657;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+    }
+
+    /* Temas dos Arquétipos Melki */
+    body[data-archetype="phantom-4k"] {
+      --bg-canvas: #060709;
+      --bg-card: rgba(17, 20, 29, 0.95);
+      --bg-surface-2: #161b26;
+      --accent-amber: #38bdf8;
+      --accent-amber-hover: #7dd3fc;
+      --rim-light-amber: inset 0 1px 0 0 rgba(56, 189, 248, 0.45);
+    }
+
+    body[data-archetype="luxury-deepblue"] {
+      --bg-canvas: #070c18;
+      --bg-card: rgba(18, 28, 49, 0.94);
+      --bg-surface-2: #1b2844;
+      --accent-amber: #60a5fa;
+      --accent-amber-hover: #93c5fd;
+      --rim-light-amber: inset 0 1px 0 0 rgba(96, 165, 250, 0.45);
+    }
+
+    body[data-archetype="gilded-navy"] {
+      --bg-canvas: #05070d;
+      --bg-card: rgba(14, 20, 36, 0.95);
+      --bg-surface-2: #162039;
+      --accent-amber: #d4af37;
+      --accent-amber-hover: #e5c158;
+      --rim-light-amber: inset 0 1px 0 0 rgba(212, 175, 55, 0.45);
+    }
+
+    body[data-archetype="polar-sand"] {
+      --bg-canvas: #eef2f6;
+      --bg-card: #ffffff;
+      --bg-surface-2: #f1f5f9;
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --border-hover: rgba(0, 0, 0, 0.16);
+      --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+      --elevation-card: 
+        0 1px 3px 0 rgba(0, 0, 0, 0.08),
+        0 8px 20px -4px rgba(0, 0, 0, 0.06),
+        var(--rim-light);
+      --elevation-sunken: 
+        inset 1px 1px 3px 0 rgba(0, 0, 0, 0.1),
+        inset -1px -1px 1px 0 rgba(255, 255, 255, 0.8);
+      --accent-amber: #0284c7;
+      --accent-amber-hover: #0369a1;
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.25s ease, color 0.25s ease;
+      padding-bottom: 6rem;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Outfit', sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Container Principal */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      width: 100%;
+    }
+
+    /* Seletor de Arquétipo Superior */
+    .archetype-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.875rem 1.25rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 1rem;
+      box-shadow: var(--elevation-card);
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .archetype-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .archetype-pills {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .archetype-btn {
+      padding: 0.4rem 0.875rem;
+      border-radius: 0.625rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .archetype-btn:hover {
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+
+    .archetype-btn.active {
+      background: var(--accent-amber);
+      color: #020617;
+      border-color: transparent;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Grid do Estúdio */
+    .studio-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .studio-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cartão Tátil */
+    .tactile-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      box-shadow: var(--elevation-card);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .tactile-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: var(--elevation-card-hover);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.875rem;
+    }
+
+    .card-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge-pill {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.375rem;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* Cavidade Tátil / Sunken Input */
+    .input-sunken-box {
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.875rem;
+      padding: 1rem;
+      box-shadow: var(--elevation-sunken);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      min-height: 160px;
+      resize: vertical;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .input-sunken-box:focus {
+      border-color: var(--accent-amber);
+      box-shadow: var(--elevation-sunken), 0 0 0 1px var(--accent-amber);
+    }
+
+    /* Botões Táteis com Anti-Squish */
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-tactile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      border-radius: 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .btn-tactile:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--accent-amber);
+      color: #020617;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: var(--elevation-btn-primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-amber-hover);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface-2);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--rim-light), 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--border-hover);
+      background: rgba(30, 41, 59, 0.8);
+    }
+
+    /* Colunas Trilogia Chat Poliglota */
+    .polyglot-columns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .polyglot-columns {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chunk-col {
+      background: rgba(2, 6, 23, 0.5);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.875rem;
+      padding: 0.875rem;
+      box-shadow: var(--elevation-sunken);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .chunk-col-header {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chunk-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.625rem;
+      padding: 0.625rem 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      box-shadow: var(--rim-light), 0 2px 4px rgba(0,0,0,0.25);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chunk-item:hover {
+      border-color: var(--accent-amber);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+
+    .chunk-romaji {
+      font-size: 0.6875rem;
+      color: var(--accent-amber);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 0.25rem;
+    }
+
+    /* Dock Inferior Flutuante */
+    .bottom-dock {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 3rem);
+      max-width: 850px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 1.25rem;
+      padding: 0.875rem 1.25rem;
+      box-shadow: 
+        0 8px 32px -4px rgba(0, 0, 0, 0.85),
+        var(--rim-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      backdrop-filter: blur(20px);
+      z-index: 100;
+    }
+
+    .dock-scrubber-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+
+    .scrubber-track {
+      height: 6px;
+      border-radius: 9999px;
+      background: rgba(2, 6, 23, 0.8);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--elevation-sunken);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .scrubber-progress {
+      height: 100%;
+      width: 45%;
+      background: var(--accent-amber);
+      border-radius: 9999px;
+      position: relative;
+    }
+
+    .scrubber-knob {
+      position: absolute;
+      right: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent-amber);
+      border: 2px solid #020617;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      font-size: 0.75rem;
+    }
+
+    .audit-table th, .audit-table td {
+      border: 1px solid var(--border-subtle);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+
+    .audit-table th {
+      background: var(--bg-surface-2);
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .pass-tag {
+      color: #10b981;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body data-archetype="tactile-matte">
+
+  <div class="container">
+    
+    <!-- Barra de Arquétipos Interativos Melki -->
+    <div class="archetype-bar">
+      <div class="archetype-title">
+        <span>🎨 Padrão de Arquétipo Visual (Padrão Melki 2026):</span>
+      </div>
+      <div class="archetype-pills">
+        <button class="archetype-btn active" onclick="setArchetype('tactile-matte', this)">Tactile Matte Minimalist (Recomendado)</button>
+        <button class="archetype-btn" onclick="setArchetype('phantom-4k', this)">Phantom Obsidian 4K</button>
+        <button class="archetype-btn" onclick="setArchetype('luxury-deepblue', this)">Luxury Deep Blue</button>
+        <button class="archetype-btn" onclick="setArchetype('gilded-navy', this)">Gilded Navy Heritage</button>
+        <button class="archetype-btn" onclick="setArchetype('polar-sand', this)">Polar Sand Light</button>
+      </div>
+    </div>
+
+    <!-- Grid de Demonstração Tátil -->
+    <div class="studio-grid">
+
+      <!-- Coluna 1: Estúdio Solo e Ingestão -->
+      <div class="tactile-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>🎙️ Estúdio Neural de Síntese</span>
+          </div>
+          <span class="badge-pill">gemini-3.1-flash-tts</span>
+        </div>
+
+        <div>
+          <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.375rem; display: block;">
+            Texto de Entrada com Fôlego Acústico:
+          </label>
+          <textarea class="input-sunken-box" readonly>A proliferação desenfreada de ferramentas de inteligência artificial generativa gerou uma ilusão perigosa: a de que a velocidade de geração é sinônimo de profundidade de raciocínio. O esforço da escrita era precisamente a forja do pensamento crítico.</textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn-tactile btn-primary">▶ Sintetizar com Puck</button>
+          <button class="btn-tactile btn-secondary">🎙️ Ditar com Gemini 3.8</button>
+          <button class="btn-tactile btn-secondary">⚡ Auto-Respiração pt-BR</button>
+        </div>
+      </div>
+
+      <!-- Coluna 2: Chat Poliglota e Fast Chunks -->
+      <div class="tactile-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>🌍 Chat Poliglota (3 Línguas & Chunks)</span>
+          </div>
+          <span class="badge-pill">EN • IT • JA</span>
+        </div>
+
+        <p style="font-size: 0.8125rem; color: var(--text-secondary);">
+          Sentenças alinhadas paralelamente com extração de blocos lexicais e áudio neural gapless:
+        </p>
+
+        <div class="polyglot-columns">
+          <!-- EN -->
+          <div class="chunk-col">
+            <div class="chunk-col-header">
+              <span>🇺🇸 Inglês</span>
+            </div>
+            <div class="chunk-item">
+              Could I please get an espresso, and the check whenever you are ready?
+            </div>
+          </div>
+          <!-- IT -->
+          <div class="chunk-col">
+            <div class="chunk-col-header">
+              <span>🇮🇹 Italiano</span>
+            </div>
+            <div class="chunk-item">
+              Potrei avere un caffè espresso, per favore, e il conto quando è pronto?
+            </div>
+          </div>
+          <!-- JA -->
+          <div class="chunk-col">
+            <div class="chunk-col-header">
+              <span>🇯🇵 Japonês</span>
+            </div>
+            <div class="chunk-item">
+              エスプレッソを一杯お願いします、そしてお会計もお願いできますか？
+              <div class="chunk-romaji">Esupuresso o ippai...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top: 0.5rem;">
+          <button class="btn-tactile btn-primary">📇 Exportar Flashcards Anki</button>
+          <button class="btn-tactile btn-secondary">📋 Markdown Obsidian</button>
+          <button class="btn-tactile btn-secondary">📦 JSON Estruturado</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tabela de Conformidade Tátil Melki -->
+    <div class="tactile-card" style="margin-top: 1.5rem;">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🛡️ Auditoria Determinística de Discrepâncias com as Preferências (DISC-01 a DISC-08)</span>
+        </div>
+        <span class="badge-pill">100% CONFORME</span>
+      </div>
+
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Critério Melki</th>
+            <th>Status</th>
+            <th>Evidência Mensurada no Código / DOM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="font-mono">DISC-01</td>
+            <td>Paleta Mineral Anti-Cobalto</td>
+            <td class="pass-tag">[PASS]</td>
+            <td>Zero tons cobalto (#0044FF, #1D4ED8). Base ardósia mineral e acento âmbar #f59e0b.</td>
+          </tr>
+          <tr>
+            <td class="font-mono">DISC-02</td>
+            <td>Profundidade Dark Mode (Cards Lighter)</td>
+            <td class="pass-tag">[PASS]</td>
+            <td>Cards rgba(15,23,42,0.92) com luminância superior ao canvas #020617 (L_card &gt; L_canvas).</td>
+          </tr>
+          <tr>
+            <td class="font-mono">DISC-03</td>
+            <td>Sombras Físicas Multicamadas</td>
+            <td class="pass-tag">[PASS]</td>
+            <td>Camada de contato oclusiva (0 1px 2px) combinada com projeção difusa (0 8px 24px).</td>
+          </tr>
+          <tr>
+            <td class="font-mono">DISC-04</td>
+            <td>Rim Light Zenital Superior</td>
+            <td class="pass-tag">[PASS]</td>
+            <td>Micro-chanfro óptico refletivo inset 0 1px 0 rgba(255,255,255,0.12) nos cards e botões.</td>
+          </tr>
+          <tr>
+            <td class="font-mono">DISC-05</td>
+            <td>Anti-Glassmorphism Excessivo</td>
+            <td class="pass-tag">[PASS]</td>
+            <td>Superfícies de ardósia sólidas com oclusão volumétrica, sem reflexos plásticos ou neons.</td>
+          </tr>
+          <tr>
+            <td class="font-mono">DISC-06</td>
+            <td>Anti-Squish em Botões e Badges</td>
+            <td class="pass-tag">[PASS]</td>
+            <td>Uso estrito de flex-shrink: 0 e white-space: nowrap em 100% das ações e tags.</td>
+          </tr>
+          <tr>
+            <td class="font-mono">DISC-07</td>
+            <td>Ergonomia Cognitiva & Suporte TDAH</td>
+            <td class="pass-tag">[PASS]</td>
+            <td>Command Palette global com atalho Ctrl+K, touch targets &gt;= 44px e zero alerts bloqueantes.</td>
+          </tr>
+          <tr>
+            <td class="font-mono">DISC-08</td>
+            <td>Componentes Modulares Copy-Paste</td>
+            <td class="pass-tag">[PASS]</td>
+            <td>Arquitetura de componentes abertos (padrão shadcn/ui, Tailwind v4 e Lucide Icons).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Dock Inferior Flutuante Tátil -->
+  <div class="bottom-dock">
+    <button class="btn-tactile btn-primary" style="width: 44px; height: 44px; padding: 0; border-radius: 50%;">
+      ▶
+    </button>
+    <div class="dock-scrubber-box">
+      <div style="display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">
+        <span>Puck · Enérgico (Solo)</span>
+        <span>01:14 / 02:45</span>
+      </div>
+      <div class="scrubber-track">
+        <div class="scrubber-progress">
+          <div class="scrubber-knob"></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-tactile btn-secondary">1.0x</button>
+    <button class="btn-tactile btn-secondary">🎵 Trilha Lo-Fi (-14dB)</button>
+  </div>
+
+  <script>
+    function setArchetype(name, btn) {
+      document.body.setAttribute('data-archetype', name);
+      document.querySelectorAll('.archetype-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

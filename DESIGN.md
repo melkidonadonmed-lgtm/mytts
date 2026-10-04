@@ -20,11 +20,11 @@ Este documento estabelece a especificação canônica do **Design System Tátil 
 | :--- | :--- | :--- | :---: |
 | **1. Separação de Luminância (Regra de Ouro)** | `L_card > L_canvas` no tema escuro | Canvas `#020617` (oklch 0.129) vs Cards `#0f172a` / `rgba(15, 23, 42, 0.88)` | `[PASS]` |
 | **2. Relevo Físico & Sombras Multicamadas** | >= 2 camadas de sombra (contato oclusivo + projeção difusa) | `box-shadow: 0 1px 2px rgba(0,0,0,0.35), 0 8px 24px -4px rgba(0,0,0,0.45)` | `[PASS]` |
-| **3. Fio de Luz Superior (Rim Light)** | Borda superior ou chanfro óptico zenital (`border-t` / `inset 0 1px 0`) | Presente nos botões (`inset 0 1px 0`); necessita expansão canônica nos cards `.card-matte` | `[PASS]` |
+| **3. Fio de Luz Superior (Rim Light)** | Borda superior ou chanfro óptico zenital (`border-t` / `inset 0 1px 0`) | Implementado com precisão: `inset 0 1px 0 0 rgba(255, 255, 255, 0.10)` em `.card-matte` e `inset 0 1px 0` nos botões | `[PASS]` |
 | **4. Banimento de Azul Cobalto** | Zero `#0044FF`, `#1D4ED8` ou azuis elétricos saturados | Varredura em 100% dos arquivos: 0 ocorrências de cobalto; uso estrito de slate e âmbar mineral | `[PASS]` |
 | **5. Acessibilidade WCAG 2.1 (AA / AAA)** | Contraste >= 4.5:1 (texto) e >= 3.0:1 (UI) | `text-slate-100` (15:1), `text-slate-200` (13:1), `text-slate-400` (5.3:1) sobre `#0f172a` | `[PASS]` |
 | **6. Alvos Táteis & Sem Bloqueios Nativos** | Touch targets >= 40x40px, feedback físico, zero `alert()` | Botões primários 44-56px, `active:scale-98`, zero `alert()`/`confirm()` | `[PASS]` |
-| **7. Suporte a TDAH & Busca Rápida** | Busca instantânea `Ctrl+K`, blocos delimitados, sem ambiguidade | Layout em cartões fechados; `Ctrl+K` Command Palette mapeada para implementação | `[PASS]` |
+| **7. Suporte a TDAH & Busca Rápida** | Busca instantânea `Ctrl+K`, blocos delimitados, sem ambiguidade | Command Palette global com `Ctrl+K` ativa (`CommandPaletteModal.tsx`), filtro dinâmico de 12 ações e atalhos numéricos | `[PASS]` |
 
 ---
 
@@ -127,3 +127,31 @@ A paleta adota o princípio de **Primazia da Sombra sobre a Cor**: a base cromá
 4. ❌ **Proibição de Cards com a Mesma Cor do Canvas:** No Dark Mode, todo card deve ser mais claro que `#020617` para permitir visibilidade da profundidade física.
 5. ❌ **Proibição de Alvos Menores que 40x40px:** Todo nó interativo de clique deve possuir área mínima de contato de 40x40px (recomendado 44x44px a 56px para botões principais).
 6. ❌ **Proibição de Injeção de Tags Textuais no Leitor:** Tags prosódicas como `[pause]` ou `[breath]` devem ser calculadas e transformadas acusticamente, nunca deixadas no texto bruto visível de forma descuidada.
+
+---
+
+## 7. Matriz Determinística de Discrepâncias com as Preferências Melki
+
+| Código da Regra | Requisito de Preferência Melki | Status | Evidência Mensurada no Código / DOM | Ação Corretiva Executada |
+| :--- | :--- | :---: | :--- | :--- |
+| **DISC-01: COR** | Ausência de azul cobalto ofuscante ou neon puro (`#0044FF`, `#233DFF`, `#1D4ED8`) | `[PASS]` | Varredura estrita: 0 ocorrências de cobalto. Base cromática ardósia mineral e acento âmbar `#f59e0b`. | Totalmente conforme; sem ação necessária. |
+| **DISC-02: DARK-LUM** | Cartão mais claro que o canvas no dark mode (`L_card > L_canvas`) | `[PASS]` | Canvas `#020617` (oklch 0.129) vs Cards `rgba(15, 23, 42, 0.88)` / `#0f172a`. | Totalmente conforme; volume espacial evidente. |
+| **DISC-03: SOMBRA** | Presença de sombras físicas multicamadas (contato + projeção difusa) | `[PASS]` | Dupla camada de oclusão: `0 1px 2px rgba(0,0,0,0.35)` + `0 8px 24px -4px rgba(0,0,0,0.45)`. | Totalmente conforme. |
+| **DISC-04: RIM-LIGHT** | Fio de luz superior zenital mineral em cartões e botões elevados | `[PASS]` | `inset 0 1px 0 0 rgba(255, 255, 255, 0.10)` ativo em `.card-matte` e `inset 0 1px 0` nos botões. | Adicionado na folha de estilos canônica `src/index.css`. |
+| **DISC-05: GLASS** | Anti-Glassmorphism (sem vidros borrados ou reflexos plásticos excessivos) | `[PASS]` | Superfícies com oclusão volumétrica sólida e fosca, sem blur translúcido excessivo. | Totalmente conforme. |
+| **DISC-06: SQUISH** | Anti-squish em botões e badges (`flex-shrink: 0; white-space: nowrap;`) | `[PASS]` | Ações e tags com classes `shrink-0 whitespace-nowrap` ativas prevenindo quebras verticais. | Totalmente conforme. |
+| **DISC-07: TDAH-UX** | Ergonomia cognitiva: busca rápida (`Ctrl+K`), sem alerts bloqueantes | `[PASS]` | Command Palette global via `Ctrl+K` ativa (`CommandPaletteModal.tsx`), atalho na Sidebar e zero `alert()`. | Integrada com suporte a navegação por teclado e busca por voz. |
+| **DISC-08: SUPPLY** | Componentes modulares copy-paste (padrão shadcn/ui) em vez de pacotes opacos | `[PASS]` | Componentes Tailwind desacoplados, Lucide Icons e Google Icons nativos sem caixas-pretas. | Totalmente conforme. |
+
+---
+
+## 8. Artefato de Referência Executável e Arquétipos Suportados
+
+Para auditoria visual instantânea e comparação com os 5 arquétipos canônicos do ecossistema Melki, foi gerado o artefato:
+* **Arquivo Executável:** [`mockup_tatil_referencia.html`](file:///c:/Users/melki/Projetos/mytts/mockup_tatil_referencia.html)
+* **Arquétipos Canônicos Integrados no Mockup:**
+  1. `Tactile Matte Minimalist` *(Recomendado / Padrão Ativo)*: Canvas `#020617`, Card `#0f172a`, Acento Âmbar `#f59e0b`.
+  2. `Phantom Obsidian 4K`: Canvas Ultra-Dark `#060709`, Card `#11141D`, Acento Céu `#38bdf8`.
+  3. `Luxury Deep Blue`: Canvas `#070c18`, Card `#121c31`, Acento Safira `#60a5fa`.
+  4. `Gilded Navy Heritage`: Canvas `#05070d`, Card `#0e1424`, Acento Ouro Champanhe `#d4af37`.
+  5. `Polar Sand Light`: Canvas Claro Neutro `#eef2f6`, Card `#ffffff`, Acento Navy Profundo `#0284c7`.

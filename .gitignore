@@ -11,3 +11,5 @@ coverage/
 *.tsbuildinfo
 audit-artifacts/
 .data/
+.vs/
+screenshot_*.png
