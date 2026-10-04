@@ -1,9 +1,9 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Refatoração e Harmonização da Paleta Mineral Tátil (Eliminação de Discrepâncias de Cores, Alto Contraste WCAG e Eliminação de Salada de Frutas).
-- **Status da Branch**: `main` (código refatorado localmente, testado e validado).
-- **Status de Build e Testes**: `tsc --noEmit` [0], `tsx test-audio-engine.ts` [0], `vite build` [0].
+- **Fase**: Sistema de Arquétipos Visuais Táteis Melki Refatorado e Deployed em Produção com Paleta Mineral Sólida e Alto Contraste.
+- **Status da Branch**: `main` (commit `980560e` enviado ao GitHub).
+- **Revisão Ativa Cloud Run**: `mytts-00018-8f5` (100% do tráfego em `https://mytts-1044179901556.us-central1.run.app` e `https://mytts-syqnqsm4iq-uc.a.run.app`).
 
 ## Decisões Arquiteturais e Implementações
 1. **Unificação dos Tokens de Cor Mineral no Tailwind v4 (`src/index.css`)**:

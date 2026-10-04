@@ -20,6 +20,9 @@
 - `npm run lint` (`tsc --noEmit`): Exit code 0.
 - `npm test` (`tsx test-audio-engine.ts`): Exit code 0 (8 suítes com 100% de sucesso).
 - `npm run build` (`vite build`): Exit code 0 (bundle gerado com sucesso).
+- `git commit` / `git push`: Commit `980560e` enviado para `origin/main`.
+- `gcloud run deploy mytts`: Revisão `mytts-00018-8f5` deployed e servindo 100% de tráfego.
+- `Invoke-WebRequest`: Confirmação de status 200 e novo bundle CSS `index-CoOo-bef.css` em `https://mytts-1044179901556.us-central1.run.app`.
 - `python generate_workspace_index.py --root c:\Users\melki\Projetos\mytts`: Exit code 0 (108 arquivos indexados, Tree Hash `5150d0c6289f38bd`).
 
 ## Próxima Ação Recomendada
