@@ -1,29 +1,26 @@
 # Log de Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-04T10:53:00Z (UTC) / 2026-10-04 06:53 (Local)
+- **Data/Hora**: 2026-10-04T11:31:00Z (UTC) / 2026-10-04 07:31 (Local)
 
 ## Arquivos Tocados neste Turno
-- `src/index.css` (Atualizado: tokens de ardósia pura no `@theme` Tailwind v4, eliminação de blur leitoso em `.card-matte`, canalização de âmbar mineral nobre).
-- `src/components/Sidebar.tsx` (Atualizado: eliminação de badges arco-íris, unificação com badges minerais monocromáticas e contraste WCAG AA).
-- `src/types/voices.ts` (Atualizado: paleta mineral de gradientes para os 5 avatares neurais).
-- `src/components/StudioWorkspace.tsx` (Atualizado: harmonização do header, alternador solo/debate, chips fonéticos, velocidade e botão hero).
-- `src/components/VoiceCardGrid.tsx` (Atualizado: acabamento mineral tátil nos cards, badges de seleção e botões de prévia).
-- `src/components/ArchetypeBar.tsx` (Atualizado: acento dourado mineral e micro-dot ajustado).
-- `src/components/BottomAudioDock.tsx` (Atualizado: mapa de emoções unificado na paleta mineral).
-- `src/App.tsx` (Atualizado: harmonização de badge do header mobile).
-- `workspace_index.json` (Atualizado via `generate_workspace_index.py`).
+- `src/index.css` (Atualizado: fundo do Tactile Matte clareado para #12151D, eliminação do phantom-4k, implementação dos 6 arquétipos das paletas do usuário, classes de botões neutros .btn-matte-primary, regras anti-serrilhamento tipográfico).
+- `src/components/ArchetypeBar.tsx` (Atualizado: nova lista de 7 arquétipos minerais, remoção do phantom-4k, eliminação do scale-95 e tipografia nítida).
+- `src/components/CommandPaletteModal.tsx` (Atualizado: lista de atalhos de tema sincronizada com os 7 novos arquétipos).
+- `src/components/VoiceCardGrid.tsx` (Atualizado: botões neutros .btn-matte-primary, remoção de laranjas saturados, clique tátil em todo o card, eliminação de scale-105).
+- `src/components/BottomAudioDock.tsx` (Atualizado: botão central de Play neutro com alto contraste, badge integrado de sotaque/intenção vocal em tempo real, abas e controles neutralizados).
+- `src/components/DebateConfigPanel.tsx` (Atualizado: inclusão do VoiceCardGrid para seleção por card dos oradores 1 e 2, neutralização dos controles).
+- `src/components/StudioWorkspace.tsx` (Atualizado: neutralização dos botões de modo solo/debate, chips de calibração, velocidade e botão de disparo com active:translate-y-px).
+- `src/App.tsx` (Atualizado: renderização da sound bar tanto no debate quanto no leitor com roteiro ativo).
 - `.context/CURRENT_STATE.md` (Atualizado).
 - `.context/SESSION_LOG.md` (Atualizado).
 
 ## Comandos Validados no Terminal
-- `npm run lint` (`tsc --noEmit`): Exit code 0.
-- `npm test` (`tsx test-audio-engine.ts`): Exit code 0 (8 suítes com 100% de sucesso).
-- `npm run build` (`vite build`): Exit code 0 (bundle gerado com sucesso).
-- `git commit` / `git push`: Commit `980560e` enviado para `origin/main`.
-- `gcloud run deploy mytts`: Revisão `mytts-00018-8f5` deployed e servindo 100% de tráfego.
-- `Invoke-WebRequest`: Confirmação de status 200 e novo bundle CSS `index-CoOo-bef.css` em `https://mytts-1044179901556.us-central1.run.app`.
-- `python generate_workspace_index.py --root c:\Users\melki\Projetos\mytts`: Exit code 0 (108 arquivos indexados, Tree Hash `5150d0c6289f38bd`).
+- `npm run lint` (`tsc --noEmit`): Exit code 0 comprovado.
+- `npm test` (`tsx test-audio-engine.ts`): Exit code 0 comprovado (8 suítes com 100% de conformidade).
+- `npm run build` (`vite build`): Exit code 0 comprovado (bundle gerado em 297ms).
+- `git commit` / `git push`: Commit `f4587c2` enviado com sucesso para `origin/main`.
+- `gcloud run deploy mytts`: Executado para publicação da nova versão em produção.
 
 ## Próxima Ação Recomendada
-- Apresentar o diagnóstico comparativo determinístico, o diagrama Mermaid e o resumo executivo das alterações visuais ao usuário.
+- Validar URL pública do Cloud Run após conclusão do deploy e apresentar os resultados das 7 frentes ao usuário.

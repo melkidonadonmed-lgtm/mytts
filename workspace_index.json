@@ -1,8 +1,8 @@
 {
   "version": "2026.1",
-  "generated_at": "2026-10-04T10:52:46.344058+00:00",
+  "generated_at": "2026-10-04T11:31:26.686705+00:00",
   "workspace_root": "C:\\Users\\melki\\Projetos\\mytts",
-  "tree_hash": "5150d0c6289f38bd",
+  "tree_hash": "b225f662b054b338",
   "stats": {
     "total_files": 108,
     "python_files": 0,
@@ -144,7 +144,7 @@
     },
     ".context/CURRENT_STATE.md": {
       "extension": ".md",
-      "size_bytes": 3022,
+      "size_bytes": 3523,
       "headings": [
         "# Estado Atual do Workspace (mytts)",
         "## Fase Atual"
@@ -160,7 +160,7 @@
     },
     ".context/SESSION_LOG.md": {
       "extension": ".md",
-      "size_bytes": 1922,
+      "size_bytes": 2191,
       "headings": [
         "# Log de Sessão (mytts)",
         "## Data e Hora"
@@ -304,13 +304,13 @@
       "extension": ".html",
       "size_bytes": 1946
     },
-    "dist/assets/index-BZzSlnkK.js": {
+    "dist/assets/index-Cct4Ddsn.js": {
       "extension": ".js",
-      "size_bytes": 564717
+      "size_bytes": 566226
     },
-    "dist/assets/index-N_NMlYM9.css": {
+    "dist/assets/index-DpKiv305.css": {
       "extension": ".css",
-      "size_bytes": 90281
+      "size_bytes": 90503
     },
     "docs/superpowers/plans/2026-10-01-unified-studio-flow.md": {
       "extension": ".md",
@@ -332,11 +332,11 @@
     },
     "src/App.tsx": {
       "extension": ".tsx",
-      "size_bytes": 18107
+      "size_bytes": 18202
     },
     "src/index.css": {
       "extension": ".css",
-      "size_bytes": 12641
+      "size_bytes": 16597
     },
     "src/main.tsx": {
       "extension": ".tsx",
@@ -348,7 +348,7 @@
     },
     "src/components/ArchetypeBar.tsx": {
       "extension": ".tsx",
-      "size_bytes": 2806
+      "size_bytes": 3169
     },
     "src/components/ArchitectureModal.tsx": {
       "extension": ".tsx",
@@ -356,7 +356,7 @@
     },
     "src/components/BottomAudioDock.tsx": {
       "extension": ".tsx",
-      "size_bytes": 49784
+      "size_bytes": 50820
     },
     "src/components/ChunkActionMenu.tsx": {
       "extension": ".tsx",
@@ -364,11 +364,11 @@
     },
     "src/components/CommandPaletteModal.tsx": {
       "extension": ".tsx",
-      "size_bytes": 12929
+      "size_bytes": 13144
     },
     "src/components/DebateConfigPanel.tsx": {
       "extension": ".tsx",
-      "size_bytes": 17362
+      "size_bytes": 17257
     },
     "src/components/DocumentInputSection.tsx": {
       "extension": ".tsx",
@@ -424,11 +424,11 @@
     },
     "src/components/StudioWorkspace.tsx": {
       "extension": ".tsx",
-      "size_bytes": 29708
+      "size_bytes": 30080
     },
     "src/components/VoiceCardGrid.tsx": {
       "extension": ".tsx",
-      "size_bytes": 10568
+      "size_bytes": 10725
     },
     "src/components/VoiceLibraryModal.tsx": {
       "extension": ".tsx",
