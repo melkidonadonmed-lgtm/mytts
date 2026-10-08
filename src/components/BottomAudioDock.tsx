@@ -427,7 +427,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
     <aside 
       id="BottomAudioDock"
       aria-label="Controles de Reprodução de Áudio"
-      className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-2xl transition-all shadow-[0_-10px_30px_rgba(0,0,0,0.6)]"
+      className="fixed bottom-0 left-0 lg:left-72 right-0 z-30 dock-matte transition-all shadow-[0_-10px_30px_rgba(0,0,0,0.6)]"
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)' }}
     >
       <input

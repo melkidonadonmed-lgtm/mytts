@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
 
-  /* Paleta Mineral Melki Canônica (Substitui tons azulados por ardósia pura) */
+  /* Paleta Mineral Melki Canônica (Ardósia pura) */
   --color-slate-950: #090B0E;
   --color-slate-900: #11141A;
   --color-slate-850: #141820;
@@ -16,18 +18,14 @@
   --color-slate-200: #E2E8F0;
   --color-slate-100: #F8FAFC;
 
-  /* Âmbar de Estúdio Nobre (Ocre mineral aquecido, eliminando amarelo canário neon) */
+  /* Âmbar Mineral Nobre */
   --color-amber-500: #D97706;
   --color-amber-400: #E5A125;
   --color-amber-300: #FCD34D;
   --color-amber-200: #FDE68A;
 }
 
-:root {
-  color-scheme: dark;
-}
-
-/* Material Symbols Rounded Google Font configuration */
+/* Material Symbols Rounded Google Font */
 .material-symbols-rounded {
   font-family: 'Material Symbols Rounded', sans-serif;
   font-weight: normal;
@@ -47,248 +45,115 @@
 }
 
 /* ==========================================================================
-   DESIGN SYSTEM TÁTIL MELKI — ARQUÉTIPOS CANÔNICOS (2026)
+   DESIGN SYSTEM TÁTIL MELKI — TEMA BINÁRIO (DARK & LIGHT)
    ========================================================================== */
 
-/* 1. Tactile Matte Minimalist (Padrão Melki — Ardósia Fosca Refinada com Fundo Elevado) */
-:root,
-body,
-body[data-archetype="tactile-matte"] {
-  --bg-canvas: #12151D;
-  --bg-card: #1A202E;
-  --bg-card-hover: #222A3C;
-  --bg-surface-2: #263044;
-  --border-subtle: rgba(255, 255, 255, 0.12);
+/* 1. MODO ESCURO CANÔNICO (Padrão Melki) */
+:root {
+  color-scheme: dark;
+
+  --bg-canvas: #090b0e;
+  --bg-surface-0: #101520;
+  --bg-surface-1: #151b26;
+  --bg-surface-2: #1b2332;
+  --bg-surface-inset: #0c1017;
+  --bg-card: #131824;
+  --bg-card-hover: #1a2233;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-tactile: rgba(255, 255, 255, 0.12);
   --border-hover: rgba(255, 255, 255, 0.22);
-  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
-  --accent-primary: #3B82F6;
-  --accent-primary-hover: #60A5FA;
-  --accent-amber: #38BDF8;
-  --accent-amber-hover: #7DD3FC;
+  --border-rim-light: rgba(255, 255, 255, 0.14);
+  --border-focus: rgba(59, 130, 246, 0.5);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-on-accent: #ffffff;
+
+  --accent-primary: #2563eb;
+  --accent-primary-hover: #1d4ed8;
+  --accent-amber: #d97706;
+
+  /* Badges Dinâmicas */
+  --badge-blue-bg: rgba(37, 99, 235, 0.20);
+  --badge-blue-text: #93c5fd;
+  --badge-blue-border: rgba(37, 99, 235, 0.45);
+
+  --badge-green-bg: rgba(16, 185, 129, 0.20);
+  --badge-green-text: #6ee7b7;
+  --badge-green-border: rgba(16, 185, 129, 0.45);
+
+  --badge-amber-bg: rgba(217, 119, 6, 0.20);
+  --badge-amber-text: #fcd34d;
+  --badge-amber-border: rgba(217, 119, 6, 0.45);
+
+  --badge-purple-bg: rgba(139, 92, 246, 0.20);
+  --badge-purple-text: #c4b5fd;
+  --badge-purple-border: rgba(139, 92, 246, 0.45);
+
+  --code-color: #93c5fd;
+  --code-bg: rgba(37, 99, 235, 0.12);
+  --code-border: rgba(37, 99, 235, 0.3);
 }
 
-/* 2. The Deep Blue (#050A30 / #F4F6FC / #233DFF) */
-body[data-archetype="deep-blue"] {
-  --bg-canvas: #050A30;
-  --bg-card: #0D1645;
-  --bg-card-hover: #14205C;
-  --bg-surface-2: #162260;
-  --border-subtle: rgba(255, 255, 255, 0.14);
-  --border-hover: rgba(35, 61, 255, 0.5);
-  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.16);
-  --accent-primary: #233DFF;
-  --accent-primary-hover: #4D64FF;
-  --accent-amber: #233DFF;
-  --accent-amber-hover: #4D64FF;
-}
-
-body[data-archetype="deep-blue"] .bg-slate-950 {
-  background-color: #050A30 !important;
-}
-body[data-archetype="deep-blue"] .bg-slate-900,
-body[data-archetype="deep-blue"] .bg-slate-900\/80,
-body[data-archetype="deep-blue"] .bg-slate-900\/60,
-body[data-archetype="deep-blue"] .bg-slate-900\/90 {
-  background-color: #0D1645 !important;
-  border-color: rgba(35, 61, 255, 0.2) !important;
-}
-
-/* 3. Van Gogh's Dream (#042698 / #FDFEE9 / #9BD4E4 — Tema Claro Marfim) */
-body[data-archetype="vangogh"] {
-  --bg-canvas: #FDFEE9;
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #F8F9DF;
-  --bg-surface-2: #F2F4CE;
-  --border-subtle: rgba(4, 38, 152, 0.14);
-  --border-hover: rgba(4, 38, 152, 0.4);
-  --rim-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
-  --accent-primary: #042698;
-  --accent-primary-hover: #0735C9;
-  --accent-amber: #042698;
-  --accent-amber-hover: #0735C9;
+/* 2. MODO CLARO ERGONÔMICO (WCAG AAA - Alto Contraste Tipográfico) */
+[data-theme="light"] {
   color-scheme: light;
-  background-color: #FDFEE9 !important;
-  color: #042698 !important;
-}
 
-body[data-archetype="vangogh"] .bg-slate-950 {
-  background-color: #FDFEE9 !important;
-  color: #042698 !important;
-}
+  --bg-canvas: #f1f5f9;
+  --bg-surface-0: #ffffff;
+  --bg-surface-1: #ffffff;
+  --bg-surface-2: #edf1f7;
+  --bg-surface-inset: #e2e8f0;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
 
-body[data-archetype="vangogh"] .bg-slate-900,
-body[data-archetype="vangogh"] .bg-slate-900\/80,
-body[data-archetype="vangogh"] .bg-slate-900\/60,
-body[data-archetype="vangogh"] .bg-slate-900\/70,
-body[data-archetype="vangogh"] .bg-slate-900\/90 {
-  background-color: #FFFFFF !important;
-  color: #042698 !important;
-  border-color: rgba(4, 38, 152, 0.14) !important;
-  box-shadow: 0 1px 3px rgba(4, 38, 152, 0.06), 0 8px 20px -4px rgba(4, 38, 152, 0.06) !important;
-}
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-tactile: rgba(15, 23, 42, 0.15);
+  --border-hover: rgba(15, 23, 42, 0.30);
+  --border-rim-light: rgba(255, 255, 255, 0.95);
+  --border-focus: rgba(30, 64, 175, 0.5);
 
-body[data-archetype="vangogh"] .border-slate-800,
-body[data-archetype="vangogh"] .border-slate-800\/80,
-body[data-archetype="vangogh"] .border-slate-800\/90,
-body[data-archetype="vangogh"] .border-slate-800\/60 {
-  border-color: rgba(4, 38, 152, 0.14) !important;
-}
+  --text-primary: #0f172a; /* Slate 900 */
+  --text-secondary: #334155; /* Slate 700 - Contraste alto e nítido */
+  --text-tertiary: #475569; /* Slate 600 */
+  --text-on-accent: #ffffff;
 
-body[data-archetype="vangogh"] .text-white,
-body[data-archetype="vangogh"] .text-slate-100 {
-  color: #042698 !important;
-}
+  --accent-primary: #1e40af;
+  --accent-primary-hover: #1e3a8a;
+  --accent-amber: #92400e;
 
-body[data-archetype="vangogh"] .text-slate-200,
-body[data-archetype="vangogh"] .text-slate-300 {
-  color: #1B2A56 !important;
-}
+  /* Badges Alto Contraste no Modo Claro */
+  --badge-blue-bg: #e1ebfa;
+  --badge-blue-text: #173b75;
+  --badge-blue-border: #b7cdee;
 
-body[data-archetype="vangogh"] .text-slate-400 {
-  color: #455787 !important;
-}
+  --badge-green-bg: #dbf1e5;
+  --badge-green-text: #0e5b38;
+  --badge-green-border: #9ed4bc;
 
-body[data-archetype="vangogh"] .text-slate-500 {
-  color: #6B7B9E !important;
-}
+  --badge-amber-bg: #faeedb;
+  --badge-amber-text: #7c4404;
+  --badge-amber-border: #ebd0a0;
 
-body[data-archetype="vangogh"] textarea,
-body[data-archetype="vangogh"] input {
-  color: #042698 !important;
-}
+  --badge-purple-bg: #edeaf8;
+  --badge-purple-text: #2f2a73;
+  --badge-purple-border: #c8c5ed;
 
-body[data-archetype="vangogh"] .input-sunken {
-  background: #F4F5D8 !important;
-  border-color: rgba(4, 38, 152, 0.16) !important;
-  color: #042698 !important;
-  box-shadow: inset 1px 1px 3px rgba(4, 38, 152, 0.08), inset -1px -1px 1px rgba(255,255,255,0.9) !important;
-}
-
-body[data-archetype="vangogh"] .btn-matte-dark {
-  background: #F4F5D8 !important;
-  color: #1B2A56 !important;
-  border-color: rgba(4, 38, 152, 0.16) !important;
-}
-
-body[data-archetype="vangogh"] .btn-matte-dark:hover {
-  background: #E8EACB !important;
-  color: #042698 !important;
-}
-
-/* 4. Mermaid Lagoon (#051D40 / #145DA0 / #56AEFF / #B1D4E0) */
-body[data-archetype="mermaid"] {
-  --bg-canvas: #051D40;
-  --bg-card: #0A2B5E;
-  --bg-card-hover: #0E3675;
-  --bg-surface-2: #145DA0;
-  --border-subtle: rgba(86, 174, 255, 0.22);
-  --border-hover: rgba(86, 174, 255, 0.5);
-  --rim-light: inset 0 1px 0 0 rgba(177, 212, 224, 0.25);
-  --accent-primary: #56AEFF;
-  --accent-primary-hover: #82C4FF;
-  --accent-amber: #56AEFF;
-  --accent-amber-hover: #82C4FF;
-}
-
-body[data-archetype="mermaid"] .bg-slate-950 {
-  background-color: #051D40 !important;
-}
-body[data-archetype="mermaid"] .bg-slate-900,
-body[data-archetype="mermaid"] .bg-slate-900\/80,
-body[data-archetype="mermaid"] .bg-slate-900\/60,
-body[data-archetype="mermaid"] .bg-slate-900\/90 {
-  background-color: #0A2B5E !important;
-  border-color: rgba(86, 174, 255, 0.2) !important;
-}
-
-/* 5. Cotton Dandelions (#2A3B19 / #E6E7E2 / #A4B792 / #3D5919) */
-body[data-archetype="cotton-dandelions"] {
-  --bg-canvas: #1B2612;
-  --bg-card: #2A3B19;
-  --bg-card-hover: #354B20;
-  --bg-surface-2: #3D5919;
-  --border-subtle: rgba(164, 183, 146, 0.25);
-  --border-hover: rgba(164, 183, 146, 0.5);
-  --rim-light: inset 0 1px 0 0 rgba(230, 231, 226, 0.15);
-  --accent-primary: #A4B792;
-  --accent-primary-hover: #BFCEB0;
-  --accent-amber: #A4B792;
-  --accent-amber-hover: #BFCEB0;
-}
-
-body[data-archetype="cotton-dandelions"] .bg-slate-950 {
-  background-color: #1B2612 !important;
-}
-body[data-archetype="cotton-dandelions"] .bg-slate-900,
-body[data-archetype="cotton-dandelions"] .bg-slate-900\/80,
-body[data-archetype="cotton-dandelions"] .bg-slate-900\/60,
-body[data-archetype="cotton-dandelions"] .bg-slate-900\/90 {
-  background-color: #2A3B19 !important;
-  border-color: rgba(164, 183, 146, 0.22) !important;
-}
-
-/* 6. Ocean Window (#21568A / #1D97BD / #57697D / #C7CDC0) */
-body[data-archetype="ocean-window"] {
-  --bg-canvas: #141C26;
-  --bg-card: #1B426B;
-  --bg-card-hover: #21568A;
-  --bg-surface-2: #2D68A1;
-  --border-subtle: rgba(29, 151, 189, 0.28);
-  --border-hover: rgba(29, 151, 189, 0.55);
-  --rim-light: inset 0 1px 0 0 rgba(199, 205, 192, 0.25);
-  --accent-primary: #1D97BD;
-  --accent-primary-hover: #3EC3EC;
-  --accent-amber: #1D97BD;
-  --accent-amber-hover: #3EC3EC;
-}
-
-body[data-archetype="ocean-window"] .bg-slate-950 {
-  background-color: #141C26 !important;
-}
-body[data-archetype="ocean-window"] .bg-slate-900,
-body[data-archetype="ocean-window"] .bg-slate-900\/80,
-body[data-archetype="ocean-window"] .bg-slate-900\/60,
-body[data-archetype="ocean-window"] .bg-slate-900\/90 {
-  background-color: #1B426B !important;
-  border-color: rgba(29, 151, 189, 0.25) !important;
-}
-
-/* 7. Nightfall Ambiance (#000B26 / #094886 / #2479DF / #73BBEE / #B4DFFC) */
-body[data-archetype="nightfall-ambiance"] {
-  --bg-canvas: #000B26;
-  --bg-card: #063360;
-  --bg-card-hover: #094886;
-  --bg-surface-2: #12559C;
-  --border-subtle: rgba(115, 187, 238, 0.25);
-  --border-hover: rgba(36, 121, 223, 0.6);
-  --rim-light: inset 0 1px 0 0 rgba(180, 223, 252, 0.2);
-  --accent-primary: #2479DF;
-  --accent-primary-hover: #529BEE;
-  --accent-amber: #73BBEE;
-  --accent-amber-hover: #9ED4FB;
-}
-
-body[data-archetype="nightfall-ambiance"] .bg-slate-950 {
-  background-color: #000B26 !important;
-}
-body[data-archetype="nightfall-ambiance"] .bg-slate-900,
-body[data-archetype="nightfall-ambiance"] .bg-slate-900\/80,
-body[data-archetype="nightfall-ambiance"] .bg-slate-900\/60,
-body[data-archetype="nightfall-ambiance"] .bg-slate-900\/90 {
-  background-color: #063360 !important;
-  border-color: rgba(115, 187, 238, 0.25) !important;
+  --code-color: #173b75;
+  --code-bg: #e8eef8;
+  --code-border: #c6d6ee;
 }
 
 @layer base {
   body {
     font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    scrollbar-color: rgba(51, 65, 85, 0.4) rgba(2, 6, 23, 0.8);
-    scrollbar-width: thin;
     background-color: var(--bg-canvas);
-    transition: background-color 0.25s ease, color 0.25s ease;
+    color: var(--text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
   
-  /* Headlines com Outfit para visual editorial premium */
   h1, h2, h3, h4 {
     font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
     text-wrap: balance;
@@ -305,59 +170,119 @@ body[data-archetype="nightfall-ambiance"] .bg-slate-900\/90 {
   }
 }
 
-/* 1. Cartão com Acabamento Mate Aveludado (Ardósia Mineral Sólida) */
+/* Tipografia Semântica Determinística Tátil Melki */
+.text-primary {
+  color: var(--text-primary) !important;
+}
+
+.text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+.text-tertiary {
+  color: var(--text-tertiary) !important;
+}
+
+/* ==========================================================================
+   COMPONENTES TÁTEIS UNIVERSAIS (ADAPTÁVEIS A AMBOS OS TEMAS)
+   ========================================================================== */
+
+/* Cartão com Acabamento Mate */
 .card-matte {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid var(--border-rim-light);
+  border-radius: 1rem;
   box-shadow: 
-    0 1px 2px 0 rgba(0, 0, 0, 0.4),
-    0 8px 24px -4px rgba(0, 0, 0, 0.6),
-    var(--rim-light);
+    0 1px 2px 0 rgba(0, 0, 0, 0.05),
+    0 8px 24px -4px rgba(0, 0, 0, 0.12);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.card-matte:hover {
-  border-color: var(--border-hover);
-  border-top-color: rgba(255, 255, 255, 0.18);
+:root .card-matte {
   box-shadow: 
-    0 2px 6px 0 rgba(0, 0, 0, 0.45),
-    0 12px 28px -4px rgba(0, 0, 0, 0.7),
-    var(--rim-light);
+    0 1px 2px 0 rgba(0, 0, 0, 0.4),
+    0 8px 24px -4px rgba(0, 0, 0, 0.6),
+    var(--border-rim-light);
 }
 
+:root .card-matte:hover {
+  border-color: var(--border-hover);
+  box-shadow: 
+    0 2px 6px 0 rgba(0, 0, 0, 0.45),
+    0 12px 28px -4px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] .card-matte {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 
+    0 1px 3px rgba(15, 23, 42, 0.05),
+    0 4px 14px -2px rgba(15, 23, 42, 0.07) !important;
+}
+
+[data-theme="light"] .card-matte:hover {
+  border-color: #94a3b8 !important;
+  box-shadow: 
+    0 2px 6px rgba(15, 23, 42, 0.08),
+    0 10px 24px -3px rgba(15, 23, 42, 0.1) !important;
+}
+
+/* Card Ativo / Selecionado */
 .card-matte-active {
   background: var(--bg-surface-2);
   border: 1px solid rgba(59, 130, 246, 0.45);
   border-top: 1px solid rgba(96, 165, 250, 0.65);
+  border-radius: 1rem;
   box-shadow: 
     0 0 0 1px rgba(59, 130, 246, 0.25),
-    0 8px 24px -4px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+    0 8px 24px -4px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .card-matte-active {
+  background: #f8fafc !important;
+  border: 1px solid #2563eb !important;
+  box-shadow: 
+    0 0 0 1px rgba(37, 99, 235, 0.35),
+    0 4px 16px -2px rgba(37, 99, 235, 0.12) !important;
 }
 
 /* Cavidade Tátil / Input Sunken (Search, Textareas, Filters) */
 .input-sunken {
-  background: var(--bg-canvas, #12151D);
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  background: var(--bg-surface-inset);
+  border: 1px solid var(--border-tactile);
   border-radius: 0.75rem;
   padding: 0.5rem 0.875rem;
-  color: #F8FAFC;
-  box-shadow: 
-    inset 1px 1px 3px 0 rgba(0, 0, 0, 0.6),
-    inset -1px -1px 1px 0 rgba(255, 255, 255, 0.02);
+  color: var(--text-primary);
   outline: none;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.input-sunken:focus {
-  border-color: rgba(59, 130, 246, 0.6);
+:root .input-sunken {
   box-shadow: 
     inset 1px 1px 3px 0 rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(59, 130, 246, 0.3);
+    inset -1px -1px 1px 0 rgba(255, 255, 255, 0.02);
 }
 
-/* 2. Botões Táteis com Acabamento Mate e Tipografia Nítida */
+[data-theme="light"] .input-sunken {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: inset 1px 1px 3px rgba(15, 23, 42, 0.08) !important;
+}
+
+.input-sunken:focus {
+  border-color: var(--border-focus);
+}
+
+[data-theme="light"] .input-sunken:focus {
+  border-color: #1e40af !important;
+  box-shadow: 
+    inset 1px 1px 3px rgba(15, 23, 42, 0.08),
+    0 0 0 2px rgba(30, 64, 175, 0.2) !important;
+}
+
+/* Botões Táteis com Acabamento Mate */
 .btn-matte {
   position: relative;
   display: inline-flex;
@@ -371,111 +296,106 @@ body[data-archetype="nightfall-ambiance"] .bg-slate-900\/90 {
   transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   cursor: pointer;
   user-select: none;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 .btn-matte:active {
   transform: translateY(1px);
 }
 
-/* Botão Primário Mineral Neutro (Substitui Laranja Estridente) */
+/* Botão Primário Mineral */
 .btn-matte-primary {
-  background: #222C3E;
-  color: #FFFFFF !important;
+  background: #1e3a6e;
+  color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-top: 1px solid rgba(255, 255, 255, 0.28);
   box-shadow: 
     inset 0 1px 0 0 rgba(255, 255, 255, 0.20),
     0 2px 6px 0 rgba(0, 0, 0, 0.35);
-  font-weight: 600;
-  font-family: 'Inter', system-ui, sans-serif !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 .btn-matte-primary:hover {
-  background: #2D3A52;
-  border-color: rgba(255, 255, 255, 0.24);
-  color: #FFFFFF !important;
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
-    0 4px 12px 0 rgba(0, 0, 0, 0.45);
+  background: #254b8c;
+  color: #ffffff !important;
 }
 
-.btn-matte-primary:active {
-  background: #1A2230;
-  transform: translateY(1px);
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+[data-theme="light"] .btn-matte-primary {
+  background: #1e40af !important;
+  color: #ffffff !important;
+  border: 1px solid #1e3a8a !important;
+  box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25) !important;
 }
 
-/* Alias neutro para componentes legados (elimina o laranja em toda a aplicação) */
-.btn-matte-amber {
-  background: #222C3E;
-  color: #FFFFFF !important;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-top: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.20),
-    0 2px 6px 0 rgba(0, 0, 0, 0.35);
-  font-weight: 600;
-  font-family: 'Inter', system-ui, sans-serif !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+[data-theme="light"] .btn-matte-primary:hover {
+  background: #1e3a8a !important;
 }
 
-.btn-matte-amber:hover {
-  background: #2D3A52;
-  border-color: rgba(255, 255, 255, 0.24);
-  color: #FFFFFF !important;
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
-    0 4px 12px 0 rgba(0, 0, 0, 0.45);
-}
-
-.btn-matte-amber:active {
-  background: #1A2230;
-  transform: translateY(1px);
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
-}
-
+/* Botão Secundário / Dark */
 .btn-matte-dark {
-  background: #181E2B;
-  color: #CBD5E1;
+  background: #181f2c;
+  color: #cbd5e1;
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-top: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
-    0 1px 2px 0 rgba(0, 0, 0, 0.25);
-  font-family: 'Inter', system-ui, sans-serif !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 .btn-matte-dark:hover {
-  background: #21293B;
-  color: #F8FAFC;
-  border-color: rgba(255, 255, 255, 0.18);
+  background: #20293a;
+  color: #f8fafc;
 }
 
-.btn-matte-dark:active {
-  background: #11151E;
-  transform: translateY(1px);
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+[data-theme="light"] .btn-matte-dark {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
 }
 
-/* 3. Dock Flutuante Mate */
+[data-theme="light"] .btn-matte-dark:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Botão Âmbar Mineral */
+.btn-matte-amber {
+  background: #854d0e;
+  color: #ffffff !important;
+  border: 1px solid #a16207;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.btn-matte-amber:hover {
+  background: #a16207;
+}
+
+[data-theme="light"] .btn-matte-amber {
+  background: #92400e !important;
+  color: #ffffff !important;
+  border: 1px solid #78350f !important;
+  box-shadow: 0 2px 5px rgba(146, 64, 14, 0.25) !important;
+}
+
+[data-theme="light"] .btn-matte-amber:hover {
+  background: #78350f !important;
+}
+
+/* Docks Flutuantes */
 .dock-matte {
-  background: var(--bg-card, #1A202E);
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--bg-card);
+  border: 1px solid var(--border-tactile);
+  border-top: 1px solid var(--border-rim-light);
+  border-radius: 1rem;
   box-shadow: 
     0 4px 6px -1px rgba(0, 0, 0, 0.4),
     0 16px 36px -4px rgba(0, 0, 0, 0.7);
 }
 
-/* 4. Scrubber Range Slider Mate */
+[data-theme="light"] .dock-matte {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Scrubber / Slider de Áudio */
 .slider-matte {
   -webkit-appearance: none;
   appearance: none;
@@ -487,48 +407,249 @@ body[data-archetype="nightfall-ambiance"] .bg-slate-900\/90 {
   transition: all 0.15s ease;
 }
 
+[data-theme="light"] .slider-matte {
+  background: #cbd5e1 !important;
+}
+
 .slider-matte::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
   height: 14px;
   border-radius: 9999px;
-  background: #38BDF8;
-  border: 2px solid #0F172A;
+  background: #38bdf8;
+  border: 2px solid #0f172a;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
 
-.slider-matte::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
+[data-theme="light"] .slider-matte::-webkit-slider-thumb {
+  background: #1e40af !important;
+  border: 2px solid #ffffff !important;
 }
 
-.slider-matte::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  background: #38BDF8;
-  border: 2px solid #0F172A;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-  transition: transform 0.15s ease;
+/* ==========================================================================
+   REGRAS GLOBAIS DE ELEVAÇÃO E TIPOGRAFIA PARA MODO CLARO (WCAG AAA)
+   ========================================================================== */
+
+[data-theme="light"] {
+  background-color: var(--bg-canvas) !important;
+  color: var(--text-primary) !important;
 }
 
-.slider-matte::-moz-range-thumb:hover {
-  transform: scale(1.15);
+[data-theme="light"] body {
+  background-color: var(--bg-canvas) !important;
+  color: var(--text-primary) !important;
 }
 
-/* View Transitions API: Reduced motion guard */
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
+/* Containers estruturais */
+[data-theme="light"] .bg-slate-950 {
+  background-color: var(--bg-canvas) !important;
 }
 
-/* Custom dark scrollbar (Webkit fallback) */
+[data-theme="light"] aside,
+[data-theme="light"] .bg-slate-950\/90,
+[data-theme="light"] .bg-slate-950\/80,
+[data-theme="light"] .bg-slate-950\/70,
+[data-theme="light"] .bg-slate-950\/60 {
+  background-color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-slate-900,
+[data-theme="light"] .bg-slate-900\/90,
+[data-theme="light"] .bg-slate-900\/80,
+[data-theme="light"] .bg-slate-900\/70,
+[data-theme="light"] .bg-slate-900\/60,
+[data-theme="light"] .bg-slate-900\/50,
+[data-theme="light"] .bg-slate-900\/40 {
+  background-color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-slate-800,
+[data-theme="light"] .bg-slate-850 {
+  background-color: #edf1f7 !important;
+}
+
+/* Linhas divisórias e bordas */
+[data-theme="light"] .border-slate-800,
+[data-theme="light"] .border-slate-800\/90,
+[data-theme="light"] .border-slate-800\/80,
+[data-theme="light"] .border-slate-800\/70,
+[data-theme="light"] .border-slate-800\/60,
+[data-theme="light"] .border-slate-700,
+[data-theme="light"] .border-slate-700\/80 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Preservação incondicional de texto e ícones brancos em botões coloridos/primários e badges escuros */
+.btn-matte-primary,
+.btn-matte-primary *,
+.btn-matte-amber,
+.btn-matte-amber *,
+.btn-matte-accent,
+.btn-matte-accent *,
+.bg-rose-500,
+.bg-rose-500 *,
+.bg-rose-600,
+.bg-rose-600 *,
+.bg-amber-500,
+.bg-amber-500 *,
+.bg-amber-600,
+.bg-amber-600 *,
+.bg-blue-600,
+.bg-blue-600 *,
+.bg-sky-600,
+.bg-sky-600 *,
+.bg-emerald-600,
+.bg-emerald-600 *,
+[data-theme="light"] .btn-matte-primary,
+[data-theme="light"] .btn-matte-primary *,
+[data-theme="light"] .btn-matte-amber,
+[data-theme="light"] .btn-matte-amber *,
+[data-theme="light"] .btn-matte-accent,
+[data-theme="light"] .btn-matte-accent *,
+[data-theme="light"] .bg-rose-500,
+[data-theme="light"] .bg-rose-500 *,
+[data-theme="light"] .bg-rose-600,
+[data-theme="light"] .bg-rose-600 *,
+[data-theme="light"] .bg-amber-500,
+[data-theme="light"] .bg-amber-500 *,
+[data-theme="light"] .bg-amber-600,
+[data-theme="light"] .bg-amber-600 *,
+[data-theme="light"] .bg-blue-600,
+[data-theme="light"] .bg-blue-600 *,
+[data-theme="light"] .bg-sky-600,
+[data-theme="light"] .bg-sky-600 *,
+[data-theme="light"] .bg-emerald-600,
+[data-theme="light"] .bg-emerald-600 *,
+[data-theme="light"] .card-matte-active .btn-matte-primary,
+[data-theme="light"] .card-matte-active .btn-matte-primary * {
+  color: #ffffff !important;
+}
+
+/* Tipografia de Alto Contraste no Modo Claro (Anti-desbotamento WCAG AAA) */
+[data-theme="light"] .text-white:not(.btn-matte-primary):not(.btn-matte-primary *):not(.btn-matte-amber):not(.btn-matte-amber *):not(.btn-matte-accent):not(.btn-matte-accent *):not(.bg-rose-500):not(.bg-rose-500 *):not(.bg-amber-500):not(.bg-amber-500 *):not(.bg-blue-600):not(.bg-blue-600 *):not(.bg-sky-600):not(.bg-sky-600 *),
+[data-theme="light"] .text-slate-100 {
+  color: #0f172a !important; /* Slate 900 - Contraste > 14:1 */
+}
+
+[data-theme="light"] .text-slate-200,
+[data-theme="light"] .text-slate-300 {
+  color: #1e293b !important; /* Slate 800 - Contraste > 11:1 */
+}
+
+[data-theme="light"] .text-slate-400 {
+  color: #334155 !important; /* Slate 700 - Contraste > 8:1 */
+}
+
+[data-theme="light"] .text-slate-500 {
+  color: #475569 !important; /* Slate 600 - Contraste > 6:1 */
+}
+
+/* Acentos de cores, badges e links no Modo Claro (Anti-pastel, WCAG AAA) */
+[data-theme="light"] .text-sky-200,
+[data-theme="light"] .text-sky-300,
+[data-theme="light"] .text-sky-400 {
+  color: #1e40af !important; /* Deep Blue - Contraste > 7:1 */
+}
+
+[data-theme="light"] .text-amber-200,
+[data-theme="light"] .text-amber-300,
+[data-theme="light"] .text-amber-400 {
+  color: #92400e !important; /* Deep Amber - Contraste > 7:1 */
+}
+
+[data-theme="light"] .text-amber-400\/80,
+[data-theme="light"] .text-amber-400\/90 {
+  color: #78350f !important; /* Deep Bronze */
+}
+
+[data-theme="light"] .text-emerald-200,
+[data-theme="light"] .text-emerald-300,
+[data-theme="light"] .text-emerald-400 {
+  color: #065f46 !important; /* Deep Emerald - Contraste > 7:1 */
+}
+
+[data-theme="light"] .text-rose-200,
+[data-theme="light"] .text-rose-300,
+[data-theme="light"] .text-rose-400 {
+  color: #9f1239 !important; /* Deep Rose - Contraste > 7:1 */
+}
+
+[data-theme="light"] .text-purple-200,
+[data-theme="light"] .text-purple-300,
+[data-theme="light"] .text-purple-400 {
+  color: #581c87 !important; /* Deep Purple - Contraste > 7:1 */
+}
+
+/* Badges e Chips no Modo Claro */
+[data-theme="light"] .bg-amber-500\/15,
+[data-theme="light"] .bg-amber-500\/10,
+[data-theme="light"] .bg-amber-400\/15,
+[data-theme="light"] .bg-amber-400\/10,
+[data-theme="light"] .bg-amber-400\/20 {
+  background-color: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #92400e !important;
+}
+
+[data-theme="light"] .bg-emerald-400\/10,
+[data-theme="light"] .bg-emerald-500\/10,
+[data-theme="light"] .bg-emerald-500\/15,
+[data-theme="light"] .bg-emerald-500\/20 {
+  background-color: #d1fae5 !important;
+  border-color: #6ee7b7 !important;
+  color: #065f46 !important;
+}
+
+[data-theme="light"] .bg-sky-500\/20,
+[data-theme="light"] .bg-sky-500\/15 {
+  background-color: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+  color: #0369a1 !important;
+}
+
+/* Alertas de erro e banners de aviso no Modo Claro */
+[data-theme="light"] .bg-rose-950,
+[data-theme="light"] .bg-rose-950\/60,
+[data-theme="light"] .bg-rose-950\/70,
+[data-theme="light"] .bg-rose-950\/80 {
+  background-color: #fff1f2 !important; /* Rose 50 */
+  border-color: #fecdd3 !important;     /* Rose 200 */
+  color: #9f1239 !important;            /* Rose 800 - Contraste > 7:1 */
+}
+
+/* Teclas KBD no Modo Claro */
+[data-theme="light"] kbd {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+/* Menus dropdown e selects no Modo Claro */
+[data-theme="light"] select {
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Entradas de texto */
+[data-theme="light"] textarea,
+[data-theme="light"] input {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] textarea::placeholder,
+[data-theme="light"] input::placeholder {
+  color: #64748b !important;
+}
+
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -538,11 +659,31 @@ body[data-archetype="nightfall-ambiance"] .bg-slate-900\/90 {
   background: rgba(15, 23, 42, 0.6);
 }
 
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
 ::-webkit-scrollbar-thumb {
   background: rgba(71, 85, 105, 0.4);
   border-radius: 9999px;
 }
 
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.7);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

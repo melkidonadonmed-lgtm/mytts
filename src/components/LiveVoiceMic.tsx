@@ -144,14 +144,14 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
       
       {/* Header */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold mb-3">
-          <Radio className="w-3.5 h-3.5 animate-pulse text-rose-400" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs font-semibold mb-3">
+          <Radio className="w-3.5 h-3.5 animate-pulse text-rose-600 dark:text-rose-400" />
           <span>Voz ao Vivo & Ditado Inteligente</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Grave sua voz e transcreva com IA
         </h1>
-        <p className="text-xs text-slate-400 mt-2 max-w-lg mx-auto">
+        <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 max-w-lg mx-auto">
           Fale livremente pelo microfone. O Gemini 3.8 pontua, corrige e estrutura sua fala automaticamente para ser lida por qualquer voz neural.
         </p>
       </div>
@@ -172,18 +172,18 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
             className={`relative z-10 w-28 h-28 rounded-full flex flex-col items-center justify-center shadow-2xl transition-all cursor-pointer active:scale-95 ${
               isRecording
                 ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/40 ring-4 ring-rose-400/30'
-                : 'bg-gradient-to-tr from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-500/30 ring-4 ring-amber-400/20'
+                : 'btn-matte btn-matte-amber text-white shadow-amber-500/30 ring-4 ring-amber-400/20'
             }`}
           >
             {isRecording ? (
               <>
-                <Square className="w-8 h-8 fill-current mb-1" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Parar</span>
+                <Square className="w-8 h-8 fill-current mb-1 text-white" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white">Parar</span>
               </>
             ) : (
               <>
-                <Mic className="w-8 h-8 mb-1" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Gravar</span>
+                <Mic className="w-8 h-8 mb-1 text-white" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white">Gravar</span>
               </>
             )}
           </button>
@@ -192,34 +192,34 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
         {/* Timer de Gravação */}
         <div className="mt-4 font-mono text-sm font-semibold">
           {isRecording ? (
-            <span className="text-rose-400 animate-pulse flex items-center gap-1.5">
+            <span className="text-rose-600 dark:text-rose-400 animate-pulse flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
               Gravando: {formatTimer(recordingSeconds)}
             </span>
           ) : isTranscribing ? (
-            <span className="text-amber-400 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 animate-spin" />
+            <span className="text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 animate-spin text-amber-500" />
               Transcrevendo com pontuação inteligente...
             </span>
           ) : (
-            <span className="text-slate-500">Clique para iniciar o microfone</span>
+            <span className="text-slate-600 dark:text-slate-500 font-medium">Clique para iniciar o microfone</span>
           )}
         </div>
       </div>
 
       {errorMessage && (
-        <div className="mb-4 p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-xs text-rose-200 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+        <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {/* Caixa de Transcrição Estruturada */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl flex flex-col gap-3">
+      <div className="rounded-2xl card-matte p-5 shadow-xl flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <h2 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <h2 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider font-mono">
               Texto Transcrito
             </h2>
           </div>
@@ -227,15 +227,15 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCopy}
-                className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
                 title="Copiar texto"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copiado' : 'Copiar'}</span>
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span className="font-medium">{copied ? 'Copiado' : 'Copiar'}</span>
               </button>
               <button
                 onClick={() => setTranscript('')}
-                className="text-xs text-slate-500 hover:text-rose-400 cursor-pointer transition-colors"
+                className="text-xs text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer transition-colors font-medium"
               >
                 Limpar
               </button>
@@ -243,9 +243,9 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
           )}
         </div>
 
-        <div className="min-h-[140px] max-h-72 overflow-y-auto p-4 rounded-xl bg-slate-950 border border-slate-800/80 text-sm text-slate-200 leading-relaxed whitespace-pre-wrap selection:bg-amber-500/20">
+        <div className="min-h-[140px] max-h-72 overflow-y-auto p-4 rounded-xl input-sunken text-sm text-slate-900 dark:text-slate-200 leading-relaxed whitespace-pre-wrap selection:bg-amber-500/20">
           {transcript || (
-            <span className="text-slate-600 italic">
+            <span className="text-slate-500 dark:text-slate-600 italic">
               O texto falado aparecerá aqui com parágrafos e pontuação gerados pelo Gemini...
             </span>
           )}
@@ -256,10 +256,10 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               onClick={() => onSendToReader(transcript)}
-              className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md active:scale-95"
+              className="btn-matte btn-matte-amber px-4 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md active:scale-95"
             >
               <span>Abrir no Leitor & Sintetizar</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 text-white" />
             </button>
           </div>
         )}

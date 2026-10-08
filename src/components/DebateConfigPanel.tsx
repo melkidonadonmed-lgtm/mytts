@@ -124,21 +124,21 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                 onClick={() => handleLanguageChange(lang.code)}
                 className={`relative min-h-[48px] w-full flex items-center justify-between px-3 py-2 rounded-xl border text-left transition-all active:translate-y-px cursor-pointer ${
                   isSelected
-                    ? 'border-sky-500/60 bg-sky-500/15 text-white shadow-sm ring-1 ring-sky-500/30'
-                    : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    ? 'border-sky-500/60 bg-sky-100 dark:bg-sky-500/15 text-sky-950 dark:text-white shadow-sm ring-1 ring-sky-500/30'
+                    : 'border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950/60 text-slate-700 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-700 hover:text-slate-950 dark:hover:text-slate-200'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="text-xl leading-none">{lang.flag}</span>
                   <div className="truncate">
-                    <p className={`text-xs font-semibold truncate ${isSelected ? 'text-sky-200' : 'text-slate-200'}`}>
+                    <p className={`text-xs font-semibold truncate ${isSelected ? 'text-sky-900 dark:text-sky-200' : 'text-slate-800 dark:text-slate-200'}`}>
                       {lang.nativeName}
                     </p>
-                    <p className="text-[10px] text-slate-400 truncate">{lang.name.split(' ')[0]}</p>
+                    <p className="text-[10px] text-slate-600 dark:text-slate-400 truncate">{lang.name.split(' ')[0]}</p>
                   </div>
                 </div>
                 {isSelected && (
-                  <Check className="h-4 w-4 text-sky-400 shrink-0 ml-1" />
+                  <Check className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 ml-1" />
                 )}
               </button>
             );
@@ -151,11 +151,11 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
         
         {/* Nível do Público */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5 font-sans">
-            <Gauge className="h-4 w-4 text-sky-400" />
+          <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 font-sans">
+            <Gauge className="h-4 w-4 text-sky-600 dark:text-sky-400" />
             <span>Nível do Público</span>
           </label>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-950/80 p-1 border border-slate-800">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 dark:bg-slate-950/80 p-1 border border-slate-300 dark:border-slate-800">
             {audienceLevels.map((lvl) => {
               const active = config.audienceLevel === lvl.id;
               return (
@@ -165,12 +165,12 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                   onClick={() => onChangeConfig({ ...config, audienceLevel: lvl.id })}
                   className={`min-h-[44px] flex flex-col items-center justify-center rounded-lg px-2 py-1 text-center transition-all active:translate-y-px cursor-pointer font-sans ${
                     active
-                      ? 'bg-sky-500/20 border border-sky-400/50 text-sky-200 font-bold shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-sky-100 dark:bg-sky-500/20 border border-sky-400/50 text-sky-900 dark:text-sky-200 font-bold shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
                   <span className="text-xs font-semibold leading-tight">{lvl.label}</span>
-                  <span className="text-[10px] text-slate-400 leading-tight">{lvl.shortDesc}</span>
+                  <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">{lvl.shortDesc}</span>
                 </button>
               );
             })}
@@ -179,11 +179,11 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
 
         {/* Tensão Dialética */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5 font-sans">
-            <Flame className="h-4 w-4 text-sky-400" />
+          <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 font-sans">
+            <Flame className="h-4 w-4 text-sky-600 dark:text-sky-400" />
             <span>Intensidade do Conflito</span>
           </label>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-950/80 p-1 border border-slate-800">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 dark:bg-slate-950/80 p-1 border border-slate-300 dark:border-slate-800">
             {tensionLevels.map((t) => {
               const active = config.tensionIntensity === t.id;
               return (
@@ -193,12 +193,12 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                   onClick={() => onChangeConfig({ ...config, tensionIntensity: t.id })}
                   className={`min-h-[44px] flex flex-col items-center justify-center rounded-lg px-2 py-1 text-center transition-all active:translate-y-px cursor-pointer font-sans ${
                     active
-                      ? 'bg-sky-500/20 border border-sky-400/50 text-sky-200 font-bold shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-sky-100 dark:bg-sky-500/20 border border-sky-400/50 text-sky-900 dark:text-sky-200 font-bold shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
                   <span className="text-xs font-semibold leading-tight">{t.label}</span>
-                  <span className="text-[10px] text-slate-400 leading-tight">{t.shortDesc}</span>
+                  <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">{t.shortDesc}</span>
                 </button>
               );
             })}

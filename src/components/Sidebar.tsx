@@ -2,7 +2,7 @@ import React from 'react';
 import { VoiceProfile } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
 
-export type AppTab = 'reader' | 'polyglot' | 'mic' | 'debate' | 'voices' | 'architecture';
+export type AppTab = 'reader' | 'polyglot' | 'mic' | 'voices' | 'architecture';
 
 interface SidebarProps {
   activeTab: AppTab;
@@ -12,6 +12,8 @@ interface SidebarProps {
   onToggleMobile: () => void;
   onOpenVoiceLibrary: () => void;
   onOpenCommandPalette?: () => void;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -22,6 +24,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleMobile,
   onOpenVoiceLibrary,
   onOpenCommandPalette,
+  theme = 'dark',
+  onToggleTheme,
 }) => {
   const navItems = [
     {
@@ -44,13 +48,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Ao Vivo',
       iconName: 'mic',
       description: 'Gravar fala e transcrever com IA',
-    },
-    {
-      id: 'debate' as AppTab,
-      label: 'Estúdio de Debate',
-      badge: '2 Vozes',
-      iconName: 'group',
-      description: 'Discussão dialética antagônica',
     },
     {
       id: 'voices' as AppTab,
@@ -80,19 +77,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="h-16 px-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl btn-matte-amber flex items-center justify-center text-slate-950 font-bold shadow-md shadow-amber-500/20">
-              <GoogleIcon name="auto_awesome" size={20} filled className="text-slate-950" />
+            <div className="w-9 h-9 rounded-xl btn-matte-amber flex items-center justify-center text-white font-bold shadow-md shadow-amber-500/20">
+              <GoogleIcon name="auto_awesome" size={20} filled className="text-white" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base tracking-tight text-white font-display">
+                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white font-display">
                   MyTTS
                 </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-bold">
                   Studio
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium">Áudio Neural com Emoção</p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Áudio Neural com Emoção</p>
             </div>
           </div>
 
@@ -109,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Voz Ativa em Destaque (Card Rápido Mate) */}
         <div className="p-3.5 mx-3 mt-3.5 rounded-2xl card-matte">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
+            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider font-mono">
               Voz Ativa
             </span>
             <button
@@ -118,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenVoiceLibrary();
                 if (isOpenMobile) onToggleMobile();
               }}
-              className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-0.5 cursor-pointer"
+              className="text-[11px] text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 font-bold flex items-center gap-0.5 cursor-pointer"
             >
               <span>Trocar</span>
               <GoogleIcon name="chevron_right" size={16} />
@@ -131,10 +128,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {selectedVoice.name[0]}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-xs font-bold text-slate-100 truncate font-display">
+              <h3 className="text-xs font-bold text-primary truncate font-display">
                 {selectedVoice.name}
               </h3>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className="text-[11px] text-secondary truncate">
                 {selectedVoice.archetype}
               </p>
             </div>
@@ -150,13 +147,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenCommandPalette();
                 if (isOpenMobile) onToggleMobile();
               }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-between text-xs transition-all cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <GoogleIcon name="search" size={16} className="text-amber-400" />
-                <span className="font-medium">Busca Rápida</span>
+                <GoogleIcon name="search" size={16} className="text-amber-500 dark:text-amber-400" />
+                <span className="font-medium text-secondary">Busca Rápida</span>
               </div>
-              <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">
+              <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded">
                 Ctrl K
               </kbd>
             </button>
@@ -177,35 +174,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className={`btn-matte w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
                   isActive
-                    ? 'card-matte-active text-white'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                    ? 'card-matte-active'
+                    : 'text-secondary hover:text-primary hover:bg-slate-500/10 border border-transparent'
                 }`}
               >
                 <div
                   className={`mt-0.5 p-2 rounded-xl transition-colors ${
                     isActive
-                      ? 'btn-matte-amber text-slate-950 font-bold shadow-md shadow-amber-900/20'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800'
+                      ? 'btn-matte-amber text-white font-bold shadow-md shadow-amber-900/20'
+                      : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-800'
                   }`}
                 >
-                  <GoogleIcon name={item.iconName} size={18} filled={isActive} />
+                  <GoogleIcon name={item.iconName} size={18} filled={isActive} className={isActive ? 'text-white' : undefined} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold font-display ${isActive ? 'text-white' : 'text-slate-200'}`}>
+                    <span className={`text-xs font-bold font-display ${isActive ? 'text-amber-800 dark:text-white font-extrabold' : 'text-primary'}`}>
                       {item.label}
                     </span>
                     <span
                       className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
                         isActive
-                          ? 'bg-amber-500/15 text-amber-300 border-amber-500/30 font-semibold'
-                          : 'bg-white/[0.04] text-slate-400 border-white/[0.08]'
+                          ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30 font-bold'
+                          : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 border-slate-300 dark:border-white/[0.08]'
                       }`}
                     >
                       {item.badge}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                  <p className="text-[11px] text-secondary mt-0.5 truncate">
                     {item.description}
                   </p>
                 </div>
@@ -216,6 +213,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Status e Footer da Sidebar */}
         <div className="p-3 border-t border-slate-800 space-y-2">
+          {/* Alternador de Tema Binário (Dark / Light) */}
+          {onToggleTheme && (
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="w-full min-h-[38px] px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs font-semibold cursor-pointer transition-all active:translate-y-px"
+              title="Alternar entre Modo Claro e Modo Escuro"
+            >
+              <div className="flex items-center gap-2">
+                <GoogleIcon
+                  name={theme === 'dark' ? 'light_mode' : 'dark_mode'}
+                  size={18}
+                  className="text-amber-400"
+                />
+                <span className="font-sans font-bold">
+                  {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/10 text-slate-300">
+                {theme === 'dark' ? 'Ativar Sol' : 'Ativar Noite'}
+              </span>
+            </button>
+          )}
+
           {/* Status do Modelo */}
           <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px]">
             <div className="flex items-center gap-1.5">

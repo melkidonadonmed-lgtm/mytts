@@ -65,12 +65,12 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
       aria-label="Ações para o trecho de texto"
     >
       {/* Cabeçalho do Trecho */}
-      <div className="flex items-center justify-between px-2 pt-0.5 pb-2 border-b border-slate-800 text-[11px] text-slate-400">
-        <span className="truncate font-medium text-slate-200">"{chunkText}"</span>
+      <div className="flex items-center justify-between px-2 pt-0.5 pb-2 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="truncate font-medium text-slate-900 dark:text-slate-200">"{chunkText}"</span>
         <button
           type="button"
           onClick={onClose}
-          className="text-slate-500 hover:text-slate-300 p-0.5 cursor-pointer ml-1 rounded-md hover:bg-slate-800"
+          className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 p-0.5 cursor-pointer ml-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
           aria-label="Fechar menu"
         >
           <GoogleIcon name="close" size={16} />
@@ -82,16 +82,16 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
         type="button"
         onClick={() => onPlayChunkAudio(chunkText, language)}
         disabled={isPlaying}
-        className="btn-matte btn-matte-dark w-full min-h-[38px] px-3 py-2 text-xs text-slate-200 justify-start"
+        className="btn-matte btn-matte-dark w-full min-h-[38px] px-3 py-2 text-xs text-slate-800 dark:text-slate-200 justify-start"
       >
         {isPlaying ? (
           <>
-            <GoogleIcon name="progress_activity" size={18} className="animate-spin text-amber-400" />
-            <span className="text-amber-300">Reproduzindo...</span>
+            <GoogleIcon name="progress_activity" size={18} className="animate-spin text-amber-500 dark:text-amber-400" />
+            <span className="text-amber-700 dark:text-amber-300">Reproduzindo...</span>
           </>
         ) : (
           <>
-            <GoogleIcon name="volume_up" size={18} className="text-amber-400" />
+            <GoogleIcon name="volume_up" size={18} className="text-amber-600 dark:text-amber-400" />
             <span>Ouvir Frase com Sotaque</span>
           </>
         )}
@@ -102,16 +102,16 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
         type="button"
         onClick={() => onCreateFlashcard(chunkText, language)}
         disabled={isGeneratingCard}
-        className="btn-matte btn-matte-amber w-full min-h-[38px] px-3 py-2 text-xs font-bold text-slate-950 justify-start"
+        className="btn-matte btn-matte-amber w-full min-h-[38px] px-3 py-2 text-xs font-bold text-white justify-start"
       >
         {isGeneratingCard ? (
           <>
-            <GoogleIcon name="progress_activity" size={18} className="animate-spin text-slate-950" />
+            <GoogleIcon name="progress_activity" size={18} className="animate-spin text-white" />
             <span>Gerando Card via Gemini 3.8...</span>
           </>
         ) : (
           <>
-            <GoogleIcon name="auto_awesome" size={18} filled className="text-slate-950" />
+            <GoogleIcon name="auto_awesome" size={18} filled className="text-white" />
             <span>Criar Flashcard para o Deck</span>
           </>
         )}
@@ -121,7 +121,7 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
       <button
         type="button"
         onClick={handleCopy}
-        className="btn-matte w-full min-h-[32px] px-3 py-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 text-[11px] justify-start"
+        className="btn-matte w-full min-h-[32px] px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-[11px] justify-start"
       >
         {copied ? (
           <>

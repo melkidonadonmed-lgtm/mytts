@@ -125,8 +125,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
 
       {/* 3. Error State */}
       {message.status === 'error' && (
-        <div className="bg-rose-950/60 border border-rose-800 text-rose-200 p-4 rounded-xl text-xs flex items-center gap-2.5">
-          <GoogleIcon name="error" size={20} className="text-rose-400 shrink-0" />
+        <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 p-4 rounded-xl text-xs flex items-center gap-2.5">
+          <GoogleIcon name="error" size={20} className="text-rose-600 dark:text-rose-400 shrink-0" />
           <span>{message.error || 'Falha ao processar os chunks paralelos desta mensagem.'}</span>
         </div>
       )}

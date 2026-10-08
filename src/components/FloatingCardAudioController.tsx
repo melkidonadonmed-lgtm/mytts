@@ -79,20 +79,20 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                   onClick={() => onSelectLanguage(lang)}
                   className={`btn-matte px-3 py-1.5 text-xs rounded-lg transition-all ${
                     isActive
-                      ? 'btn-matte-amber'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                      ? 'btn-matte-amber text-white font-bold'
+                      : 'text-secondary hover:text-primary hover:bg-slate-500/10'
                   }`}
                   title={`Focar áudio em ${meta.title}`}
                 >
                   <span className="text-sm leading-none">{meta.flag}</span>
                   <span>{meta.title}</span>
                   {isCachedByLang?.[lang] && !isActive && (
-                    <span className="text-[10px] text-emerald-400 font-mono font-bold leading-none" title="Áudio pronto no cache local (0ms)">
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold leading-none" title="Áudio pronto no cache local (0ms)">
                       ⚡
                     </span>
                   )}
                   {isActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-950 shrink-0 ml-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-white dark:bg-amber-200 shrink-0 ml-0.5" />
                   )}
                 </button>
               );
@@ -103,16 +103,16 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
           <div className="flex items-center gap-2">
             
             {/* Seletor de Voz */}
-            <div className="flex items-center gap-1.5 bg-slate-950/70 border border-slate-800/80 px-2.5 py-1 rounded-xl text-xs">
-              <GoogleIcon name="record_voice_over" size={16} className="text-amber-400/90" />
-              <span className="text-slate-400 text-[11px] hidden sm:inline">Voz:</span>
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-800/80 px-2.5 py-1 rounded-xl text-xs">
+              <GoogleIcon name="record_voice_over" size={16} className="text-amber-600 dark:text-amber-400/90" />
+              <span className="text-secondary text-[11px] hidden sm:inline">Voz:</span>
               <select
                 value={selectedVoice}
                 onChange={(e) => onChangeVoice(e.target.value)}
-                className="bg-transparent text-slate-200 font-medium text-xs focus:outline-none cursor-pointer pr-1"
+                className="bg-transparent text-primary font-semibold text-xs focus:outline-none cursor-pointer pr-1"
               >
                 {GEMINI_VOICES.map((v) => (
-                  <option key={v.name} value={v.name} className="bg-slate-900 text-slate-100">
+                  <option key={v.name} value={v.name} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                     {v.name} ({v.gender === 'male' ? 'M' : 'F'})
                   </option>
                 ))}
@@ -128,14 +128,14 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 title="Tocar os 3 idiomas ordenadamente (Inglês → Italiano → Japonês)"
                 className={`btn-matte px-2.5 py-1 text-xs rounded-xl border transition-all ${
                   isPlayingSequence
-                    ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse'
-                    : 'btn-matte-dark text-slate-300 hover:text-white'
+                    ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 animate-pulse font-bold'
+                    : 'btn-matte-dark text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                 }`}
               >
-                <GoogleIcon name="queue_music" size={16} className="text-amber-400" />
-                <span className="hidden md:inline">Ouvir Trilogia (EN→IT→JA)</span>
+                <GoogleIcon name="queue_music" size={16} className="text-amber-600 dark:text-amber-400" />
+                <span className="hidden md:inline font-medium">Ouvir Trilogia (EN→IT→JA)</span>
                 {isPlayingSequence && sequenceStep && (
-                  <span className="text-[10px] font-mono bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded font-bold">
+                  <span className="text-[10px] font-mono bg-amber-500 text-white px-1.5 py-0.2 rounded font-bold">
                     {sequenceStep}
                   </span>
                 )}
@@ -183,25 +183,25 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               type="button"
               onClick={onTogglePlay}
               disabled={isLoading}
-              className="btn-matte btn-matte-amber h-11 px-5 text-sm rounded-xl font-bold flex items-center gap-2"
+              className="btn-matte btn-matte-amber h-11 px-5 text-sm rounded-xl font-bold flex items-center gap-2 text-white"
               title={isPlaying ? 'Pausar áudio' : `Ouvir ${languageLabels[selectedLanguage].title}`}
             >
               {isLoading ? (
                 <>
-                  <GoogleIcon name="progress_activity" size={20} className="animate-spin text-slate-950" />
+                  <GoogleIcon name="progress_activity" size={20} className="animate-spin text-white" />
                   <span>Sintetizando...</span>
                 </>
               ) : isPlaying ? (
                 <>
-                  <GoogleIcon name="pause" size={20} filled className="text-slate-950" />
+                  <GoogleIcon name="pause" size={20} filled className="text-white" />
                   <span>Pausar</span>
                 </>
               ) : (
                 <>
-                  <GoogleIcon name="play_arrow" size={20} filled className="text-slate-950" />
+                  <GoogleIcon name="play_arrow" size={20} filled className="text-white" />
                   <span>Ouvir {languageLabels[selectedLanguage].title}</span>
                   {isCached && (
-                    <span className="text-[10px] font-mono bg-slate-950/20 text-slate-900 px-1.5 py-0.5 rounded font-bold">
+                    <span className="text-[10px] font-mono bg-white/20 text-white px-1.5 py-0.5 rounded font-bold">
                       ⚡ 0ms
                     </span>
                   )}
@@ -214,7 +214,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               type="button"
               onClick={onReplay}
               disabled={duration <= 0}
-              className="btn-matte btn-matte-dark h-11 w-11 rounded-xl text-slate-300 hover:text-white"
+              className="btn-matte btn-matte-dark h-11 w-11 rounded-xl text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white"
               title="Reiniciar áudio do início"
             >
               <GoogleIcon name="replay" size={20} />
@@ -227,17 +227,17 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               <button
                 type="button"
                 onClick={onOpenExport}
-                className="btn-matte btn-matte-dark h-9 px-3 rounded-xl text-xs text-amber-300 hover:text-white flex items-center gap-1.5 border border-amber-400/20 hover:border-amber-400/40 transition-all cursor-pointer"
+                className="btn-matte btn-matte-dark h-9 px-3 rounded-xl text-xs text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-white flex items-center gap-1.5 border border-amber-500/30 hover:border-amber-500/50 transition-all cursor-pointer font-medium"
                 title="Exportar Chunks desta interação (Anki, Markdown, JSON ou Deck)"
               >
-                <GoogleIcon name="download" size={16} className="text-amber-400" />
+                <GoogleIcon name="download" size={16} className="text-amber-600 dark:text-amber-400" />
                 <span>Exportar Chunks</span>
               </button>
             )}
 
             {/* Seletor Tátil de Velocidade */}
-            <div className="flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80">
-              <span className="text-[10px] font-mono uppercase text-slate-500 px-1 hidden sm:inline">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950/70 p-1 rounded-xl border border-slate-300 dark:border-slate-800/80">
+              <span className="text-[10px] font-mono uppercase text-slate-600 dark:text-slate-500 px-1 hidden sm:inline">
                 Velocidade:
               </span>
               {[0.8, 1.0, 1.25, 1.5].map((s) => (
@@ -247,8 +247,8 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                   onClick={() => onChangeSpeed(s)}
                   className={`btn-matte px-2 py-0.5 text-xs rounded-lg font-mono transition-all ${
                     speed === s
-                      ? 'btn-matte-amber'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'btn-matte-amber text-white font-bold'
+                      : 'text-secondary hover:text-primary'
                   }`}
                 >
                   {s}x

@@ -562,22 +562,22 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans">
+    <div className="flex-1 flex flex-col min-h-screen font-sans">
       
       {/* 1. Header Minimalista do Estúdio Poliglota */}
-      <header className="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 px-4 sm:px-6 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-20 dock-matte px-4 sm:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-400">
+          <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-500 dark:text-amber-400">
             <GoogleIcon name="translate" size={20} />
           </div>
           <div>
-            <h1 className="text-sm sm:text-base font-bold text-white flex items-center gap-2 font-display">
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 font-display">
               <span>Chat Poliglota Multimodal</span>
-              <span className="text-[10px] font-mono bg-emerald-400/10 text-emerald-300 border border-emerald-400/20 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
                 🇺🇸 EN • 🇮🇹 IT • 🇯🇵 JA
               </span>
             </h1>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">
               Tradução paralela em 3 línguas com controle de áudio individual e foco tátil
             </p>
           </div>
@@ -587,12 +587,12 @@ export const PolyglotChatStudio: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsDeckDrawerOpen(true)}
-          className="btn-matte btn-matte-dark px-3 py-1.5 text-xs text-slate-200"
+          className="btn-matte btn-matte-dark px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 font-medium"
           title="Ver Flashcards salvos"
         >
-          <GoogleIcon name="style" size={16} className="text-amber-400" />
+          <GoogleIcon name="style" size={16} className="text-amber-600 dark:text-amber-400" />
           <span>Meu Deck</span>
-          <span className="bg-amber-400 text-slate-950 font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono">
+          <span className="bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono">
             {deck.length}
           </span>
         </button>
@@ -600,9 +600,9 @@ export const PolyglotChatStudio: React.FC = () => {
 
       {/* 2. Toast de Feedback Suave */}
       {toastMessage && (
-        <div className="fixed top-16 right-4 z-40 bg-slate-900 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
-          <GoogleIcon name="check_circle" size={16} filled className="text-emerald-400" />
-          <span>{toastMessage}</span>
+        <div className="fixed top-16 right-4 z-40 bg-white dark:bg-slate-900 border border-emerald-500/40 text-emerald-800 dark:text-emerald-200 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
+          <GoogleIcon name="check_circle" size={16} filled className="text-emerald-500 dark:text-emerald-400" />
+          <span className="font-semibold">{toastMessage}</span>
         </div>
       )}
 

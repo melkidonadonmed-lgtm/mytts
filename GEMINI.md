@@ -26,7 +26,7 @@ O **MyTTS Studio** é uma plataforma fullstack projetada para oferecer síntese 
 
 | Comando | Descrição |
 | :--- | :--- |
-| `npm run dev` | Inicia o servidor Express em desenvolvimento com middleware do Vite (HMR ativo em `http://localhost:3000`). |
+| `npm run dev` | Inicia o servidor Express em desenvolvimento com middleware do Vite (HMR ativo em `http://localhost:3002`). |
 | `npm run build` | Compila o bundle de produção do cliente React via Vite para `dist/`. |
 | `npm start` | Inicia o servidor em modo de produção servindo os assets compilados em `dist/`. |
 | `npm run lint` | Executa a verificação estrita de tipagem TypeScript em todo o projeto (`tsc --noEmit`). |

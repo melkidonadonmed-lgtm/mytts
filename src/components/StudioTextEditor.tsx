@@ -268,7 +268,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
         {/* Indicador de Arquivo Carregado ou Botão Limpar */}
         <div className="flex items-center gap-2">
           {uploadedFileName && (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-[11px] text-emerald-300 font-medium">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800/80 text-[11px] text-emerald-900 dark:text-emerald-300 font-medium">
               <FileCheck2 className="w-3.5 h-3.5" />
               <span className="truncate max-w-[140px]">{uploadedFileName}</span>
             </div>
@@ -282,7 +282,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
                 else onChangeText('');
                 setUploadedFileName(null);
               }}
-              className="min-h-[40px] px-3 rounded-xl bg-slate-950 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-800 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+              className="min-h-[40px] px-3 rounded-xl btn-matte-dark text-slate-700 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
               title="Limpar editor"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -311,15 +311,15 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           onChange={(e) => onChangeText(e.target.value)}
           placeholder={placeholder}
           rows={7}
-          className="w-full p-4 sm:p-5 bg-transparent text-sm sm:text-base text-slate-100 placeholder-slate-500 focus:outline-none leading-relaxed resize-y selection:bg-amber-500/20"
+          className="w-full p-4 sm:p-5 bg-transparent text-sm sm:text-base text-slate-900 dark:text-slate-100 placeholder-slate-500 focus:outline-none leading-relaxed resize-y selection:bg-amber-500/20"
         />
 
         {/* Rodapé Informativo: Palavras e Estimativa de Minutos */}
-        <div className="px-4 py-2 border-t border-slate-800/60 bg-slate-950/60 flex items-center justify-between text-xs text-slate-400">
+        <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <BookOpen className="w-3.5 h-3.5 text-slate-500" />
-              {wordCount} palavras
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{wordCount}</span> palavras
             </span>
             <span>·</span>
             <span className="flex items-center gap-1 font-mono">
@@ -329,7 +329,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           </div>
 
           {isProcessing && (
-            <div className="flex items-center gap-1.5 text-amber-300 text-xs font-medium animate-pulse">
+            <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 text-xs font-medium animate-pulse">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               <span>{statusMessage || 'Processando com IA...'}</span>
             </div>
@@ -339,16 +339,16 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
 
       {/* Banners Rápidos de Feedback Temporário */}
       {feedback && (
-        <div className="p-2.5 rounded-xl bg-slate-900 border border-amber-500/30 text-xs text-amber-200 flex items-center gap-2 animate-in fade-in">
-          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>{feedback}</span>
+        <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-slate-900 border border-amber-300 dark:border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2 animate-in fade-in">
+          <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="font-medium">{feedback}</span>
         </div>
       )}
 
       {errorFeedback && (
-        <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-800 text-xs text-rose-200 flex items-center gap-2 animate-in fade-in">
-          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-          <span>{errorFeedback}</span>
+        <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-xs text-rose-900 dark:text-rose-200 flex items-center gap-2 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+          <span className="font-medium">{errorFeedback}</span>
         </div>
       )}
     </div>

@@ -130,15 +130,15 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
                 title="Clique para ouvir esta frase ou criar flashcard"
                 className={`cursor-pointer rounded-md px-1.5 py-0.5 transition-all duration-150 relative ${
                   isHovered
-                    ? 'bg-amber-400/20 text-amber-200 font-semibold ring-1 ring-amber-400/40 shadow-sm'
+                    ? 'bg-amber-100 text-amber-950 dark:bg-amber-400/20 dark:text-amber-200 font-semibold ring-1 ring-amber-400/50 shadow-sm'
                     : isSelected
-                    ? 'text-slate-100 hover:bg-slate-800/70'
-                    : 'text-slate-300 hover:bg-slate-800/60'
+                    ? 'text-primary font-semibold hover:bg-slate-500/10'
+                    : 'text-primary hover:bg-slate-500/10'
                 }`}
               >
                 <span>{chunkText}</span>
                 {languageCode === 'ja' && chunk.jaPronunciation && (
-                  <span className="block text-[10px] font-mono text-amber-400/80 -mt-0.5 tracking-tight pointer-events-none select-none">
+                  <span className="block text-[10px] font-mono text-amber-800 dark:text-amber-400 -mt-0.5 tracking-tight pointer-events-none select-none font-semibold">
                     {chunk.jaPronunciation}
                   </span>
                 )}

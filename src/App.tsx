@@ -23,6 +23,53 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
 
+  // Tema Binário Canônico (Dark / Light) com persistência
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('mytts_theme');
+      return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+    }
+    try {
+      localStorage.setItem('mytts_theme', theme);
+    } catch {}
+  }, [theme]);
+
+  // Listener para sincronizar tema caso seja alterado via CommandPaletteModal
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const saved = localStorage.getItem('mytts_theme');
+        if (saved === 'light' || saved === 'dark') {
+          setTheme(saved);
+        }
+      } catch {}
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('mytts-theme-change', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('mytts-theme-change', handleStorageChange);
+    };
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   // Atalho global Ctrl + K / Cmd + K para Command Palette Tátil
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -275,6 +322,8 @@ export default function App() {
         onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
         onOpenVoiceLibrary={() => setActiveTab('voices')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* 2. Área de Trabalho Principal (com margem para sidebar no desktop) */}
@@ -313,14 +362,14 @@ export default function App() {
         {/* Banner de Erro Global */}
         {globalError && (
           <div className="max-w-4xl mx-auto w-full px-4 pt-4">
-            <div className="bg-rose-950/80 border border-rose-800 text-rose-200 px-4 py-2.5 rounded-xl text-xs flex items-center justify-between shadow-lg">
+            <div className="bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 px-4 py-2.5 rounded-xl text-xs flex items-center justify-between shadow-lg">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                 <span>{globalError}</span>
               </div>
               <button
                 onClick={() => setGlobalError(null)}
-                className="text-rose-400 hover:text-white font-mono text-[11px] cursor-pointer"
+                className="text-rose-700 hover:text-rose-900 dark:text-rose-400 dark:hover:text-white font-mono text-[11px] cursor-pointer"
               >
                 dispensar
               </button>
@@ -379,55 +428,10 @@ export default function App() {
             />
           )}
 
-          {/* Módulo 4: Estúdio de Debate com 2 Vozes */}
-          {activeTab === 'debate' && (
-            <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-36 flex flex-col gap-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-                    Estúdio de Debate Dialético (2 Vozes)
-                  </h1>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Crie discussões estimulantes e embates de ideias a partir de documentos.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-xl">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Dual Speaker TTS (Kore & Puck)</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <div className="lg:col-span-5 flex flex-col gap-6">
-                  <DocumentInputSection
-                    currentLanguage={config.language}
-                    textInput={documentText}
-                    onChangeText={setDocumentText}
-                    onGenerateDebate={handleGenerateDebate}
-                    isGenerating={isGenerating}
-                  />
-                  <DebateConfigPanel config={config} onChangeConfig={setConfig} />
-                </div>
-
-                <div className="lg:col-span-7 flex flex-col gap-4">
-                  <ScriptViewer
-                    script={script}
-                    currentTurnIndex={playerCurrentTurn}
-                    isPlaying={isPlaying}
-                    onPlayTurn={(idx) => player.play(idx)}
-                    onSynthesizeTurn={handleSynthesizeSingleTurn}
-                    onUpdateTurnText={handleUpdateTurnText}
-                    isSynthesizing={isSynthesizing}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
         </main>
 
-        {/* Dock de Áudio Inferior (Exibido no modo Debate ou com roteiro ativo no Leitor) */}
-        {(activeTab === 'debate' || (Boolean(script?.turns?.length) && activeTab === 'reader')) && (
+        {/* Dock de Áudio Inferior (Exibido com roteiro ativo no Leitor / Debate) */}
+        {(Boolean(script?.turns?.length) && activeTab === 'reader') && (
           <BottomAudioDock
             player={player}
             script={script}

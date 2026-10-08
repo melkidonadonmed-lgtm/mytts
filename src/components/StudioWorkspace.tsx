@@ -19,7 +19,6 @@ import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 import { VoiceCardGrid } from './VoiceCardGrid';
 import { StudioTextEditor } from './StudioTextEditor';
 import { ScriptViewer } from './ScriptViewer';
-import { ArchetypeBar, ArchetypeId } from './ArchetypeBar';
 
 export type StudioMode = 'solo' | 'debate';
 export type CalibrationPreset = 'natural' | 'storytelling' | 'technical' | 'spontaneous';
@@ -57,19 +56,6 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   onUpdateTurnText,
 }) => {
   const [mode, setMode] = useState<StudioMode>('solo');
-  const [currentArchetype, setCurrentArchetype] = useState<ArchetypeId>(() => {
-    return (localStorage.getItem('mytts_archetype') as ArchetypeId) || 'tactile-matte';
-  });
-
-  const handleSelectArchetype = (id: ArchetypeId) => {
-    setCurrentArchetype(id);
-    document.body.setAttribute('data-archetype', id);
-    localStorage.setItem('mytts_archetype', id);
-  };
-
-  useEffect(() => {
-    document.body.setAttribute('data-archetype', currentArchetype);
-  }, [currentArchetype]);
 
   // Calibrações Solo
   const [calibration, setCalibration] = useState<CalibrationPreset>('natural');
@@ -295,22 +281,16 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   return (
     <div className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 py-6 pb-36 gap-6">
       
-      {/* 0. Barra Superior de Arquétipos Visuais Tátil Melki (5 Estilos Canônicos) */}
-      <ArchetypeBar
-        currentArchetype={currentArchetype}
-        onSelectArchetype={handleSelectArchetype}
-      />
-
       {/* 1. Header do Estúdio e Seletor de Modo Hero */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800/80">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <span>Estúdio de Criação de Áudio</span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-bold">
               Gemini 3.1 Flash TTS
             </span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             Cole um texto ou suba um arquivo. Escolha entre leitura solo de estúdio ou debate com 2 vozes.
           </p>
         </div>
@@ -323,7 +303,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             className={`min-h-[44px] px-4 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
               mode === 'solo'
                 ? 'btn-matte-primary text-white shadow-md ring-1 ring-sky-400/40'
-                : 'text-slate-400 hover:text-white'
+                : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
             }`}
           >
             <Headphones className="w-4 h-4" />
@@ -336,7 +316,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             className={`min-h-[44px] px-4 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
               mode === 'debate'
                 ? 'btn-matte-primary text-white shadow-md ring-1 ring-sky-400/40'
-                : 'text-slate-400 hover:text-white'
+                : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -371,19 +351,19 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 {selectedVoice.name[0]}
               </div>
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5 font-sans">
-                  <Volume2 className="w-3.5 h-3.5 text-sky-400" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5 font-sans">
+                  <Volume2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                   <span>Voz Ativa no Leitor:</span>
-                  <span className="text-sky-300 font-extrabold normal-case text-sm tracking-normal">
+                  <span className="text-sky-700 dark:text-sky-300 font-extrabold normal-case text-sm tracking-normal">
                     {selectedVoice.name}
                   </span>
-                  <span className="text-[11px] text-slate-400 font-normal">
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">
                     · {selectedVoice.archetype}
                   </span>
                 </h2>
               </div>
             </div>
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
               Clique em qualquer card abaixo para trocar de voz instantaneamente
             </span>
           </div>
@@ -401,7 +381,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             
             {/* 4 Presets de Calibração */}
             <div className="lg:col-span-8 flex flex-col gap-2">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-sans">
+              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider font-sans">
                 Intenção Vocal em Português:
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -417,15 +397,15 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                       }}
                       className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer active:translate-y-px font-sans ${
                         isActive
-                          ? 'bg-sky-500/20 border-sky-400/50 text-sky-200 shadow-sm ring-1 ring-sky-400/30'
-                          : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
+                          ? 'bg-sky-100 dark:bg-sky-500/20 border-sky-400/50 text-sky-900 dark:text-sky-200 shadow-sm ring-1 ring-sky-400/30'
+                          : 'bg-slate-100 dark:bg-slate-900/60 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-900'
                       }`}
                     >
                       <span className="text-xs font-bold flex items-center gap-1">
                         <span>{preset.icon}</span>
                         <span>{preset.label}</span>
                       </span>
-                      <span className="text-[10px] text-slate-400 leading-tight">
+                      <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">
                         {preset.desc}
                       </span>
                     </button>
@@ -438,10 +418,10 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             <div className="lg:col-span-4 flex flex-col justify-between gap-3 border-t lg:border-t-0 lg:border-l border-slate-800/80 pt-3 lg:pt-0 lg:pl-4">
               {/* Velocidade */}
               <div>
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5 font-sans">
+                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1.5 font-sans">
                   Velocidade:
                 </span>
-                <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800">
+                <div className="flex bg-slate-100 dark:bg-slate-950 rounded-xl p-1 border border-slate-300 dark:border-slate-800">
                   {[0.8, 1.0, 1.2, 1.5].map((s) => (
                     <button
                       key={s}
@@ -453,7 +433,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                       className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer active:translate-y-px ${
                         playbackSpeed === s
                           ? 'btn-matte-primary text-white shadow-sm'
-                          : 'text-slate-400 hover:text-slate-200'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
                       {s}x
@@ -463,14 +443,14 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               </div>
 
               {/* Interruptor de Auto-Respiração e Pausas */}
-              <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+              <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 cursor-pointer hover:border-slate-400 dark:hover:border-slate-700 transition-colors">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
+                  <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
                   <div className="text-left">
-                    <span className="text-xs font-bold text-slate-200 block font-sans">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block font-sans">
                       Auto-Respiração & Pausas
                     </span>
-                    <span className="text-[10px] text-slate-400 font-sans">
+                    <span className="text-[10px] text-slate-600 dark:text-slate-400 font-sans">
                       Calcula fôlego biológico sem ler tags
                     </span>
                   </div>
@@ -482,7 +462,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                     setAutoProsody(e.target.checked);
                     setSoloAudioUrl(null);
                   }}
-                  className="w-4 h-4 rounded text-sky-400 focus:ring-sky-400 focus:ring-offset-0 bg-slate-900 border-slate-700 accent-sky-400 cursor-pointer"
+                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 focus:ring-offset-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 accent-sky-600 cursor-pointer"
                 />
               </label>
             </div>
@@ -490,16 +470,16 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
 
           {/* Banner de Erro com Fallback */}
           {soloErrorMessage && (
-            <div className="p-3 rounded-2xl bg-rose-950/80 border border-rose-800 text-xs text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+            <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                 <span>{soloErrorMessage}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleFallbackWebSpeech}
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl btn-matte-dark text-xs font-semibold cursor-pointer"
                 >
                   Ouvir voz do navegador
                 </button>
