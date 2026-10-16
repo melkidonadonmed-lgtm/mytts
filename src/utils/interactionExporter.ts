@@ -1,4 +1,4 @@
-import { PolyglotMessage, FlashcardItem } from '../types/polyglot';
+import type { PolyglotMessage, FlashcardItem } from '../types/polyglot';
 
 /**
  * Utilitários para exportação de chunks e interações do Chat Poliglota

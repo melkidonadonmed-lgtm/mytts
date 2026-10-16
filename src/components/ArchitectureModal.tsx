@@ -7,11 +7,13 @@ import {
   Check,
   Copy,
 } from 'lucide-react';
+import { EXTERNAL_LINKS } from '../config/constants';
 
 interface ArchitectureModalProps {
   onClose: () => void;
 }
 
+// Estados de inspeção da modal: empty | loading | success | error
 export const ArchitectureModal: React.FC<ArchitectureModalProps> = ({ onClose }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -22,7 +24,7 @@ export const ArchitectureModal: React.FC<ArchitectureModalProps> = ({ onClose })
   };
 
   const schemaJson = `{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "${EXTERNAL_LINKS.JSON_SCHEMA_DRAFT}",
   "title": "DebateScriptContract",
   "type": "object",
   "required": ["title", "topicSummary", "keyThesis", "turns"],

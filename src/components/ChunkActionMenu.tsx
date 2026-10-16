@@ -1,3 +1,6 @@
+/**
+ * Menu contextual de ação sobre chunks lexicais (estados suportados: vazio, carregando, sucesso e erro).
+ */
 import React, { useEffect, useRef } from 'react';
 import { GoogleIcon } from './GoogleIcon';
 

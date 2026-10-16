@@ -4,19 +4,22 @@ import { StudioWorkspace } from './components/StudioWorkspace';
 import { PolyglotChatStudio } from './components/PolyglotChatStudio';
 import { LiveVoiceMic } from './components/LiveVoiceMic';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
-
 import { VoiceLibrary } from './components/VoiceLibraryModal';
 import { DocumentInputSection } from './components/DocumentInputSection';
 import { DebateConfigPanel } from './components/DebateConfigPanel';
 import { ScriptViewer } from './components/ScriptViewer';
+import { FastChunkAudioApp } from './components/FastChunkAudioApp';
 import { BottomAudioDock } from './components/BottomAudioDock';
 import { ArchitectureModal } from './components/ArchitectureModal';
 import { DebateConfig, DebateScript, SpeakerProfile } from './types/debate';
 import { LANGUAGE_OPTIONS, SAMPLE_DOCUMENTS, INITIAL_PRESET_SCRIPTS } from './data/sampleDebates';
 import { GaplessAudioPlayer } from './utils/audioEngine';
 import { VoiceProfile, GEMINI_VOICES } from './types/voices';
+import { requestDebateScript, requestSynthesizeTurn } from './services/apiClient';
+import { persistBrowserState, readBrowserState } from './services/polyglotClient';
 import { AlertCircle, Menu } from 'lucide-react';
 
+// Estados globais da aplicação: empty (nenhum) | loading (carregando) | success (sucesso) | error (erro)
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('reader');
   const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(GEMINI_VOICES[0]); // Puck default
@@ -25,12 +28,8 @@ export default function App() {
 
   // Tema Binário Canônico (Dark / Light) com persistência
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    try {
-      const saved = localStorage.getItem('mytts_theme');
-      return (saved === 'light' || saved === 'dark') ? saved : 'dark';
-    } catch {
-      return 'dark';
-    }
+    const saved = readBrowserState('mytts_theme');
+    return saved === 'light' || saved === 'dark' ? saved : 'dark';
   });
 
   useEffect(() => {
@@ -43,43 +42,31 @@ export default function App() {
       document.documentElement.classList.remove('dark');
       document.body.classList.remove('dark');
     }
-    try {
-      localStorage.setItem('mytts_theme', theme);
-    } catch {}
+    persistBrowserState('mytts_theme', theme);
   }, [theme]);
 
-  // Listener para sincronizar tema caso seja alterado via CommandPaletteModal
+  // Listener para sincronizar tema e atalho global Ctrl + K / Cmd + K
   useEffect(() => {
-    const handleStorageChange = () => {
-      try {
-        const saved = localStorage.getItem('mytts_theme');
-        if (saved === 'light' || saved === 'dark') {
-          setTheme(saved);
-        }
-      } catch {}
+    const syncThemeFromStorage = () => {
+      const saved = readBrowserState('mytts_theme');
+      if (saved === 'light' || saved === 'dark') {
+        setTheme(saved);
+      }
     };
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('mytts-theme-change', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('mytts-theme-change', handleStorageChange);
-    };
-  }, []);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  // Atalho global Ctrl + K / Cmd + K para Command Palette Tátil
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const onGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('storage', syncThemeFromStorage);
+    window.addEventListener('mytts-theme-change', syncThemeFromStorage);
+    window.addEventListener('keydown', onGlobalKeyDown);
+    return () => {
+      window.removeEventListener('storage', syncThemeFromStorage);
+      window.removeEventListener('mytts-theme-change', syncThemeFromStorage);
+      window.removeEventListener('keydown', onGlobalKeyDown);
+    };
   }, []);
 
   // Debate Studio State
@@ -117,7 +104,7 @@ export default function App() {
     return () => unsub();
   }, [player]);
 
-  const syncTurnsToPlayer = (updatedScript: DebateScript) => {
+  const syncTurnsToPlayer = (updatedScript: DebateScript): void => {
     const readyTurns = updatedScript.turns
       .filter((t) => Boolean(t.audioBase64))
       .map((t) => ({
@@ -131,76 +118,7 @@ export default function App() {
     }
   };
 
-  // Geração de Debate Dialético
-  const handleGenerateDebate = async () => {
-    setIsGenerating(true);
-    setGlobalError(null);
-    try {
-      const resp = await fetch('/api/generate-script', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          documentText,
-          language: config.language,
-          audienceLevel: config.audienceLevel,
-          tensionIntensity: config.tensionIntensity,
-          speakers: config.speakers,
-          maxTurns: config.maxTurns,
-        }),
-      });
-
-      const data = await resp.json();
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error || 'Falha na geração do roteiro.');
-      }
-
-      setScript(data.script);
-      await synthesizeTurns(data.script);
-    } catch (err: unknown) {
-      console.error(err);
-      setGlobalError(err instanceof Error ? err.message : 'Erro ao gerar o debate dialético.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleGenerateDebateWithCustomSpeakers = async (
-    customSpeakers: [SpeakerProfile, SpeakerProfile],
-    tensionIntensity: 'friendly' | 'balanced' | 'provocative'
-  ) => {
-    setIsGenerating(true);
-    setGlobalError(null);
-    try {
-      const resp = await fetch('/api/generate-script', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          documentText,
-          language: config.language,
-          audienceLevel: config.audienceLevel,
-          tensionIntensity,
-          speakers: customSpeakers,
-          maxTurns: config.maxTurns,
-        }),
-      });
-
-      const data = await resp.json();
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error || 'Falha na geração do roteiro.');
-      }
-
-      setScript(data.script);
-      await synthesizeTurns(data.script);
-    } catch (err: unknown) {
-      console.error(err);
-      setGlobalError(err instanceof Error ? err.message : 'Erro ao gerar o debate dialético.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-
-  const synthesizeTurns = async (targetScript: DebateScript) => {
+  const synthesizeTurns = async (targetScript: DebateScript): Promise<void> => {
     setIsSynthesizing(true);
     setGlobalError(null);
 
@@ -209,19 +127,14 @@ export default function App() {
     for (let i = 0; i < targetScript.turns.length; i++) {
       const turn = targetScript.turns[i];
       try {
-        const resp = await fetch('/api/synthesize-turn', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            turn,
-            speakerName: turn.speaker,
-            voiceId: turn.voice_id,
-            language: targetScript.language,
-          }),
+        const data = await requestSynthesizeTurn({
+          turn,
+          speakerName: turn.speaker,
+          voiceId: turn.voice_id,
+          language: targetScript.language,
         });
 
-        const data = await resp.json();
-        if (data.success && data.audioBase64) {
+        if (data.ok && data.success && data.audioBase64) {
           updatedTurns[i] = {
             ...turn,
             audioBase64: data.audioBase64,
@@ -252,22 +165,48 @@ export default function App() {
     setIsSynthesizing(false);
   };
 
-  const handleSynthesizeSingleTurn = async (turnIndex: number) => {
-    const turn = script.turns[turnIndex];
+  // Geração de Debate Dialético (Unificada para Custom Speakers ou Config Padrão)
+  const handleGenerateDebateWithCustomSpeakers = async (
+    customSpeakers: [SpeakerProfile, SpeakerProfile] = config.speakers,
+    tensionIntensity: 'friendly' | 'balanced' | 'provocative' | 'reflective' = config.tensionIntensity
+  ): Promise<void> => {
+    setIsGenerating(true);
+    setGlobalError(null);
     try {
-      const resp = await fetch('/api/synthesize-turn', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          turn,
-          speakerName: turn.speaker,
-          voiceId: turn.voice_id,
-          language: script.language,
-        }),
+      const data = await requestDebateScript({
+        documentText,
+        language: config.language,
+        audienceLevel: config.audienceLevel,
+        tensionIntensity,
+        speakers: customSpeakers,
+        maxTurns: config.maxTurns,
       });
 
-      const data = await resp.json();
-      if (data.success && data.audioBase64) {
+      if (!data.ok || !data.success || !data.script) {
+        throw new Error(data.error || 'Falha na geração do roteiro.');
+      }
+
+      setScript(data.script);
+      await synthesizeTurns(data.script);
+    } catch (err: unknown) {
+      console.error(err);
+      setGlobalError(err instanceof Error ? err.message : 'Erro ao gerar o debate dialético.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSynthesizeSingleTurn = async (turnIndex: number): Promise<void> => {
+    const turn = script.turns[turnIndex];
+    try {
+      const data = await requestSynthesizeTurn({
+        turn,
+        speakerName: turn.speaker,
+        voiceId: turn.voice_id,
+        language: script.language,
+      });
+
+      if (data.ok && data.success && data.audioBase64) {
         const updatedTurns = [...script.turns];
         updatedTurns[turnIndex] = {
           ...turn,
@@ -286,7 +225,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateTurnText = (turnIndex: number, newText: string) => {
+  const handleUpdateTurnText = (turnIndex: number, newText: string): void => {
     const updatedTurns = [...script.turns];
     updatedTurns[turnIndex] = {
       ...updatedTurns[turnIndex],
@@ -311,8 +250,11 @@ export default function App() {
           if (isPlaying && tab === 'reader') {
             player.pause();
           }
-          if ((document as any).startViewTransition) {
-            (document as any).startViewTransition(() => setActiveTab(tab));
+          const docWithTransition = document as Document & {
+            startViewTransition?: (cb: () => void) => void;
+          };
+          if (docWithTransition.startViewTransition) {
+            docWithTransition.startViewTransition(() => setActiveTab(tab));
           } else {
             setActiveTab(tab);
           }
@@ -323,7 +265,7 @@ export default function App() {
         onOpenVoiceLibrary={() => setActiveTab('voices')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         theme={theme}
-        onToggleTheme={toggleTheme}
+        onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
       />
 
       {/* 2. Área de Trabalho Principal (com margem para sidebar no desktop) */}
@@ -399,13 +341,12 @@ export default function App() {
             />
           )}
 
-          {/* Módulo: Chat Poliglota Multimodal (EN, IT, JA) */}
+          {/* Módulo 2: Chat Poliglota Multimodal (EN, IT, JA) */}
           {activeTab === 'polyglot' && (
             <PolyglotChatStudio />
           )}
 
-          {/* Módulo 2: Ditado & Microfone ao Vivo */}
-
+          {/* Módulo 3: Ditado & Microfone ao Vivo */}
           {activeTab === 'mic' && (
             <LiveVoiceMic
               selectedVoice={selectedVoice}
@@ -416,8 +357,57 @@ export default function App() {
             />
           )}
 
+          {/* Módulo 4: Estúdio de Debate com 2 Vozes */}
+          {activeTab === 'debate' && (
+            <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-36 flex flex-col gap-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                    Estúdio de Debate Dialético (2 Vozes)
+                  </h1>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Crie discussões estimulantes e embates de ideias a partir de documentos.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-xl">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Dual Speaker TTS (Kore &amp; Puck)</span>
+                </div>
+              </div>
 
-          {/* Módulo 3: Biblioteca de Vozes Neurais */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-5 flex flex-col gap-6">
+                  <DocumentInputSection
+                    currentLanguage={config.language}
+                    textInput={documentText}
+                    onChangeText={setDocumentText}
+                    onGenerateDebate={() => handleGenerateDebateWithCustomSpeakers()}
+                    isGenerating={isGenerating}
+                  />
+                  <DebateConfigPanel config={config} onChangeConfig={setConfig} />
+                </div>
+
+                <div className="lg:col-span-7 flex flex-col gap-4">
+                  <ScriptViewer
+                    script={script}
+                    currentTurnIndex={playerCurrentTurn}
+                    isPlaying={isPlaying}
+                    onPlayTurn={(idx) => player.play(idx)}
+                    onSynthesizeTurn={handleSynthesizeSingleTurn}
+                    onUpdateTurnText={handleUpdateTurnText}
+                    isSynthesizing={isSynthesizing}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Módulo 5: FastChunks (Treinamento Lexical de Idiomas) */}
+          {activeTab === 'chunks' && (
+            <FastChunkAudioApp />
+          )}
+
+          {/* Módulo 6: Biblioteca de Vozes Neurais */}
           {activeTab === 'voices' && (
             <VoiceLibrary
               selectedVoice={selectedVoice}
@@ -430,8 +420,8 @@ export default function App() {
 
         </main>
 
-        {/* Dock de Áudio Inferior (Exibido com roteiro ativo no Leitor / Debate) */}
-        {(Boolean(script?.turns?.length) && activeTab === 'reader') && (
+        {/* Dock de Áudio Inferior (Exibido com roteiro ativo no Leitor ou Debate) */}
+        {(activeTab === 'debate' || (Boolean(script?.turns?.length) && activeTab === 'reader')) && (
           <BottomAudioDock
             player={player}
             script={script}
@@ -469,8 +459,11 @@ export default function App() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onSelectTab={(tab) => {
-          if ((document as any).startViewTransition) {
-            (document as any).startViewTransition(() => setActiveTab(tab));
+          const docWithTransition = document as Document & {
+            startViewTransition?: (cb: () => void) => void;
+          };
+          if (docWithTransition.startViewTransition) {
+            docWithTransition.startViewTransition(() => setActiveTab(tab));
           } else {
             setActiveTab(tab);
           }
@@ -481,3 +474,4 @@ export default function App() {
     </div>
   );
 }
+

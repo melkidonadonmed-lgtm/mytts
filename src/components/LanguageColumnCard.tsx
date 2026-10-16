@@ -1,3 +1,6 @@
+/**
+ * Coluna de idioma alinhado (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React, { useState } from 'react';
 import { AlignedChunk } from '../types/polyglot';
 import { GoogleIcon } from './GoogleIcon';

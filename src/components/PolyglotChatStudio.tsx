@@ -12,6 +12,12 @@ import {
   getCachedAudio,
   getCachedKeySet,
 } from '../utils/audioCache';
+import {
+  requestTranslateParallelChunks,
+  requestGenerateFlashcard,
+  persistBrowserState,
+  readBrowserState,
+} from '../services/polyglotClient';
 
 // Mensagem inicial de exemplo de alta fluência
 const INITIAL_DEMO_MESSAGE: PolyglotMessage = {
@@ -47,7 +53,7 @@ export const PolyglotChatStudio: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [deck, setDeck] = useState<FlashcardItem[]>(() => {
     try {
-      const saved = localStorage.getItem('mytts_polyglot_deck');
+      const saved = readBrowserState('mytts_polyglot_deck');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -102,13 +108,9 @@ export const PolyglotChatStudio: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Salvar deck no localStorage
+  // Salvar deck no navegador
   useEffect(() => {
-    try {
-      localStorage.setItem('mytts_polyglot_deck', JSON.stringify(deck));
-    } catch (e) {
-      console.warn('Erro ao salvar deck no localStorage:', e);
-    }
+    persistBrowserState('mytts_polyglot_deck', JSON.stringify(deck));
   }, [deck]);
 
   // Conjunto de chaves de áudio já persistidas no cache local
@@ -177,19 +179,19 @@ export const PolyglotChatStudio: React.FC = () => {
     };
   }, []);
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string): void => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const getLanguageTag = (code: string) => {
+  const getLanguageTag = (code: string): string => {
     if (code === 'it') return 'it-IT';
     if (code === 'ja') return 'ja-JP';
     return 'en-US';
   };
 
   // Parar qualquer áudio em execução com limpeza de memória
-  const stopCurrentAudio = useCallback(() => {
+  const stopCurrentAudio = useCallback((): void => {
     if (activeAudioRef.current) {
       activeAudioRef.current.audio.pause();
       revokeAudioUrl(activeAudioRef.current.blobUrl);
@@ -202,7 +204,7 @@ export const PolyglotChatStudio: React.FC = () => {
   }, []);
 
   // Seleção de card / idioma para uma mensagem
-  const handleSelectLanguage = (messageId: string, lang: 'en' | 'it' | 'ja') => {
+  const handleSelectLanguage = (messageId: string, lang: 'en' | 'it' | 'ja'): void => {
     setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
     if (
       activeAudioRef.current &&
@@ -214,7 +216,7 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Reprodução ou Pausa do Áudio do Card Selecionado
-  const handleTogglePlay = async (messageId: string, lang: 'en' | 'it' | 'ja') => {
+  const handleTogglePlay = async (messageId: string, lang: 'en' | 'it' | 'ja'): Promise<void> => {
     if (
       activeAudioRef.current &&
       activeAudioRef.current.messageId === messageId &&
@@ -310,7 +312,7 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Replay do áudio do card
-  const handleReplay = (messageId: string, lang: 'en' | 'it' | 'ja') => {
+  const handleReplay = (messageId: string, lang: 'en' | 'it' | 'ja'): void => {
     if (
       activeAudioRef.current &&
       activeAudioRef.current.messageId === messageId &&
@@ -326,7 +328,7 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Seek na barra de progresso (scrubber)
-  const handleSeek = (time: number) => {
+  const handleSeek = (time: number): void => {
     if (activeAudioRef.current) {
       activeAudioRef.current.audio.currentTime = time;
       setCurrentTime(time);
@@ -334,7 +336,7 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Alteração de velocidade
-  const handleChangeSpeed = (newSpeed: number) => {
+  const handleChangeSpeed = (newSpeed: number): void => {
     setPlaybackSpeed(newSpeed);
     if (activeAudioRef.current) {
       activeAudioRef.current.audio.playbackRate = newSpeed;
@@ -342,7 +344,7 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Alteração de voz
-  const handleChangeVoice = (lang: 'en' | 'it' | 'ja', voice: string) => {
+  const handleChangeVoice = (lang: 'en' | 'it' | 'ja', voice: string): void => {
     setVoiceByLang((prev) => ({ ...prev, [lang]: voice }));
     if (activeAudioRef.current && activeAudioRef.current.lang === lang) {
       stopCurrentAudio();
@@ -350,12 +352,12 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Aguarda o fim do áudio em reprodução (polling com cleanup garantido em todos os caminhos)
-  const waitForAudioEnd = useCallback((isStopped: () => boolean) => {
+  const waitForAudioEnd = useCallback((isStopped: () => boolean): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
       let pollId: ReturnType<typeof setInterval> | null = null;
       let gapTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-      const cleanup = () => {
+      const cleanup = (): void => {
         if (pollId !== null) {
           clearInterval(pollId);
           pollId = null;
@@ -366,7 +368,7 @@ export const PolyglotChatStudio: React.FC = () => {
         }
       };
 
-      const settle = (error?: unknown) => {
+      const settle = (error?: unknown): void => {
         cleanup();
         if (error === undefined) {
           resolve();
@@ -388,7 +390,7 @@ export const PolyglotChatStudio: React.FC = () => {
               settle();
             }, 800);
           }
-        } catch (e) {
+        } catch (e: unknown) {
           settle(e);
         }
       }, 100);
@@ -396,7 +398,7 @@ export const PolyglotChatStudio: React.FC = () => {
   }, []);
 
   // Modo Trilogia Sequencial (EN -> IT -> JA)
-  const handlePlaySequence = async (messageId: string) => {
+  const handlePlaySequence = async (messageId: string): Promise<void> => {
     if (isPlayingSequence) {
       sequenceAbortRef.current = true;
       setIsPlayingSequence(false);
@@ -417,7 +419,7 @@ export const PolyglotChatStudio: React.FC = () => {
       it: '🇮🇹 Italiano',
       ja: '🇯🇵 Japonês',
     };
-    const isStopped = () => sequenceAbortRef.current || !isMountedRef.current;
+    const isStopped = (): boolean => sequenceAbortRef.current || !isMountedRef.current;
 
     try {
       for (const lang of languages) {
@@ -429,7 +431,7 @@ export const PolyglotChatStudio: React.FC = () => {
         try {
           await handleTogglePlay(messageId, lang);
           await waitForAudioEnd(isStopped);
-        } catch (e) {
+        } catch (e: unknown) {
           console.warn('Erro em uma etapa da trilogia sequencial:', e);
         }
       }
@@ -442,7 +444,7 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Envio de nova mensagem para alinhamento em 3 línguas
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string): Promise<void> => {
     const newMessageId = `msg-${Date.now()}`;
     const placeholderMessage: PolyglotMessage = {
       id: newMessageId,
@@ -458,14 +460,8 @@ export const PolyglotChatStudio: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const resp = await fetch('/api/translate-parallel-chunks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-
-      const data = await resp.json();
-      if (!resp.ok || !data.success) {
+      const data = await requestTranslateParallelChunks(text);
+      if (!data.ok || !data.success || !data.chunks || !data.fullText) {
         throw new Error(data.error || 'Falha ao processar os chunks paralelos.');
       }
 
@@ -474,8 +470,8 @@ export const PolyglotChatStudio: React.FC = () => {
           msg.id === newMessageId
             ? {
                 ...msg,
-                chunks: data.chunks,
-                fullText: data.fullText,
+                chunks: data.chunks!,
+                fullText: data.fullText!,
                 status: 'ready',
               }
             : msg
@@ -500,7 +496,7 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Reprodução de chunk individual com sotaque nativo e cache local
-  const handlePlayChunkAudio = async (text: string, language: string) => {
+  const handlePlayChunkAudio = async (text: string, language: string): Promise<void> => {
     stopCurrentAudio();
     setPlayingAudioKey(text);
 
@@ -536,26 +532,20 @@ export const PolyglotChatStudio: React.FC = () => {
   };
 
   // Geração de Flashcard via Gemini 3.8 Flash
-  const handleCreateFlashcard = async (chunkText: string, language: string) => {
+  const handleCreateFlashcard = async (chunkText: string, language: string): Promise<void> => {
     setGeneratingCardKey(chunkText);
 
     try {
-      const resp = await fetch('/api/generate-flashcard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chunkText, language }),
-      });
-
-      const data = await resp.json();
-      if (data.success && data.card) {
-        setDeck((prev) => [data.card, ...prev]);
+      const data = await requestGenerateFlashcard(chunkText, language);
+      if (data.ok && data.success && data.card) {
+        setDeck((prev) => [data.card!, ...prev]);
         showToast(`Flashcard "${chunkText}" adicionado ao seu Deck!`);
       } else {
         throw new Error(data.error || 'Falha ao criar flashcard.');
       }
     } catch (e: unknown) {
       console.error(e);
-      alert('Erro ao criar flashcard: ' + (e instanceof Error ? e.message : 'erro desconhecido'));
+      showToast('Erro ao criar flashcard: ' + (e instanceof Error ? e.message : 'erro desconhecido'));
     } finally {
       setGeneratingCardKey(null);
     }

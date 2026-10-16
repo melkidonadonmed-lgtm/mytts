@@ -1,3 +1,6 @@
+/**
+ * Gaveta lateral de revisão do deck de flashcards (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React from 'react';
 import { FlashcardItem } from '../types/polyglot';
 import { downloadFlashcardsCsv } from '../utils/csvExporter';

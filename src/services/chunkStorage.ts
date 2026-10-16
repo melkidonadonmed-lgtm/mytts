@@ -23,7 +23,7 @@ class LocalFsAdapter implements IChunkStorage {
     this.ensureDir();
   }
 
-  private ensureDir() {
+  private ensureDir(): void {
     try {
       if (!fs.existsSync(this.dataDir)) {
         fs.mkdirSync(this.dataDir, { recursive: true });
@@ -31,7 +31,7 @@ class LocalFsAdapter implements IChunkStorage {
       if (!fs.existsSync(this.filePath)) {
         fs.writeFileSync(this.filePath, JSON.stringify({}), 'utf-8');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('[LocalFsAdapter] Aviso ao criar pasta .data:', err);
     }
   }
@@ -46,11 +46,11 @@ class LocalFsAdapter implements IChunkStorage {
     }
   }
 
-  private writeAll(data: Record<string, ChunkItem[]>) {
+  private writeAll(data: Record<string, ChunkItem[]>): void {
     try {
       this.ensureDir();
       fs.writeFileSync(this.filePath, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[LocalFsAdapter] Falha ao persistir chunks locais:', err);
     }
   }
@@ -154,7 +154,7 @@ class ChunkStorageManager implements IChunkStorage {
         this.activeStorage = new FirestoreAdapter();
         this.isFirestoreActive = true;
         console.log('[ChunkStorageManager] Inicializado com Firestore (Google Cloud).');
-      } catch (err) {
+      } catch (err: unknown) {
         console.warn('[ChunkStorageManager] Falha ao iniciar Firestore, ativando fallback local:', err);
         this.activeStorage = this.localFallback;
       }
@@ -171,7 +171,7 @@ class ChunkStorageManager implements IChunkStorage {
   async listUserChunks(userId: string, lang?: TargetLang): Promise<ChunkItem[]> {
     try {
       return await this.activeStorage.listUserChunks(userId, lang);
-    } catch (err) {
+    } catch (err: unknown) {
       if (this.isFirestoreActive) {
         console.warn('[ChunkStorageManager] Erro no Firestore, chaveando para fallback local:', err);
         return await this.localFallback.listUserChunks(userId, lang);
@@ -183,7 +183,7 @@ class ChunkStorageManager implements IChunkStorage {
   async saveUserChunk(userId: string, chunk: ChunkItem): Promise<void> {
     try {
       await this.activeStorage.saveUserChunk(userId, chunk);
-    } catch (err) {
+    } catch (err: unknown) {
       if (this.isFirestoreActive) {
         console.warn('[ChunkStorageManager] Erro ao salvar no Firestore, salvando no fallback local:', err);
         await this.localFallback.saveUserChunk(userId, chunk);
@@ -196,7 +196,7 @@ class ChunkStorageManager implements IChunkStorage {
   async deleteUserChunk(userId: string, chunkId: string): Promise<boolean> {
     try {
       return await this.activeStorage.deleteUserChunk(userId, chunkId);
-    } catch (err) {
+    } catch (err: unknown) {
       if (this.isFirestoreActive) {
         console.warn('[ChunkStorageManager] Erro ao deletar no Firestore, tentando no fallback local:', err);
         return await this.localFallback.deleteUserChunk(userId, chunkId);

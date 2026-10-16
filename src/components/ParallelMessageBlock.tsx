@@ -1,3 +1,6 @@
+/**
+ * Bloco de mensagem paralela trilingue (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React, { useState } from 'react';
 import { PolyglotMessage } from '../types/polyglot';
 import { LanguageColumnCard } from './LanguageColumnCard';

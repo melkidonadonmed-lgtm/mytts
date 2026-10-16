@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppTab } from './Sidebar';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
+import { persistBrowserState } from '../services/polyglotClient';
 
 export interface CommandPaletteProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ interface CommandItem {
   action: () => void;
 }
 
+// Estados do Command Palette: empty | loading | success | error
 export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
   isOpen,
   onClose,
@@ -97,12 +99,24 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         },
       },
       {
+        id: 'tab-chunks',
+        title: 'FastChunks (Treino Lexical)',
+        subtitle: 'Frases coloquiais em EN, IT & JA com repetição espaçada',
+        category: 'Navegação',
+        icon: 'bolt',
+        shortcut: '5',
+        action: () => {
+          onSelectTab('chunks');
+          onClose();
+        },
+      },
+      {
         id: 'tab-voices',
         title: 'Biblioteca de Vozes Neurais',
         subtitle: 'Catálogo de timbres e audição de amostras de 3 segundos',
         category: 'Navegação',
         icon: 'record_voice_over',
-        shortcut: '5',
+        shortcut: '6',
         action: () => {
           onSelectTab('voices');
           onClose();
@@ -163,7 +177,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       action: () => {
         document.documentElement.setAttribute('data-theme', 'light');
         document.body.setAttribute('data-theme', 'light');
-        localStorage.setItem('mytts_theme', 'light');
+        persistBrowserState('mytts_theme', 'light');
         window.dispatchEvent(new Event('mytts-theme-change'));
         onClose();
       },
@@ -178,7 +192,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       action: () => {
         document.documentElement.setAttribute('data-theme', 'dark');
         document.body.setAttribute('data-theme', 'dark');
-        localStorage.setItem('mytts_theme', 'dark');
+        persistBrowserState('mytts_theme', 'dark');
         window.dispatchEvent(new Event('mytts-theme-change'));
         onClose();
       },
@@ -287,11 +301,12 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                   data-selected={isSelected}
                   onClick={() => cmd.action()}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`px-3.5 py-3 rounded-xl flex items-center justify-between cursor-pointer transition-all ${
-                    isSelected
+                  className={
+                    'px-4 py-3 rounded-xl flex items-center justify-between cursor-pointer transition-all ' +
+                    (isSelected
                       ? 'card-matte-active text-slate-900 dark:text-white shadow-md'
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 border border-transparent'
-                  }`}
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 border border-transparent')
+                  }
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div

@@ -1,3 +1,6 @@
+/**
+ * Bancada principal do estúdio de áudio (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
@@ -19,6 +22,8 @@ import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 import { VoiceCardGrid } from './VoiceCardGrid';
 import { StudioTextEditor } from './StudioTextEditor';
 import { ScriptViewer } from './ScriptViewer';
+import { requestSynthesizeSpeech } from '../services/apiClient';
+import { AUDIO_CONSTANTS } from '../config/constants';
 
 export type StudioMode = 'solo' | 'debate';
 export type CalibrationPreset = 'natural' | 'storytelling' | 'technical' | 'spontaneous';
@@ -113,7 +118,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   ];
 
   // Invalidação e limpeza atômica do áudio solo anterior
-  const invalidateSoloAudio = () => {
+  const invalidateSoloAudio = (): void => {
     if (soloAudioRef.current) {
       soloAudioRef.current.pause();
       soloAudioRef.current = null;
@@ -138,19 +143,19 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     };
   }, []);
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = (): void => {
     if (soloAudioRef.current) {
       setSoloCurrentTime(soloAudioRef.current.currentTime);
     }
   };
 
-  const handleAudioEnded = () => {
+  const handleAudioEnded = (): void => {
     setIsSoloPlaying(false);
     setSoloCurrentTime(0);
   };
 
   // 1. Síntese Solo (Gemini 3.1 Flash TTS com Director's Chair e Auto-Prosódia em PT-BR)
-  const handleSoloSynthesizeAndPlay = async (forceRegenerate = false) => {
+  const handleSoloSynthesizeAndPlay = async (forceRegenerate = false): Promise<void> => {
     if (!text.trim()) return;
 
     if (isSoloPlaying && !forceRegenerate) {
@@ -176,21 +181,15 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     setSoloStatusMessage(`Sintetizando voz com ${selectedVoice.name} (${calibration})...`);
 
     try {
-      const resp = await fetch('/api/synthesize-speech', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: text.trim(),
-          voiceId: selectedVoice.id,
-          emotion: calibration,
-          speed: playbackSpeed,
-          language: 'pt-BR',
-          autoProsody,
-        }),
+      const data = await requestSynthesizeSpeech({
+        text: text.trim(),
+        voiceId: selectedVoice.id,
+        emotion: calibration,
+        speed: playbackSpeed,
+        language: 'pt-BR',
+        autoProsody,
       });
-
-      const data = await resp.json();
-      if (!resp.ok || !data.success || !data.audioBase64) {
+      if (!data.ok || !data.success || !data.audioBase64) {
         throw new Error(data.error || 'Falha ao sintetizar áudio com Gemini TTS.');
       }
 
@@ -199,7 +198,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
       const audioUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
       currentBlobUrlRef.current = audioUrl;
       setSoloAudioUrl(audioUrl);
-      setSoloAudioDuration(data.durationSec || 10);
+      setSoloAudioDuration(data.durationSec || AUDIO_CONSTANTS.DEFAULT_DURATION_SEC);
 
       const audio = new Audio(audioUrl);
       audio.playbackRate = playbackSpeed;
@@ -224,7 +223,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   };
 
   // Fallback opcional para Web Speech API se a rede ou a chave falharem
-  const handleFallbackWebSpeech = () => {
+  const handleFallbackWebSpeech = (): void => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const clean = text.replace(/\[.*?\]/g, '').replace(/<.*?>/g, '').trim();
@@ -239,7 +238,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   };
 
   // Baixar WAV Solo
-  const handleDownloadSoloWav = () => {
+  const handleDownloadSoloWav = (): void => {
     if (!soloAudioUrl) return;
     const a = document.createElement('a');
     a.href = soloAudioUrl;
@@ -248,7 +247,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   };
 
   // 2. Disparar Geração de Debate (2 Vozes)
-  const handleTriggerDebate = async () => {
+  const handleTriggerDebate = async (): Promise<void> => {
     if (!text.trim()) return;
     const spk1: SpeakerProfile = {
       id: 'speaker1',
@@ -272,7 +271,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   };
 
 
-  const formatTime = (secs: number) => {
+  const formatTime = (secs: number): string => {
     const mins = Math.floor(secs / 60);
     const remainder = Math.floor(secs % 60);
     return `${mins}:${remainder.toString().padStart(2, '0')}`;
@@ -342,7 +341,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
       {mode === 'solo' ? (
         <section aria-label="Configuração de Voz e Calibração Solo" className="flex flex-col gap-4">
           
-          {/* 3.1 Seleção de Voz Tátil */}
+          {/* Etapa 1: Seleção de Voz Tátil */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl card-matte">
             <div className="flex items-center gap-2.5">
               <div
@@ -376,7 +375,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             }}
           />
 
-          {/* 3.2 Calibração de Intenção e Velocidade */}
+          {/* Etapa 2: Calibração de Intenção e Velocidade */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-4 rounded-2xl card-matte">
             
             {/* 4 Presets de Calibração */}
@@ -494,7 +493,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             </div>
           )}
 
-          {/* 3.3 Ação Hero Solo */}
+          {/* Etapa 3: Ação Hero Solo */}
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <button
               type="button"
@@ -550,7 +549,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             )}
           </div>
 
-          {/* 3.4 Player Visual em Linha (Solo) */}
+          {/* Etapa 4: Player Visual em Linha (Solo) */}
           {soloAudioUrl && (
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-2 animate-in fade-in">
               <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
@@ -646,15 +645,15 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             </div>
 
             <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800">
-              {[
+              {([
                 { id: 'friendly', label: 'Amigável' },
                 { id: 'balanced', label: 'Equilibrado' },
                 { id: 'provocative', label: 'Provocativo' },
-              ].map((t) => (
+              ] as const).map((t) => (
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setDebateTension(t.id as any)}
+                  onClick={() => setDebateTension(t.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer active:translate-y-px ${
                     debateTension === t.id
                       ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/30'

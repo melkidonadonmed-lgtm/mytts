@@ -34,7 +34,8 @@ app.set('trust proxy', 1);
 // Headers de segurança (CSP desabilitada: o app consome Google Fonts/Material Symbols via CDN)
 app.use(helmet({ contentSecurityPolicy: false }));
 
-// Payload grande apenas nas rotas que recebem áudio; o restante da API aceita no máximo 2 MB
+// Payload grande apenas nas rotas que recebem áudio ou PDF base64; o restante da API aceita no máximo 2 MB
+app.use('/api/extract-text', express.json({ limit: '25mb' }));
 app.use('/api/transcribe-audio', express.json({ limit: '25mb' }));
 app.use('/api/mix-audio', express.json({ limit: '50mb' }));
 app.use(express.json({ limit: '2mb' }));
@@ -113,7 +114,7 @@ function formatForTts(text: string): string {
 
 /**
  * Converte PCM Raw (24kHz 16-bit Mono) para arquivo WAV com cabeçalho RIFF canônico de 44 bytes.
- * Necessário pois a API gemini-3.1-flash-tts-preview retorna áudio raw PCM sem container WAV.
+ * Necessário pois a API Gemini Flash TTS Preview retorna áudio raw PCM sem container WAV.
  */
 function pcmToWav(
   pcmBuffer: Buffer,
@@ -371,8 +372,22 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
     const rawJson = response.text?.trim() || '{}';
     const parsed = JSON.parse(rawJson);
 
+    interface RawScriptTurn {
+      turn: number;
+      speaker: string;
+      voice_id: string;
+      emotion: string;
+      text: string;
+      clean_text?: string;
+      prosody?: {
+        pre_delay_ms?: number;
+        speech_rate?: number;
+        breath_sound?: boolean;
+      };
+    }
+
     // Ensure voice IDs match the selected speaker configuration
-    parsed.turns = parsed.turns.map((t: any) => {
+    parsed.turns = (parsed.turns as RawScriptTurn[]).map((t: RawScriptTurn) => {
       const isSpk1 = t.speaker.toLowerCase().includes(speaker1.name.toLowerCase());
       const selectedVoice = isSpk1 ? speaker1.voiceId : speaker2.voiceId;
       const clean =
@@ -497,16 +512,17 @@ app.post('/api/synthesize-full', async (req, res) => {
 
     const speaker1 = script.speakers[0];
     const speaker2 = script.speakers[1];
+    const turnsList = script.turns as Array<{ speaker: string; text: string; emotion?: string }>;
 
-    const formattedLines = script.turns
-      .map((turn: any) => `${turn.speaker}: ${formatForTts(turn.text)}`)
+    const formattedLines = turnsList
+      .map((turn) => `${turn.speaker}: ${formatForTts(turn.text)}`)
       .join('\n\n');
 
     const spk1Style = getEmotionStyle(
-      script.turns.find((t: any) => t.speaker === speaker1.name)?.emotion || 'thoughtful'
+      turnsList.find((t) => t.speaker === speaker1.name)?.emotion || 'thoughtful'
     );
     const spk2Style = getEmotionStyle(
-      script.turns.find((t: any) => t.speaker === speaker2.name)?.emotion || 'skeptical'
+      turnsList.find((t) => t.speaker === speaker2.name)?.emotion || 'skeptical'
     );
 
     const directorPrompt = `Director's Notes for Studio Podcast Debate:
@@ -1037,10 +1053,18 @@ Regras estritas:
       },
     });
 
-    const parsed = JSON.parse(response.text || '{}');
-    const rawChunks = parsed.chunks || [];
+    interface RawGeneratedChunk {
+      chunk: string;
+      literalOrNuance: string;
+      meaning: string;
+      context: string;
+      pronunciationHint: string;
+    }
 
-    const generatedChunks: ChunkItem[] = rawChunks.map((item: any, idx: number) => ({
+    const parsed = JSON.parse(response.text || '{}');
+    const rawChunks = (parsed.chunks || []) as RawGeneratedChunk[];
+
+    const generatedChunks: ChunkItem[] = rawChunks.map((item: RawGeneratedChunk, idx: number) => ({
       id: `gen-${Date.now()}-${idx}-${randomUUID().slice(0, 6)}`,
       chunk: item.chunk,
       literalOrNuance: item.literalOrNuance,
@@ -1373,7 +1397,7 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
+startServer().catch((err: unknown) => {
   console.error('Failed to start server:', err);
   process.exit(1);
 });

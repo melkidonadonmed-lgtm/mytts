@@ -32,7 +32,10 @@ import {
   SoundtrackPreset, 
   SoundtrackConfig 
 } from '../utils/audioEngine';
+import { requestPreviewVoice } from '../services/apiClient';
+import { AUDIO_CONSTANTS } from '../config/constants';
 
+// Estados da barra de controle: empty | loading | success | error
 interface BottomAudioDockProps {
   player?: GaplessAudioPlayer;
   script?: DebateScript | null;
@@ -146,8 +149,8 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   const [isConfirmed, setIsConfirmed] = useState(false);
 
   const previewSourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const previewTimerRef = useRef<any>(null);
-  const countdownIntervalRef = useRef<any>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Assinar atualizações de estado do player para refletir ducking e configurações
   useEffect(() => {
@@ -160,11 +163,13 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
     return () => unsub();
   }, [player]);
 
-  const stopPreview = () => {
+  const stopPreview = (): void => {
     if (previewSourceRef.current) {
       try {
         previewSourceRef.current.stop();
-      } catch (e) {}
+      } catch {
+        // Fonte de áudio já interrompida
+      }
       previewSourceRef.current = null;
     }
     if (previewTimerRef.current) {
@@ -189,18 +194,18 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
 
   // Ciclo rápido de velocidades para toque único com o polegar
   const availableRates = [1.0, 1.25, 1.5, 1.75, 2.0];
-  const handleCycleSpeed = () => {
+  const handleCycleSpeed = (): void => {
     const currentIndex = availableRates.indexOf(playbackRate);
     const nextIndex = (currentIndex + 1) % availableRates.length;
     onChangePlaybackRate(availableRates[nextIndex]);
   };
 
-  const handleSkip = (seconds: number) => {
+  const handleSkip = (seconds: number): void => {
     const target = Math.min(Math.max(currentTime + seconds, 0), duration || 0);
     onSeek(target);
   };
 
-  const formatTime = (secs: number) => {
+  const formatTime = (secs: number): string => {
     if (isNaN(secs) || secs < 0) return '00:00';
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
@@ -210,7 +215,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   // Destaca marcadores prosódicos no texto
-  const renderProsodicText = (text?: string) => {
+  const renderProsodicText = (text?: string): React.ReactNode => {
     if (!text) return 'Aguardando inicialização do debate...';
     const parts = text.split(/(<[^>]+>|\|[^|]+\||—|\.\.\.)/g);
     return parts.map((part, i) => {
@@ -266,7 +271,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   };
 
   // Alteração de Trilha Sonora
-  const handleSelectSoundtrack = async (presetId: SoundtrackPreset) => {
+  const handleSelectSoundtrack = async (presetId: SoundtrackPreset): Promise<void> => {
     if (presetId === 'custom') {
       fileInputRef.current?.click();
       return;
@@ -277,7 +282,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   };
 
   // Upload de arquivo de áudio do usuário para trilha de fundo
-  const handleCustomAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCustomAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file || !player) return;
 
@@ -286,13 +291,13 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
       const ctx = getAudioContext();
       const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
       await player.setSoundtrackPreset('custom', audioBuffer, file.name);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Falha ao decodificar arquivo customizado:', err);
     }
   };
 
   // Exportação do Master do Debate Completo com Trilha e Ducking
-  const handleExportMasterMix = async () => {
+  const handleExportMasterMix = async (): Promise<void> => {
     if (!player) return;
     try {
       setIsExportingMaster(true);
@@ -317,7 +322,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   };
 
   // Reproduz amostra de áudio de 3 segundos da voz selecionada para confirmação
-  const handleTogglePreviewAudio = async () => {
+  const handleTogglePreviewAudio = async (): Promise<void> => {
     if (isPlayingPreview) {
       stopPreview();
       return;
@@ -330,21 +335,14 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
       let audioBase64 = currentTurn?.audioBase64;
 
       if (!audioBase64) {
-        const resp = await fetch('/api/preview-voice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            voiceId,
-            speakerName: currentSpeaker?.name || 'Orador',
-            language: language || 'pt-BR',
-          }),
+        const data = await requestPreviewVoice({
+          voiceId,
+          speakerName: currentSpeaker?.name || 'Orador',
+          language: language || 'pt-BR',
         });
 
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.audioBase64) {
-            audioBase64 = data.audioBase64;
-          }
+        if (data.ok && data.audioBase64) {
+          audioBase64 = data.audioBase64;
         }
       }
 
@@ -364,14 +362,14 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
 
         const gainNode = ctx.createGain();
         gainNode.gain.setValueAtTime(1.0, ctx.currentTime);
-        gainNode.gain.setValueAtTime(1.0, ctx.currentTime + 2.7);
-        gainNode.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 3.0);
+        gainNode.gain.setValueAtTime(1.0, ctx.currentTime + AUDIO_CONSTANTS.PREVIEW_FADE_START_SEC);
+        gainNode.gain.linearRampToValueAtTime(0.001, ctx.currentTime + AUDIO_CONSTANTS.PREVIEW_DURATION_SEC);
 
         source.connect(gainNode);
         gainNode.connect(ctx.destination);
 
         source.start(0);
-        source.stop(ctx.currentTime + 3.0);
+        source.stop(ctx.currentTime + AUDIO_CONSTANTS.PREVIEW_DURATION_SEC);
         previewSourceRef.current = source;
 
         setIsPlayingPreview(true);
@@ -414,7 +412,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
           }, 3000);
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Erro na reprodução da amostra:', err);
     } finally {
       setPreviewLoading(false);
@@ -906,7 +904,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               )}
 
               <motion.div 
-                className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl border font-bold text-sm shadow-inner transition-transform group-active:scale-95"
+                className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl border font-bold text-sm shadow-inner transition-transform group-active:translate-y-px"
                 animate={
                   isPlaying
                     ? {

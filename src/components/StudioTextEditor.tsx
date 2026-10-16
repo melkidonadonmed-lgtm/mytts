@@ -1,3 +1,6 @@
+/**
+ * Editor de ingestão multimodal do estúdio (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React, { useRef, useState } from 'react';
 import {
   Clipboard,
@@ -12,6 +15,29 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
+import { requestExtractTextJson } from '../services/apiClient';
+
+interface SpeechRecognitionResultItem {
+  isFinal: boolean;
+  0: { transcript: string };
+}
+
+interface SpeechRecognitionResultEvent {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultItem>;
+}
+
+interface SpeechRecognitionInstance {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
 
 interface StudioTextEditorProps {
   text: string;
@@ -37,23 +63,23 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
   const estimatedMinutes = Math.max(1, Math.round(wordCount / 140));
 
-  const showTempFeedback = (msg: string) => {
+  const showTempFeedback = (msg: string): void => {
     setFeedback(msg);
     setTimeout(() => setFeedback(null), 3500);
   };
 
-  const showTempError = (msg: string) => {
+  const showTempError = (msg: string): void => {
     setErrorFeedback(msg);
     setTimeout(() => setErrorFeedback(null), 4500);
   };
 
   // 1. Colar da Área de Transferência
-  const handlePasteClipboard = async () => {
+  const handlePasteClipboard = async (): Promise<void> => {
     try {
       const clipText = await navigator.clipboard.readText();
       if (clipText && clipText.trim()) {
@@ -69,7 +95,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
   };
 
   // 2. Processar Arquivo (Upload ou Drag & Drop)
-  const processFile = async (file: File) => {
+  const processFile = async (file: File): Promise<void> => {
     if (!file) return;
 
     setUploadedFileName(file.name);
@@ -102,18 +128,12 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
         showTempFeedback(`Enviando "${file.name}" para extração com Gemini 3.8 Flash...`);
 
         try {
-          const resp = await fetch('/api/extract-text', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileData: base64Data,
-              mimeType: 'application/pdf',
-              fileName: file.name,
-            }),
+          const data = await requestExtractTextJson({
+            fileData: base64Data,
+            mimeType: 'application/pdf',
+            fileName: file.name,
           });
-
-          const data = await resp.json();
-          if (data.success && data.text) {
+          if (data.ok && data.success && data.text) {
             onChangeText(data.text);
             showTempFeedback(`PDF "${file.name}" extraído com sucesso!`);
           } else {
@@ -130,14 +150,14 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
     }
   };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (file) {
       processFile(file);
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDraggingOver(false);
     const file = e.dataTransfer.files?.[0];
@@ -147,7 +167,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
   };
 
   // 3. Ditado com Microfone
-  const toggleDictation = () => {
+  const toggleDictation = (): void => {
     if (isDictating) {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
@@ -157,8 +177,12 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
       return;
     }
 
+    const winWithSpeech = window as Window & {
+      SpeechRecognition?: new () => SpeechRecognitionInstance;
+      webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+    };
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      winWithSpeech.SpeechRecognition || winWithSpeech.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       showTempError('Reconhecimento de fala não suportado neste navegador. Use Chrome ou Edge.');
@@ -176,7 +200,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
         showTempFeedback('Microfone ativo... Fale naturalmente.');
       };
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionResultEvent) => {
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
@@ -215,7 +239,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={handlePasteClipboard}
-            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
             title="Colar texto da área de transferência"
           >
             <Clipboard className="w-4 h-4 text-amber-400" />
@@ -226,7 +250,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
             title="Carregar PDF, TXT ou Markdown"
           >
             <UploadCloud className="w-4 h-4 text-sky-400" />
@@ -244,7 +268,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={toggleDictation}
-            className={`min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95 border ${
+            className={`min-h-[40px] px-4 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px border ${
               isDictating
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
                 : 'btn-matte-dark'

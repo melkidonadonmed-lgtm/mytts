@@ -1,3 +1,6 @@
+/**
+ * Modal de exportação de interação poliglota (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React, { useState, useEffect } from 'react';
 import { PolyglotMessage, FlashcardItem } from '../types/polyglot';
 import { GoogleIcon } from './GoogleIcon';
@@ -198,7 +201,7 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
                       setSelectedFormat(opt.id);
                     }
                   }}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-left outline-none ${
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-left outline-none ${
                     isSelected
                       ? 'bg-amber-500/15 border-amber-500/70 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/30'
                       : 'bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-950/80'
@@ -267,7 +270,7 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
           <button
             type="button"
             onClick={handleConfirmExport}
-            className="btn-matte btn-matte-amber px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+            className="btn-matte btn-matte-amber px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-lg shadow-amber-500/20 active:translate-y-px transition-all cursor-pointer"
           >
             <GoogleIcon
               name={selectedFormat === 'deck' ? 'bookmark_add' : 'download'}

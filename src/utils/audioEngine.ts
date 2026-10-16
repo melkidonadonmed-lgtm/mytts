@@ -11,21 +11,47 @@
  */
 
 import {
-  SoundtrackPreset,
-  SoundtrackMeta,
   SOUNDTRACK_PRESETS,
   getOrGenerateSoundtrackBuffer,
+} from './proceduralSoundtracks';
+import type {
+  SoundtrackPreset,
+  SoundtrackMeta,
 } from './proceduralSoundtracks';
 
 export { SOUNDTRACK_PRESETS };
 export type { SoundtrackPreset, SoundtrackMeta };
 
+type WindowWithWebkitAudio = Window &
+  typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext;
+    webkitOfflineAudioContext?: typeof OfflineAudioContext;
+  };
+
+interface PitchPreservingAudioElement extends HTMLAudioElement {
+  mozPreservesPitch?: boolean;
+  webkitPreservesPitch?: boolean;
+}
+
+export interface ExportTurnInput {
+  turn?: number;
+  turnNumber?: number;
+  audioBase64?: string;
+  preDelayMs?: number;
+  prosody?: {
+    pre_delay_ms?: number;
+  };
+}
+
 let sharedAudioContext: AudioContext | null = null;
 
 export function getAudioContext(): AudioContext {
   if (!sharedAudioContext) {
-    const AudioContextClass =
-      window.AudioContext || (window as any).webkitAudioContext;
+    const win = window as WindowWithWebkitAudio;
+    const AudioContextClass = win.AudioContext || win.webkitAudioContext;
+    if (!AudioContextClass) {
+      throw new Error('Web Audio API não suportada neste ambiente.');
+    }
     sharedAudioContext = new AudioContextClass();
   }
   if (sharedAudioContext.state === 'suspended') {
@@ -51,12 +77,67 @@ export async function decodeBase64ToAudioBuffer(base64: string): Promise<AudioBu
 }
 
 /**
+ * Converte atenuação ou ganho em decibéis (dB) para fator multiplicador linear.
+ */
+export function dbToLinear(db: number): number {
+  return Math.pow(10, db / 20);
+}
+
+/**
+ * Constrói o cabeçalho canônico WAV RIFF de 44 bytes (PCM 16-bit).
+ */
+export function buildWavHeader(params: {
+  sampleRate: number;
+  numChannels: number;
+  bitsPerSample?: number;
+  dataByteLength: number;
+}): ArrayBuffer {
+  const { sampleRate, numChannels, bitsPerSample = 16, dataByteLength } = params;
+  const format = 1; // PCM
+  const bytesPerSample = bitsPerSample / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const headerByteLength = 44;
+  const totalLength = headerByteLength + dataByteLength;
+
+  const headerBuffer = new ArrayBuffer(headerByteLength);
+  const view = new DataView(headerBuffer);
+
+  const asciiTags: Array<[number, string]> = [
+    [0, 'RIFF'],
+    [8, 'WAVE'],
+    [12, 'fmt '],
+    [36, 'data'],
+  ];
+  for (const [offset, tag] of asciiTags) {
+    for (let i = 0; i < tag.length; i++) {
+      view.setUint8(offset + i, tag.charCodeAt(i));
+    }
+  }
+
+  // RIFF Chunk Descriptor
+  view.setUint32(4, totalLength - 8, true);
+
+  // "fmt " Subchunk
+  view.setUint32(16, 16, true); // Subchunk1Size (16 para PCM)
+  view.setUint16(20, format, true); // AudioFormat (1 = PCM)
+  view.setUint16(22, numChannels, true); // NumChannels
+  view.setUint32(24, sampleRate, true); // SampleRate
+  view.setUint32(28, sampleRate * blockAlign, true); // ByteRate
+  view.setUint16(32, blockAlign, true); // BlockAlign
+  view.setUint16(34, bitsPerSample, true); // BitsPerSample
+
+  // "data" Subchunk
+  view.setUint32(40, dataByteLength, true);
+
+  return headerBuffer;
+}
+
+/**
  * Converte um AudioBuffer estéreo ou mono em um Blob WAV RIFF canônico de 16-bit PCM
  */
 export function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
   const numChannels = buffer.numberOfChannels;
   const sampleRate = buffer.sampleRate;
-  const format = 1; // PCM
   const bitDepth = 16;
   const bytesPerSample = bitDepth / 8;
   const blockAlign = numChannels * bytesPerSample;
@@ -67,32 +148,11 @@ export function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
   const totalLength = headerByteLength + dataByteLength;
 
   const arrayBuffer = new ArrayBuffer(totalLength);
+  const headerBytes = new Uint8Array(
+    buildWavHeader({ sampleRate, numChannels, bitsPerSample: bitDepth, dataByteLength })
+  );
+  new Uint8Array(arrayBuffer).set(headerBytes, 0);
   const view = new DataView(arrayBuffer);
-
-  const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
-  };
-
-  // RIFF Chunk Descriptor
-  writeString(0, 'RIFF');
-  view.setUint32(4, totalLength - 8, true);
-  writeString(8, 'WAVE');
-
-  // "fmt " Subchunk
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true); // Subchunk1Size (16 para PCM)
-  view.setUint16(20, format, true); // AudioFormat (1 = PCM)
-  view.setUint16(22, numChannels, true); // NumChannels
-  view.setUint32(24, sampleRate, true); // SampleRate
-  view.setUint32(28, sampleRate * blockAlign, true); // ByteRate
-  view.setUint16(32, blockAlign, true); // BlockAlign
-  view.setUint16(34, bitDepth, true); // BitsPerSample
-
-  // "data" Subchunk
-  writeString(36, 'data');
-  view.setUint32(40, dataByteLength, true);
 
   // Amostras PCM intercaladas com proteção anti-clipping
   let offset = 44;
@@ -235,11 +295,12 @@ export class GaplessAudioPlayer {
     this.analyser.fftSize = 256;
     this.analyser.smoothingTimeConstant = 0.8;
 
-    this.audioElement = new Audio();
-    this.audioElement.crossOrigin = 'anonymous';
-    this.audioElement.preservesPitch = true;
-    (this.audioElement as any).mozPreservesPitch = true;
-    (this.audioElement as any).webkitPreservesPitch = true;
+    const pitchAudio = new Audio() as PitchPreservingAudioElement;
+    pitchAudio.crossOrigin = 'anonymous';
+    pitchAudio.preservesPitch = true;
+    pitchAudio.mozPreservesPitch = true;
+    pitchAudio.webkitPreservesPitch = true;
+    this.audioElement = pitchAudio;
 
     this.setupAudioGraph();
     this.setupEvents();
@@ -272,7 +333,7 @@ export class GaplessAudioPlayer {
       this.musicGainNode.connect(this.analyser);
       this.analyser.connect(this.masterGainNode);
       this.masterGainNode.connect(this.audioContext.destination);
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('AudioGraph setup deferred or already initialized:', e);
     }
   }
@@ -330,7 +391,7 @@ export class GaplessAudioPlayer {
         const target = Math.max(0.0001, nominal);
         this.musicGainNode.gain.exponentialRampToValueAtTime(target, now + 0.45);
       }
-    } catch (e) {
+    } catch {
       // Fallback em caso de valor zero na curva exponencial
       if (this.musicGainNode) {
         this.musicGainNode.gain.value = duck
@@ -366,7 +427,7 @@ export class GaplessAudioPlayer {
 
       this.musicSourceNode.start(0);
       this.isMusicPlaying = true;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Erro ao iniciar trilha sonora:', err);
     }
   }
@@ -379,7 +440,9 @@ export class GaplessAudioPlayer {
       try {
         this.musicSourceNode.stop();
         this.musicSourceNode.disconnect();
-      } catch (e) {}
+      } catch {
+        // Ignora erro caso o nó já tenha parado
+      }
       this.musicSourceNode = null;
     }
     this.isMusicPlaying = false;
@@ -560,7 +623,7 @@ export class GaplessAudioPlayer {
 
     try {
       await this.audioElement.play();
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Playback gesture requirement or error:', err);
     }
   }
@@ -646,7 +709,7 @@ export class GaplessAudioPlayer {
       this.preDelayTimeout = window.setTimeout(async () => {
         try {
           await this.audioElement.play();
-        } catch (e) {
+        } catch (e: unknown) {
           console.warn('Auto advance error', e);
         }
       }, delayMs);
@@ -670,9 +733,9 @@ export class GaplessAudioPlayer {
    * turnos sincronizados, trilha de fundo, auto-ducking e curvas de fade in/out.
    */
   public async exportMasterMixWav(
-    scriptTurns?: Array<{ turn: number; audioBase64?: string; prosody: { pre_delay_ms?: number } }>
+    scriptTurns?: ExportTurnInput[]
   ): Promise<Blob> {
-    const rawTurns =
+    const rawTurns: ExportTurnInput[] =
       scriptTurns && scriptTurns.length > 0
         ? scriptTurns.filter((t) => Boolean(t.audioBase64))
         : this.turns.filter((t) => Boolean(t.audioBase64));
@@ -686,8 +749,12 @@ export class GaplessAudioPlayer {
 
     try {
       const sampleRate = 44100;
+      const win = window as WindowWithWebkitAudio;
       const OfflineCtxClass =
-        window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+        win.OfflineAudioContext || win.webkitOfflineAudioContext;
+      if (!OfflineCtxClass) {
+        throw new Error('OfflineAudioContext não suportado neste navegador.');
+      }
 
       // 1. Decodificar todos os turnos de fala
       const decodedTurns: Array<{
@@ -697,15 +764,15 @@ export class GaplessAudioPlayer {
       }> = [];
 
       for (const turn of rawTurns) {
-        const b64 = (turn as any).audioBase64!;
+        const b64 = turn.audioBase64 || '';
         const preDelay = Math.max(
           0.2,
-          ((turn as any).prosody?.pre_delay_ms || (turn as any).preDelayMs || 120) / 1000
+          (turn.prosody?.pre_delay_ms || turn.preDelayMs || 120) / 1000
         );
         const arrayBuf = base64ToArrayBuffer(b64);
         const audioBuf = await this.audioContext.decodeAudioData(arrayBuf.slice(0));
         decodedTurns.push({
-          turnNumber: (turn as any).turn || (turn as any).turnNumber || 0,
+          turnNumber: turn.turn || turn.turnNumber || 0,
           buffer: audioBuf,
           preDelaySec: preDelay,
         });

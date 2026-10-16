@@ -69,8 +69,8 @@ graph TD
 
 ### Instalação
 ```bash
-# Instalar dependências
-npm install
+# Instalar dependências a partir do lockfile
+npm ci
 
 # Configurar variáveis de ambiente
 cp .env.example .env
@@ -80,7 +80,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Acesse [http://localhost:3000](http://localhost:3000).
+Acesse [http://localhost:3002](http://localhost:3002).
 
 ---
 

@@ -10,6 +10,7 @@ import {
   Radio
 } from 'lucide-react';
 import { VoiceProfile } from '../types/voices';
+import { requestTranscribeAudio } from '../services/apiClient';
 
 interface LiveVoiceMicProps {
   selectedVoice: VoiceProfile;
@@ -98,24 +99,32 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
     try {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64Data = (reader.result as string)?.split(',')[1];
-        if (!base64Data) return;
+        try {
+          const base64Data = (reader.result as string)?.split(',')[1];
+          if (!base64Data) {
+            throw new Error('Gravação de áudio vazia ou inválida.');
+          }
 
-        const res = await fetch('/api/transcribe-audio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          const data = await requestTranscribeAudio({
             audioData: base64Data,
             mimeType: audioBlob.type,
-          }),
-        });
-
-        const data = await res.json();
-        if (data.success && data.transcript) {
-          setTranscript((prev) => (prev ? `${prev} ${data.transcript}` : data.transcript));
-        } else {
-          throw new Error(data.error || 'Falha ao transcrever gravação.');
+          });
+          if (data.ok && data.success && data.transcript) {
+            const newTranscript = data.transcript;
+            setTranscript((prev) => (prev ? `${prev} ${newTranscript}` : newTranscript));
+          } else {
+            throw new Error(data.error || 'Falha ao transcrever gravação.');
+          }
+        } catch (innerErr: unknown) {
+          setErrorMessage(
+            innerErr instanceof Error ? innerErr.message : 'Erro ao processar transcrição do áudio.'
+          );
+        } finally {
+          setIsTranscribing(false);
         }
+      };
+      reader.onerror = () => {
+        setErrorMessage('Falha ao ler o buffer de áudio gravado.');
         setIsTranscribing(false);
       };
       reader.readAsDataURL(audioBlob);
@@ -169,7 +178,7 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
 
           <button
             onClick={isRecording ? stopRecording : startRecording}
-            className={`relative z-10 w-28 h-28 rounded-full flex flex-col items-center justify-center shadow-2xl transition-all cursor-pointer active:scale-95 ${
+            className={`relative z-10 w-28 h-28 rounded-full flex flex-col items-center justify-center shadow-2xl transition-all cursor-pointer active:translate-y-px ${
               isRecording
                 ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/40 ring-4 ring-rose-400/30'
                 : 'btn-matte btn-matte-amber text-white shadow-amber-500/30 ring-4 ring-amber-400/20'
@@ -246,7 +255,7 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
         <div className="min-h-[140px] max-h-72 overflow-y-auto p-4 rounded-xl input-sunken text-sm text-slate-900 dark:text-slate-200 leading-relaxed whitespace-pre-wrap selection:bg-amber-500/20">
           {transcript || (
             <span className="text-slate-500 dark:text-slate-600 italic">
-              O texto falado aparecerá aqui com parágrafos e pontuação gerados pelo Gemini...
+              Nenhum texto transcrito ainda. O texto falado aparecerá aqui com sucesso após o processamento...
             </span>
           )}
         </div>
@@ -256,7 +265,7 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               onClick={() => onSendToReader(transcript)}
-              className="btn-matte btn-matte-amber px-4 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md active:scale-95"
+              className="btn-matte btn-matte-amber px-4 py-2.5 rounded-xl text-white text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md active:translate-y-px"
             >
               <span>Abrir no Leitor & Sintetizar</span>
               <ArrowRight className="w-4 h-4 text-white" />

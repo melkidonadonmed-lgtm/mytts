@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
+import { requestPreviewVoice } from '../services/apiClient';
 
 interface VoiceLibraryProps {
   selectedVoice: VoiceProfile;
@@ -30,7 +31,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
     };
   }, []);
 
-  const previewVoice = async (voice: VoiceProfile) => {
+  const previewVoice = async (voice: VoiceProfile): Promise<void> => {
     if (playingVoiceId === voice.id) {
       if (audioRef.current) audioRef.current.pause();
       setPlayingVoiceId(null);
@@ -39,18 +40,12 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
 
     try {
       setLoadingVoiceId(voice.id);
-      const res = await fetch('/api/preview-voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          voiceId: voice.id,
-          speakerName: voice.name,
-          language: 'pt-BR',
-        }),
+      const data = await requestPreviewVoice({
+        voiceId: voice.id,
+        speakerName: voice.name,
+        language: 'pt-BR',
       });
-
-      const data = await res.json();
-      if (data.success && data.audioBase64) {
+      if (data.ok && data.success && data.audioBase64) {
         if (audioRef.current) audioRef.current.pause();
         revokeAudioUrl(currentAudioUrlRef.current);
         const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
@@ -70,7 +65,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
         };
         await audio.play();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Falha ao ouvir amostra de voz:', err);
     } finally {
       setLoadingVoiceId(null);
@@ -175,7 +170,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                     e.stopPropagation();
                     previewVoice(voice);
                   }}
-                  className={`flex-1 min-h-[42px] rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 ${
+                  className={`flex-1 min-h-[42px] rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
                     isPlaying
                       ? 'btn-matte btn-matte-amber text-white font-bold shadow-sm'
                       : 'btn-matte btn-matte-dark text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white'
@@ -206,7 +201,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                     e.stopPropagation();
                     onSelectVoice(voice);
                   }}
-                  className={`min-h-[42px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                  className={`min-h-[42px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:translate-y-px ${
                     isSelected
                       ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 cursor-default'
                       : 'btn-matte btn-matte-amber text-white shadow-sm'

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Loader2, Check } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
+import { requestPreviewVoice } from '../services/apiClient';
 
 interface VoiceCardGridProps {
   selectedVoice: VoiceProfile;
@@ -38,7 +39,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
     };
   }, []);
 
-  const handlePlayPreview = async (e: React.MouseEvent, voice: VoiceProfile) => {
+  const handlePlayPreview = async (e: React.MouseEvent, voice: VoiceProfile): Promise<void> => {
     e.stopPropagation();
 
     // Se já estiver tocando esta mesma voz, pausar
@@ -61,18 +62,12 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
     setPreviewingVoiceId(null);
 
     try {
-      const resp = await fetch('/api/preview-voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          voiceId: voice.id,
-          speakerName: voice.name,
-          language: 'pt-BR',
-        }),
+      const data = await requestPreviewVoice({
+        voiceId: voice.id,
+        speakerName: voice.name,
+        language: 'pt-BR',
       });
-
-      const data = await resp.json();
-      if (!resp.ok || !data.success || !data.audioBase64) {
+      if (!data.ok || !data.success || !data.audioBase64) {
         throw new Error(data.error || 'Falha ao obter amostra de voz.');
       }
 
@@ -92,14 +87,14 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
 
       await audio.play();
       setPreviewingVoiceId(voice.id);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Erro ao reproduzir preview da voz:', err);
     } finally {
       setLoadingVoiceId(null);
     }
   };
 
-  const handleSelect = (voice: VoiceProfile) => {
+  const handleSelect = (voice: VoiceProfile): void => {
     if (multiSpeakerMode && onSelectSpeakerSlot) {
       onSelectSpeakerSlot(activeSlot, voice);
     } else {
@@ -107,7 +102,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, voice: VoiceProfile) => {
+  const handleKeyDown = (e: React.KeyboardEvent, voice: VoiceProfile): void => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleSelect(voice);

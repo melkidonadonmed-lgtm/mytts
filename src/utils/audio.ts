@@ -32,3 +32,14 @@ export function revokeAudioUrl(url: string | null | undefined): void {
     }
   }
 }
+
+/**
+ * Formata segundos em MM:SS tabular para contadores de áudio.
+ */
+export function formatAudioTime(secs: number): string {
+  if (!Number.isFinite(secs) || secs <= 0) return '00:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+

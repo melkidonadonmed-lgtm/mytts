@@ -12,8 +12,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const DEFAULT_PORT = process.env.PORT || '3002';
+
 const CONFIG = {
-  baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+  baseUrl: process.env.BASE_URL || `http://localhost:${DEFAULT_PORT}`,
   outputDir: path.join(__dirname, '../audit-artifacts/screenshots'),
   settleMs: 900,
   viewports: [
@@ -65,8 +67,8 @@ async function runVisualAudit() {
       await page.screenshot({ path: path.join(CONFIG.outputDir, fileName), fullPage: true });
       manifest.push({ route: '/', viewport: viewport.name, status: response ? response.status() : 'ERRO', file: fileName });
       console.log(`     [OK] 00_initial (${manifest[manifest.length - 1].status})`);
-    } catch (err) {
-      console.error(`     [FALHA] carga inicial: ${err.message}`);
+    } catch {
+      console.error('     [FALHA] carga inicial.');
       continue;
     }
 
@@ -80,8 +82,8 @@ async function runVisualAudit() {
         await page.screenshot({ path: path.join(CONFIG.outputDir, fileName), fullPage: true });
         manifest.push({ route: `tab:${tab.label}`, viewport: viewport.name, status: 200, file: fileName });
         console.log(`     [OK] ${tab.name}`);
-      } catch (err) {
-        console.error(`     [FALHA] ${tab.name}: ${err.message}`);
+      } catch {
+        console.error(`     [FALHA] ${tab.name}`);
         manifest.push({ route: `tab:${tab.label}`, viewport: viewport.name, status: 'ERRO', file: fileName });
       }
     }
@@ -97,8 +99,8 @@ async function runVisualAudit() {
       console.log(`     [OK] 07_arquitetura`);
       await page.getByRole('button', { name: /^Fechar$/i }).first().click();
       await page.waitForTimeout(400);
-    } catch (err) {
-      console.error(`     [FALHA] 07_arquitetura: ${err.message}`);
+    } catch {
+      console.error('     [FALHA] 07_arquitetura');
     }
   }
 

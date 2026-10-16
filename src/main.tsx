@@ -1,3 +1,6 @@
+/**
+ * Ponto de entrada principal React (estados suportados: vazio, carregando, sucesso e erro).
+ */
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';

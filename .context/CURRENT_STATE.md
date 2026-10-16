@@ -1,45 +1,34 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Refatoração Completa de Paletas Minerais (7 Arquétipos), Neutralização de Botões, Cura Tipográfica Anti-Serrilhamento e Controles Táteis de Áudio.
-- **Status da Branch**: `main` (commit `f4587c2` enviado ao GitHub).
-- **Deploy**: Em execução para Cloud Run (`us-central1` no projeto `agent-md-506215`).
+- **Fase**: Revisão Cética e Saneamento 100% Determinístico das 4 Auditorias (`auditoria-projetos-sistema`, `arquitetura-design-implementacao-sistema`, `code-quality-audit-3d-physics`, `test-quality-auditor`).
+- **Status da Branch**: `main` (Trio de qualidade `npm run lint && npm test && npm run build` 100% verde, sem warnings de chunk).
 
-## Decisões Arquiteturais e Implementações
-1. **Clareamento do Fundo e Contraste no Tactile Matte (`src/index.css`)**:
-   - Transição do fundo quase preto puro (`#090B0E`) para ardósia mineral profunda (`#12151D`), cartões em `#1A202E`, elevação em `#263044` e bordas com luminosidade sutil (`rgba(255, 255, 255, 0.12)`).
-   - Contraste reforçado nos ícones e menus inativos (`#CBD5E1` e `#94A3B8`), acabando com a sensação de escuridão apagada.
-2. **Eliminação do Phantom 4K**:
-   - Removido completamente de `ArchetypeBar.tsx`, `CommandPaletteModal.tsx` e `src/index.css`.
-3. **Novas 6 Paletas Baseadas nas Imagens do Usuário (`src/index.css`, `ArchetypeBar.tsx`, `CommandPaletteModal.tsx`)**:
-   - `tactile-matte`: Padrão Melki com ardósia fosca e fundo elevado.
-   - `deep-blue`: #050A30 (Canvas) / #0D1645 (Card) / #F4F6FC / #233DFF (Acento).
-   - `vangogh`: Van Gogh's Dream (#042698 / #FDFEE9 / #9BD4E4 — Tema Claro Marfim).
-   - `mermaid`: Mermaid Lagoon (#051D40 / #0A2B5E / #145DA0 / #56AEFF / #B1D4E0).
-   - `cotton-dandelions`: Cotton Dandelions (#1B2612 / #2A3B19 / #3D5919 / #A4B792 / #E6E7E2).
-   - `ocean-window`: Ocean Window (#141C26 / #1B426B / #21568A / #1D97BD / #C7CDC0).
-   - `nightfall-ambiance`: Nightfall Ambiance (#000B26 / #063360 / #094886 / #2479DF / #73BBEE).
-4. **Neutralização dos Botões**:
-   - Substituição do laranja saturado (`#D97706` / `#f59e0b`) por botões minerais sóbrios `.btn-matte-primary` com tipografia branca de alto contraste e acabamento tátil sólido.
-5. **Cura Tipográfica (Fim do "Craquelado")**:
-   - Padronização de botões para `font-sans` (`Inter`), `tracking-normal` e `font-semibold`.
-   - Remoção de `active:scale-95` e `active:scale-90` (que causavam interpolação borrada e serrilhamento no Windows), substituindo por deslocamento físico vertical `active:translate-y-px`.
-   - Inclusão de diretrizes nativas de antialiasing (`-webkit-font-smoothing: antialiased`, `-moz-osx-font-smoothing: grayscale`, `text-rendering: optimizeLegibility`).
-6. **Botão de Reproduzir Geral com Sotaque na Sound Bar (`BottomAudioDock.tsx`, `App.tsx`)**:
-   - Botão central de Play neutro `.btn-matte-primary` com pílula de sotaque/intenção vocal integrada em tempo real.
-   - Sound bar acessível tanto no modo debate quanto no leitor com roteiro ativo.
-7. **Seleção de Voz por Card Reativada no Debate (`DebateConfigPanel.tsx`)**:
-   - Adicionada a grade interativa `VoiceCardGrid` no painel de configuração do debate, permitindo selecionar e atribuir vozes por card para Orador 1 e Orador 2.
+## Decisões Arquiteturais e Correções Aplicadas
+1. **Correção Funcional do Ingestor Multimodal de PDF (`AgentInputDock.tsx`, `DocumentInputSection.tsx`, `apiClient.ts`, `server.ts`)**:
+   - Correção do bug crítico onde `AgentInputDock.tsx` enviava `FormData` (`multipart/form-data`) via `requestExtractTextForm` para `POST /api/extract-text`, que lê apenas JSON (`req.body.fileData`), causando HTTP 400 em todo upload de PDF.
+   - Conversão do arquivo PDF para Base64 via `FileReader.readAsDataURL` e envio estruturado via `requestExtractTextJson` tanto em `AgentInputDock.tsx` quanto em `DocumentInputSection.tsx`, com limite de body `25mb` configurado em `server.ts`.
+2. **Resiliência HTTP e Estados Reativos (`apiClient.ts`, `polyglotClient.ts`, `audioCache.ts`, `FastChunkAudioApp.tsx`, `LiveVoiceMic.tsx`)**:
+   - Criação de `parseApiJson<T>(resp)` em `apiClient.ts` e `parsePolyglotJson<T>(resp)` em `polyglotClient.ts` para capturar respostas não-JSON (HTML 413/502/504) sem disparar `SyntaxError` não tratado e impedir que payloads malformados sobrescrevam `ok: resp.ok`.
+   - Correção de estados de erro invisíveis em `FastChunkAudioApp.tsx` (banner reativo visível fora do modal quando `speakChunk` falha) e de `isTranscribing` travado em `true` em `LiveVoiceMic.tsx` e `AgentInputDock.tsx`.
+   - Proteção de `formatAudioTime` em [`src/utils/audio.ts`](../src/utils/audio.ts) com `Number.isFinite(secs)` contra `Infinity:NaN` em metadados de streaming.
+3. **Coesão Estrita por Ilhas (`ICI = 100.0`, `SGA = 100.0`) e Zero `any` / Zero `catch` Sem Tipo**:
+   - Eliminação total de `: any`, `as any`, `useRef<any>` e blocos `catch (err)` sem `: unknown` em todo o repositório (`server.ts`, `audioEngine.ts`, `audioCache.ts`, `proceduralSoundtracks.ts`, `chunkStorage.ts`, `BottomAudioDock.tsx`, `StudioWorkspace.tsx`, `StudioTextEditor.tsx`).
+   - Extração de `formatAudioTime` e agrupamento modular de helpers internos, elevando `ICI` de `81.33` para `100.0` e `SGA` de `96.27` para `100.0`, com geração do artefato [`docs/resolution_diff_v1_v2.html`](../docs/resolution_diff_v1_v2.html).
+4. **Suíte de Testes Nível 4 Descoberta no Diretório (`tests/audio-engine.test.ts` + `test-audio-engine.ts`) e Code-Splitting Vite**:
+   - Adição de [`tests/audio-engine.test.ts`](../tests/audio-engine.test.ts) cobrindo `parseApiJson` (200/413/502), `formatAudioTime` (`NaN`/`Infinity`), cabeçalho WAV 24 kHz mono e prosódia multilíngue, totalizando 12/12 suítes Nível 4 (`score_medio = 100.0` tanto no arquivo raiz quanto no escaneamento de diretório do repositório).
+   - Configuração de `manualChunks` (`vendor-react`, `vendor-motion`, `vendor-icons`) em [`vite.config.ts`](../vite.config.ts), eliminando o alerta de chunk > 500 kB (`index` reduzido para `235.96 kB`).
+   - Atualização de [`SPEC.md`](../SPEC.md) e criação de [`.vscode/mcp.json`](../.vscode/mcp.json).
 
 ## Testes Reais e Verificações Auditáveis
-- `npm run lint` (`tsc --noEmit`): Exit code `0`.
-- `npm test` (`tsx test-audio-engine.ts`): Exit code `0` (8 suítes com 100% de sucesso).
-- `npm run build` (`vite build`): Exit code `0` (bundle gerado com sucesso em 297ms).
-- Git commit: `f4587c2` enviado com sucesso para `origin/main`.
+- `npm run lint` (`tsc --noEmit`): Exit code `0` (0 erros).
+- `npm test` (`tsx test-audio-engine.ts`): Exit code `0` (12/12 suítes Nível 4 aprovadas).
+- `npm run build` (`vite build`): Exit code `0` (`dist/` compilado em ~314ms, maior chunk `235.96 kB`, 0 warnings).
+- `deterministic_scorer.py --scan .`: `SGA = 100.0` (`INE = 100.0`, `ICI = 100.0`, `IPC = 100.0`, `IRM = 100.0`, `ICTE = 100.0`) — `APROVADO (PRODUÇÃO / ARQUITETURA SÓLIDA)`.
+- `test_quality_auditor.py`: `100.0/100` (`NÍVEL 4: DETERMINÍSTICO & RESILIENTE`, 0 inconformidades) em `test-audio-engine.ts` e no diretório `tests/audio-engine.test.ts`.
+- `js_ts_ast_parser.js`: `0` issues em todos os arquivos `.ts/.tsx/.js`.
+- `state_checker_observer.py --json src/utils/audioEngine.ts`: `s_norm = 100.0`.
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.
-- **Débitos**: Nenhum crítico.
-
-## Próximo Ponto de Entrada
-- Aguardar finalização do deploy Cloud Run e entregar o resumo executivo e auto-reflexão ao usuário.
+- **Débitos**: Nenhum.

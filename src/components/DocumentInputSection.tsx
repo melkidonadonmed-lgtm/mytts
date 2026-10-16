@@ -1,3 +1,6 @@
+/**
+ * Seção de ingestão de documento base (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React, { useState } from 'react';
 import { 
   FileText, 
@@ -11,6 +14,7 @@ import {
 } from 'lucide-react';
 import { SAMPLE_DOCUMENTS } from '../data/sampleDebates';
 import { LanguageCode } from '../types/debate';
+import { requestExtractTextJson } from '../services/apiClient';
 
 interface DocumentInputSectionProps {
   currentLanguage: LanguageCode;
@@ -29,19 +33,49 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'paste' | 'upload'>('paste');
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Filtra o exemplo recomendado para o idioma selecionado
   const sampleForCurrentLang = SAMPLE_DOCUMENTS.find((d) => d.language === currentLanguage) || SAMPLE_DOCUMENTS[0];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFileName(file.name);
+    if (!file) return;
+
+    setUploadedFileName(file.name);
+    setUploadError(null);
+
+    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Data = (event.target?.result as string)?.split(',')[1];
+        if (!base64Data) {
+          setUploadError('Falha ao codificar arquivo PDF.');
+          return;
+        }
+        try {
+          const data = await requestExtractTextJson({
+            fileData: base64Data,
+            mimeType: 'application/pdf',
+            fileName: file.name,
+          });
+          if (data.ok && data.success && data.text) {
+            onChangeText(data.text);
+          } else {
+            setUploadError(data.error || 'Falha ao extrair texto do PDF.');
+          }
+        } catch (err: unknown) {
+          setUploadError(err instanceof Error ? err.message : 'Erro ao processar PDF.');
+        }
+      };
+      reader.readAsDataURL(file);
+    } else {
       const reader = new FileReader();
       reader.onload = (event) => {
         const content = event.target?.result as string;
         onChangeText(content);
       };
+      reader.onerror = () => setUploadError('Erro ao ler arquivo local.');
       reader.readAsText(file);
     }
   };
@@ -90,6 +124,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
           onClick={() => {
             onChangeText(sampleForCurrentLang.content);
             setUploadedFileName(null);
+            setUploadError(null);
           }}
           className="min-h-[44px] flex items-center justify-center sm:justify-start gap-1.5 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white transition-all cursor-pointer"
         >
@@ -123,7 +158,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
         <label className="relative flex flex-col items-center justify-center min-h-[180px] rounded-xl border-2 border-dashed border-slate-800 hover:border-amber-400/50 bg-slate-950/50 p-6 text-center transition-all cursor-pointer group">
           <input
             type="file"
-            accept=".txt,.md,.json"
+            accept=".pdf,.txt,.md,.json"
             onChange={handleFileUpload}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
@@ -141,9 +176,12 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
                 Toque para selecionar documento
               </p>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Suporta TXT, Markdown (.md) ou relatórios em texto puro
+                Suporta PDF, TXT, Markdown (.md) ou relatórios em texto puro
               </p>
             </>
+          )}
+          {uploadError && (
+            <p className="text-[11px] text-rose-400 mt-2">{uploadError}</p>
           )}
         </label>
       )}

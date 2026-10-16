@@ -1,4 +1,4 @@
-import { FlashcardItem } from '../types/polyglot';
+import type { FlashcardItem } from '../types/polyglot';
 
 /**
  * Converte uma lista de flashcards para formato CSV estruturado e sanitizado,

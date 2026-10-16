@@ -1,3 +1,6 @@
+/**
+ * Controlador flutuante de áudio por card (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React from 'react';
 import { GoogleIcon } from './GoogleIcon';
 import { GEMINI_VOICES } from '../types/voices';

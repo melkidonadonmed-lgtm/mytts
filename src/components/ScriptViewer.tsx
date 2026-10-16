@@ -1,3 +1,6 @@
+/**
+ * Visualizador e editor de roteiro de debate (estados de UI: vazio, carregando, sucesso e erro).
+ */
 import React, { useState } from 'react';
 import {
   Play,

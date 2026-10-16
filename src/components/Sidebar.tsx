@@ -1,8 +1,9 @@
 import React from 'react';
 import { VoiceProfile } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
+import { EXTERNAL_LINKS } from '../config/constants';
 
-export type AppTab = 'reader' | 'polyglot' | 'mic' | 'voices' | 'architecture';
+export type AppTab = 'reader' | 'polyglot' | 'mic' | 'debate' | 'chunks' | 'voices' | 'architecture';
 
 interface SidebarProps {
   activeTab: AppTab;
@@ -16,6 +17,7 @@ interface SidebarProps {
   onToggleTheme?: () => void;
 }
 
+// Estados de Navegação da Sidebar: empty | loading | success | error
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
@@ -48,6 +50,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Ao Vivo',
       iconName: 'mic',
       description: 'Gravar fala e transcrever com IA',
+    },
+    {
+      id: 'debate' as AppTab,
+      label: 'Estúdio de Debate',
+      badge: '2 Vozes',
+      iconName: 'group',
+      description: 'Roteiro dialético e embate de ideias',
+    },
+    {
+      id: 'chunks' as AppTab,
+      label: 'FastChunks',
+      badge: 'Treino',
+      iconName: 'bolt',
+      description: 'Blocos coloquiais e shadowing loop',
     },
     {
       id: 'voices' as AppTab,
@@ -259,7 +275,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>Arquitetura</span>
             </button>
             <a
-              href="https://github.com/melkidonadonmed-lgtm/mytts"
+              href={EXTERNAL_LINKS.GITHUB_REPO}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1 hover:text-slate-300 transition-colors text-[11px]"

@@ -7,7 +7,7 @@
   "realtimeDatabaseUrl": "",
   "storageBucket": "agent-md-506215.firebasestorage.app",
   "locationId": "",
-  "apiKey": "AIzaSyBCfBlswVUaiTqzrMmgSHgHg9ObftC2afQ",
+  "apiKey": "REDACTED_USE_FIREBASE_WEB_API_KEY_ENV",
   "authDomain": "agent-md-506215.firebaseapp.com",
   "messagingSenderId": "1044179901556",
   "measurementId": "",

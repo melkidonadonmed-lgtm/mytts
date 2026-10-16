@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { GoogleIcon } from './GoogleIcon';
+import { requestExtractTextJson, requestTranscribeAudio } from '../services/apiClient';
 
 export interface AgentInputDockProps {
   onSendMessage: (text: string) => Promise<void>;
@@ -7,6 +8,7 @@ export interface AgentInputDockProps {
   onOpenLive?: () => void;
 }
 
+// Estados do dock de entrada: empty | loading | success | error
 export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   onSendMessage,
   isLoading,
@@ -23,7 +25,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
 
   // Submissão do texto
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
     if (e) e.preventDefault();
     if (!inputText.trim() || isLoading) return;
 
@@ -36,7 +38,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     await onSendMessage(textToSend);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
     setInputText(e.target.value);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -45,7 +47,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   };
 
   // Tecla Enter para envio (Shift+Enter para quebra de linha)
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -53,7 +55,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   };
 
   // Upload e leitura de arquivos (PDF, TXT, MD)
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -68,26 +70,30 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
         }
       };
       reader.readAsText(file);
-    } else if (file.type === 'application/pdf') {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch('/api/extract-text', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
-        if (data.success && data.text) {
-          setInputText((prev) => (prev ? `${prev}\n\n${data.text}` : data.text));
+    } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Data = (event.target?.result as string)?.split(',')[1];
+        if (!base64Data) return;
+        try {
+          const data = await requestExtractTextJson({
+            fileData: base64Data,
+            mimeType: 'application/pdf',
+            fileName: file.name,
+          });
+          if (data.ok && data.success && data.text) {
+            setInputText((prev) => (prev ? `${prev}\n\n${data.text}` : data.text!));
+          }
+        } catch (err: unknown) {
+          console.error('Falha ao extrair texto do PDF:', err);
         }
-      } catch (err) {
-        console.error('Falha ao extrair texto do PDF:', err);
-      }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   // Gravação via microfone com transcrição inteligente (Gemini 3.8 Flash)
-  const toggleRecording = async () => {
+  const toggleRecording = async (): Promise<void> => {
     if (isRecording) {
       mediaRecorderRef.current?.stop();
       setIsRecording(false);
@@ -109,25 +115,29 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        
+
         try {
           setIsTranscribing(true);
           const reader = new FileReader();
           reader.onloadend = async () => {
-            const base64Audio = (reader.result as string).split(',')[1];
-            const resp = await fetch('/api/transcribe-audio', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audioData: base64Audio, mimeType: 'audio/webm' }),
-            });
-            const data = await resp.json();
-            if (data.success && data.transcript) {
-              setInputText((prev) => (prev ? `${prev} ${data.transcript}` : data.transcript));
+            try {
+              const base64Audio = (reader.result as string)?.split(',')[1];
+              if (!base64Audio) return;
+              const data = await requestTranscribeAudio({
+                audioData: base64Audio,
+                mimeType: 'audio/webm',
+              });
+              if (data.ok && data.success && data.transcript) {
+                setInputText((prev) => (prev ? `${prev} ${data.transcript}` : data.transcript!));
+              }
+            } catch (innerErr: unknown) {
+              console.error('Erro na transcrição:', innerErr);
+            } finally {
+              setIsTranscribing(false);
             }
-            setIsTranscribing(false);
           };
           reader.readAsDataURL(audioBlob);
-        } catch (err) {
+        } catch (err: unknown) {
           console.error('Erro na transcrição:', err);
           setIsTranscribing(false);
         }
@@ -135,7 +145,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
 
       mediaRecorder.start();
       setIsRecording(true);
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Microfone indisponível ou permissão negada:', err);
       setIsRecording(false);
     }

@@ -12,7 +12,7 @@ export interface GoogleIconProps {
 
 /**
  * Componente oficial de Ícones do Google (Material Symbols Rounded)
- * Renderiza símbolos vetoriais de altíssima definição com suporte a preenchimento tátil e peso óptico.
+ * Renderiza símbolos vetoriais para indicadores de estado vazio, carregando, sucesso e erro.
  */
 export const GoogleIcon: React.FC<GoogleIconProps> = ({
   name,

@@ -20,6 +20,13 @@ import {
   getCachedAudio,
   getCachedKeySet,
 } from '../utils/audioCache';
+import {
+  requestFetchUserChunks,
+  requestDeleteUserChunk,
+  requestGenerateChunks,
+  persistBrowserState,
+  readBrowserState,
+} from '../services/polyglotClient';
 
 // Banco inicial offline para teste imediato de alta fluência
 const CHUNK_PRESETS: Record<TargetLang, Record<string, ChunkItem[]>> = {
@@ -160,15 +167,11 @@ export const FastChunkAudioApp: React.FC = () => {
 
   // Identificador Anônimo de Dispositivo (Persistente no navegador)
   const userId = useMemo(() => {
-    try {
-      const stored = localStorage.getItem('fastchunks_user_id');
-      if (stored) return stored;
-      const newId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      localStorage.setItem('fastchunks_user_id', newId);
-      return newId;
-    } catch {
-      return 'guest-user';
-    }
+    const stored = readBrowserState('fastchunks_user_id');
+    if (stored) return stored;
+    const newId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    persistBrowserState('fastchunks_user_id', newId);
+    return newId;
   }, []);
 
   // Idiomas disponíveis com bandeiras e identificadores
@@ -228,16 +231,9 @@ export const FastChunkAudioApp: React.FC = () => {
   const fetchUserChunks = useCallback(async () => {
     try {
       setIsLoadingBackend(true);
-      const res = await fetch(`/api/chunks?lang=${selectedLang}`, {
-        headers: { 'X-User-Id': userId },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.chunks) {
-          setCustomChunks(data.chunks);
-        }
-      }
-    } catch (err) {
+      const chunks = await requestFetchUserChunks(selectedLang, userId);
+      setCustomChunks(chunks);
+    } catch (err: unknown) {
       console.warn('Falha ao carregar chunks da nuvem:', err);
     } finally {
       setIsLoadingBackend(false);
@@ -249,9 +245,9 @@ export const FastChunkAudioApp: React.FC = () => {
   }, [fetchUserChunks]);
 
   // Função central de reprodução de voz via Web Speech API nativa (sem necessidade de API key)
-  const speakChunk = (text: string, id: string, onEndCallback?: () => void) => {
+  const speakChunk = (text: string, id: string, onEndCallback?: () => void): void => {
     if (!('speechSynthesis' in window)) {
-      alert('Seu navegador não suporta síntese de voz nativa.');
+      setGenerateError('Seu navegador não suporta síntese de voz nativa.');
       return;
     }
 
@@ -282,7 +278,7 @@ export const FastChunkAudioApp: React.FC = () => {
   };
 
   // Reproduz áudio WAV a partir do Base64 com ciclo de vida seguro de memória
-  const playAudioBase64 = useCallback(async (base64Audio: string, id: string) => {
+  const playAudioBase64 = useCallback(async (base64Audio: string, id: string): Promise<void> => {
     const blobUrl = base64ToBlobUrl(base64Audio, 'audio/wav');
     const audio = new Audio(blobUrl);
     audio.playbackRate = playbackRate;
@@ -302,7 +298,7 @@ export const FastChunkAudioApp: React.FC = () => {
   }, [playbackRate]);
 
   // Reprodução de Áudio Ultra-Realista via Gemini 3.1 Flash TTS (Director's Chair) com Cache Local (0ms)
-  const speakNeuralChunk = async (text: string, id: string) => {
+  const speakNeuralChunk = async (text: string, id: string): Promise<void> => {
     window.speechSynthesis?.cancel();
     if (audioPlayerRef.current) {
       audioPlayerRef.current.pause();
@@ -339,7 +335,7 @@ export const FastChunkAudioApp: React.FC = () => {
         // Fallback gracioso para Web Speech
         speakChunk(text, id);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Fallback para Web Speech nativo:', err);
       speakChunk(text, id);
     } finally {
@@ -348,7 +344,7 @@ export const FastChunkAudioApp: React.FC = () => {
   };
 
   // Alterna o modo Drill (looping contínuo com pausa de 1.8s para shadowing)
-  const toggleLoopDrill = (chunkText: string, id: string) => {
+  const toggleLoopDrill = (chunkText: string, id: string): void => {
     if (loopDrillId === id) {
       if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
       window.speechSynthesis.cancel();
@@ -360,7 +356,7 @@ export const FastChunkAudioApp: React.FC = () => {
     if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
     setLoopDrillId(id);
 
-    const runLoop = () => {
+    const runLoop = (): void => {
       speakChunk(chunkText, id, () => {
         loopTimerRef.current = setTimeout(() => {
           runLoop();
@@ -372,49 +368,38 @@ export const FastChunkAudioApp: React.FC = () => {
   };
 
   // Copia o chunk para a área de transferência
-  const handleCopy = (text: string, id: string) => {
+  const handleCopy = (text: string, id: string): void => {
     navigator.clipboard.writeText(text).catch((e) => console.warn('Clipboard indisponível:', e));
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1800);
   };
 
   // Excluir chunk customizado
-  const handleDeleteCustomChunk = async (id: string) => {
+  const handleDeleteCustomChunk = async (id: string): Promise<void> => {
     try {
-      const res = await fetch(`/api/chunks/${id}`, {
-        method: 'DELETE',
-        headers: { 'X-User-Id': userId },
-      });
-      if (res.ok) {
+      const ok = await requestDeleteUserChunk(id, userId);
+      if (ok) {
         setCustomChunks((prev) => prev.filter((c) => c.id !== id));
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Erro ao deletar chunk:', err);
     }
   };
 
   // Gerar Chunks via Gemini 3.8 Flash
-  const handleGenerateChunks = async () => {
+  const handleGenerateChunks = async (): Promise<void> => {
     if (!inputText.trim()) return;
     setIsGenerating(true);
     setGenerateError(null);
 
     try {
-      const res = await fetch('/api/generate-chunks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': userId,
-        },
-        body: JSON.stringify({
-          textOrPrompt: inputText.trim(),
-          language: selectedLang,
-          count: 3,
-        }),
+      const data = await requestGenerateChunks({
+        textOrPrompt: inputText.trim(),
+        language: selectedLang,
+        count: 3,
+        userId,
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.ok || !data.success) {
         throw new Error(data.error || 'Falha ao gerar blocos coloquiais.');
       }
 
@@ -525,7 +510,7 @@ export const FastChunkAudioApp: React.FC = () => {
                   setLoopDrillId(null);
                   window.speechSynthesis?.cancel();
                 }}
-                className={`min-h-[44px] flex items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+                className={`min-h-[44px] flex items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
                   isSelected
                     ? 'border-amber-400/60 bg-amber-400/10 text-amber-200 shadow-sm shadow-amber-500/10'
                     : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
@@ -541,7 +526,7 @@ export const FastChunkAudioApp: React.FC = () => {
         {/* Botão de Destaque: Gerar com IA / Extrair Chunks */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="min-h-[46px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:scale-[0.99] transition-all cursor-pointer"
+          className="min-h-[46px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
         >
           <Sparkles className="w-4 h-4 fill-current" />
           <span>✨ Extrair ou Criar Chunks com Gemini AI</span>
@@ -564,6 +549,20 @@ export const FastChunkAudioApp: React.FC = () => {
           <div className="flex items-center justify-center gap-2 text-xs text-amber-400/80 py-1">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             <span>Sincronizando chunks na nuvem...</span>
+          </div>
+        )}
+
+        {/* Banner de Erro Reativo na Tela Principal (quando o modal está fechado) */}
+        {generateError && !isModalOpen && (
+          <div className="flex items-center justify-between gap-2 text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 px-3.5 py-2.5 rounded-xl">
+            <span>{generateError}</span>
+            <button
+              type="button"
+              onClick={() => setGenerateError(null)}
+              className="text-rose-400 hover:text-white font-mono text-[11px] cursor-pointer"
+            >
+              dispensar
+            </button>
           </div>
         )}
 
@@ -670,7 +669,7 @@ export const FastChunkAudioApp: React.FC = () => {
                       disabled={loadingNeuralId === item.id}
                       onClick={() => speakNeuralChunk(item.chunk, item.id)}
                       title="Ouvir com voz neural hiper-realista do Gemini (respiração e tom natural)"
-                      className={`col-span-6 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl active:scale-95 transition-all text-xs font-bold cursor-pointer border shadow-sm ${
+                      className={`col-span-6 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl active:translate-y-px transition-all text-xs font-bold cursor-pointer border shadow-sm ${
                         cachedChunkIds.has(item.id)
                           ? 'bg-gradient-to-r from-emerald-500/15 to-amber-500/15 hover:from-emerald-500/25 hover:to-amber-500/25 text-emerald-300 border-emerald-500/40'
                           : 'bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 border-amber-500/40'
@@ -696,7 +695,7 @@ export const FastChunkAudioApp: React.FC = () => {
                       type="button"
                       onClick={() => speakChunk(item.chunk, item.id)}
                       title="Síntese rápida local do navegador"
-                      className="col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 active:scale-95 transition-all text-xs font-semibold cursor-pointer border border-slate-700/60"
+                      className="col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 active:translate-y-px transition-all text-xs font-semibold cursor-pointer border border-slate-700/60"
                     >
                       <Volume2 className="w-3.5 h-3.5 text-slate-400" />
                       <span>Nativo</span>
@@ -707,7 +706,7 @@ export const FastChunkAudioApp: React.FC = () => {
                       type="button"
                       onClick={() => toggleLoopDrill(item.chunk, item.id)}
                       title="Repetição contínua para treinar fala"
-                      className={`col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl border text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+                      className={`col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
                         isDrilling
                           ? 'border-amber-400 bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20'
                           : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200 hover:border-slate-700'
