@@ -167,35 +167,52 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       });
     }
 
-    // Temas Binários Melki (Modo Claro & Modo Escuro)
+    // Presets Soft UI v4.5 (Obsidian Dark, Nexus Slate, Moss & Calm, Soft Sapphire)
+    const applyPresetCommand = (presetId: 'obsidian' | 'slate' | 'moss' | 'sapphire', mode: 'dark' | 'light') => {
+      document.documentElement.setAttribute('data-theme', mode);
+      document.body.setAttribute('data-theme', mode);
+      document.documentElement.setAttribute('data-preset', presetId);
+      document.body.setAttribute('data-preset', presetId);
+      persistBrowserState('mytts_theme', mode);
+      persistBrowserState('mytts_preset', presetId);
+      window.dispatchEvent(new Event('mytts-theme-change'));
+      onClose();
+    };
+
     list.push({
-      id: 'theme-light',
-      title: 'Ativar Modo Claro',
-      subtitle: 'Contraste elevado WCAG AAA para leitura confortável durante o dia',
+      id: 'preset-obsidian',
+      title: 'Tema Soft UI: Obsidian Dark (#090B0E / #38BDF8)',
+      subtitle: 'Paleta mineral escura padrão de estúdio sem ofuscamento',
       category: 'Ações Rápidas',
-      icon: 'light_mode',
-      action: () => {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.body.setAttribute('data-theme', 'light');
-        persistBrowserState('mytts_theme', 'light');
-        window.dispatchEvent(new Event('mytts-theme-change'));
-        onClose();
-      },
+      icon: 'dark_mode',
+      action: () => applyPresetCommand('obsidian', 'dark'),
     });
 
     list.push({
-      id: 'theme-dark',
-      title: 'Ativar Modo Escuro',
-      subtitle: 'Paleta Mineral Melki em ardósia pura para foco noturno sem ofuscamento',
+      id: 'preset-slate',
+      title: 'Tema Soft UI: Nexus Slate Cerulean (#F1F4F8 / #0284C7)',
+      subtitle: 'Modo claro neutro com acento Cerulean Sapphire (Zero Cobalto)',
       category: 'Ações Rápidas',
-      icon: 'dark_mode',
-      action: () => {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.body.setAttribute('data-theme', 'dark');
-        persistBrowserState('mytts_theme', 'dark');
-        window.dispatchEvent(new Event('mytts-theme-change'));
-        onClose();
-      },
+      icon: 'light_mode',
+      action: () => applyPresetCommand('slate', 'light'),
+    });
+
+    list.push({
+      id: 'preset-moss',
+      title: 'Tema Soft UI: Moss & Calm (#F4F3EC / #174930)',
+      subtitle: 'Modo claro orgânico com acento verde floresta sereno',
+      category: 'Ações Rápidas',
+      icon: 'palette',
+      action: () => applyPresetCommand('moss', 'light'),
+    });
+
+    list.push({
+      id: 'preset-sapphire',
+      title: 'Tema Soft UI: Soft Sapphire (#F5F4EE / #1E6091)',
+      subtitle: 'Modo claro editorial aquecido com acento Ocean Sapphire',
+      category: 'Ações Rápidas',
+      icon: 'palette',
+      action: () => applyPresetCommand('sapphire', 'light'),
     });
 
     return list;
@@ -259,7 +276,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Paleta de Comandos e Busca Rápida"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/80 backdrop-blur-md transition-opacity"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/85 transition-opacity"
       onClick={onClose}
     >
       <div

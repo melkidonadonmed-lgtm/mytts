@@ -100,6 +100,41 @@ test('Suite 12: Calibração Prosódica Multilíngue e Sanitização com AutoPro
   assert.ok(japaneseStyle.includes('native Japanese'));
 });
 
+// Suite 13: Auditoria Determinística Soft UI v4.5-soft (FSM, Tokens Anti-Cobalto & Sanitização)
+import { resolveCardFSMState, sanitizeCardTitle } from '../src/components/ui/SoftCard';
+import { SOFT_UI_PRESETS, resolvePresetTokens, getBentoSpanClass } from '../src/config/tokens';
+
+test('Suite 13: Soft UI v4.5-soft — FSM Determinística (AUDIT-STATE-01/02) e Tokens Anti-Cobalto (AUDIT-VIS-01)', () => {
+  // 1. ARRANGE
+  const forbiddenCobaltHexes = ['#0044ff', '#0057ff', '#1d4ed8', '#233dff'];
+  const allPresets = Object.values(SOFT_UI_PRESETS);
+
+  // 2. ACT
+  const stateIdle = resolveCardFSMState({ isLoading: false, error: null, isPressed: false });
+  const stateLoading = resolveCardFSMState({ isLoading: true, error: null, isPressed: false });
+  const stateError = resolveCardFSMState({ isLoading: true, error: 'Falha HTTP 502', isPressed: true });
+  const statePressed = resolveCardFSMState({ isLoading: false, error: null, isPressed: true });
+  const sanitizedTitle = sanitizeCardTitle('  Estúdio Neural <img src=x onerror=void(0)>  ');
+  const slateTokens = resolvePresetTokens('slate');
+  const span8 = getBentoSpanClass(8);
+
+  // 3. ASSERT
+  assert.strictEqual(stateIdle, 'idle');
+  assert.strictEqual(stateLoading, 'loading');
+  assert.strictEqual(stateError, 'error');
+  assert.strictEqual(statePressed, 'pressed');
+  assert.strictEqual(sanitizedTitle, 'Estúdio Neural <img src=x onerror=void(0)>');
+  assert.strictEqual(slateTokens.accentPoint, '#0284C7');
+  assert.strictEqual(span8, 'col-span-8');
+
+  allPresets.forEach((palette) => {
+    const values = Object.values(palette).map((v) => v.toLowerCase());
+    forbiddenCobaltHexes.forEach((cobalt) => {
+      assert.strictEqual(values.includes(cobalt), false);
+    });
+  });
+});
+
 export async function runContractTests(): Promise<number> {
   let passed = 0;
   for (const t of contractTests) {
@@ -109,3 +144,4 @@ export async function runContractTests(): Promise<number> {
   }
   return passed;
 }
+

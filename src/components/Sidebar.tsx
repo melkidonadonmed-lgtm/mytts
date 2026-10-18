@@ -2,6 +2,8 @@ import React from 'react';
 import { VoiceProfile } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
 import { EXTERNAL_LINKS } from '../config/constants';
+import { SOFT_UI_PRESETS } from '../config/tokens';
+import type { SoftUIThemePreset } from '../types';
 
 export type AppTab = 'reader' | 'polyglot' | 'mic' | 'debate' | 'chunks' | 'voices' | 'architecture';
 
@@ -15,6 +17,8 @@ interface SidebarProps {
   onOpenCommandPalette?: () => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
+  activePreset?: SoftUIThemePreset;
+  onSelectPreset?: (preset: SoftUIThemePreset) => void;
 }
 
 // Estados de Navegação da Sidebar: empty | loading | success | error
@@ -28,6 +32,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenCommandPalette,
   theme = 'dark',
   onToggleTheme,
+  activePreset = 'obsidian',
+  onSelectPreset,
 }) => {
   const navItems = [
     {
@@ -80,7 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpenMobile && (
         <div
           onClick={onToggleMobile}
-          className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/80 lg:hidden"
         />
       )}
 
@@ -195,9 +201,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               >
                 <div
+                  id={isActive ? 'sidebar-active-tracker' : undefined}
                   className={`mt-0.5 p-2 rounded-xl transition-colors ${
                     isActive
-                      ? 'btn-matte-amber text-white font-bold shadow-md shadow-amber-900/20'
+                      ? 'surface-inset btn-matte-amber text-white font-bold shadow-md shadow-amber-900/20'
                       : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-800'
                   }`}
                 >
@@ -229,6 +236,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Status e Footer da Sidebar */}
         <div className="p-3 border-t border-slate-800 space-y-2">
+          {/* Seletor Tátil dos 4 Presets Soft UI (DESIGN.md v4.5-soft) */}
+          {onSelectPreset && (
+            <div
+              role="radiogroup"
+              aria-label="Selecionar Preset de Tema Tátil"
+              className="p-2 rounded-xl surface-inset space-y-1.5"
+            >
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-secondary font-semibold">
+                  Tema Soft UI (v4.5)
+                </span>
+                <span className="text-[10px] font-mono font-bold text-primary">
+                  {SOFT_UI_PRESETS[activePreset].label}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-1">
+                {(Object.keys(SOFT_UI_PRESETS) as SoftUIThemePreset[]).map((presetKey) => {
+                  const presetObj = SOFT_UI_PRESETS[presetKey];
+                  const isSelected = activePreset === presetKey;
+                  return (
+                    <button
+                      key={presetKey}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => onSelectPreset(presetKey)}
+                      className={`min-h-[34px] px-1.5 py-1 rounded-lg text-[10px] font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer btn-anti-squish ${
+                        isSelected
+                          ? 'card-matte-active text-primary font-bold'
+                          : 'text-secondary hover:text-primary'
+                      }`}
+                      title={`Aplicar tema ${presetObj.label} (${presetObj.mode === 'dark' ? 'Escuro' : 'Claro'})`}
+                    >
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-xs shrink-0"
+                        style={{ backgroundColor: presetObj.accentPoint }}
+                      />
+                      <span>{presetObj.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Alternador de Tema Binário (Dark / Light) */}
           {onToggleTheme && (
             <button

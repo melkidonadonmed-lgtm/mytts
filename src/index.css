@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./styles/globals.css";
+@import "./styles/theme.css";
 
 @variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
@@ -71,8 +73,8 @@
   --text-tertiary: #64748b;
   --text-on-accent: #ffffff;
 
-  --accent-primary: #2563eb;
-  --accent-primary-hover: #1d4ed8;
+  --accent-primary: #0284c7;
+  --accent-primary-hover: #1e6091;
   --accent-amber: #d97706;
 
   /* Badges Dinâmicas */

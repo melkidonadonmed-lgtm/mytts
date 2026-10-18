@@ -86,7 +86,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
   return (
     <section 
       aria-label="Área de Ingestão de Documentos"
-      className="w-full rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 sm:p-6 backdrop-blur-xl shadow-xl flex flex-col gap-4"
+      className="w-full rounded-2xl card-matte p-4 sm:p-6 flex flex-col gap-4"
     >
       {/* 1. Alternador de Modo de Entrada (Touch Target de 44px) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

@@ -1,0 +1,114 @@
+/* ==========================================================================
+   CATÁLOGO DE PRESETS TONAIS SOFT UI (DESIGN.md v4.5-soft)
+   1. Nexus Slate Cerulean (#F1F4F8 / #0284C7) — Light
+   2. Moss & Calm (#F4F3EC / #174930) — Light
+   3. Soft Sapphire (#F5F4EE / #1E6091) — Light
+   4. Obsidian Dark (#090B0E / #38BDF8) — Dark
+   ========================================================================== */
+
+[data-preset="slate"] {
+  --surface-canvas: #F1F4F8;
+  --surface-flat: #E9EEF5;
+  --surface-raised: #F8FAFC;
+  --surface-inset: #E5E9F0;
+  --surface-contrast: #1E293B;
+  --accent-point: #0284C7;
+  --accent-sapphire: #1E6091;
+
+  --bg-canvas: #F1F4F8 !important;
+  --bg-surface-0: #F8FAFC !important;
+  --bg-surface-1: #FFFFFF !important;
+  --bg-surface-2: #E9EEF5 !important;
+  --bg-surface-inset: #E5E9F0 !important;
+  --bg-card: #F8FAFC !important;
+  --bg-card-hover: #FFFFFF !important;
+  --accent-primary: #0284C7 !important;
+  --accent-primary-hover: #1E6091 !important;
+}
+
+[data-preset="moss"] {
+  --surface-canvas: #F4F3EC;
+  --surface-flat: #ECEAE0;
+  --surface-raised: #F8F7F2;
+  --surface-inset: #E8E5DC;
+  --surface-contrast: #1A2E22;
+  --accent-point: #174930;
+  --accent-sapphire: #059669;
+
+  --bg-canvas: #F4F3EC !important;
+  --bg-surface-0: #F8F7F2 !important;
+  --bg-surface-1: #FDFCF9 !important;
+  --bg-surface-2: #ECEAE0 !important;
+  --bg-surface-inset: #E8E5DC !important;
+  --bg-card: #F8F7F2 !important;
+  --bg-card-hover: #FDFCF9 !important;
+  --accent-primary: #174930 !important;
+  --accent-primary-hover: #059669 !important;
+}
+
+[data-preset="sapphire"] {
+  --surface-canvas: #F5F4EE;
+  --surface-flat: #EDEBE3;
+  --surface-raised: #FAF9F5;
+  --surface-inset: #E6E5DD;
+  --surface-contrast: #1E293B;
+  --accent-point: #1E6091;
+  --accent-sapphire: #0284C7;
+
+  --bg-canvas: #F5F4EE !important;
+  --bg-surface-0: #FAF9F5 !important;
+  --bg-surface-1: #FFFFFF !important;
+  --bg-surface-2: #EDEBE3 !important;
+  --bg-surface-inset: #E6E5DD !important;
+  --bg-card: #FAF9F5 !important;
+  --bg-card-hover: #FFFFFF !important;
+  --accent-primary: #1E6091 !important;
+  --accent-primary-hover: #0284C7 !important;
+}
+
+[data-preset="obsidian"] {
+  --surface-canvas: #090B0E;
+  --surface-flat: #101520;
+  --surface-raised: #131824;
+  --surface-inset: #0C1017;
+  --surface-contrast: #1E293B;
+  --accent-point: #38BDF8;
+  --accent-sapphire: #0284C7;
+
+  --bg-canvas: #090B0E !important;
+  --bg-surface-0: #101520 !important;
+  --bg-surface-1: #151B26 !important;
+  --bg-surface-2: #1B2332 !important;
+  --bg-surface-inset: #0C1017 !important;
+  --bg-card: #131824 !important;
+  --bg-card-hover: #1A2233 !important;
+  --accent-primary: #0284C7 !important;
+  --accent-primary-hover: #1E6091 !important;
+}
+
+/* Aplicação das superfícies minerais dos presets claros sobre containers e cartões */
+[data-theme="light"][data-preset="moss"] .card-matte,
+[data-theme="light"][data-preset="moss"] aside,
+[data-theme="light"][data-preset="moss"] .bg-slate-900 {
+  background-color: #F8F7F2 !important;
+  border-color: #D6D2C4 !important;
+}
+
+[data-theme="light"][data-preset="sapphire"] .card-matte,
+[data-theme="light"][data-preset="sapphire"] aside,
+[data-theme="light"][data-preset="sapphire"] .bg-slate-900 {
+  background-color: #FAF9F5 !important;
+  border-color: #DCD9CE !important;
+}
+
+[data-theme="light"][data-preset="slate"] .card-matte,
+[data-theme="light"][data-preset="slate"] aside,
+[data-theme="light"][data-preset="slate"] .bg-slate-900 {
+  background-color: #F8FAFC !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="light"] .btn-matte-primary {
+  background-color: var(--accent-primary) !important;
+  border-color: var(--accent-primary-hover) !important;
+}

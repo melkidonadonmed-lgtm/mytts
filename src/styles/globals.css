@@ -1,0 +1,152 @@
+/* ==========================================================================
+   DESIGN TOKENS & FÍSICA TÁTIL 135° (DESIGN.md v4.5-soft — Minimalist Impact)
+   Zero Glassmorphism (sem backdrop-filter: blur) | Zero Azul Cobalto
+   ========================================================================== */
+
+:root {
+  /* Pilha de 4+1 Camadas Tonais (Light Mode Reference / Variáveis Canônicas) */
+  --surface-canvas: #090b0e;
+  --surface-flat: #101520;
+  --surface-raised: #131824;
+  --surface-inset: #0c1017;
+  --surface-contrast: #1e293b;
+
+  /* Destaque Focal Único — Cerulean & Ocean Sapphire (Zero Cobalto) */
+  --accent-point: #0284c7;
+  --accent-sapphire: #1e6091;
+  --accent-soft-bg: rgba(2, 132, 199, 0.16);
+
+  /* Física Tactile / Neumorfismo Suave Direcional 135° (Dark Default) */
+  --soft-shadow-main: 8px 8px 24px rgba(0, 0, 0, 0.55);
+  --soft-shadow-light: -4px -4px 16px rgba(255, 255, 255, 0.04);
+  --soft-shadow-inset: inset 3px 3px 8px rgba(0, 0, 0, 0.65), inset -2px -2px 6px rgba(255, 255, 255, 0.04);
+
+  --radius-lg: 24px;
+  --radius-md: 14px;
+  --radius-sm: 8px;
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="light"] {
+  --surface-canvas: #F1F4F8;
+  --surface-flat: #E9EEF5;
+  --surface-raised: #F8FAFC;
+  --surface-inset: #E5E9F0;
+  --surface-contrast: #1E293B;
+
+  --accent-point: #0284C7;
+  --accent-sapphire: #1E6091;
+  --accent-soft-bg: #E0F2FE;
+
+  /* Física Tactile / Neumorfismo Suave Direcional 135° (Soft Light) */
+  --soft-shadow-main: 8px 8px 20px rgba(166, 180, 200, 0.42);
+  --soft-shadow-light: -8px -8px 20px rgba(255, 255, 255, 0.95);
+  --soft-shadow-inset: inset 4px 4px 10px rgba(166, 180, 200, 0.45), inset -4px -4px 10px rgba(255, 255, 255, 0.85);
+}
+
+/* Camadas de Superfície (4+1 Tonal Stack) */
+.surface-canvas {
+  background-color: var(--surface-canvas);
+}
+
+.surface-flat {
+  background-color: var(--surface-flat);
+  border-radius: var(--radius-md);
+}
+
+.surface-inset {
+  background-color: var(--surface-inset);
+  box-shadow: var(--soft-shadow-inset);
+  border-radius: var(--radius-md);
+}
+
+.surface-contrast {
+  background-color: var(--surface-contrast);
+  color: #f8fafc;
+}
+
+.terrixa-notched {
+  clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 0 100%);
+}
+
+/* Card Bento Tátil sem Bordas Duras (Iluminação 135°) */
+.ui-card-soft,
+.bento-card-soft {
+  background-color: var(--surface-raised);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--soft-shadow-main), var(--soft-shadow-light);
+  padding: 1.75rem;
+  transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
+  position: relative;
+}
+
+.ui-card-soft:hover,
+.bento-card-soft:hover {
+  transform: translateY(-2px);
+}
+
+.ui-card-soft:focus-visible,
+.ui-btn-tactile:focus-visible {
+  outline: 2px dashed var(--accent-point);
+  outline-offset: 3px;
+}
+
+/* Botão Tátil Pressionável (Alvo mínimo 44x44px + Anti-Squish) */
+.ui-btn-tactile {
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+  font-weight: 600;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: none;
+  box-shadow: var(--soft-shadow-main), var(--soft-shadow-light);
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: all 0.15s var(--ease-spring);
+}
+
+.ui-btn-tactile:hover {
+  color: var(--accent-point);
+  transform: translateY(-1px);
+}
+
+.ui-btn-tactile:active {
+  transform: translateY(1px);
+  box-shadow: var(--soft-shadow-inset);
+}
+
+/* Kit de Componentes Soft Tactile UI (8 Kits) */
+.badge-soft {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--surface-inset);
+  color: var(--accent-point);
+  box-shadow: var(--soft-shadow-inset);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.surface-inset-pill {
+  background-color: var(--surface-inset);
+  box-shadow: var(--soft-shadow-inset);
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+}
+
+.activity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  background-color: var(--surface-flat);
+  transition: transform 0.15s var(--ease-spring);
+}

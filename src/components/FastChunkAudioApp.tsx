@@ -458,7 +458,7 @@ export const FastChunkAudioApp: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 selection:bg-amber-500/20">
       
       {/* 1. Header Focado e Rápido */}
-      <header className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 py-3.5 sm:px-6">
+      <header className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800/80 px-4 py-3.5 sm:px-6">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
@@ -740,7 +740,7 @@ export const FastChunkAudioApp: React.FC = () => {
               setIsModalOpen(false);
             }
           }}
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4"
           role="presentation"
         >
           <div

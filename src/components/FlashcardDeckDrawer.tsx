@@ -41,7 +41,7 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-black/80 flex justify-end animate-in fade-in duration-200"
       role="presentation"
     >
       <div

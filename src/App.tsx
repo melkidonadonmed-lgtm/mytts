@@ -17,6 +17,8 @@ import { GaplessAudioPlayer } from './utils/audioEngine';
 import { VoiceProfile, GEMINI_VOICES } from './types/voices';
 import { requestDebateScript, requestSynthesizeTurn } from './services/apiClient';
 import { persistBrowserState, readBrowserState } from './services/polyglotClient';
+import { SOFT_UI_PRESETS } from './config/tokens';
+import type { SoftUIThemePreset } from './types';
 import { AlertCircle, Menu } from 'lucide-react';
 
 // Estados globais da aplicação: empty (nenhum) | loading (carregando) | success (sucesso) | error (erro)
@@ -26,15 +28,42 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
 
-  // Tema Binário Canônico (Dark / Light) com persistência
+  // Preset Soft UI v4.5 (obsidian | slate | moss | sapphire) + Tema Binário sincronizado
+  const [activePreset, setActivePreset] = useState<SoftUIThemePreset>(() => {
+    const savedPreset = readBrowserState('mytts_preset') as SoftUIThemePreset | null;
+    if (savedPreset && savedPreset in SOFT_UI_PRESETS) {
+      return savedPreset;
+    }
+    const savedTheme = readBrowserState('mytts_theme');
+    return savedTheme === 'light' ? 'slate' : 'obsidian';
+  });
+
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = readBrowserState('mytts_theme');
     return saved === 'light' || saved === 'dark' ? saved : 'dark';
   });
 
+  const handleSelectPreset = (nextPreset: SoftUIThemePreset): void => {
+    setActivePreset(nextPreset);
+    setTheme(SOFT_UI_PRESETS[nextPreset].mode);
+  };
+
+  const handleToggleBinaryTheme = (): void => {
+    if (theme === 'dark') {
+      const nextLightPreset = activePreset === 'obsidian' ? 'slate' : activePreset;
+      setActivePreset(nextLightPreset);
+      setTheme('light');
+    } else {
+      setActivePreset('obsidian');
+      setTheme('dark');
+    }
+  };
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     document.body.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-preset', activePreset);
+    document.body.setAttribute('data-preset', activePreset);
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
       document.body.classList.add('dark');
@@ -43,7 +72,8 @@ export default function App() {
       document.body.classList.remove('dark');
     }
     persistBrowserState('mytts_theme', theme);
-  }, [theme]);
+    persistBrowserState('mytts_preset', activePreset);
+  }, [theme, activePreset]);
 
   // Listener para sincronizar tema e atalho global Ctrl + K / Cmd + K
   useEffect(() => {
@@ -51,6 +81,10 @@ export default function App() {
       const saved = readBrowserState('mytts_theme');
       if (saved === 'light' || saved === 'dark') {
         setTheme(saved);
+      }
+      const savedPreset = readBrowserState('mytts_preset') as SoftUIThemePreset | null;
+      if (savedPreset && savedPreset in SOFT_UI_PRESETS) {
+        setActivePreset(savedPreset);
       }
     };
     const onGlobalKeyDown = (e: KeyboardEvent) => {
@@ -265,14 +299,16 @@ export default function App() {
         onOpenVoiceLibrary={() => setActiveTab('voices')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         theme={theme}
-        onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+        onToggleTheme={handleToggleBinaryTheme}
+        activePreset={activePreset}
+        onSelectPreset={handleSelectPreset}
       />
 
       {/* 2. Área de Trabalho Principal (com margem para sidebar no desktop) */}
       <div className="flex-1 flex flex-col lg:pl-72 min-h-screen">
         
         {/* Header Mobile com Hamburger */}
-        <header className="h-14 px-4 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl flex items-center justify-between lg:hidden sticky top-0 z-30">
+        <header className="h-14 px-4 border-b border-slate-800/80 bg-slate-950 flex items-center justify-between lg:hidden sticky top-0 z-30">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
