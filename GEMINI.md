@@ -105,3 +105,17 @@ gcloud run deploy mytts `
 - **Touch Targets Ergonômicos**: Botões primários e controles no dock inferior devem manter altura/largura mínima de 44px a 56px para manuseio tátil com o polegar.
 - **Tratamento Resiliente de Erros**: Qualquer falha na síntese neural ou em chamadas de API deve apresentar feedback visual claro e acionável sem quebrar o estado global da aplicação.
 - **Scripts de Teste**: Sempre que alterar a lógica do motor de áudio, execute `npm test` para assegurar conformidade matemática dos ganhos em dB e validade dos cabeçalhos WAV.
+
+---
+
+## Diretrizes Globais de Qualidade, Eficiência, Orquestração de Agentes e Execução Adaptativa
+Este repositório segue as diretrizes globais do workspace:
+- **Regras do Workspace (`dev`)**: [AGENTS.md](file:///C:/Users/melki/dev/AGENTS.md), [GEMINI.md](file:///C:/Users/melki/dev/GEMINI.md) e Hub Interativo [`tools\agent-hub.ps1`](file:///C:/Users/melki/dev/tools/agent-hub.ps1)
+- **Preferências e Memória Canônica**: [Preferências de Trabalho com Agentes.md](file:///C:/Users/melki/dev/notes/Mem%C3%B3ria/Prefer%C3%AAncias%20de%20Trabalho%20com%20Agentes.md)
+- **Regra Global (`always_on`)**: [diretrizes-qualidade-eficiencia.md](file:///C:/Users/melki/.gemini/config/rules/diretrizes-qualidade-eficiencia.md) (1. Qualidade e Tipagem Estrita <= 300 linhas; 2. Eficiência, Zero Preâmbulo e Portões HITL; 3. Flexibilidade Anti-Engessamento; 4. Self-Refine Silencioso; 5. Proatividade com 1 Próximo Passo Concreto; 6. Minimalist Impact `DESIGN.md v4.5-soft` — Luz 135°, `Cerulean Sapphire #0284C7`, Zero Cobalto/Glassmorphism).
+- **Orquestração Interativa de Agentes (5 Camadas)**:
+  1. **Bússola & Heartbeat (`0 tokens`)**: `franklin_smart_compass(intent_or_path)` | `pwsh C:\Users\melki\dev\tools\agent-hub.ps1` | `POST /rpc` (`mesh/heartbeat`).
+  2. **Execução Direta vs. Loop Fechado**: Precedência `<user_rules>` **>** `franklin-skills` **>** `superpowers` (entrega direta sem entrevista em baixo risco; `LoopPlanner` Fase 0 + `gap-analyzer-auditor` em missões críticas).
+  3. **Esquadrão Frontend (`FrontCraftMaster` + Topologia `3+1`)**: `invoke_subagent` (`ui-shell-navigator` -> `ui-controls-data` + `ui-motion-interaction` -> `ui-deterministic-observer`) ou `franklin_execute_dag("ui")`.
+  4. **Gatekeepers Determinísticos**: `code-acceptability-auditor` (AST Python >= 75), `test-quality-auditor`, `franklin_execute_dag("physics")` (`Snorm >= 80`) e `dispatch_skill_deterministic_tests` (Go Pass@k).
+  5. **Malha Multiagente Cloud/Web & Clínica**: `adk-tests` (Watchdog SRE + A2A `:8080`), `epic-volta` (DAG Kahn + `MCPBridgeAgent`), `mcp-web-agents` (Gateway 4+1) e `PCM`/`scoreboard` (`prescmed-clinical-reviewer`).
