@@ -1,0 +1,81 @@
+name: Deploy - Cloud Run (mytts)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: agent-md-506215
+  SERVICE_NAME: mytts
+  REGION: us-central1
+
+jobs:
+  deploy:
+    name: Build, Test & Deploy Cloud Run
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout do Repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instalar Dependencias, Verificar Tipos, Testar e Compilar
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Validar configuracao de autenticacao GCP
+        id: auth-config
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$GCP_SA_KEY" ]; then
+            echo "mode=key" >> "$GITHUB_OUTPUT"
+          elif [ -n "$GCP_WORKLOAD_IDENTITY_PROVIDER" ] && [ -n "$GCP_SERVICE_ACCOUNT" ]; then
+            echo "mode=wif" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Configure GCP_SA_KEY ou ambos GCP_WORKLOAD_IDENTITY_PROVIDER e GCP_SERVICE_ACCOUNT nos secrets do repositorio."
+            exit 1
+          fi
+
+      - name: Autenticar no Google Cloud via chave JSON
+        if: steps.auth-config.outputs.mode == 'key'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Autenticar no Google Cloud via Workload Identity Federation (OIDC)
+        if: steps.auth-config.outputs.mode == 'wif'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configurar gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy no Google Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --source . \
+            --project ${{ env.PROJECT_ID }} \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --quiet \
+            --update-env-vars NODE_ENV=production,GCP_PROJECT_ID=${{ env.PROJECT_ID }}
