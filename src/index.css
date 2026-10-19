@@ -214,11 +214,14 @@
 
 /* Cartão com Acabamento Mate */
 .card-matte {
-  background: var(--surface-raised);
-  border: none;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-spring);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-rim-light);
+  border-radius: 1rem;
+  box-shadow: 
+    0 1px 2px 0 rgba(0, 0, 0, 0.05),
+    0 8px 24px -4px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root .card-matte {
@@ -263,7 +266,7 @@
 
 [data-theme="light"] .card-matte-active {
   background: #f8fafc !important;
-  border: 1px solid #0284c7 !important;
+  border: 1px solid #2563eb !important;
   box-shadow: 
     0 0 0 1px rgba(37, 99, 235, 0.35),
     0 4px 16px -2px rgba(37, 99, 235, 0.12) !important;
@@ -494,13 +497,13 @@
 }
 
 /* Linhas divisórias e bordas */
-[data-theme="light"] .border-subtle-tonal,
-[data-theme="light"] .border-subtle-tonal,
-[data-theme="light"] .border-subtle-tonal,
-[data-theme="light"] .border-subtle-tonal,
-[data-theme="light"] .border-subtle-tonal,
-[data-theme="light"] .border-subtle-tonal,
-[data-theme="light"] .border-subtle-tonal {
+[data-theme="light"] .border-slate-800,
+[data-theme="light"] .border-slate-800\/90,
+[data-theme="light"] .border-slate-800\/80,
+[data-theme="light"] .border-slate-800\/70,
+[data-theme="light"] .border-slate-800\/60,
+[data-theme="light"] .border-slate-700,
+[data-theme="light"] .border-slate-700\/80 {
   border-color: #cbd5e1 !important;
 }
 
@@ -519,6 +522,8 @@
 .bg-amber-500 *,
 .bg-amber-600,
 .bg-amber-600 *,
+.bg-blue-600,
+.bg-blue-600 *,
 .bg-sky-600,
 .bg-sky-600 *,
 .bg-emerald-600,
@@ -537,7 +542,9 @@
 [data-theme="light"] .bg-amber-500 *,
 [data-theme="light"] .bg-amber-600,
 [data-theme="light"] .bg-amber-600 *,
-[data-theme="light"] [data-theme="light"] [data-theme="light"] .bg-sky-600,
+[data-theme="light"] .bg-blue-600,
+[data-theme="light"] .bg-blue-600 *,
+[data-theme="light"] .bg-sky-600,
 [data-theme="light"] .bg-sky-600 *,
 [data-theme="light"] .bg-emerald-600,
 [data-theme="light"] .bg-emerald-600 *,
@@ -547,7 +554,7 @@
 }
 
 /* Tipografia de Alto Contraste no Modo Claro (Anti-desbotamento WCAG AAA) */
-[data-theme="light"] .text-white:not(.btn-matte-primary):not(.btn-matte-primary *):not(.btn-matte-amber):not(.btn-matte-amber *):not(.btn-matte-accent):not(.btn-matte-accent *):not(.bg-rose-500):not(.bg-rose-500 *):not(.bg-amber-500):not(.bg-amber-500 *):not(.bg-sky-600):not(.bg-sky-600 *),
+[data-theme="light"] .text-white:not(.btn-matte-primary):not(.btn-matte-primary *):not(.btn-matte-amber):not(.btn-matte-amber *):not(.btn-matte-accent):not(.btn-matte-accent *):not(.bg-rose-500):not(.bg-rose-500 *):not(.bg-amber-500):not(.bg-amber-500 *):not(.bg-blue-600):not(.bg-blue-600 *):not(.bg-sky-600):not(.bg-sky-600 *),
 [data-theme="light"] .text-slate-100 {
   color: #0f172a !important; /* Slate 900 - Contraste > 14:1 */
 }
@@ -593,6 +600,12 @@
 [data-theme="light"] .text-rose-300,
 [data-theme="light"] .text-rose-400 {
   color: #9f1239 !important; /* Deep Rose - Contraste > 7:1 */
+}
+
+[data-theme="light"] .text-purple-200,
+[data-theme="light"] .text-purple-300,
+[data-theme="light"] .text-purple-400 {
+  color: #581c87 !important; /* Deep Purple - Contraste > 7:1 */
 }
 
 /* Badges e Chips no Modo Claro */

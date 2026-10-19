@@ -207,27 +207,7 @@
 
 /* Companion Sliding Tracker (#sidebar-active-tracker) */
 #sidebar-active-tracker {
-  position: absolute;
-  left: 0.75rem;
-  right: 0.75rem;
-  height: 56px;
-  border-radius: var(--radius-md);
-  background-color: var(--surface-inset);
-  box-shadow: var(--shadow-inset);
-  transition: transform 0.35s var(--ease-spring);
-  pointer-events: none;
-  z-index: 0;
-}
-
-#sidebar-active-tracker::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 4px;
-  border-radius: 9999px;
-  background-color: var(--accent-point);
+  transition: transform 0.35s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
 }
 
 /* ==========================================================================
@@ -252,9 +232,7 @@ select:user-invalid {
   outline-offset: 2px;
 }
 
-.island-container,
-.bento-card-soft,
-.ui-card-soft {
+.island-container {
   container-type: inline-size;
 }
 

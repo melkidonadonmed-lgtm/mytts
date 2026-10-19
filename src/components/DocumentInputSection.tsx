@@ -85,18 +85,20 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
 
   return (
     <section 
-      data-state="idle" aria-label="Área de Ingestão de Documentos"
-      className="w-full rounded-2xl ui-card-soft p-4 sm:p-6 flex flex-col gap-4"
+      aria-label="Área de Ingestão de Documentos"
+      className="w-full rounded-2xl card-matte p-4 sm:p-6 flex flex-col gap-4"
+      data-state="idle"
+      aria-busy="false"
     >
       {/* 1. Alternador de Modo de Entrada (Touch Target de 44px) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-950 p-1 border  w-full sm:w-auto">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-950 p-1 border border-slate-800 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setActiveTab('paste')}
             className={`min-h-[44px] flex items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'paste'
-                ? 'bg-amber-400/10 border  text-amber-300 shadow-sm'
+                ? 'bg-amber-400/10 border border-amber-400/40 text-amber-300 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -109,7 +111,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
             onClick={() => setActiveTab('upload')}
             className={`min-h-[44px] flex items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'upload'
-                ? 'bg-amber-400/10 border  text-amber-300 shadow-sm'
+                ? 'bg-amber-400/10 border border-amber-400/40 text-amber-300 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -126,7 +128,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
             setUploadedFileName(null);
             setUploadError(null);
           }}
-          className="min-h-[44px] flex items-center justify-center sm:justify-start gap-1.5 rounded-xl border  bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 hover: hover:text-white transition-all cursor-pointer"
+          className="min-h-[44px] flex items-center justify-center sm:justify-start gap-1.5 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white transition-all cursor-pointer"
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
           <span className="truncate">Usar ensaio de teste ({sampleForCurrentLang.language})</span>
@@ -141,7 +143,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
             onChange={(e) => onChangeText(e.target.value)}
             placeholder="Cole aqui o texto, artigo, ensaio acadêmico ou relatório para converter em debate dialético..."
             rows={7}
-            className="w-full rounded-xl border  bg-slate-950/80 p-3.5 text-base md:text-sm text-slate-100 placeholder-slate-600 focus: focus:outline-none focus:ring-1 focus:ring-amber-400/80 transition-all resize-y leading-relaxed font-sans"
+            className="w-full rounded-xl border border-slate-800 bg-slate-950/80 p-3.5 text-base md:text-sm text-slate-100 placeholder-slate-600 focus:border-amber-400/80 focus:outline-none focus:ring-1 focus:ring-amber-400/80 transition-all resize-y leading-relaxed font-sans"
           />
           {textInput && (
             <button
@@ -155,7 +157,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
           )}
         </div>
       ) : (
-        <label className="relative flex flex-col items-center justify-center min-h-[180px] rounded-xl border-2 border-dashed  hover: bg-slate-950/50 p-6 text-center transition-all cursor-pointer group">
+        <label className="relative flex flex-col items-center justify-center min-h-[180px] rounded-xl border-2 border-dashed border-slate-800 hover:border-amber-400/50 bg-slate-950/50 p-6 text-center transition-all cursor-pointer group">
           <input
             type="file"
             accept=".pdf,.txt,.md,.json"
@@ -175,13 +177,13 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
               <p className="text-xs sm:text-sm font-semibold text-slate-200">
                 Toque para selecionar documento
               </p>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] text-slate-500 mt-0.5">
                 Suporta PDF, TXT, Markdown (.md) ou relatórios em texto puro
               </p>
             </>
           )}
           {uploadError && (
-            <p className="text-xs text-rose-400 mt-2">{uploadError}</p>
+            <p className="text-[11px] text-rose-400 mt-2">{uploadError}</p>
           )}
         </label>
       )}
@@ -205,7 +207,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
           type="button"
           onClick={onGenerateDebate}
           disabled={!textInput.trim() || isGenerating}
-          className="min-h-[50px] w-full sm:w-auto px-6 rounded-xl surface-inset text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+          className="min-h-[50px] w-full sm:w-auto px-6 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
         >
           {isGenerating ? (
             <>

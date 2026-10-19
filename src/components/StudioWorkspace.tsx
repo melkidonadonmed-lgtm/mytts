@@ -22,7 +22,6 @@ import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 import { VoiceCardGrid } from './VoiceCardGrid';
 import { StudioTextEditor } from './StudioTextEditor';
 import { ScriptViewer } from './ScriptViewer';
-import { SoftCard } from './ui/SoftCard';
 import { requestSynthesizeSpeech } from '../services/apiClient';
 import { generateAudioCacheKey, synthesizeWithCache, setCachedAudio } from '../utils/audioCache';
 import { AUDIO_CONSTANTS } from '../config/constants';
@@ -96,25 +95,25 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     {
       id: 'natural',
       label: 'Natural & Fluido',
-      icon: '',
+      icon: '🌿',
       desc: 'Ritmo equilibrado de fala humana com respirações orgânicas nos pontos e vírgulas.',
     },
     {
       id: 'storytelling',
       label: 'Narrativo & Envolvente',
-      icon: '',
+      icon: '📖',
       desc: 'Cadência rica de audiolivro, com modulação acolhedora e pausas para reflexão.',
     },
     {
       id: 'technical',
       label: 'Técnico & Notícia',
-      icon: '️',
+      icon: '🏛️',
       desc: 'Dicção cristalina, ritmo firme e profissional para relatórios e análises.',
     },
     {
       id: 'spontaneous',
       label: 'Espontâneo & Conversa',
-      icon: '',
+      icon: '☕',
       desc: 'Inflexão descontraída e ágil, como em um podcast ou diálogo informal.',
     },
   ];
@@ -328,14 +327,14 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   };
 
   return (
-    <div data-state="idle" className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 py-6 pb-36 gap-6">
+    <div data-state="idle" aria-busy={isSoloSynthesizing || isGeneratingDebate} className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 py-6 pb-36 gap-6">
       
       {/* 1. Header do Estúdio e Seletor de Modo Hero */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b  dark:">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800/80">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <span>Estúdio de Criação de Áudio</span>
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 border  font-bold">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-bold">
               Gemini 3.1 Flash TTS
             </span>
           </h1>
@@ -345,13 +344,13 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         </div>
 
         {/* Alternador de Modo em 1 Toque (Solo vs Debate) */}
-        <div className="grid grid-cols-2 gap-1 rounded-2xl ui-card-soft p-1">
+        <div className="grid grid-cols-2 gap-1 rounded-2xl card-matte p-1">
           <button
             type="button"
             onClick={() => setMode('solo')}
             className={`min-h-[44px] px-4 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
               mode === 'solo'
-                ? 'ui-btn-primary text-white shadow-md ring-1 ring-sky-400/40'
+                ? 'btn-matte-primary text-white shadow-md ring-1 ring-sky-400/40'
                 : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
             }`}
           >
@@ -364,7 +363,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             onClick={() => setMode('debate')}
             className={`min-h-[44px] px-4 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
               mode === 'debate'
-                ? 'ui-btn-primary text-white shadow-md ring-1 ring-sky-400/40'
+                ? 'btn-matte-primary text-white shadow-md ring-1 ring-sky-400/40'
                 : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
             }`}
           >
@@ -392,10 +391,10 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         <section aria-label="Configuração de Voz e Calibração Solo" className="flex flex-col gap-4">
           
           {/* Etapa 1: Seleção de Voz Tátil */}
-          <SoftCard className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl card-matte">
             <div className="flex items-center gap-2.5">
               <div
-                className={`w-8 h-8 rounded-xl surface-inset ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-extrabold shadow-sm`}
+                className={`w-8 h-8 rounded-xl bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-extrabold shadow-sm`}
               >
                 {selectedVoice.name[0]}
               </div>
@@ -406,16 +405,16 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   <span className="text-sky-700 dark:text-sky-300 font-extrabold normal-case text-sm tracking-normal">
                     {selectedVoice.name}
                   </span>
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-normal">
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">
                     · {selectedVoice.archetype}
                   </span>
                 </h2>
               </div>
             </div>
-            <span className="text-xs text-slate-600 dark:text-slate-400 font-mono">
+            <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
               Clique em qualquer card abaixo para trocar de voz instantaneamente
             </span>
-          </SoftCard>
+          </div>
 
           <VoiceCardGrid
             selectedVoice={selectedVoice}
@@ -426,11 +425,11 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           />
 
           {/* Etapa 2: Calibração de Intenção e Velocidade */}
-          <SoftCard className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-4 rounded-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-4 rounded-2xl card-matte">
             
             {/* 4 Presets de Calibração */}
             <div className="lg:col-span-8 flex flex-col gap-2">
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider font-sans">
+              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider font-sans">
                 Intenção Vocal em Português:
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -444,17 +443,17 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                         setCalibration(preset.id);
                         setSoloAudioUrl(null);
                       }}
-                      className={`p-2.5 rounded-xl text-left flex flex-col gap-1 transition-all cursor-pointer active:translate-y-px font-sans ${
+                      className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer active:translate-y-px font-sans ${
                         isActive
-                          ? 'surface-inset text-sky-900 dark:text-sky-200 ring-1 ring-sky-400/30'
-                          : 'ui-btn-tactile text-slate-700 dark:text-slate-300'
+                          ? 'bg-sky-100 dark:bg-sky-500/20 border-sky-400/50 text-sky-900 dark:text-sky-200 shadow-sm ring-1 ring-sky-400/30'
+                          : 'bg-slate-100 dark:bg-slate-900/60 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-900'
                       }`}
                     >
                       <span className="text-xs font-bold flex items-center gap-1">
                         <span>{preset.icon}</span>
                         <span>{preset.label}</span>
                       </span>
-                      <span className="text-xs text-slate-600 dark:text-slate-400 leading-tight">
+                      <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">
                         {preset.desc}
                       </span>
                     </button>
@@ -464,13 +463,13 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             </div>
 
             {/* Velocidade e Toggle de Auto-Prosódia */}
-            <div className="lg:col-span-4 flex flex-col justify-between gap-3 pt-3 lg:pt-0 lg:pl-4">
+            <div className="lg:col-span-4 flex flex-col justify-between gap-3 border-t lg:border-t-0 lg:border-l border-slate-800/80 pt-3 lg:pt-0 lg:pl-4">
               {/* Velocidade */}
               <div>
-                <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1.5 font-sans">
+                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1.5 font-sans">
                   Velocidade:
                 </span>
-                <div className="flex surface-inset rounded-xl p-1">
+                <div className="flex bg-slate-100 dark:bg-slate-950 rounded-xl p-1 border border-slate-300 dark:border-slate-800">
                   {[0.8, 1.0, 1.2, 1.5].map((s) => (
                     <button
                       key={s}
@@ -481,7 +480,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                       }}
                       className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer active:translate-y-px ${
                         playbackSpeed === s
-                          ? 'ui-btn-primary text-white shadow-sm'
+                          ? 'btn-matte-primary text-white shadow-sm'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
@@ -492,14 +491,14 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               </div>
 
               {/* Interruptor de Auto-Respiração e Pausas */}
-              <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl surface-inset cursor-pointer transition-colors">
+              <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 cursor-pointer hover:border-slate-400 dark:hover:border-slate-700 transition-colors">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
                   <div className="text-left">
                     <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block font-sans">
                       Auto-Respiração & Pausas
                     </span>
-                    <span className="text-xs text-slate-600 dark:text-slate-400 font-sans">
+                    <span className="text-[10px] text-slate-600 dark:text-slate-400 font-sans">
                       Calcula fôlego biológico sem ler tags
                     </span>
                   </div>
@@ -511,11 +510,11 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                     setAutoProsody(e.target.checked);
                     setSoloAudioUrl(null);
                   }}
-                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 focus:ring-offset-0 bg-white dark:bg-slate-900 accent-sky-600 cursor-pointer"
+                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 focus:ring-offset-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 accent-sky-600 cursor-pointer"
                 />
               </label>
             </div>
-          </SoftCard>
+          </div>
 
           {/* Banner de Erro com Fallback */}
           {soloErrorMessage && (
@@ -528,14 +527,14 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 <button
                   type="button"
                   onClick={handleFallbackWebSpeech}
-                  className="px-3 py-1.5 rounded-xl ui-btn-tactile text-xs font-semibold cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl btn-matte-dark text-xs font-semibold cursor-pointer"
                 >
                   Ouvir voz do navegador
                 </button>
                 <button
                   type="button"
                   onClick={() => setSoloErrorMessage(null)}
-                  className="text-rose-400 hover:text-white font-mono text-xs cursor-pointer"
+                  className="text-rose-400 hover:text-white font-mono text-[11px] cursor-pointer"
                 >
                   dispensar
                 </button>
@@ -549,7 +548,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               type="button"
               onClick={() => handleSoloSynthesizeAndPlay(false)}
               disabled={isSoloSynthesizing || !text.trim()}
-              className="ui-btn-primary w-full sm:flex-1 min-h-[52px] rounded-2xl text-white font-bold text-sm tracking-normal flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
+              className="btn-matte-primary w-full sm:flex-1 min-h-[52px] rounded-2xl text-white font-bold text-sm tracking-normal flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
             >
               {isSoloSynthesizing ? (
                 <>
@@ -579,7 +578,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   type="button"
                   onClick={() => handleSoloSynthesizeAndPlay(true)}
                   disabled={isSoloSynthesizing || !text.trim()}
-                  className="w-full sm:w-auto min-h-[52px] px-4 rounded-2xl ui-btn-tactile text-slate-200 border  text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px disabled:opacity-50"
+                  className="w-full sm:w-auto min-h-[52px] px-4 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px disabled:opacity-50"
                   title="Gerar nova síntese forçada com a voz ativa atual"
                 >
                   <RotateCw className="w-4 h-4 text-sky-400" />
@@ -589,7 +588,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 <button
                   type="button"
                   onClick={handleDownloadSoloWav}
-                  className="w-full sm:w-auto min-h-[52px] px-5 rounded-2xl ui-btn-tactile text-slate-200 border  text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px"
+                  className="w-full sm:w-auto min-h-[52px] px-5 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px"
                   title="Baixar arquivo WAV canônico (24kHz)"
                 >
                   <Download className="w-4 h-4 text-emerald-400" />
@@ -601,7 +600,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
 
           {/* Etapa 4: Player Visual em Linha (Solo) */}
           {soloAudioUrl && (
-            <div className="p-4 rounded-2xl bg-slate-900 border  flex flex-col gap-2 animate-in fade-in">
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-2 animate-in fade-in">
               <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
                 <span className="text-sky-300 font-bold flex items-center gap-1.5 font-sans">
                   <Volume2 className="w-3.5 h-3.5 text-sky-400" />
@@ -644,8 +643,8 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   onClick={() => setActiveSpeakerSlot(1)}
                   className={`px-3 py-1 rounded-xl text-xs font-bold font-sans transition-all cursor-pointer active:translate-y-px ${
                     activeSpeakerSlot === 1
-                      ? 'ui-btn-primary text-white shadow-sm ring-1 ring-sky-400/40'
-                      : 'bg-slate-900 text-slate-400 border '
+                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/40'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800'
                   }`}
                 >
                   Slot 1: {speaker1.name}
@@ -655,8 +654,8 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   onClick={() => setActiveSpeakerSlot(2)}
                   className={`px-3 py-1 rounded-xl text-xs font-bold font-sans transition-all cursor-pointer active:translate-y-px ${
                     activeSpeakerSlot === 2
-                      ? 'ui-btn-primary text-white shadow-sm ring-1 ring-emerald-400/40'
-                      : 'bg-slate-900 text-slate-400 border '
+                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-emerald-400/40'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800'
                   }`}
                 >
                   Slot 2: {speaker2.name}
@@ -684,17 +683,17 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           </div>
 
           {/* Intensidade de Tensão Dialética */}
-          <div className="p-4 rounded-2xl bg-slate-900/60 border  flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-xs font-bold text-slate-200 block font-sans">
                 Nível de Tensão Dialética:
               </span>
-              <span className="text-xs text-slate-400 font-sans">
+              <span className="text-[11px] text-slate-400 font-sans">
                 Define a energia dos argumentos e a firmeza dos contra-pontos.
               </span>
             </div>
 
-            <div className="flex bg-slate-950 rounded-xl p-1 border ">
+            <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800">
               {([
                 { id: 'friendly', label: 'Amigável' },
                 { id: 'balanced', label: 'Equilibrado' },
@@ -706,7 +705,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   onClick={() => setDebateTension(t.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer active:translate-y-px ${
                     debateTension === t.id
-                      ? 'ui-btn-primary text-white shadow-sm ring-1 ring-sky-400/30'
+                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/30'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -721,7 +720,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             type="button"
             onClick={handleTriggerDebate}
             disabled={isGeneratingDebate || isSynthesizingDebate || !text.trim()}
-            className="min-h-[52px] w-full rounded-2xl ui-btn-primary text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
+            className="min-h-[52px] w-full rounded-2xl btn-matte-primary text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
           >
             {isGeneratingDebate ? (
               <>
@@ -743,7 +742,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
 
           {/* Roteiro e Turnos do Debate Gerado */}
           {script && script.turns && script.turns.length > 0 && (
-            <div className="mt-4 pt-4 border-t ">
+            <div className="mt-4 pt-4 border-t border-slate-800/80">
               <ScriptViewer
                 script={script}
                 currentTurnIndex={playerCurrentTurn}

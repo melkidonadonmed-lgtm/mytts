@@ -13,22 +13,13 @@ interface ArchitectureModalProps {
   onClose: () => void;
 }
 
-
 export const ArchitectureModal: React.FC<ArchitectureModalProps> = ({ onClose }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [copyError, setCopyError] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, key: string) => {
-    setCopyError(null);
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        setCopiedKey(key);
-        setTimeout(() => setCopiedKey(null), 2000);
-      })
-      .catch(() => {
-        setCopyError('Falha ao copiar para a área de transferência.');
-      });
+    navigator.clipboard.writeText(text).catch((e) => console.warn('Clipboard indisponível:', e));
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
   };
 
   const schemaJson = `{
@@ -93,19 +84,10 @@ LEIS INVIOLÁVEIS:
    - Cada fala deve soar como fala humana real improvisada em estúdio.`;
 
   return (
-    <div
-      data-state={copyError ? 'error' : copiedKey ? 'pressed' : 'idle'}
-      aria-busy="false"
-      className="surface-raised fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 overflow-y-auto"
-    >
-      <div className="bg-slate-900 border  rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col gap-6 my-8 max-h-[90vh] overflow-y-auto">
-        {copyError && (
-          <div role="alert" className="text-xs text-rose-400 font-mono">
-            {copyError}
-          </div>
-        )}
+    <div data-state={copiedKey ? 'pressed' : 'idle'} aria-busy="false" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col gap-6 my-8 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b ">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div>
             <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
               <Layers className="w-5 h-5 text-amber-400" />
@@ -130,26 +112,26 @@ LEIS INVIOLÁVEIS:
             <span>01. Fluxo de Dados Ponta a Ponta</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
-            <div className="p-3 rounded-lg border  bg-slate-950/50 flex flex-col gap-1">
-              <span className="text-xs font-bold text-sky-400">Passo 1: Ingestão</span>
+            <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/50 flex flex-col gap-1">
+              <span className="text-[11px] font-bold text-sky-400">Passo 1: Ingestão</span>
               <p className="text-xs text-slate-300">
                 Upload de PDF/TXT/MD ou texto colado. Extração limpa e segmentação temática via Gemini Multimodal.
               </p>
             </div>
-            <div className="p-3 rounded-lg border  bg-slate-950/50 flex flex-col gap-1">
-              <span className="text-xs font-bold text-amber-400">Passo 2: Dialética LLM</span>
+            <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/50 flex flex-col gap-1">
+              <span className="text-[11px] font-bold text-amber-400">Passo 2: Dialética LLM</span>
               <p className="text-xs text-slate-300">
                 Geração do roteiro em JSON com perfis opostos (Analítico vs Provocador), pontuação rítmica e marcadores prosódicos.
               </p>
             </div>
-            <div className="p-3 rounded-lg border  bg-slate-950/50 flex flex-col gap-1">
-              <span className="text-xs font-bold text-emerald-400">Passo 3: Síntese Neural</span>
+            <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/50 flex flex-col gap-1">
+              <span className="text-[11px] font-bold text-emerald-400">Passo 3: Síntese Neural</span>
               <p className="text-xs text-slate-300">
                 Motor Gemini 3.8 Flash TTS com vozes nativas (Kore/Puck/Fenrir/Zephyr) gerando áudio WAV de 24kHz mono de 16-bit.
               </p>
             </div>
-            <div className="p-3 rounded-lg border  bg-slate-950/50 flex flex-col gap-1">
-              <span className="text-xs font-bold text-sky-400">Passo 4: Web Audio Gapless</span>
+            <div className="p-3 rounded-lg border border-slate-800 bg-slate-950/50 flex flex-col gap-1">
+              <span className="text-[11px] font-bold text-purple-400">Passo 4: Web Audio Gapless</span>
               <p className="text-xs text-slate-300">
                 Fila contígua no AudioContext com pitch preservation (1.0x-2.0x), espectro FFT ao vivo e sincronização de texto.
               </p>
@@ -172,7 +154,7 @@ LEIS INVIOLÁVEIS:
               <span>{copiedKey === 'schema' ? 'Copiado!' : 'Copiar Schema'}</span>
             </button>
           </div>
-          <pre className="p-3 rounded-lg bg-slate-950 border  text-xs text-slate-300 font-mono overflow-x-auto leading-relaxed max-h-56">
+          <pre className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono overflow-x-auto leading-relaxed max-h-56">
             {schemaJson}
           </pre>
         </div>
@@ -192,7 +174,7 @@ LEIS INVIOLÁVEIS:
               <span>{copiedKey === 'prompt' ? 'Copiado!' : 'Copiar Prompt'}</span>
             </button>
           </div>
-          <pre className="p-3 rounded-lg bg-slate-950 border  text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
+          <pre className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
             {systemPromptMarkdown}
           </pre>
         </div>

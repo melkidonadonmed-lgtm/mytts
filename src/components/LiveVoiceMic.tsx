@@ -149,7 +149,7 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
   };
 
   return (
-    <div data-state="idle" className="flex-1 flex flex-col max-w-3xl w-full mx-auto px-4 py-8 pb-36">
+    <div className="flex-1 flex flex-col max-w-3xl w-full mx-auto px-4 py-8 pb-36">
       
       {/* Header */}
       <div className="text-center mb-8">
@@ -187,12 +187,12 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
             {isRecording ? (
               <>
                 <Square className="w-8 h-8 fill-current mb-1 text-white" />
-                <span className="text-xs font-bold uppercase tracking-wider text-white">Parar</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white">Parar</span>
               </>
             ) : (
               <>
                 <Mic className="w-8 h-8 mb-1 text-white" />
-                <span className="text-xs font-bold uppercase tracking-wider text-white">Gravar</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white">Gravar</span>
               </>
             )}
           </button>
@@ -224,7 +224,7 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
       )}
 
       {/* Caixa de Transcrição Estruturada */}
-      <div className="rounded-2xl ui-card-soft p-5 shadow-xl flex flex-col gap-3">
+      <div className="rounded-2xl card-matte p-5 shadow-xl flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -252,7 +252,7 @@ export const LiveVoiceMic: React.FC<LiveVoiceMicProps> = ({
           )}
         </div>
 
-        <div className="min-h-[140px] max-h-72 overflow-y-auto p-4 rounded-xl surface-inset text-sm text-slate-900 dark:text-slate-200 leading-relaxed whitespace-pre-wrap selection:bg-amber-500/20">
+        <div className="min-h-[140px] max-h-72 overflow-y-auto p-4 rounded-xl input-sunken text-sm text-slate-900 dark:text-slate-200 leading-relaxed whitespace-pre-wrap selection:bg-amber-500/20">
           {transcript || (
             <span className="text-slate-500 dark:text-slate-600 italic">
               Nenhum texto transcrito ainda. O texto falado aparecerá aqui com sucesso após o processamento...

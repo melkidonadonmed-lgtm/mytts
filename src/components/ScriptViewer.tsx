@@ -75,7 +75,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
         return (
           <span
             key={i}
-            className="text-xs font-mono px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 border  mx-0.5"
+            className="text-[11px] font-mono px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 mx-0.5"
             title="Marcador vocal neural"
           >
             {part}
@@ -86,7 +86,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
         return (
           <span
             key={i}
-            className="text-xs font-mono px-1 py-0.5 rounded bg-sky-500/20 text-sky-300 border  mx-0.5"
+            className="text-[11px] font-mono px-1 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 mx-0.5"
             title="Escuta ativa (backchanneling)"
           >
             {part}
@@ -105,13 +105,9 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
   };
 
   return (
-    <div
-      data-state={synthesizingTurnIndex !== null ? 'loading' : 'idle'}
-      aria-busy={synthesizingTurnIndex !== null}
-      className="surface-raised flex flex-col gap-4"
-    >
+    <div data-state="idle" aria-busy={synthesizingTurnIndex !== null} className="flex flex-col gap-4">
       {/* Header: Debate Thesis and Summary */}
-      <div className="p-4 rounded-xl bg-slate-900/90 border  shadow-xl flex flex-col gap-2.5">
+      <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col gap-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
@@ -126,7 +122,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
           </div>
         </div>
 
-        <div className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 rounded-lg border ">
+        <div className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 rounded-lg border border-slate-800/80">
           <span className="font-semibold text-amber-400 mr-1.5">Tese em Disputa:</span>
           <span>{script.keyThesis}</span>
         </div>
@@ -147,14 +143,14 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
               key={turn.turn}
               className={`p-4 rounded-xl border transition-all ${
                 isActive
-                  ? ' bg-slate-900/95 ring-1 ring-amber-400/50 shadow-lg shadow-amber-500/10'
+                  ? 'border-amber-400/90 bg-slate-900/95 ring-1 ring-amber-400/50 shadow-lg shadow-amber-500/10'
                   : isSelected
-                  ? ' bg-slate-900/90'
-                  : ' bg-slate-900/60 hover:'
+                  ? 'border-slate-700 bg-slate-900/90'
+                  : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700'
               }`}
             >
               {/* Turn Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b  mb-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-800/60 mb-2.5">
                 <div className="flex items-center gap-2.5">
                   {/* Speaker Monogram Avatar */}
                   <div
@@ -167,7 +163,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-white">{speakerInfo.name}</span>
-                      <span className="text-xs text-slate-400 font-normal">
+                      <span className="text-[11px] text-slate-400 font-normal">
                         ({speakerInfo.roleTitle})
                       </span>
                     </div>
@@ -197,7 +193,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                     value={editedText}
                     onChange={(e) => setEditedText(e.target.value)}
                     rows={3}
-                    className="w-full bg-slate-950 border  rounded-lg p-3 text-sm text-slate-100 leading-relaxed focus:outline-none"
+                    className="w-full bg-slate-950 border border-amber-400/60 rounded-lg p-3 text-sm text-slate-100 leading-relaxed focus:outline-none"
                   />
                   <div className="flex items-center justify-end gap-2">
                     <button
@@ -227,7 +223,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
               )}
 
               {/* Turn Footer Actions */}
-              <div className="flex items-center justify-between mt-3 pt-2 text-xs border-t  text-slate-400">
+              <div className="flex items-center justify-between mt-3 pt-2 text-xs border-t border-slate-800/40 text-slate-400">
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -264,7 +260,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                     type="button"
                     onClick={() => handleSynthesizeSingle(index)}
                     disabled={isTurnSynthesizing || isSynthesizing}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all text-xs disabled:opacity-40 cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all text-[11px] disabled:opacity-40 cursor-pointer"
                   >
                     <RefreshCw
                       className={`w-3 h-3 text-amber-400 ${

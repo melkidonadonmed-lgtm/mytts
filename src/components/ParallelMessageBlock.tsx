@@ -81,25 +81,25 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
   };
 
   return (
-    <div data-state="idle" className="flex flex-col gap-3 py-4 border-b  last:border-0">
+    <div data-state="idle" aria-busy={message.status === 'loading'} className="flex flex-col gap-3 py-4 border-b border-slate-800/80 last:border-0">
       
       {/* 1. Entrada / Pergunta do Usuário (Design Matte Limpo) */}
-      <div className="flex items-start gap-3 ui-card-soft rounded-2xl p-4 max-w-3xl">
-        <div className="w-8 h-8 rounded-xl bg-amber-400/15 border  flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+      <div className="flex items-start gap-3 card-matte rounded-2xl p-4 max-w-3xl">
+        <div className="w-8 h-8 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
           <GoogleIcon name="person" size={18} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <span className="text-xs font-bold text-slate-300 font-display">Você</span>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-slate-500">
+              <span className="text-[10px] font-mono text-slate-500">
                 {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
               {message.status === 'ready' && onOpenExport && (
                 <button
                   type="button"
                   onClick={() => onOpenExport(message)}
-                  className="btn-matte ui-btn-tactile px-2 py-0.5 text-xs text-amber-300 hover:text-white rounded-lg flex items-center gap-1 border  hover: transition-all cursor-pointer"
+                  className="btn-matte btn-matte-dark px-2 py-0.5 text-[11px] text-amber-300 hover:text-white rounded-lg flex items-center gap-1 border border-amber-400/20 hover:border-amber-400/40 transition-all cursor-pointer"
                   title="Exportar Fast Chunks desta interação (Anki, Markdown, JSON ou Deck)"
                 >
                   <GoogleIcon name="download" size={13} className="text-amber-400" />
@@ -116,9 +116,9 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
 
       {/* 2. Loading State */}
       {message.status === 'loading' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-6 ui-card-soft rounded-2xl animate-pulse">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-6 card-matte rounded-2xl animate-pulse">
           {['Inglês', 'Italiano', 'Japonês'].map((lang, idx) => (
-            <div key={idx} className="h-40 bg-slate-900/60 border  rounded-xl flex flex-col items-center justify-center gap-2.5 text-slate-400 text-xs">
+            <div key={idx} className="h-40 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-2.5 text-slate-400 text-xs">
               <GoogleIcon name="progress_activity" size={24} className="animate-spin text-amber-400" />
               <span>Alinhando chunks em {lang}...</span>
             </div>

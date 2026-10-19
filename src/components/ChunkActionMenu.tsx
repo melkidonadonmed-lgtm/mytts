@@ -70,7 +70,7 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
       aria-label="Ações para o trecho de texto"
     >
       {/* Cabeçalho do Trecho */}
-      <div className="flex items-center justify-between px-2 pt-0.5 pb-2 border-b  dark: text-xs text-slate-500 dark:text-slate-400">
+      <div className="flex items-center justify-between px-2 pt-0.5 pb-2 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
         <span className="truncate font-medium text-slate-900 dark:text-slate-200">"{chunkText}"</span>
         <button
           type="button"
@@ -87,7 +87,7 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
         type="button"
         onClick={() => onPlayChunkAudio(chunkText, language)}
         disabled={isPlaying}
-        className="btn-matte ui-btn-tactile w-full min-h-[38px] px-3 py-2 text-xs text-slate-800 dark:text-slate-200 justify-start"
+        className="btn-matte btn-matte-dark w-full min-h-[38px] px-3 py-2 text-xs text-slate-800 dark:text-slate-200 justify-start"
       >
         {isPlaying ? (
           <>
@@ -126,7 +126,7 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
       <button
         type="button"
         onClick={handleCopy}
-        className="btn-matte w-full min-h-[32px] px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-xs justify-start"
+        className="btn-matte w-full min-h-[32px] px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-[11px] justify-start"
       >
         {copied ? (
           <>

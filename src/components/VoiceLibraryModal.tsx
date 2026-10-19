@@ -73,12 +73,12 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
   };
 
   return (
-    <div data-state="idle" className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 py-8 pb-36">
+    <div className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 py-8 pb-36">
       
       {/* Header */}
       <div className="mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border  text-purple-800 dark:text-purple-300 text-xs font-semibold mb-3">
-          <Volume2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-800 dark:text-purple-300 text-xs font-semibold mb-3">
+          <Volume2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
           <span>Catálogo Neural Gemini 3.1 Flash</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -110,8 +110,8 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
               }}
               className={`p-5 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-400 group ${
                 isSelected
-                  ? 'ui-card-soft-active ring-1 ring-amber-400/40'
-                  : 'ui-card-soft hover: dark:hover:'
+                  ? 'card-matte-active ring-1 ring-amber-400/40'
+                  : 'card-matte hover:border-slate-400 dark:hover:border-slate-700'
               }`}
             >
               <div>
@@ -119,7 +119,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-11 h-11 rounded-2xl surface-inset ${voice.avatarColor} flex items-center justify-center text-white font-extrabold text-base shadow-md`}
+                      className={`w-11 h-11 rounded-2xl bg-gradient-to-tr ${voice.avatarColor} flex items-center justify-center text-white font-extrabold text-base shadow-md`}
                     >
                       {voice.name[0]}
                     </div>
@@ -129,7 +129,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                           {voice.name}
                         </h2>
                         {isSelected && (
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">
                             Selecionada
                           </span>
                         )}
@@ -140,7 +140,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                     </div>
                   </div>
 
-                  <span className="text-xs font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-950 px-2 py-1 rounded-lg border  dark:">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-950 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-800">
                     {voice.gender === 'female' ? 'Feminina' : 'Masculina'}
                   </span>
                 </div>
@@ -151,18 +151,18 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                 </p>
 
                 {/* Recomendado para */}
-                <div className="mb-4 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border  dark: text-xs">
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                <div className="mb-4 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/60 text-xs">
+                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-wider block mb-1">
                     Indicado para:
                   </span>
-                  <p className="text-slate-700 dark:text-slate-400 text-xs leading-relaxed">
+                  <p className="text-slate-700 dark:text-slate-400 text-[11px] leading-relaxed">
                     {voice.bestFor}
                   </p>
                 </div>
               </div>
 
               {/* Ações: Ouvir Amostra & Selecionar */}
-              <div className="flex items-center gap-2 pt-2 border-t  dark:">
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-800/60">
                 {/* Botão Ouvir Amostra */}
                 <button
                   type="button"
@@ -173,7 +173,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                   className={`flex-1 min-h-[42px] rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
                     isPlaying
                       ? 'btn-matte btn-matte-amber text-white font-bold shadow-sm'
-                      : 'btn-matte ui-btn-tactile text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white'
+                      : 'btn-matte btn-matte-dark text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white'
                   }`}
                 >
                   {isLoading ? (
@@ -203,7 +203,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                   }}
                   className={`min-h-[42px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:translate-y-px ${
                     isSelected
-                      ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border  cursor-default'
+                      ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 cursor-default'
                       : 'btn-matte btn-matte-amber text-white shadow-sm'
                   }`}
                 >

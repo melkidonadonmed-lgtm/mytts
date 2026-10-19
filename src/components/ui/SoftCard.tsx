@@ -85,7 +85,7 @@ export const SoftCard: React.FC<SoftCardProps> = ({
           {emptyMessage}
         </div>
       ) : (
-        <div className="card-body prose-measure">{children}</div>
+        <div className="card-body w-full">{children}</div>
       )}
     </article>
   );

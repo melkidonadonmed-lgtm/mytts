@@ -36,7 +36,6 @@ import {
 import { requestPreviewVoice, requestMixAudio } from '../services/apiClient';
 import { AUDIO_CONSTANTS } from '../config/constants';
 
-
 interface BottomAudioDockProps {
   player?: GaplessAudioPlayer;
   script?: DebateScript | null;
@@ -62,7 +61,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-white/[0.04]',
     text: 'text-slate-300',
     border: 'border-white/[0.08]',
-    icon: '',
+    icon: '💭',
   },
   inquisitive: {
     label: 'Inquisitive',
@@ -70,7 +69,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-white/[0.04]',
     text: 'text-slate-300',
     border: 'border-white/[0.08]',
-    icon: '',
+    icon: '🔍',
   },
   skeptical: {
     label: 'Skeptical',
@@ -78,23 +77,23 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-white/[0.04]',
     text: 'text-slate-300',
     border: 'border-white/[0.08]',
-    icon: '',
+    icon: '🤨',
   },
   ironic: {
     label: 'Ironic',
     ptLabel: 'Irônico',
     bg: 'bg-amber-500/10',
     text: 'text-amber-300',
-    border: '',
-    icon: '',
+    border: 'border-amber-500/25',
+    icon: '😏',
   },
   passionate: {
     label: 'Passionate',
     ptLabel: 'Apaixonado',
     bg: 'bg-amber-500/10',
     text: 'text-amber-300',
-    border: '',
-    icon: '',
+    border: 'border-amber-500/25',
+    icon: '🔥',
   },
   resolute: {
     label: 'Resolute',
@@ -102,7 +101,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-white/[0.04]',
     text: 'text-slate-300',
     border: 'border-white/[0.08]',
-    icon: '',
+    icon: '⚡',
   },
 };
 
@@ -224,7 +223,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
         return (
           <span
             key={i}
-            className="text-xs font-mono px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 border  mx-0.5 inline-block"
+            className="text-[11px] font-mono px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 mx-0.5 inline-block"
             title="Marcador vocal neural"
           >
             {part}
@@ -235,7 +234,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
         return (
           <span
             key={i}
-            className="text-xs font-mono px-1 py-0.5 rounded bg-sky-500/20 text-sky-300 border  mx-0.5 inline-block"
+            className="text-[11px] font-mono px-1 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 mx-0.5 inline-block"
             title="Escuta ativa (backchanneling)"
           >
             {part}
@@ -260,8 +259,8 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
     ptLabel: emotionKey,
     bg: 'bg-slate-800',
     text: 'text-slate-300',
-    border: '',
-    icon: '️',
+    border: 'border-slate-700',
+    icon: '🎙️',
   };
 
   const prosody = currentTurn?.prosody || {
@@ -305,32 +304,25 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
         const b64 = res.includes(',') ? res.split(',')[1] : res;
         resolve(b64);
       };
-      reader.onerror = () => reject(new Error('Falha ao converter Blob WAV para base64.'));
+      reader.onerror = () => reject(new Error('Falha ao converter Blob em base64.'));
       reader.readAsDataURL(blob);
     });
 
-  // Exportação Híbrida do Master do Debate Completo (FFmpeg Broadcast Sidechain + Web Audio Offline Fallback)
+  // Exportação Híbrida do Master do Debate Completo (FFmpeg Sidechain Broadcast -> Fallback Web Audio Offline)
   const handleExportMasterMix = async (): Promise<void> => {
     if (!player) return;
     try {
       setIsExportingMaster(true);
-      let masterBlob: Blob | null = null;
-      let engineLabel = 'Web Audio Offline';
+      const cleanTitle = (script?.title || 'debate').toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const readyTurns = (script?.turns || []).filter((t) => Boolean(t.audioBase64));
 
-      const readyTurnBase64s = (script?.turns || [])
-        .map((t) => t.audioBase64)
-        .filter((b64): b64 is string => Boolean(b64));
-
-      // Tenta Mixagem Broadcast Server-Side via FFmpeg (sidechaincompress frame-a-frame)
-      if (
-        readyTurnBase64s.length > 0 &&
-        soundtrackConfig.preset !== 'none' &&
-        soundtrackConfig.preset !== 'custom'
-      ) {
+      if (readyTurns.length > 0 && soundtrackConfig.preset !== 'none' && soundtrackConfig.preset !== 'custom') {
         try {
-          setExportFeedback('Mixando Master Broadcast (FFmpeg sidechain)...');
-          const combinedVoiceBlob = concatenateWavBuffers(readyTurnBase64s);
-          const voiceAudioBase64 = await blobToBase64(combinedVoiceBlob);
+          setExportFeedback('Mixando Master Broadcast via FFmpeg Sidechain...');
+          const concatenatedVoiceBlob = concatenateWavBuffers(
+            readyTurns.map((t) => t.audioBase64!)
+          );
+          const voiceAudioBase64 = await blobToBase64(concatenatedVoiceBlob);
           const mixResp = await requestMixAudio({
             voiceAudioBase64,
             soundtrackPreset: soundtrackConfig.preset,
@@ -340,29 +332,34 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
           });
 
           if (mixResp.ok && mixResp.success && mixResp.audioBase64 && !mixResp.warning) {
-            masterBlob = new Blob([base64ToArrayBuffer(mixResp.audioBase64)], {
-              type: 'audio/wav',
-            });
-            engineLabel = 'FFmpeg Broadcast Sidechain';
+            const binary = window.atob(mixResp.audioBase64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const serverBlob = new Blob([bytes], { type: 'audio/wav' });
+            const url = URL.createObjectURL(serverBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dialecticpod-${cleanTitle}-broadcast-${Date.now()}.wav`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setExportFeedback('Master Broadcast FFmpeg exportado com sucesso!');
+            setTimeout(() => setExportFeedback(null), 3500);
+            return;
           }
-        } catch (mixErr: unknown) {
-          console.warn('Fallback do FFmpeg Broadcast para OfflineAudioContext:', mixErr);
+        } catch (serverErr: unknown) {
+          console.warn('Fallback para OfflineAudioContext local:', serverErr);
         }
       }
 
-      if (!masterBlob) {
-        setExportFeedback('Renderizando Master Studio (Web Audio 44.1kHz)...');
-        masterBlob = await player.exportMasterMixWav(script?.turns);
-      }
-
-      const url = URL.createObjectURL(masterBlob);
+      setExportFeedback('Renderizando Master com Web Audio Offline...');
+      const blob = await player.exportMasterMixWav(script?.turns);
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const cleanTitle = (script?.title || 'debate').toLowerCase().replace(/[^a-z0-9]/g, '-');
       a.download = `dialecticpod-${cleanTitle}-master-${Date.now()}.wav`;
       a.click();
       URL.revokeObjectURL(url);
-      setExportFeedback(`Master WAV exportado (${engineLabel})!`);
+      setExportFeedback('Master WAV exportado com sucesso!');
       setTimeout(() => setExportFeedback(null), 3500);
     } catch (err: unknown) {
       console.error('Erro na exportação:', err);
@@ -475,9 +472,9 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
 
   return (
     <aside 
-      data-state="idle" id="BottomAudioDock"
+      id="BottomAudioDock"
       aria-label="Controles de Reprodução de Áudio"
-      className="surface-raised fixed bottom-0 left-0 lg:left-72 right-0 z-30 dock-matte transition-all shadow-[0_-10px_30px_rgba(0,0,0,0.6)]"
+      className="fixed bottom-0 left-0 lg:left-72 right-0 z-30 dock-matte transition-all shadow-[0_-10px_30px_rgba(0,0,0,0.6)]"
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)' }}
     >
       <input
@@ -520,17 +517,17 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="overflow-hidden mb-3 border-b  pb-3"
+              className="overflow-hidden mb-3 border-b border-slate-800/80 pb-3"
             >
               {/* Barra de Abas da Gaveta */}
-              <div className="flex items-center justify-between border-b  pb-2 mb-3 pt-1">
-                <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border  shadow-inner">
+              <div className="flex items-center justify-between border-b border-slate-800/60 pb-2 mb-3 pt-1">
+                <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-inner">
                   <button
                     type="button"
                     onClick={() => setActiveDrawerTab('voice')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                       activeDrawerTab === 'voice'
-                        ? 'ui-btn-primary text-white font-bold shadow-sm'
+                        ? 'btn-matte-primary text-white font-bold shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                     }`}
                   >
@@ -542,7 +539,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                     onClick={() => setActiveDrawerTab('soundtrack')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                       activeDrawerTab === 'soundtrack'
-                        ? 'ui-btn-primary text-white font-bold shadow-sm'
+                        ? 'btn-matte-primary text-white font-bold shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                     }`}
                   >
@@ -556,7 +553,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
 
                 <div className="flex items-center gap-2">
                   {exportFeedback && (
-                    <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border  animate-fade-in">
+                    <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 animate-fade-in">
                       {exportFeedback}
                     </span>
                   )}
@@ -576,18 +573,18 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                   {/* Área de Resumo 'Voice Profile' */}
                   <div 
-                    className="lg:col-span-6 xl:col-span-5 bg-slate-900/90 rounded-xl p-3 border  shadow-inner flex flex-col justify-between gap-2.5"
+                    className="lg:col-span-6 xl:col-span-5 bg-slate-900/90 rounded-xl p-3 border border-slate-800 shadow-inner flex flex-col justify-between gap-2.5"
                     aria-label="Resumo do Perfil de Voz"
                   >
-                    <div className="flex items-center justify-between gap-2 border-b  pb-2">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-800/60 pb-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="p-1 rounded-md bg-amber-400/10 text-amber-400 border ">
+                        <span className="p-1 rounded-md bg-amber-400/10 text-amber-400 border border-amber-400/20">
                           <Sliders className="w-3.5 h-3.5" />
                         </span>
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
                             <span>Voice Profile</span>
-                            <span className="text-xs text-slate-400 font-normal">
+                            <span className="text-[10px] text-slate-400 font-normal">
                               ({currentSpeaker?.name || 'Orador'})
                             </span>
                           </h4>
@@ -596,7 +593,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
 
                       <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                         <div 
-                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-amber-500/10 text-amber-300 border  shrink-0 shadow-sm"
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30 shrink-0 shadow-sm"
                         >
                           <Tag className="w-3 h-3 text-amber-400" />
                           <span>Voice ID: <strong className="text-white font-semibold">{voiceId}</strong></span>
@@ -606,16 +603,16 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                           type="button"
                           onClick={handleTogglePreviewAudio}
                           disabled={previewLoading}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium transition-all shadow-sm cursor-pointer select-none border ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-all shadow-sm cursor-pointer select-none border ${
                             isPlayingPreview
-                              ? 'bg-amber-400 text-slate-950  ring-2 ring-amber-400/40 animate-pulse font-semibold'
+                              ? 'bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-400/40 animate-pulse font-semibold'
                               : isConfirmed
-                              ? 'bg-emerald-500/20 text-emerald-300  font-semibold'
-                              : 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white  hover:'
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold'
+                              : 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 hover:border-amber-400/50'
                           }`}
                         >
                           {previewLoading ? (
-                            <span className="animate-spin w-3 h-3 border-2  border-t-transparent rounded-full" />
+                            <span className="animate-spin w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full" />
                           ) : isPlayingPreview ? (
                             <>
                               <Volume2 className="w-3 h-3 text-slate-950 animate-bounce" />
@@ -637,18 +634,18 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                     </div>
 
                     {/* Emoção Vocal do Orador */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/60 rounded-lg px-2.5 py-1.5 border ">
-                      <span className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/60 rounded-lg px-2.5 py-1.5 border border-slate-800/60">
+                      <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5">
                         <span>Emoção Vocal:</span>
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${emotionMeta.bg} ${emotionMeta.text} ${emotionMeta.border}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${emotionMeta.bg} ${emotionMeta.text} ${emotionMeta.border}`}>
                           <span>{emotionMeta.icon}</span>
                           <span className="capitalize font-semibold">{emotionMeta.label}</span>
-                          <span className="text-slate-400 font-normal text-xs">({emotionMeta.ptLabel})</span>
+                          <span className="text-slate-400 font-normal text-[10px]">({emotionMeta.ptLabel})</span>
                         </span>
                         {currentSpeaker?.archetype && (
-                          <span className="text-xs font-mono text-slate-500 uppercase tracking-wider border  px-1.5 py-0.5 rounded bg-slate-900">
+                          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider border border-slate-800 px-1.5 py-0.5 rounded bg-slate-900">
                             {currentSpeaker.archetype}
                           </span>
                         )}
@@ -657,13 +654,13 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
 
                     {/* Configurações Prosódicas */}
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
                         <span>Configurações Prosódicas</span>
-                        <span className="text-xs font-mono text-slate-500">24kHz PCM RIFF</span>
+                        <span className="text-[10px] font-mono text-slate-500">24kHz PCM RIFF</span>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                        <div className="bg-slate-950/80 rounded-lg p-2 border  flex flex-col justify-between">
-                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                        <div className="bg-slate-950/80 rounded-lg p-2 border border-slate-800 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
                             <Gauge className="w-3 h-3 text-sky-400" /> Ritmo
                           </span>
                           <span className="text-xs font-mono font-bold text-slate-100 mt-1">
@@ -671,8 +668,8 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                           </span>
                         </div>
 
-                        <div className="bg-slate-950/80 rounded-lg p-2 border  flex flex-col justify-between">
-                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                        <div className="bg-slate-950/80 rounded-lg p-2 border border-slate-800 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
                             <Clock className="w-3 h-3 text-amber-400" /> Pré-Gap
                           </span>
                           <span className="text-xs font-mono font-bold text-slate-100 mt-1">
@@ -680,8 +677,8 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                           </span>
                         </div>
 
-                        <div className="bg-slate-950/80 rounded-lg p-2 border  flex flex-col justify-between">
-                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                        <div className="bg-slate-950/80 rounded-lg p-2 border border-slate-800 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
                             <Wind className="w-3 h-3 text-emerald-400" /> Respiração
                           </span>
                           <span className="text-xs font-mono font-semibold text-slate-100 mt-1 flex items-center gap-1">
@@ -690,9 +687,9 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                           </span>
                         </div>
 
-                        <div className="bg-slate-950/80 rounded-lg p-2 border  flex flex-col justify-between">
-                          <span className="text-xs text-slate-400 flex items-center gap-1">
-                            <Volume2 className="w-3 h-3 text-sky-400" /> Ganho
+                        <div className="bg-slate-950/80 rounded-lg p-2 border border-slate-800 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                            <Volume2 className="w-3 h-3 text-purple-400" /> Ganho
                           </span>
                           <span className="text-xs font-mono font-bold text-slate-100 mt-1">
                             {prosody.volume_gain ? `${Math.round(prosody.volume_gain * 100)}%` : '100%'}
@@ -703,24 +700,24 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                   </div>
 
                   {/* Área de Transcrição do Turno Atual */}
-                  <div className="lg:col-span-6 xl:col-span-7 bg-slate-900/80 rounded-xl p-3 border  flex flex-col justify-between gap-2">
+                  <div className="lg:col-span-6 xl:col-span-7 bg-slate-900/80 rounded-xl p-3 border border-slate-800 flex flex-col justify-between gap-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                         <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
                         Transcrição em Tempo Real ({turnIndex + 1}/{totalTurns})
                       </span>
-                      <span className="text-xs font-mono text-slate-500 flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono text-slate-500 flex items-center gap-1.5">
                         <span>{currentSpeaker?.roleTitle?.split(' ')[0] || 'Orador'}</span>
                         <span>•</span>
                         <span className="text-slate-400">{formatTime(currentTime)} / {formatTime(duration)}</span>
                       </span>
                     </div>
 
-                    <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans bg-slate-950/70 p-2.5 rounded-lg border  flex-1 overflow-y-auto max-h-24">
+                    <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80 flex-1 overflow-y-auto max-h-24">
                       “{renderProsodicText(currentTurnText || currentTurn?.text)}”
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-500 pt-0.5">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
                       <span>Síntese neural com prosódia e pausas respiratórias</span>
                       <span className="font-mono text-amber-400/80">Turno {turnIndex + 1} de {totalTurns}</span>
                     </div>
@@ -740,7 +737,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                           Selecione o Soundscape de Fundo
                         </span>
                       </div>
-                      <span className="text-xs text-slate-400 font-mono">
+                      <span className="text-[11px] text-slate-400 font-mono">
                         Procedural Web Audio • Zero Download
                       </span>
                     </div>
@@ -755,8 +752,8 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                             onClick={() => handleSelectSoundtrack(preset.id)}
                             className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden group ${
                               isSelected
-                                ? 'bg-slate-900  shadow-md shadow-amber-500/10 ring-1 ring-amber-400/50'
-                                : 'bg-slate-950/60  hover: hover:bg-slate-900/60'
+                                ? 'bg-slate-900 border-amber-400 shadow-md shadow-amber-500/10 ring-1 ring-amber-400/50'
+                                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
                             }`}
                           >
                             {isSelected && (
@@ -778,7 +775,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                               <p className="text-xs font-bold text-slate-100 truncate">
                                 {preset.ptName.split(' ')[0]} {preset.ptName.split(' ')[1] || ''}
                               </p>
-                              <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
+                              <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
                                 {preset.id === 'custom' && soundtrackConfig.customFileName
                                   ? soundtrackConfig.customFileName
                                   : preset.description}
@@ -791,7 +788,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                   </div>
 
                   {/* Controles de Mixagem & Auto-Ducking */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-900/90 rounded-xl p-3 border  shadow-inner">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-900/90 rounded-xl p-3 border border-slate-800 shadow-inner">
                     {/* Volume da Trilha */}
                     <div className="md:col-span-4 flex flex-col justify-between gap-1.5">
                       <div className="flex items-center justify-between">
@@ -813,13 +810,13 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                         disabled={soundtrackConfig.preset === 'none'}
                         className="w-full accent-amber-400 cursor-pointer disabled:opacity-40"
                       />
-                      <p className="text-xs text-slate-400">
+                      <p className="text-[10px] text-slate-400">
                         Ajusta a intensidade da ambiência sonora relativa à voz.
                       </p>
                     </div>
 
                     {/* Auto-Ducking (Atenuação Dinâmica) */}
-                    <div className="md:col-span-4 flex flex-col justify-between gap-1.5 border-t md:border-t-0 md:border-l  md:pl-3 pt-2 md:pt-0">
+                    <div className="md:col-span-4 flex flex-col justify-between gap-1.5 border-t md:border-t-0 md:border-l border-slate-800/80 md:pl-3 pt-2 md:pt-0">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                           <Radio className="w-3.5 h-3.5 text-sky-400" />
@@ -828,10 +825,10 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                         <button
                           type="button"
                           onClick={() => player?.setDuckingEnabled(!soundtrackConfig.duckingEnabled)}
-                          className={`text-xs font-mono font-bold px-2 py-0.5 rounded cursor-pointer transition-all border ${
+                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded cursor-pointer transition-all border ${
                             soundtrackConfig.duckingEnabled
-                              ? 'bg-emerald-500/20 text-emerald-300 '
-                              : 'bg-slate-800 text-slate-400 '
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                              : 'bg-slate-800 text-slate-400 border-slate-700'
                           }`}
                         >
                           {soundtrackConfig.duckingEnabled ? 'ATIVO' : 'DESLIGADO'}
@@ -850,10 +847,10 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                             type="button"
                             onClick={() => player?.setDuckingDepth(lvl.db)}
                             disabled={!soundtrackConfig.duckingEnabled}
-                            className={`py-1 text-xs font-mono rounded border transition-all cursor-pointer ${
+                            className={`py-1 text-[11px] font-mono rounded border transition-all cursor-pointer ${
                               soundtrackConfig.duckingDepthDb === lvl.db
-                                ? 'ui-btn-primary text-white font-bold  shadow-sm'
-                                : 'bg-slate-950 text-slate-400  hover:'
+                                ? 'btn-matte-primary text-white font-bold border-sky-400/50 shadow-sm'
+                                : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
                             } disabled:opacity-40`}
                           >
                             {lvl.label} ({lvl.db}dB)
@@ -862,7 +859,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                       </div>
 
                       {/* Status de Ducking em Tempo Real */}
-                      <div className="flex items-center gap-1.5 text-xs font-mono">
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono">
                         <span className={`w-2 h-2 rounded-full ${isDucking ? 'bg-sky-400 animate-ping' : 'bg-slate-600'}`} />
                         <span className={isDucking ? 'text-sky-300 font-semibold' : 'text-slate-500'}>
                           {isDucking ? `Ducking Ativo (${soundtrackConfig.duckingDepthDb}dB)` : 'Trilha em Volume Nominal'}
@@ -871,11 +868,11 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                     </div>
 
                     {/* Presença Vocal & Exportação Master */}
-                    <div className="md:col-span-4 flex flex-col justify-between gap-2 border-t md:border-t-0 md:border-l  md:pl-3 pt-2 md:pt-0">
+                    <div className="md:col-span-4 flex flex-col justify-between gap-2 border-t md:border-t-0 md:border-l border-slate-800/80 md:pl-3 pt-2 md:pt-0">
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-semibold text-slate-300 flex items-center gap-1 font-sans">
-                            <Layers className="w-3.5 h-3.5 text-sky-400" />
+                            <Layers className="w-3.5 h-3.5 text-purple-400" />
                             Reforço Vocal
                           </span>
                           <span className="text-xs font-mono font-bold text-purple-300">
@@ -888,10 +885,10 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                               key={boost}
                               type="button"
                               onClick={() => player?.setVoiceBoost(boost)}
-                              className={`py-1 text-xs font-mono rounded border transition-all cursor-pointer ${
+                              className={`py-1 text-[11px] font-mono rounded border transition-all cursor-pointer ${
                                 soundtrackConfig.voiceBoostDb === boost
-                                  ? 'bg-sky-600 text-white font-bold '
-                                  : 'bg-slate-950 text-slate-400 '
+                                  ? 'bg-purple-600 text-white font-bold border-purple-400'
+                                  : 'bg-slate-950 text-slate-400 border-slate-800'
                               }`}
                             >
                               +{boost}dB
@@ -905,7 +902,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                         type="button"
                         onClick={handleExportMasterMix}
                         disabled={isExportingMaster}
-                        className="w-full py-2 px-3 rounded-xl ui-btn-primary text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
+                        className="w-full py-2 px-3 rounded-xl btn-matte-primary text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
                       >
                         {isExportingMaster ? (
                           <>
@@ -1008,16 +1005,16 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                       setActiveDrawerTab('soundtrack');
                       setIsExpanded(true);
                     }}
-                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono border transition-all ${
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono border transition-all ${
                       isDucking
-                        ? 'bg-amber-500/20 text-amber-300  ring-1 ring-amber-400/30'
-                        : 'bg-emerald-500/10 text-emerald-300 '
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-400/40 ring-1 ring-amber-400/30'
+                        : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                     }`}
                     title={isDucking ? 'Auto-Ducking ativo na fala' : 'Trilha sonora ativa'}
                   >
                     <span>{currentPresetMeta.icon}</span>
                     <span className="truncate max-w-[65px] sm:max-w-none">{currentPresetMeta.ptName.split(' ')[0]}</span>
-                    {isDucking && <span className="text-xs text-amber-400 font-bold hidden sm:inline">-14dB</span>}
+                    {isDucking && <span className="text-[9px] text-amber-400 font-bold hidden sm:inline">-14dB</span>}
                   </span>
                 ) : (
                   <span
@@ -1026,7 +1023,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                       setActiveDrawerTab('soundtrack');
                       setIsExpanded(true);
                     }}
-                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-mono bg-slate-900 text-slate-400 hover:text-amber-300 border  hover: transition-all"
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-900 text-slate-400 hover:text-amber-300 border border-slate-800 hover:border-amber-400/30 transition-all"
                   >
                     <Music className="w-2.5 h-2.5 text-slate-500" />
                     <span className="hidden sm:inline">+ Trilha</span>
@@ -1039,7 +1036,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                   <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 )}
               </div>
-              <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+              <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
                 <span>{currentSpeaker?.roleTitle?.split(' ')[0] || 'Studio'}</span>
                 <span>•</span>
                 <span className="font-mono text-slate-500">
@@ -1067,7 +1064,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                 type="button"
                 onClick={onTogglePlay}
                 aria-label={isPlaying ? 'Pausar áudio' : 'Reproduzir áudio'}
-                className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl ui-btn-primary text-white shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer"
+                className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl btn-matte-primary text-white shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer"
               >
                 {isPlaying ? (
                   <Pause className="w-6 h-6 fill-current" />
@@ -1091,7 +1088,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/90 border  text-xs font-sans font-medium text-slate-300 hover:text-white hover: cursor-pointer transition-all active:translate-y-px"
+              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-[10px] font-sans font-medium text-slate-300 hover:text-white hover:border-slate-500 cursor-pointer transition-all active:translate-y-px"
               title="Toque para abrir configurações de sotaque, prosódia e voz"
             >
               <span>{emotionMeta.icon}</span>
@@ -1106,7 +1103,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               type="button"
               onClick={handleCycleSpeed}
               aria-label={`Velocidade atual: ${playbackRate}x. Toque para alterar.`}
-              className="flex min-h-[44px] min-w-[44px] sm:min-w-[52px] items-center justify-center gap-1 rounded-xl border  bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-slate-200 hover: hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm"
+              className="flex min-h-[44px] min-w-[44px] sm:min-w-[52px] items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-slate-200 hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm"
             >
               <Gauge className="w-3.5 h-3.5 hidden sm:block text-slate-400" />
               <span>{playbackRate.toFixed(2).replace(/\.00$/, '')}x</span>
@@ -1119,7 +1116,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               disabled={isExportingMaster}
               title="Baixar Master de Estúdio (WAV com Trilha e Ducking)"
               aria-label="Baixar Master de Estúdio"
-              className="hidden lg:flex h-11 w-11 items-center justify-center rounded-xl border  bg-slate-900 text-slate-300 hover:text-white hover: hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              className="hidden lg:flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm disabled:opacity-50"
             >
               {isExportingMaster ? (
                 <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
