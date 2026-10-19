@@ -8,7 +8,7 @@ export interface AgentInputDockProps {
   onOpenLive?: () => void;
 }
 
-// Estados do dock de entrada: empty | loading | success | error
+
 export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   onSendMessage,
   isLoading,
@@ -158,13 +158,13 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   ];
 
   return (
-    <div className="sticky bottom-0 z-30 w-full dock-matte px-4 py-3 sm:px-6">
+    <div data-state="idle" className="sticky bottom-0 z-30 w-full dock-matte px-4 py-3 sm:px-6">
       <div className="max-w-7xl mx-auto flex flex-col gap-2">
         
         {/* Sugestões Rápidas (Pills Táteis) se o campo estiver vazio */}
         {!inputText && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-[11px] pt-1">
-            <span className="font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[10px] shrink-0 font-mono select-none">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs pt-1">
+            <span className="font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-xs shrink-0 font-mono select-none">
               Sugestões:
             </span>
             {quickSuggestions.map((sug, idx) => (
@@ -172,7 +172,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                 key={idx}
                 type="button"
                 onClick={() => setInputText(sug)}
-                className="btn-matte btn-matte-dark px-3 py-1 text-xs text-secondary hover:text-primary rounded-xl shrink-0 font-medium cursor-pointer"
+                className="btn-matte ui-btn-tactile px-3 py-1 text-xs text-secondary hover:text-primary rounded-xl shrink-0 font-medium cursor-pointer"
                 title={sug}
               >
                 <span className="truncate max-w-[260px]">{sug}</span>
@@ -183,7 +183,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
 
         {/* Indicador de Arquivo Anexado */}
         {attachedFileName && (
-          <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-xl w-fit">
+          <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-400/10 border  px-3 py-1 rounded-xl w-fit">
             <GoogleIcon name="description" size={16} />
             <span className="truncate max-w-[220px] font-medium">{attachedFileName}</span>
             <button
@@ -199,7 +199,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
         {/* Barra Central de Entrada (Design Matte Sofisticado) */}
         <form
           onSubmit={handleSubmit}
-          className="flex items-end gap-2 card-matte rounded-2xl p-2 focus-within:border-amber-400/50 transition-all shadow-xl"
+          className="flex items-end gap-2 ui-card-soft rounded-2xl p-2 focus-within: transition-all shadow-xl"
         >
           {/* Botão de Anexo */}
           <input
@@ -213,7 +213,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             title="Anexar arquivo (PDF, TXT, MD)"
-            className="btn-matte btn-matte-dark h-10 w-10 rounded-xl text-secondary hover:text-primary shrink-0"
+            className="btn-matte ui-btn-tactile h-10 w-10 rounded-xl text-secondary hover:text-primary shrink-0"
           >
             <GoogleIcon name="attach_file" size={20} />
           </button>
@@ -226,7 +226,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             className={`btn-matte h-10 w-10 rounded-xl shrink-0 transition-all ${
               isRecording
                 ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/30'
-                : 'btn-matte btn-matte-dark text-secondary hover:text-primary'
+                : 'btn-matte ui-btn-tactile text-secondary hover:text-primary'
             }`}
           >
             {isTranscribing ? (
@@ -244,7 +244,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               type="button"
               onClick={onOpenLive}
               title="Abrir sessão de voz bidirecional (Gemini Live)"
-              className="btn-matte h-10 px-3 rounded-xl text-emerald-700 dark:text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 hover:bg-emerald-400/20 transition-all shrink-0 hidden sm:inline-flex text-xs font-semibold"
+              className="btn-matte h-10 px-3 rounded-xl text-emerald-700 dark:text-emerald-400 bg-emerald-400/10 border  hover:bg-emerald-400/20 transition-all shrink-0 hidden sm:inline-flex text-xs font-semibold"
             >
               <GoogleIcon name="podcasts" size={18} className="animate-pulse" />
               <span>Live</span>
@@ -299,7 +299,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
         </form>
 
         {/* Rodapé Sutil de Atalho */}
-        <div className="flex items-center justify-between px-2 text-[10px] font-mono text-slate-600 dark:text-slate-500">
+        <div className="flex items-center justify-between px-2 text-xs font-mono text-slate-600 dark:text-slate-500">
           <span className="hidden sm:inline">Pressione Enter para traduzir ou Shift + Enter para quebra de linha</span>
           {inputText && (
             <span className="text-slate-700 dark:text-slate-400 font-medium">

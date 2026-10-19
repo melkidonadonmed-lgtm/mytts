@@ -135,6 +135,48 @@ test('Suite 13: Soft UI v4.5-soft — FSM Determinística (AUDIT-STATE-01/02) e 
   });
 });
 
+// Suite 14: Utilitários Server-Side WAV RIFF 44 Bytes, Sanitização e Allowlists (audioContainer SUT)
+import {
+  ensureWavContainer,
+  pcmToWav,
+  sanitizeUserId,
+  capText,
+  formatForTts,
+  ALLOWED_PREVIEW_VOICES,
+  ALLOWED_PREVIEW_LANGS,
+} from '../src/server/audioContainer';
+
+test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Sanitização de Fronteira', () => {
+  // 1. ARRANGE
+  const rawPcm = Buffer.alloc(4800, 0x12); // 100ms a 24kHz 16-bit mono
+  const rawBase64 = rawPcm.toString('base64');
+
+  // 2. ACT
+  const wavBase64 = ensureWavContainer(rawBase64, 24000);
+  const wavBuffer = Buffer.from(wavBase64, 'base64');
+  const idempotentWavBase64 = ensureWavContainer(wavBase64, 24000);
+  const directWav = pcmToWav(rawPcm, 24000, 1, 16);
+  const validUser = sanitizeUserId('user_123-abc');
+  const invalidUser = sanitizeUserId('bad/user;drop');
+  const capped = capText('abcdef', 4);
+  const formattedTts = formatForTts('Olá <breath> mundo |mhm| <script>alert(1)</script>');
+
+  // 3. ASSERT
+  assert.strictEqual(wavBuffer.byteLength, 44 + 4800);
+  assert.strictEqual(wavBuffer.toString('ascii', 0, 4), 'RIFF');
+  assert.strictEqual(wavBuffer.toString('ascii', 8, 12), 'WAVE');
+  assert.strictEqual(wavBuffer.readUInt32LE(24), 24000);
+  assert.strictEqual(wavBuffer.readUInt32LE(40), 4800);
+  assert.strictEqual(idempotentWavBase64, wavBase64);
+  assert.strictEqual(directWav.byteLength, 4844);
+  assert.strictEqual(validUser, 'user_123-abc');
+  assert.strictEqual(invalidUser, 'anonymous-user');
+  assert.strictEqual(capped, 'abcd');
+  assert.strictEqual(formattedTts, 'Olá [deep breath] mundo mhm... alert(1)');
+  assert.strictEqual(ALLOWED_PREVIEW_VOICES.has('Puck'), true);
+  assert.strictEqual(ALLOWED_PREVIEW_LANGS.has('it-IT'), true);
+});
+
 export async function runContractTests(): Promise<number> {
   let passed = 0;
   for (const t of contractTests) {

@@ -131,20 +131,20 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
 
   return (
     <div
-      role="dialog"
+      data-state="idle" role="dialog"
       aria-modal="true"
       aria-labelledby="modal-export-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-in fade-in duration-200"
+      className="surface-raised fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-lg bg-white dark:bg-slate-900 border  dark: rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header do Modal */}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-800/80 pb-4">
+        <div className="flex items-start justify-between gap-3 border-b  dark: pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-400/15 border  flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
               <GoogleIcon name="download" size={22} />
             </div>
             <div>
@@ -168,10 +168,10 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
         </div>
 
         {/* Resumo da Interação Selecionada */}
-        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-[11px] font-mono">
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border  dark: flex flex-col gap-1.5">
+          <div className="flex items-center justify-between text-xs font-mono">
             <span className="text-slate-600 dark:text-slate-400 uppercase font-semibold">Frase de Origem:</span>
-            <span className="text-amber-800 dark:text-amber-400 font-bold bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/30">
+            <span className="text-amber-800 dark:text-amber-400 font-bold bg-amber-400/15 px-2 py-0.5 rounded-md border ">
               {totalChunks} {totalChunks === 1 ? 'bloco lexical' : 'blocos lexicais'}
             </span>
           </div>
@@ -182,7 +182,7 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
 
         {/* Opções de Formato de Exportação */}
         <div className="flex flex-col gap-2.5">
-          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider font-mono">
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider font-mono">
             Como você deseja exportar?
           </span>
 
@@ -203,8 +203,8 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
                   }}
                   className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-left outline-none ${
                     isSelected
-                      ? 'bg-amber-500/15 border-amber-500/70 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/30'
-                      : 'bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-950/80'
+                      ? 'bg-amber-500/15  shadow-md shadow-amber-500/10 ring-1 ring-amber-500/30'
+                      : 'bg-slate-50 dark:bg-slate-950/50  dark: hover: dark:hover: hover:bg-slate-100 dark:hover:bg-slate-950/80'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -212,7 +212,7 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
                       className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                         isSelected
                           ? 'bg-amber-500 text-white shadow-sm'
-                          : 'bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                          : 'bg-slate-100 dark:bg-slate-900 border  dark: text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       <GoogleIcon name={opt.icon} size={20} />
@@ -223,16 +223,16 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
                           {opt.title}
                         </span>
                         <span
-                          className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md font-semibold ${
+                          className={`text-xs font-mono px-1.5 py-0.2 rounded-md font-semibold ${
                             isSelected
                               ? 'bg-amber-500 text-white'
-                              : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-800'
+                              : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-400 border  dark:'
                           }`}
                         >
                           {opt.badge}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug mt-0.5">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-snug mt-0.5">
                         {opt.desc}
                       </p>
                     </div>
@@ -242,8 +242,8 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
                     <div
                       className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
                         isSelected
-                          ? 'border-amber-500 bg-amber-500'
-                          : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900'
+                          ? ' bg-amber-500'
+                          : ' dark: bg-slate-100 dark:bg-slate-900'
                       }`}
                     >
                       {isSelected && (
@@ -258,7 +258,7 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
         </div>
 
         {/* Rodapé com Botões de Ação */}
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800/80">
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t  dark:">
           <button
             type="button"
             onClick={onClose}

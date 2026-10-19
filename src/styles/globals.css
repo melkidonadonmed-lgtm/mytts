@@ -4,22 +4,30 @@
    ========================================================================== */
 
 :root {
-  /* Pilha de 4+1 Camadas Tonais (Light Mode Reference / Variáveis Canônicas) */
-  --surface-canvas: #090b0e;
-  --surface-flat: #101520;
-  --surface-raised: #131824;
-  --surface-inset: #0c1017;
-  --surface-contrast: #1e293b;
+  /* Pilha de 4+1 Camadas Tonais (Dark Default: Obsidian 4K) */
+  --surface-canvas: #0B0E14;
+  --surface-inset: #07090D;
+  --surface-flat: #10141D;
+  --surface-raised: #151A26;
+  --surface-contrast: #F1F5F9;
 
-  /* Destaque Focal Único — Cerulean & Ocean Sapphire (Zero Cobalto) */
-  --accent-point: #0284c7;
-  --accent-sapphire: #1e6091;
-  --accent-soft-bg: rgba(2, 132, 199, 0.16);
+  --text-primary: #F1F5F9;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
 
-  /* Física Tactile / Neumorfismo Suave Direcional 135° (Dark Default) */
-  --soft-shadow-main: 8px 8px 24px rgba(0, 0, 0, 0.55);
-  --soft-shadow-light: -4px -4px 16px rgba(255, 255, 255, 0.04);
-  --soft-shadow-inset: inset 3px 3px 8px rgba(0, 0, 0, 0.65), inset -2px -2px 6px rgba(255, 255, 255, 0.04);
+  /* Destaque Focal Único — Cerulean / Mineral Ice (Zero Cobalto) */
+  --accent-point: #38BDF8;
+  --accent-sapphire: #0284C7;
+  --accent-soft-bg: rgba(56, 189, 248, 0.14);
+
+  /* Física Tactile / Neumorfismo Suave Direcional 135° */
+  --shadow-card: 10px 10px 26px rgba(2, 4, 9, 0.72), -6px -6px 18px rgba(30, 41, 59, 0.28);
+  --shadow-float: 14px 14px 34px rgba(2, 4, 9, 0.85), -8px -8px 22px rgba(30, 41, 59, 0.35);
+  --shadow-inset: inset 3px 3px 8px rgba(2, 4, 9, 0.82), inset -2px -2px 6px rgba(30, 41, 59, 0.25);
+
+  --soft-shadow-main: 10px 10px 26px rgba(2, 4, 9, 0.72);
+  --soft-shadow-light: -6px -6px 18px rgba(30, 41, 59, 0.28);
+  --soft-shadow-inset: var(--shadow-inset);
 
   --radius-lg: 24px;
   --radius-md: 14px;
@@ -28,25 +36,34 @@
 }
 
 [data-theme="light"] {
-  --surface-canvas: #F1F4F8;
+  --surface-canvas: #EEF2F6;
+  --surface-inset: #E2E8F0;
   --surface-flat: #E9EEF5;
   --surface-raised: #F8FAFC;
-  --surface-inset: #E5E9F0;
-  --surface-contrast: #1E293B;
+  --surface-contrast: #0F172A;
+
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
 
   --accent-point: #0284C7;
   --accent-sapphire: #1E6091;
   --accent-soft-bg: #E0F2FE;
 
   /* Física Tactile / Neumorfismo Suave Direcional 135° (Soft Light) */
-  --soft-shadow-main: 8px 8px 20px rgba(166, 180, 200, 0.42);
-  --soft-shadow-light: -8px -8px 20px rgba(255, 255, 255, 0.95);
-  --soft-shadow-inset: inset 4px 4px 10px rgba(166, 180, 200, 0.45), inset -4px -4px 10px rgba(255, 255, 255, 0.85);
+  --shadow-card: 10px 10px 24px rgba(148, 163, 184, 0.32), -8px -8px 20px rgba(255, 255, 255, 0.92);
+  --shadow-float: 14px 14px 32px rgba(148, 163, 184, 0.42), -10px -10px 26px rgba(255, 255, 255, 0.98);
+  --shadow-inset: inset 3px 3px 7px rgba(148, 163, 184, 0.35), inset -3px -3px 7px rgba(255, 255, 255, 0.85);
+
+  --soft-shadow-main: 10px 10px 24px rgba(148, 163, 184, 0.32);
+  --soft-shadow-light: -8px -8px 20px rgba(255, 255, 255, 0.92);
+  --soft-shadow-inset: var(--shadow-inset);
 }
 
 /* Camadas de Superfície (4+1 Tonal Stack) */
 .surface-canvas {
   background-color: var(--surface-canvas);
+  color: var(--text-primary);
 }
 
 .surface-flat {
@@ -56,13 +73,19 @@
 
 .surface-inset {
   background-color: var(--surface-inset);
-  box-shadow: var(--soft-shadow-inset);
+  box-shadow: var(--shadow-inset);
   border-radius: var(--radius-md);
+}
+
+.surface-raised {
+  background-color: var(--surface-raised);
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-lg);
 }
 
 .surface-contrast {
   background-color: var(--surface-contrast);
-  color: #f8fafc;
+  color: var(--surface-canvas);
 }
 
 .terrixa-notched {
@@ -73,9 +96,10 @@
 .ui-card-soft,
 .bento-card-soft {
   background-color: var(--surface-raised);
+  color: var(--text-primary);
   border-radius: var(--radius-lg);
-  box-shadow: var(--soft-shadow-main), var(--soft-shadow-light);
-  padding: 1.75rem;
+  box-shadow: var(--shadow-card);
+  padding: 1.5rem;
   transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
   position: relative;
 }
@@ -83,11 +107,13 @@
 .ui-card-soft:hover,
 .bento-card-soft:hover {
   transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
 }
 
 .ui-card-soft:focus-visible,
-.ui-btn-tactile:focus-visible {
-  outline: 2px dashed var(--accent-point);
+.ui-btn-tactile:focus-visible,
+.ui-btn-primary:focus-visible {
+  outline: 2px solid var(--accent-point);
   outline-offset: 3px;
 }
 
@@ -98,24 +124,52 @@
   font-weight: 600;
   min-height: 44px;
   min-width: 44px;
-  padding: 0.75rem 1.5rem;
+  padding: 0.65rem 1.25rem;
   border-radius: var(--radius-md);
   border: none;
-  box-shadow: var(--soft-shadow-main), var(--soft-shadow-light);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
   flex-shrink: 0;
   white-space: nowrap;
-  transition: all 0.15s var(--ease-spring);
+  transition: transform 0.15s var(--ease-spring), box-shadow 0.15s var(--ease-spring), color 0.15s ease;
 }
 
 .ui-btn-tactile:hover {
   color: var(--accent-point);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
-.ui-btn-tactile:active {
+.ui-btn-tactile:active,
+.ui-btn-tactile[aria-pressed="true"] {
+  background-color: var(--surface-inset);
   transform: translateY(1px);
-  box-shadow: var(--soft-shadow-inset);
+  box-shadow: var(--shadow-inset);
+}
+
+.ui-btn-primary {
+  background-color: var(--accent-point);
+  color: #ffffff;
+  font-weight: 700;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.65rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: none;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: transform 0.15s var(--ease-spring), box-shadow 0.15s var(--ease-spring);
+}
+
+.ui-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+}
+
+.ui-btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-inset);
 }
 
 /* Kit de Componentes Soft Tactile UI (8 Kits) */
@@ -128,14 +182,14 @@
   font-weight: 600;
   background-color: var(--surface-inset);
   color: var(--accent-point);
-  box-shadow: var(--soft-shadow-inset);
+  box-shadow: var(--shadow-inset);
   flex-shrink: 0;
   white-space: nowrap;
 }
 
 .surface-inset-pill {
   background-color: var(--surface-inset);
-  box-shadow: var(--soft-shadow-inset);
+  box-shadow: var(--shadow-inset);
   border-radius: 9999px;
   padding: 0.5rem 1rem;
 }
@@ -149,4 +203,36 @@
   border-radius: var(--radius-md);
   background-color: var(--surface-flat);
   transition: transform 0.15s var(--ease-spring);
+}
+
+/* Companion Sliding Tracker (#sidebar-active-tracker) */
+#sidebar-active-tracker {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  height: 56px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface-inset);
+  box-shadow: var(--shadow-inset);
+  transition: transform 0.35s var(--ease-spring);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#sidebar-active-tracker::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 9999px;
+  background-color: var(--accent-point);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

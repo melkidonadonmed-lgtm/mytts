@@ -17,7 +17,7 @@ export interface AuditTelemetryResult {
 }
 
 export interface SoftCardProps {
-  title: string;
+  title?: string;
   badgeText?: string;
   colSpan?: 3 | 4 | 6 | 8 | 12;
   layer?: TonalLayer;

@@ -308,31 +308,29 @@ export class GaplessAudioPlayer {
 
   private setupAudioGraph() {
     try {
+      if (!this.masterGainNode) {
+        this.masterGainNode = this.audioContext.createGain();
+        this.masterGainNode.gain.value = this.volume;
+        this.analyser.connect(this.masterGainNode);
+        this.masterGainNode.connect(this.audioContext.destination);
+      }
+
       if (!this.voiceGainNode) {
         this.voiceGainNode = this.audioContext.createGain();
         this.voiceGainNode.gain.value = Math.pow(10, this.soundtrackConfig.voiceBoostDb / 20);
+        this.voiceGainNode.connect(this.analyser);
       }
 
       if (!this.musicGainNode) {
         this.musicGainNode = this.audioContext.createGain();
         this.musicGainNode.gain.value = this.soundtrackConfig.musicVolume;
-      }
-
-      if (!this.masterGainNode) {
-        this.masterGainNode = this.audioContext.createGain();
-        this.masterGainNode.gain.value = this.volume;
+        this.musicGainNode.connect(this.analyser);
       }
 
       if (!this.mediaSourceNode) {
         this.mediaSourceNode = this.audioContext.createMediaElementSource(this.audioElement);
         this.mediaSourceNode.connect(this.voiceGainNode);
-        this.voiceGainNode.connect(this.analyser);
       }
-
-      // Mixa trilha musical no mesmo analyser do master
-      this.musicGainNode.connect(this.analyser);
-      this.analyser.connect(this.masterGainNode);
-      this.masterGainNode.connect(this.audioContext.destination);
     } catch (e: unknown) {
       console.warn('AudioGraph setup deferred or already initialized:', e);
     }
@@ -557,15 +555,32 @@ export class GaplessAudioPlayer {
       preDelayMs?: number;
     }>
   ) {
-    this.turns.forEach((t) => {
-      if (t.blobUrl) URL.revokeObjectURL(t.blobUrl);
-    });
+    const existingByTurn = new Map<number, { audioBase64: string; blobUrl?: string }>();
+    for (const prev of this.turns) {
+      existingByTurn.set(prev.turnNumber, {
+        audioBase64: prev.audioBase64,
+        blobUrl: prev.blobUrl,
+      });
+    }
 
-    this.turns = turns.map((t) => {
+    const keptUrls = new Set<string>();
+    const nextTurns = turns.map((t) => {
+      const existing = existingByTurn.get(t.turnNumber);
+      if (existing && existing.audioBase64 === t.audioBase64 && existing.blobUrl) {
+        keptUrls.add(existing.blobUrl);
+        return {
+          turnNumber: t.turnNumber,
+          audioBase64: t.audioBase64,
+          blobUrl: existing.blobUrl,
+          preDelayMs: t.preDelayMs || 100,
+        };
+      }
+
       const blob = new Blob([base64ToArrayBuffer(t.audioBase64)], {
         type: 'audio/wav',
       });
       const url = URL.createObjectURL(blob);
+      keptUrls.add(url);
       return {
         turnNumber: t.turnNumber,
         audioBase64: t.audioBase64,
@@ -574,12 +589,46 @@ export class GaplessAudioPlayer {
       };
     });
 
-    this.currentTurnIdx = 0;
-    if (this.turns.length > 0 && this.turns[0].blobUrl) {
-      this.audioElement.src = this.turns[0].blobUrl;
-      this.audioElement.playbackRate = this.playbackRate;
-      this.audioElement.volume = this.volume;
+    // Revoga apenas URLs de turnos substituídos ou removidos
+    this.turns.forEach((t) => {
+      if (t.blobUrl && !keptUrls.has(t.blobUrl)) {
+        URL.revokeObjectURL(t.blobUrl);
+      }
+    });
+
+    const activeTurnNumber = this.turns[this.currentTurnIdx]?.turnNumber;
+    const activeTurnUrl = this.turns[this.currentTurnIdx]?.blobUrl;
+    this.turns = nextTurns;
+
+    if (this.turns.length === 0) {
+      this.currentTurnIdx = 0;
+      this.notifyListeners();
+      return;
     }
+
+    const preservedIdx =
+      activeTurnNumber !== undefined
+        ? this.turns.findIndex((t) => t.turnNumber === activeTurnNumber)
+        : -1;
+
+    if (preservedIdx >= 0 && (this.isPlaying || this.audioElement.currentTime > 0)) {
+      this.currentTurnIdx = preservedIdx;
+      const currentTarget = this.turns[preservedIdx];
+      if (currentTarget.blobUrl && currentTarget.blobUrl !== activeTurnUrl) {
+        this.audioElement.src = currentTarget.blobUrl;
+        this.audioElement.playbackRate = this.playbackRate;
+        this.audioElement.volume = this.volume;
+      }
+    } else {
+      this.currentTurnIdx = preservedIdx >= 0 ? preservedIdx : 0;
+      const target = this.turns[this.currentTurnIdx];
+      if (target?.blobUrl && (!this.audioElement.src || target.blobUrl !== activeTurnUrl)) {
+        this.audioElement.src = target.blobUrl;
+        this.audioElement.playbackRate = this.playbackRate;
+        this.audioElement.volume = this.volume;
+      }
+    }
+
     this.notifyListeners();
   }
 

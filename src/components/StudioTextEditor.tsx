@@ -231,15 +231,15 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-2.5 w-full">
+    <div data-state="idle" className="flex flex-col gap-2.5 w-full">
       {/* 1. Barra de Ingestão Superior (Touch Targets Mínimos de 44px) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl card-matte">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl ui-card-soft">
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Botão Colar */}
           <button
             type="button"
             onClick={handlePasteClipboard}
-            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
+            className="ui-btn-tactile min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
             title="Colar texto da área de transferência"
           >
             <Clipboard className="w-4 h-4 text-amber-400" />
@@ -250,7 +250,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
+            className="ui-btn-tactile min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
             title="Carregar PDF, TXT ou Markdown"
           >
             <UploadCloud className="w-4 h-4 text-sky-400" />
@@ -271,7 +271,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
             className={`min-h-[40px] px-4 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px border ${
               isDictating
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
-                : 'btn-matte-dark'
+                : 'ui-btn-tactile'
             }`}
             title={isDictating ? 'Parar microfone' : 'Ditar texto com a voz'}
           >
@@ -292,7 +292,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
         {/* Indicador de Arquivo Carregado ou Botão Limpar */}
         <div className="flex items-center gap-2">
           {uploadedFileName && (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800/80 text-[11px] text-emerald-900 dark:text-emerald-300 font-medium">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border  dark: text-xs text-emerald-900 dark:text-emerald-300 font-medium">
               <FileCheck2 className="w-3.5 h-3.5" />
               <span className="truncate max-w-[140px]">{uploadedFileName}</span>
             </div>
@@ -306,7 +306,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
                 else onChangeText('');
                 setUploadedFileName(null);
               }}
-              className="min-h-[40px] px-3 rounded-xl btn-matte-dark text-slate-700 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+              className="min-h-[40px] px-3 rounded-xl ui-btn-tactile text-slate-700 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
               title="Limpar editor"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -324,10 +324,10 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
         }}
         onDragLeave={() => setIsDraggingOver(false)}
         onDrop={handleDrop}
-        className={`relative rounded-2xl border transition-all overflow-hidden flex flex-col card-matte ${
+        className={`relative rounded-2xl border transition-all overflow-hidden flex flex-col ui-card-soft ${
           isDraggingOver
-            ? 'border-amber-400 ring-2 ring-amber-400/20 bg-amber-500/5'
-            : 'focus-within:border-amber-500/80'
+            ? ' ring-2 ring-amber-400/20 bg-amber-500/5'
+            : 'focus-within:'
         }`}
       >
         <textarea
@@ -339,7 +339,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
         />
 
         {/* Rodapé Informativo: Palavras e Estimativa de Minutos */}
-        <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+        <div className="px-4 py-2 border-t  dark: bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <BookOpen className="w-3.5 h-3.5 text-slate-500" />
@@ -363,7 +363,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
 
       {/* Banners Rápidos de Feedback Temporário */}
       {feedback && (
-        <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-slate-900 border border-amber-300 dark:border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2 animate-in fade-in">
+        <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-slate-900 border  dark: text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2 animate-in fade-in">
           <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
           <span className="font-medium">{feedback}</span>
         </div>

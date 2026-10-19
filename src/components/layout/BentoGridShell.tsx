@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Estados de UI do BentoGridShell: empty | loading | success | error
 export interface BentoGridShellProps {
   children: React.ReactNode;
   className?: string;

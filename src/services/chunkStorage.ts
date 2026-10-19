@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 export interface IChunkStorage {
   listUserChunks(userId: string, lang?: TargetLang): Promise<ChunkItem[]>;
   saveUserChunk(userId: string, chunk: ChunkItem): Promise<void>;
+  saveUserChunks(userId: string, chunks: ChunkItem[]): Promise<void>;
   deleteUserChunk(userId: string, chunkId: string): Promise<boolean>;
 }
 
@@ -61,13 +62,20 @@ class LocalFsAdapter implements IChunkStorage {
   }
 
   async saveUserChunk(userId: string, chunk: ChunkItem): Promise<void> {
+    await this.saveUserChunks(userId, [chunk]);
+  }
+
+  async saveUserChunks(userId: string, chunks: ChunkItem[]): Promise<void> {
+    if (chunks.length === 0) return;
     const all = this.readAll();
     const list = all[userId] || [];
-    const index = list.findIndex((c) => c.id === chunk.id);
-    if (index >= 0) {
-      list[index] = chunk;
-    } else {
-      list.unshift(chunk);
+    for (const chunk of chunks) {
+      const index = list.findIndex((c) => c.id === chunk.id);
+      if (index >= 0) {
+        list[index] = chunk;
+      } else {
+        list.unshift(chunk);
+      }
     }
     all[userId] = list;
     this.writeAll(all);
@@ -98,7 +106,7 @@ class FirestoreAdapter implements IChunkStorage {
   }
 
   async listUserChunks(userId: string, _lang?: TargetLang): Promise<ChunkItem[]> {
-    let query = this.db.collection(this.collectionName).where('userId', '==', userId);
+    const query = this.db.collection(this.collectionName).where('userId', '==', userId);
     const snapshot = await query.get();
     const results: ChunkItem[] = [];
     snapshot.forEach((doc) => {
@@ -120,6 +128,25 @@ class FirestoreAdapter implements IChunkStorage {
       },
       { merge: true }
     );
+  }
+
+  async saveUserChunks(userId: string, chunks: ChunkItem[]): Promise<void> {
+    if (chunks.length === 0) return;
+    const batch = this.db.batch();
+    const now = Date.now();
+    for (const chunk of chunks) {
+      const docRef = this.db.collection(this.collectionName).doc(chunk.id);
+      batch.set(
+        docRef,
+        {
+          ...chunk,
+          userId,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+    }
+    await batch.commit();
   }
 
   async deleteUserChunk(userId: string, chunkId: string): Promise<boolean> {
@@ -187,6 +214,19 @@ class ChunkStorageManager implements IChunkStorage {
       if (this.isFirestoreActive) {
         console.warn('[ChunkStorageManager] Erro ao salvar no Firestore, salvando no fallback local:', err);
         await this.localFallback.saveUserChunk(userId, chunk);
+        return;
+      }
+      throw err;
+    }
+  }
+
+  async saveUserChunks(userId: string, chunks: ChunkItem[]): Promise<void> {
+    try {
+      await this.activeStorage.saveUserChunks(userId, chunks);
+    } catch (err: unknown) {
+      if (this.isFirestoreActive) {
+        console.warn('[ChunkStorageManager] Erro ao salvar lote no Firestore, salvando no fallback local:', err);
+        await this.localFallback.saveUserChunks(userId, chunks);
         return;
       }
       throw err;

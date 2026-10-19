@@ -102,3 +102,26 @@ export async function requestExtractTextJson(payload: {
   return parseApiJson(resp);
 }
 
+export async function requestMixAudio(payload: {
+  voiceAudioBase64: string;
+  soundtrackPreset?: string;
+  musicVolume?: number;
+  duckingDepthDb?: number;
+  voiceBoostDb?: number;
+  customMusicBase64?: string;
+}): Promise<{
+  ok: boolean;
+  success?: boolean;
+  audioBase64?: string;
+  mimeType?: string;
+  warning?: string;
+  error?: string;
+}> {
+  const resp = await fetch('/api/mix-audio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseApiJson(resp);
+}
+

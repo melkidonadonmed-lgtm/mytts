@@ -33,27 +33,31 @@ export const SoftCard: React.FC<SoftCardProps> = ({
   const fsmState = resolveCardFSMState({ isLoading, error, isPressed });
   const spanClass = getBentoSpanClass(colSpan);
   const layerClass = TONAL_LAYER_CLASSES[layer];
-  const safeTitle = sanitizeCardTitle(title);
+  const safeTitle = title ? sanitizeCardTitle(title) : '';
 
   return (
     <article
       className={`ui-card-soft ${layerClass} ${spanClass} ${className}`.trim()}
       tabIndex={0}
-      aria-label={safeTitle}
+      aria-label={safeTitle || undefined}
       aria-busy={isLoading}
       data-fsm-state={fsmState}
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
       onMouseLeave={() => setIsPressed(false)}
     >
-      <div className="flex justify-between items-center mb-5 gap-3">
-        <h3 className="text-xl font-semibold text-primary tracking-tight font-display">
-          {safeTitle}
-        </h3>
-        {badgeText && (
-          <span className="badge-soft btn-anti-squish tabular-nums">{badgeText}</span>
-        )}
-      </div>
+      {(safeTitle || badgeText) && (
+        <div className="flex justify-between items-center mb-5 gap-3">
+          {safeTitle && (
+            <h3 className="text-xl font-semibold text-primary tracking-tight font-display">
+              {safeTitle}
+            </h3>
+          )}
+          {badgeText && (
+            <span className="badge-soft btn-anti-squish tabular-nums">{badgeText}</span>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div

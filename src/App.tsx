@@ -15,13 +15,14 @@ import { DebateConfig, DebateScript, SpeakerProfile } from './types/debate';
 import { LANGUAGE_OPTIONS, SAMPLE_DOCUMENTS, INITIAL_PRESET_SCRIPTS } from './data/sampleDebates';
 import { GaplessAudioPlayer } from './utils/audioEngine';
 import { VoiceProfile, GEMINI_VOICES } from './types/voices';
-import { requestDebateScript, requestSynthesizeTurn } from './services/apiClient';
+import { requestDebateScript } from './services/apiClient';
+import { generateAudioCacheKey, synthesizeWithCache } from './utils/audioCache';
 import { persistBrowserState, readBrowserState } from './services/polyglotClient';
 import { SOFT_UI_PRESETS } from './config/tokens';
 import type { SoftUIThemePreset } from './types';
 import { AlertCircle, Menu } from 'lucide-react';
 
-// Estados globais da aplicação: empty (nenhum) | loading (carregando) | success (sucesso) | error (erro)
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('reader');
   const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(GEMINI_VOICES[0]); // Puck default
@@ -152,49 +153,82 @@ export default function App() {
     }
   };
 
+  const synthesizeTurnItem = async (
+    turn: DebateScript['turns'][number],
+    language: string
+  ): Promise<{ audioBase64: string; durationSec?: number }> => {
+    const cacheKey = generateAudioCacheKey({
+      type: 'turn',
+      text: `${turn.speaker}:${turn.text}`,
+      language,
+      voiceId: turn.voice_id,
+      speed: turn.prosody?.speech_rate ?? 1.0,
+      emotion: turn.emotion,
+    });
+
+    const result = await synthesizeWithCache({
+      endpoint: '/api/synthesize-turn',
+      body: {
+        turn,
+        speakerName: turn.speaker,
+        voiceId: turn.voice_id,
+        language,
+      },
+      cacheKey,
+      metadata: {
+        language,
+        voiceId: turn.voice_id,
+        speed: turn.prosody?.speech_rate ?? 1.0,
+        emotion: turn.emotion,
+      },
+    });
+
+    return {
+      audioBase64: result.audioBase64,
+      durationSec: result.durationSec,
+    };
+  };
+
   const synthesizeTurns = async (targetScript: DebateScript): Promise<void> => {
     setIsSynthesizing(true);
     setGlobalError(null);
 
     const updatedTurns = [...targetScript.turns];
+    const concurrency = 2;
+    let nextIndex = 0;
 
-    for (let i = 0; i < targetScript.turns.length; i++) {
-      const turn = targetScript.turns[i];
-      try {
-        const data = await requestSynthesizeTurn({
-          turn,
-          speakerName: turn.speaker,
-          voiceId: turn.voice_id,
-          language: targetScript.language,
-        });
-
-        if (data.ok && data.success && data.audioBase64) {
+    const runWorker = async (): Promise<void> => {
+      while (nextIndex < targetScript.turns.length) {
+        const i = nextIndex++;
+        const turn = targetScript.turns[i];
+        try {
+          const data = await synthesizeTurnItem(turn, targetScript.language);
           updatedTurns[i] = {
             ...turn,
             audioBase64: data.audioBase64,
             audioDurationSec: data.durationSec,
             audioStatus: 'ready',
           };
-        } else {
+        } catch (e: unknown) {
+          console.warn(`Turn ${turn.turn} synthesis error:`, e);
           updatedTurns[i] = {
             ...turn,
             audioStatus: 'error',
-            errorMessage: data.error,
+            errorMessage: e instanceof Error ? e.message : 'Erro na síntese do turno.',
           };
         }
-      } catch (e: unknown) {
-        console.warn(`Turn ${turn.turn} synthesis error:`, e);
-        updatedTurns[i] = {
-          ...turn,
-          audioStatus: 'error',
-          errorMessage: e instanceof Error ? e.message : 'Erro na síntese do turno.',
-        };
-      }
 
-      const intermediateScript = { ...targetScript, turns: [...updatedTurns] };
-      setScript(intermediateScript);
-      syncTurnsToPlayer(intermediateScript);
-    }
+        const intermediateScript = { ...targetScript, turns: [...updatedTurns] };
+        setScript(intermediateScript);
+        syncTurnsToPlayer(intermediateScript);
+      }
+    };
+
+    const workers = Array.from(
+      { length: Math.min(concurrency, targetScript.turns.length) },
+      () => runWorker()
+    );
+    await Promise.all(workers);
 
     setIsSynthesizing(false);
   };
@@ -233,27 +267,17 @@ export default function App() {
   const handleSynthesizeSingleTurn = async (turnIndex: number): Promise<void> => {
     const turn = script.turns[turnIndex];
     try {
-      const data = await requestSynthesizeTurn({
-        turn,
-        speakerName: turn.speaker,
-        voiceId: turn.voice_id,
-        language: script.language,
-      });
-
-      if (data.ok && data.success && data.audioBase64) {
-        const updatedTurns = [...script.turns];
-        updatedTurns[turnIndex] = {
-          ...turn,
-          audioBase64: data.audioBase64,
-          audioDurationSec: data.durationSec,
-          audioStatus: 'ready',
-        };
-        const updatedScript = { ...script, turns: updatedTurns };
-        setScript(updatedScript);
-        syncTurnsToPlayer(updatedScript);
-      } else {
-        throw new Error(data.error || 'Falha ao sintetizar turno.');
-      }
+      const data = await synthesizeTurnItem(turn, script.language);
+      const updatedTurns = [...script.turns];
+      updatedTurns[turnIndex] = {
+        ...turn,
+        audioBase64: data.audioBase64,
+        audioDurationSec: data.durationSec,
+        audioStatus: 'ready',
+      };
+      const updatedScript = { ...script, turns: updatedTurns };
+      setScript(updatedScript);
+      syncTurnsToPlayer(updatedScript);
     } catch (e: unknown) {
       setGlobalError(e instanceof Error ? e.message : 'Erro ao sintetizar áudio do turno.');
     }
@@ -275,7 +299,7 @@ export default function App() {
     : script?.speakers[0];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200">
+    <div data-state="idle" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200">
       
       {/* 1. Sidebar Persistente Estilo ElevenLabs */}
       <Sidebar
@@ -308,18 +332,18 @@ export default function App() {
       <div className="flex-1 flex flex-col lg:pl-72 min-h-screen">
         
         {/* Header Mobile com Hamburger */}
-        <header className="h-14 px-4 border-b border-slate-800/80 bg-slate-950 flex items-center justify-between lg:hidden sticky top-0 z-30">
+        <header className="h-14 px-4 border-b  bg-slate-950 flex items-center justify-between lg:hidden sticky top-0 z-30">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
+              className="p-1.5 rounded-lg bg-slate-900 border  text-slate-300 hover:text-white cursor-pointer"
               aria-label="Abrir menu de navegação"
             >
               <Menu className="w-5 h-5" />
             </button>
             <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
               <span>MyTTS</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+              <span className="text-xs font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border  font-semibold">
                 Studio
               </span>
             </span>
@@ -327,7 +351,7 @@ export default function App() {
 
           <div className="flex items-center gap-2">
             <div
-              className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-[10px] font-bold`}
+              className={`w-6 h-6 rounded-md surface-inset ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-bold`}
             >
               {selectedVoice.name[0]}
             </div>
@@ -347,7 +371,7 @@ export default function App() {
               </div>
               <button
                 onClick={() => setGlobalError(null)}
-                className="text-rose-700 hover:text-rose-900 dark:text-rose-400 dark:hover:text-white font-mono text-[11px] cursor-pointer"
+                className="text-rose-700 hover:text-rose-900 dark:text-rose-400 dark:hover:text-white font-mono text-xs cursor-pointer"
               >
                 dispensar
               </button>
@@ -396,7 +420,7 @@ export default function App() {
           {/* Módulo 4: Estúdio de Debate com 2 Vozes */}
           {activeTab === 'debate' && (
             <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-36 flex flex-col gap-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ">
                 <div>
                   <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
                     Estúdio de Debate Dialético (2 Vozes)
@@ -405,7 +429,7 @@ export default function App() {
                     Crie discussões estimulantes e embates de ideias a partir de documentos.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-xl">
+                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-400/10 border  px-2.5 py-1 rounded-xl">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Dual Speaker TTS (Kore &amp; Puck)</span>
                 </div>

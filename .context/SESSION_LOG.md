@@ -1,9 +1,12 @@
 # Log de Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-18T18:35:00-04:00 (Local)
+- **Data/Hora**: 2026-10-19T01:56:00-04:00 (Local)
 
-## Arquivos Tocados neste Turno (Orquestração Tripla de Skills)
+## Arquivos Tocados neste Turno (Auditoria REA + Correções de Motor de Áudio & API)
+- `src/utils/audioEngine.ts` (Isolamento de conexões Web Audio em `setupAudioGraph` e atualização incremental de Blob URLs sem interromper a reprodução ativa em `setTurns`).
+- `src/App.tsx` (Integração de `synthesizeWithCache` L1/L2 IndexedDB e pool concorrente de 2 workers em `synthesizeTurns` e `handleSynthesizeSingleTurn`).
+- `server.ts` e `src/services/chunkStorage.ts` (Repasse de `language` para `getEmotionStyle` em `/api/synthesize-turn`, allowlist `ALLOWED_PREVIEW_VOICES`/`ALLOWED_PREVIEW_LANGS` em `voicePreviewCache` e persistência em lote `saveUserChunks` em `/api/generate-chunks`).
 - `DESIGN.md`, `src/config/tokens.ts`, `src/types/index.ts`, `src/styles/globals.css`, `src/styles/theme.css`, `src/index.css` (Implementação do contrato `DESIGN.md v4.5-soft`, tokens Cerulean/Ocean Sapphire `#0284C7`/`#1E6091`, remoção do hex `#1d4ed8` e física tátil 135°).
 - `src/components/ui/SoftCard.tsx`, `src/components/bento/BentoStudioCard.tsx`, `src/components/layout/BentoGridShell.tsx`, `src/components/Sidebar.tsx` (Componentização em 5 camadas de Design Atômico com Máquina de Estados Finita `idle | loading | error | pressed` e `#sidebar-active-tracker` em `surface-inset`).
 - `src/App.tsx`, `src/components/ArchitectureModal.tsx`, `src/components/CommandPaletteModal.tsx`, `src/components/DebateConfigPanel.tsx`, `src/components/DocumentInputSection.tsx`, `src/components/ExportInteractionModal.tsx`, `src/components/FastChunkAudioApp.tsx`, `src/components/FlashcardDeckDrawer.tsx` (Remoção de todas as 10 instâncias de `backdrop-blur-*` para conformidade total com `AUDIT-VIS-01`).

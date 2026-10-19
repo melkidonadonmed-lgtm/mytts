@@ -455,28 +455,28 @@ export const FastChunkAudioApp: React.FC = () => {
   }, [selectedLang, filteredChunks]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 selection:bg-amber-500/20">
+    <div data-state="idle" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 selection:bg-amber-500/20">
       
       {/* 1. Header Focado e Rápido */}
-      <header className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800/80 px-4 py-3.5 sm:px-6">
+      <header className="sticky top-0 z-30 bg-slate-950 border-b  px-4 py-3.5 sm:px-6">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <div className="h-9 w-9 rounded-xl bg-amber-500/10 border  flex items-center justify-center text-amber-400">
               <Sparkles className="h-5 w-5 fill-current" />
             </div>
             <div>
               <h1 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
                 FastChunks
-                <span className="text-[10px] font-mono bg-amber-400/10 text-amber-300 border border-amber-400/20 rounded-full px-2 py-0.2">
+                <span className="text-xs font-mono bg-amber-400/10 text-amber-300 border  rounded-full px-2 py-0.2">
                   Áudio Direto
                 </span>
               </h1>
-              <p className="text-[11px] text-slate-400">Blocos de fala natural e treino auditivo</p>
+              <p className="text-xs text-slate-400">Blocos de fala natural e treino auditivo</p>
             </div>
           </div>
 
           {/* Seletor Rápido de Velocidade da Fala */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+          <div className="flex items-center bg-slate-900 border  rounded-lg p-0.5">
             {[0.8, 1.0, 1.25].map((rate) => (
               <button
                 key={rate}
@@ -512,8 +512,8 @@ export const FastChunkAudioApp: React.FC = () => {
                 }}
                 className={`min-h-[44px] flex items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
                   isSelected
-                    ? 'border-amber-400/60 bg-amber-400/10 text-amber-200 shadow-sm shadow-amber-500/10'
-                    : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    ? ' bg-amber-400/10 text-amber-200 shadow-sm shadow-amber-500/10'
+                    : ' bg-slate-900/60 text-slate-400 hover: hover:text-slate-200'
                 }`}
               >
                 <span className="text-base">{lang.flag}</span>
@@ -526,10 +526,10 @@ export const FastChunkAudioApp: React.FC = () => {
         {/* Botão de Destaque: Gerar com IA / Extrair Chunks */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="min-h-[46px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
+          className="min-h-[46px] w-full rounded-xl surface-inset hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
         >
           <Sparkles className="w-4 h-4 fill-current" />
-          <span>✨ Extrair ou Criar Chunks com Gemini AI</span>
+          <span> Extrair ou Criar Chunks com Gemini AI</span>
         </button>
 
         {/* Campo de Busca Rápida de Situação / Expressão */}
@@ -539,7 +539,7 @@ export const FastChunkAudioApp: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por situação (ex: topo, relaxa, resumindo)..."
-            className="min-h-[46px] w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 pl-10 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-400/70 focus:outline-none transition-colors"
+            className="min-h-[46px] w-full rounded-xl border  bg-slate-900/80 px-4 pl-10 text-sm text-slate-100 placeholder-slate-500 focus: focus:outline-none transition-colors"
           />
           <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
         </div>
@@ -559,7 +559,7 @@ export const FastChunkAudioApp: React.FC = () => {
             <button
               type="button"
               onClick={() => setGenerateError(null)}
-              className="text-rose-400 hover:text-white font-mono text-[11px] cursor-pointer"
+              className="text-rose-400 hover:text-white font-mono text-xs cursor-pointer"
             >
               dispensar
             </button>
@@ -569,7 +569,7 @@ export const FastChunkAudioApp: React.FC = () => {
         {/* Lista de Cartões de Chunks */}
         <div className="flex flex-col gap-3">
           {filteredChunks.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl p-6">
+            <div className="text-center py-12 border border-dashed  rounded-2xl p-6">
               <BookOpen className="w-8 h-8 text-slate-600 mx-auto mb-2" />
               <p className="text-xs text-slate-400">Nenhum chunk encontrado para essa busca.</p>
               <button
@@ -589,26 +589,26 @@ export const FastChunkAudioApp: React.FC = () => {
                   key={item.id}
                   className={`relative rounded-2xl border p-4 transition-all duration-200 ${
                     isDrilling
-                      ? 'border-amber-400/70 bg-gradient-to-b from-amber-500/10 to-slate-900/90 shadow-lg shadow-amber-500/10'
-                      : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700/80'
+                      ? ' surface-inset shadow-lg shadow-amber-500/10'
+                      : ' bg-slate-900/60 hover:'
                   }`}
                 >
                   {/* Cabeçalho do Card: Contexto, Tag de Custom, Badge de Cache e Botão Copiar */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md border ">
                         {item.context}
                       </span>
                       {cachedChunkIds.has(item.id) && (
                         <span
-                          className="text-[9px] font-mono font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/25 flex items-center gap-0.5"
+                          className="text-xs font-mono font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border  flex items-center gap-0.5"
                           title="Áudio persistido no cache local IndexedDB (0ms de latência)"
                         >
-                          <span>⚡ 0ms</span>
+                          <span> 0ms</span>
                         </span>
                       )}
                       {item.isCustom && (
-                        <span className="text-[9px] font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                        <span className="text-xs font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border ">
                           Salvo na Nuvem
                         </span>
                       )}
@@ -647,12 +647,12 @@ export const FastChunkAudioApp: React.FC = () => {
                   {/* Guia Fonético */}
                   {item.pronunciationHint && (
                     <p className="text-xs font-mono text-amber-400/80 mb-2">
-                      🗣️ {item.pronunciationHint}
+                      ️ {item.pronunciationHint}
                     </p>
                   )}
 
                   {/* Equivalência da Vida Real & Explicação */}
-                  <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800/60 mb-3 space-y-1">
+                  <div className="bg-slate-950/60 rounded-xl p-3 border  mb-3 space-y-1">
                     <p className="text-xs font-bold text-emerald-300">
                       → {item.literalOrNuance}
                     </p>
@@ -671,8 +671,8 @@ export const FastChunkAudioApp: React.FC = () => {
                       title="Ouvir com voz neural hiper-realista do Gemini (respiração e tom natural)"
                       className={`col-span-6 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl active:translate-y-px transition-all text-xs font-bold cursor-pointer border shadow-sm ${
                         cachedChunkIds.has(item.id)
-                          ? 'bg-gradient-to-r from-emerald-500/15 to-amber-500/15 hover:from-emerald-500/25 hover:to-amber-500/25 text-emerald-300 border-emerald-500/40'
-                          : 'bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 border-amber-500/40'
+                          ? 'surface-inset hover:from-emerald-500/25 hover:to-amber-500/25 text-emerald-300 '
+                          : 'surface-inset hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 '
                       }`}
                     >
                       {loadingNeuralId === item.id ? (
@@ -684,7 +684,7 @@ export const FastChunkAudioApp: React.FC = () => {
                         <>
                           <Sparkles className={`w-3.5 h-3.5 fill-current ${cachedChunkIds.has(item.id) ? 'text-emerald-400' : 'text-amber-400'}`} />
                           <span>
-                            {isSpeaking ? 'Tocando...' : cachedChunkIds.has(item.id) ? '⚡ Neural (0ms)' : 'Voz Neural IA'}
+                            {isSpeaking ? 'Tocando...' : cachedChunkIds.has(item.id) ? ' Neural (0ms)' : 'Voz Neural IA'}
                           </span>
                         </>
                       )}
@@ -695,7 +695,7 @@ export const FastChunkAudioApp: React.FC = () => {
                       type="button"
                       onClick={() => speakChunk(item.chunk, item.id)}
                       title="Síntese rápida local do navegador"
-                      className="col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 active:translate-y-px transition-all text-xs font-semibold cursor-pointer border border-slate-700/60"
+                      className="col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 active:translate-y-px transition-all text-xs font-semibold cursor-pointer border "
                     >
                       <Volume2 className="w-3.5 h-3.5 text-slate-400" />
                       <span>Nativo</span>
@@ -708,8 +708,8 @@ export const FastChunkAudioApp: React.FC = () => {
                       title="Repetição contínua para treinar fala"
                       className={`col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
                         isDrilling
-                          ? 'border-amber-400 bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20'
-                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                          ? ' bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                          : ' bg-slate-950 text-slate-400 hover:text-slate-200 hover:'
                       }`}
                     >
                       {isDrilling ? (
@@ -747,7 +747,7 @@ export const FastChunkAudioApp: React.FC = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="generator-modal-title"
-            className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-6"
+            className="w-full max-w-lg bg-slate-900 border  rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-6"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -775,7 +775,7 @@ export const FastChunkAudioApp: React.FC = () => {
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Digite uma situação ou cole o parágrafo..."
               rows={4}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+              className="w-full bg-slate-950 border  rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:"
             />
 
             {generateError && (
@@ -788,7 +788,7 @@ export const FastChunkAudioApp: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="flex-1 min-h-[44px] rounded-xl border border-slate-800 text-xs font-semibold text-slate-400 hover:text-slate-200"
+                className="flex-1 min-h-[44px] rounded-xl border  text-xs font-semibold text-slate-400 hover:text-slate-200"
               >
                 Cancelar
               </button>

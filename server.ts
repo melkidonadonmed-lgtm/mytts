@@ -13,6 +13,14 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { chunkStorage } from './src/services/chunkStorage';
 import { ChunkItem, TargetLang } from './src/types/chunks';
 import { getEmotionStyle, applyAcousticProsody } from './src/utils/prosodyEngine';
+import {
+  sanitizeUserId,
+  capText,
+  formatForTts,
+  ensureWavContainer,
+  ALLOWED_PREVIEW_VOICES,
+  ALLOWED_PREVIEW_LANGS,
+} from './src/server/audioContainer';
 
 const execFileAsync = promisify(execFile);
 
@@ -75,18 +83,6 @@ app.use(
   aiLimiter
 );
 
-// Identificador de sessão de dispositivo (X-User-Id): aceita apenas formato seguro
-const USER_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
-function sanitizeUserId(raw: unknown): string {
-  return typeof raw === 'string' && USER_ID_PATTERN.test(raw) ? raw : 'anonymous-user';
-}
-
-// Cap de caracteres para síntese neural (proteção de custo e quota da API)
-const MAX_TTS_CHARS = 20000;
-function capText(text: string, max: number = MAX_TTS_CHARS): string {
-  return text.length > max ? text.slice(0, max) : text;
-}
-
 // Server-side Gemini Client
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -96,67 +92,6 @@ const ai = new GoogleGenAI({
     },
   },
 });
-
-
-function formatForTts(text: string): string {
-  return text
-    .replace(/<breath>/gi, '[deep breath]')
-    .replace(/<sigh>/gi, '[sighs]')
-    .replace(/<laugh>/gi, '[laughs]')
-    .replace(/<gasp>/gi, '[gasp]')
-    .replace(/<whisper>/gi, '[whispers]')
-    .replace(/<pause>/gi, '[pause]')
-    .replace(/\|mhm\|/gi, 'mhm...')
-    .replace(/\|yeah\|/gi, 'yeah...')
-    .replace(/<[^>]+>/g, '') // remove qualquer tag HTML-like residual
-    .trim();
-}
-
-/**
- * Converte PCM Raw (24kHz 16-bit Mono) para arquivo WAV com cabeçalho RIFF canônico de 44 bytes.
- * Necessário pois a API Gemini Flash TTS Preview retorna áudio raw PCM sem container WAV.
- */
-function pcmToWav(
-  pcmBuffer: Buffer,
-  sampleRate: number = 24000,
-  numChannels: number = 1,
-  bitsPerSample: number = 16
-): Buffer {
-  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-  const blockAlign = (numChannels * bitsPerSample) / 8;
-  const dataSize = pcmBuffer.length;
-  const chunkSize = 36 + dataSize;
-  const header = Buffer.alloc(44);
-
-  // RIFF container descriptor
-  header.write('RIFF', 0);
-  header.writeUInt32LE(chunkSize, 4);
-  header.write('WAVE', 8);
-
-  // "fmt " sub-chunk
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
-  header.writeUInt16LE(1, 20); // AudioFormat (1 = PCM)
-  header.writeUInt16LE(numChannels, 22); // NumChannels
-  header.writeUInt32LE(sampleRate, 24); // SampleRate
-  header.writeUInt32LE(byteRate, 28); // ByteRate
-  header.writeUInt16LE(blockAlign, 32); // BlockAlign
-  header.writeUInt16LE(bitsPerSample, 34); // BitsPerSample
-
-  // "data" sub-chunk
-  header.write('data', 36);
-  header.writeUInt32LE(dataSize, 40);
-
-  return Buffer.concat([header, pcmBuffer]);
-}
-
-function ensureWavContainer(base64Audio: string, sampleRate: number = 24000): string {
-  const rawPcm = Buffer.from(base64Audio, 'base64');
-  if (rawPcm.length >= 4 && rawPcm.toString('ascii', 0, 4) === 'RIFF') {
-    return base64Audio;
-  }
-  return pcmToWav(rawPcm, sampleRate).toString('base64');
-}
 
 // 1. Text Ingestion & Parsing
 app.post('/api/extract-text', async (req, res) => {
@@ -433,7 +368,7 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
 // 3. Turn-by-Turn Neural TTS Synthesis (Gemini 3.8 Flash TTS)
 app.post('/api/synthesize-turn', async (req, res) => {
   try {
-    const { turn, speakerName, voiceId } = req.body;
+    const { turn, speakerName, voiceId, language = 'pt-BR' } = req.body;
 
     if (!turn || !turn.text) {
       return res.status(400).json({ error: 'Dados do turno inválidos.' });
@@ -441,7 +376,8 @@ app.post('/api/synthesize-turn', async (req, res) => {
 
     const effectiveVoice = voiceId || turn.voice_id || 'Kore';
     const effectiveSpeaker = speakerName || turn.speaker || 'Speaker';
-    const emotionStyle = getEmotionStyle(turn.emotion, turn.prosody?.speech_rate);
+    const effectiveLang = typeof language === 'string' && language ? language : 'pt-BR';
+    const emotionStyle = getEmotionStyle(turn.emotion, turn.prosody?.speech_rate, effectiveLang);
     const formattedText = formatForTts(capText(String(turn.text), 5000));
 
     // Prompt no padrão canônico Director's Chair do Gemini 3.1 Flash TTS
@@ -705,7 +641,14 @@ const voicePreviewCache = new Map<string, string>();
 
 app.post('/api/preview-voice', async (req, res) => {
   try {
-    const { voiceId = 'Puck', speakerName = 'Orador', language = 'pt-BR' } = req.body;
+    const rawVoiceId = typeof req.body?.voiceId === 'string' ? req.body.voiceId : 'Puck';
+    const rawLanguage = typeof req.body?.language === 'string' ? req.body.language : 'pt-BR';
+    const voiceId = ALLOWED_PREVIEW_VOICES.has(rawVoiceId) ? rawVoiceId : 'Puck';
+    const language = ALLOWED_PREVIEW_LANGS.has(rawLanguage) ? rawLanguage : 'pt-BR';
+    const speakerName =
+      typeof req.body?.speakerName === 'string' && req.body.speakerName.trim()
+        ? capText(req.body.speakerName.trim(), 40)
+        : voiceId;
     const cacheKey = `${voiceId}_${language}`;
 
     if (voicePreviewCache.has(cacheKey)) {
@@ -1076,9 +1019,7 @@ Regras estritas:
       createdAt: Date.now(),
     }));
 
-    for (const chunk of generatedChunks) {
-      await chunkStorage.saveUserChunk(userId, chunk);
-    }
+    await chunkStorage.saveUserChunks(userId, generatedChunks);
 
     return res.json({
       success: true,

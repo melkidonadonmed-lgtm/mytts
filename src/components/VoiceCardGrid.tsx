@@ -111,7 +111,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
 
   return (
     <div
-      role="radiogroup"
+      data-state="idle" role="radiogroup"
       aria-label="Seleção de Vozes Neurais"
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3"
     >
@@ -134,15 +134,15 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
             onKeyDown={(e) => handleKeyDown(e, voice)}
             className={`relative group rounded-2xl p-4 border transition-all cursor-pointer flex flex-col justify-between gap-3 text-left outline-none select-none active:translate-y-px focus-visible:ring-2 focus-visible:ring-sky-500 ${
               isSelected
-                ? 'card-matte-active ring-1 ring-sky-500/40 border-sky-500/50'
-                : 'card-matte hover:border-slate-600'
+                ? 'ui-card-soft-active ring-1 ring-sky-500/40 '
+                : 'ui-card-soft hover:'
             }`}
           >
             {/* Header do Card: Avatar, Nome e Botão de Preview */}
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div
-                  className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${voice.avatarColor} flex items-center justify-center text-white text-base font-extrabold shadow-sm relative border border-white/10`}
+                  className={`w-10 h-10 rounded-xl surface-inset ${voice.avatarColor} flex items-center justify-center text-white text-base font-extrabold shadow-sm relative border border-white/10`}
                 >
                   <span>{voice.name[0]}</span>
                   {isSelectedSolo && (
@@ -158,7 +158,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                       <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
                     )}
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block font-sans">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block font-sans">
                     {voice.gender === 'female' ? 'Feminina' : 'Masculina'}
                   </span>
                 </div>
@@ -173,8 +173,8 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                 aria-label={`Ouvir amostra de 3 segundos da voz ${voice.name}`}
                 className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                   isPlaying
-                    ? 'btn-matte-primary text-white shadow-md'
-                    : 'btn-matte-dark text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                    ? 'ui-btn-primary text-white shadow-md'
+                    : 'ui-btn-tactile text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                 }`}
               >
                 {isLoading ? (
@@ -192,17 +192,17 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
               <p className="text-xs font-bold text-sky-800 dark:text-sky-300 mb-1 flex items-center gap-1 font-sans">
                 <span>{voice.archetype}</span>
               </p>
-              <p className="text-[11px] text-slate-700 dark:text-slate-300 leading-snug line-clamp-2 font-sans">
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-snug line-clamp-2 font-sans">
                 {voice.bestFor}
               </p>
             </div>
 
             {/* Rodapé de Ação e Seleção Tátil Explícita */}
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-800/60">
+            <div className="pt-2 border-t  dark:">
               {!multiSpeakerMode ? (
                 /* Modo Solo: Botão de Seleção para Leitura */
                 isSelectedSolo ? (
-                  <div className="w-full py-1.5 px-3 rounded-xl btn-matte-primary text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm font-sans">
+                  <div className="w-full py-1.5 px-3 rounded-xl ui-btn-primary text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm font-sans">
                     <Check className="w-3.5 h-3.5 stroke-[3]" />
                     <span>Voz Ativa no Leitor</span>
                   </div>
@@ -213,7 +213,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                       e.stopPropagation();
                       handleSelect(voice);
                     }}
-                    className="w-full py-1.5 px-3 rounded-xl btn-matte-dark text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer font-sans"
+                    className="w-full py-1.5 px-3 rounded-xl ui-btn-tactile text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer font-sans"
                   >
                     <span>Selecionar esta Voz</span>
                   </button>
@@ -228,13 +228,13 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                         e.stopPropagation();
                         onSelectSpeakerSlot && onSelectSpeakerSlot(1, voice);
                       }}
-                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 font-sans ${
+                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 font-sans ${
                         isSpk1
-                          ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/50'
-                          : 'btn-matte-dark text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                          ? 'ui-btn-primary text-white shadow-sm ring-1 ring-sky-400/50'
+                          : 'ui-btn-tactile text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                       }`}
                     >
-                      {isSpk1 ? '✓ Orador 1' : 'Definir Orador 1'}
+                      {isSpk1 ? ' Orador 1' : 'Definir Orador 1'}
                     </button>
                     <button
                       type="button"
@@ -242,17 +242,17 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                         e.stopPropagation();
                         onSelectSpeakerSlot && onSelectSpeakerSlot(2, voice);
                       }}
-                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 font-sans ${
+                      className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 font-sans ${
                         isSpk2
-                          ? 'btn-matte-primary text-white shadow-sm ring-1 ring-emerald-400/50'
-                          : 'btn-matte-dark text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                          ? 'ui-btn-primary text-white shadow-sm ring-1 ring-emerald-400/50'
+                          : 'ui-btn-tactile text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                       }`}
                     >
-                      {isSpk2 ? '✓ Orador 2' : 'Definir Orador 2'}
+                      {isSpk2 ? ' Orador 2' : 'Definir Orador 2'}
                     </button>
                   </div>
                   {!isSpk1 && !isSpk2 && (
-                    <span className="text-[10px] text-slate-600 dark:text-slate-400 font-mono text-center block">
+                    <span className="text-xs text-slate-600 dark:text-slate-400 font-mono text-center block">
                       Toque para Orador {activeSlot}
                     </span>
                   )}

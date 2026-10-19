@@ -23,7 +23,7 @@ interface CommandItem {
   action: () => void;
 }
 
-// Estados do Command Palette: empty | loading | success | error
+
 export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
   isOpen,
   onClose,
@@ -273,23 +273,23 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 
   return (
     <div
-      role="dialog"
+      data-state="idle" role="dialog"
       aria-modal="true"
       aria-label="Paleta de Comandos e Busca Rápida"
       className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/85 transition-opacity"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl card-matte rounded-2xl overflow-hidden flex flex-col max-h-[80vh] transition-all"
+        className="relative w-full max-w-2xl ui-card-soft rounded-2xl overflow-hidden flex flex-col max-h-[80vh] transition-all"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Barra de Busca Sunken */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60">
+        <div className="p-4 border-b  dark: flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60">
           <GoogleIcon name="search" size={22} className="text-amber-500 dark:text-amber-400 shrink-0" />
           <input
             ref={inputRef}
             type="text"
-            className="input-sunken w-full text-base sm:text-lg font-medium"
+            className="surface-inset w-full text-base sm:text-lg font-medium"
             placeholder="Digite para navegar ou buscar vozes... (ex: Chat, Puck, Debate, Deck)"
             value={query}
             onChange={(e) => {
@@ -321,7 +321,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                   className={
                     'px-4 py-3 rounded-xl flex items-center justify-between cursor-pointer transition-all ' +
                     (isSelected
-                      ? 'card-matte-active text-slate-900 dark:text-white shadow-md'
+                      ? 'ui-card-soft-active text-slate-900 dark:text-white shadow-md'
                       : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 border border-transparent')
                   }
                 >
@@ -338,7 +338,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                     <div className="truncate">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-sm truncate text-slate-900 dark:text-slate-100">{cmd.title}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-400 font-mono">
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border  dark: text-slate-700 dark:text-slate-400 font-mono">
                           {cmd.category}
                         </span>
                       </div>
@@ -349,9 +349,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                   <div className="shrink-0 flex items-center gap-2 ml-3">
                     {cmd.shortcut && (
                       <kbd
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                        className={`text-xs font-mono px-2 py-0.5 rounded border ${
                           cmd.shortcut === 'Ativa'
-                            ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/30 font-semibold'
+                            ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300  font-semibold'
                             : ''
                         }`}
                       >
@@ -369,7 +369,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* Rodapé de Instrução Tátil */}
-        <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-950/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
+        <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-950/80 border-t  dark: flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 font-mono rounded">↑↓</kbd>

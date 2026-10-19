@@ -15,11 +15,16 @@
    - `Snorm = 100.00 / 100` em [`src/utils/audioEngine.ts`](../src/utils/audioEngine.ts) e [`src/utils/proceduralSoundtracks.ts`](../src/utils/proceduralSoundtracks.ts) (`s1..s5 = 100.0`, `S1..S5 = 100.0`, `5/5` testes determinísticos `Pass@10` aprovados) e `0` alertas no `js_ts_ast_parser.js` em 100% dos arquivos `.ts/.tsx`.
 4. **Suíte de Testes Nível 4 (`tests/audio-engine.test.ts` + `test-audio-engine.ts`)**:
    - Adição da `Suite 13` validando `resolveCardFSMState`, `sanitizeCardTitle` e ausência de hexadecimais de azul cobalto nos 4 presets Soft UI (`13/13` suítes Nível 4 aprovadas, `score_medio = 100.0`).
+5. **Otimizações de Engenharia Reversa Estática (`REA` — `ev_7fe68b1c0f939a28...`)**:
+   - [`src/utils/audioEngine.ts`](../src/utils/audioEngine.ts): Isolamento das conexões Web Audio em `setupAudioGraph()` (conectando `voiceGainNode`, `musicGainNode`, `analyser` e `masterGainNode` uma única vez) e preservação incremental de Blob URLs e do índice de reprodução ativa em `setTurns()`.
+   - [`src/App.tsx`](../src/App.tsx) & [`src/components/StudioWorkspace.tsx`](../src/components/StudioWorkspace.tsx): Integração de `synthesizeWithCache` (`L1/L2 IndexedDB`) tanto no modo Solo (`StudioWorkspace`) quanto nos turnos de Debate (`App.tsx`), com pool de concorrência controlada (`concurrency = 2`) e invalidação seletiva em `forceRegenerate`.
+   - [`src/components/BottomAudioDock.tsx`](../src/components/BottomAudioDock.tsx) & [`src/services/apiClient.ts`](../src/services/apiClient.ts): Mixagem Master Broadcast Híbrida (`requestMixAudio` -> `/api/mix-audio` com FFmpeg `sidechaincompress` frame-a-frame e fallback transparente para `OfflineAudioContext` 44.1kHz).
+   - [`src/server/audioContainer.ts`](../src/server/audioContainer.ts), [`server.ts`](../server.ts) & [`src/services/chunkStorage.ts`](../src/services/chunkStorage.ts): Desacoplamento de `ensureWavContainer`, `pcmToWav`, `sanitizeUserId`, `capText` e `formatForTts` em módulo testável (`Suite 14`), repasse de `language` em `POST /api/synthesize-turn`, allowlists em `POST /api/preview-voice` e persistência em lote `saveUserChunks` em `POST /api/generate-chunks`.
 
 ## Testes Reais e Verificações Auditáveis
 - `npm run lint` (`tsc --noEmit`): Exit code `0` (0 erros).
-- `npm test` (`tsx test-audio-engine.ts`): Exit code `0` (13/13 suítes Nível 4 aprovadas).
-- `npm run build` (`vite build`): Exit code `0` (`dist/` compilado sem warnings).
+- `npm test` (`tsx test-audio-engine.ts`): Exit code `0` (14/14 suítes Nível 4 aprovadas).
+- `npm run build` (`vite build`): Exit code `0` (`dist/` compilado em 297ms sem warnings).
 - `deterministic_scorer.py --scan . --html-out docs/resolution_diff_v1_v2.html`: `SGA = 100.0` (`32` nós, `30/30` telas, `113/113` funções).
 - `state_checker_observer.py --json src/utils/audioEngine.ts`: `s_norm = 100.0`.
 - `test_quality_auditor.py`: `100.0/100` (`NÍVEL 4: DETERMINÍSTICO & RESILIENTE`) em `test-audio-engine.ts` e `tests/audio-engine.test.ts`.
