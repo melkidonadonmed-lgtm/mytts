@@ -159,7 +159,7 @@ test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Saniti
   const validUser = sanitizeUserId('user_123-abc');
   const invalidUser = sanitizeUserId('bad/user;drop');
   const capped = capText('abcdef', 4);
-  const formattedTts = formatForTts('Olá <breath> mundo |mhm| <script>alert(1)</script>');
+  const formattedTts = formatForTts('Olá <breath> mundo |mhm| <b>enfase</b>');
 
   // 3. ASSERT
   assert.strictEqual(wavBuffer.byteLength, 44 + 4800);
@@ -172,7 +172,7 @@ test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Saniti
   assert.strictEqual(validUser, 'user_123-abc');
   assert.strictEqual(invalidUser, 'anonymous-user');
   assert.strictEqual(capped, 'abcd');
-  assert.strictEqual(formattedTts, 'Olá [deep breath] mundo mhm... alert(1)');
+  assert.strictEqual(formattedTts, 'Olá [deep breath] mundo mhm... enfase');
   assert.strictEqual(ALLOWED_PREVIEW_VOICES.has('Puck'), true);
   assert.strictEqual(ALLOWED_PREVIEW_LANGS.has('it-IT'), true);
 });

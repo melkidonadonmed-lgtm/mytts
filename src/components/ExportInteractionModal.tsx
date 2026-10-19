@@ -131,7 +131,9 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
 
   return (
     <div
-      data-state="idle" role="dialog"
+      data-state="idle"
+      aria-busy="false"
+      role="dialog"
       aria-modal="true"
       aria-labelledby="modal-export-title"
       className="surface-raised fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-in fade-in duration-200"

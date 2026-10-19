@@ -273,7 +273,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 
   return (
     <div
-      data-state="idle" role="dialog"
+      data-state="idle"
+      aria-busy="false"
+      role="dialog"
       aria-modal="true"
       aria-label="Paleta de Comandos e Busca Rápida"
       className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/85 transition-opacity"
@@ -305,7 +307,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         {/* Lista de Resultados */}
         <div ref={listRef} className="overflow-y-auto p-2 divide-y divide-slate-100 dark:divide-slate-800/40">
           {filteredCommands.length === 0 ? (
-            <div className="py-12 text-center text-slate-600 dark:text-slate-400 flex flex-col items-center gap-2">
+            <div role="alert" className="py-12 text-center text-slate-600 dark:text-slate-400 flex flex-col items-center gap-2">
               <GoogleIcon name="search_off" size={32} className="text-slate-400 dark:text-slate-600" />
               <p className="text-sm font-medium">Nenhum comando ou voz encontrado para &quot;{query}&quot;</p>
             </div>

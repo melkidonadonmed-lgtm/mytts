@@ -38,7 +38,9 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
 
   return (
     <div
-      data-state="idle" onClick={(e) => {
+      data-state="idle"
+      aria-busy="false"
+      onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
       className="fixed inset-0 z-50 bg-black/80 flex justify-end animate-in fade-in duration-200"

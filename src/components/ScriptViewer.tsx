@@ -105,7 +105,11 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
   };
 
   return (
-    <div data-state="idle" className="surface-raised flex flex-col gap-4">
+    <div
+      data-state={synthesizingTurnIndex !== null ? 'loading' : 'idle'}
+      aria-busy={synthesizingTurnIndex !== null}
+      className="surface-raised flex flex-col gap-4"
+    >
       {/* Header: Debate Thesis and Summary */}
       <div className="p-4 rounded-xl bg-slate-900/90 border  shadow-xl flex flex-col gap-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

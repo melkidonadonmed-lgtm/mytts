@@ -80,7 +80,9 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
 
   return (
     <section 
-      data-state="idle" aria-label="Painel de Calibração do Debate"
+      data-state="idle"
+      aria-busy="false"
+      aria-label="Painel de Calibração do Debate"
       className="rounded-2xl ui-card-soft p-4 sm:p-5"
     >
       <div className="mb-4 flex items-center justify-between border-b  pb-3">

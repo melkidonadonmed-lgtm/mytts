@@ -58,7 +58,9 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
 
   return (
     <div
-      data-state="idle" ref={menuRef}
+      data-state={copied ? 'pressed' : 'idle'}
+      aria-busy="false"
+      ref={menuRef}
       style={{
         top: `${Math.max(10, position.top)}px`,
         left: `${Math.max(10, Math.min(window.innerWidth - 300, position.left))}px`,

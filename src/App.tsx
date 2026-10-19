@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Sidebar, AppTab } from './components/Sidebar';
 import { StudioWorkspace } from './components/StudioWorkspace';
 import { PolyglotChatStudio } from './components/PolyglotChatStudio';
@@ -293,10 +293,33 @@ export default function App() {
     setScript({ ...script, turns: updatedTurns });
   };
 
+  const mainCanvasRef = useRef<HTMLElement | null>(null);
   const activeTurn = script?.turns[playerCurrentTurn];
   const activeSpeaker = activeTurn
     ? script?.speakers.find((s) => s.name === activeTurn.speaker) || script?.speakers[0]
     : script?.speakers[0];
+
+  const handleNavigateTab = (tab: AppTab): void => {
+    if (isPlaying && tab === 'reader') {
+      player.pause();
+    }
+    const docWithTransition = document as Document & {
+      startViewTransition?: (cb: () => void) => { finished?: Promise<void> };
+    };
+    if (docWithTransition.startViewTransition) {
+      const transition = docWithTransition.startViewTransition(() => setActiveTab(tab));
+      if (transition && transition.finished) {
+        transition.finished.then(() => {
+          mainCanvasRef.current?.focus({ preventScroll: true });
+        }).catch(() => {});
+      } else {
+        setTimeout(() => mainCanvasRef.current?.focus({ preventScroll: true }), 50);
+      }
+    } else {
+      setActiveTab(tab);
+      setTimeout(() => mainCanvasRef.current?.focus({ preventScroll: true }), 0);
+    }
+  };
 
   return (
     <div data-state="idle" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200">
@@ -304,23 +327,11 @@ export default function App() {
       {/* 1. Sidebar Persistente Estilo ElevenLabs */}
       <Sidebar
         activeTab={activeTab}
-        onSelectTab={(tab) => {
-          if (isPlaying && tab === 'reader') {
-            player.pause();
-          }
-          const docWithTransition = document as Document & {
-            startViewTransition?: (cb: () => void) => void;
-          };
-          if (docWithTransition.startViewTransition) {
-            docWithTransition.startViewTransition(() => setActiveTab(tab));
-          } else {
-            setActiveTab(tab);
-          }
-        }}
+        onSelectTab={handleNavigateTab}
         selectedVoice={selectedVoice}
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
-        onOpenVoiceLibrary={() => setActiveTab('voices')}
+        onOpenVoiceLibrary={() => handleNavigateTab('voices')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         theme={theme}
         onToggleTheme={handleToggleBinaryTheme}
@@ -363,7 +374,7 @@ export default function App() {
 
         {/* Banner de Erro Global */}
         {globalError && (
-          <div className="max-w-4xl mx-auto w-full px-4 pt-4">
+          <div className="max-w-4xl mx-auto w-full px-4 pt-4" role="alert">
             <div className="bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 px-4 py-2.5 rounded-xl text-xs flex items-center justify-between shadow-lg">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
@@ -380,7 +391,7 @@ export default function App() {
         )}
 
         {/* 3. Canvas de Conteúdo por Módulo */}
-        <main className="flex-1 flex flex-col">
+        <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none">
           {/* Módulo 1: Central de Criação Unificada (Solo + Debate) */}
           {activeTab === 'reader' && (
             <StudioWorkspace

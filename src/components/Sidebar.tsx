@@ -95,6 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <aside
         data-state="idle"
+        aria-busy="false"
         aria-label="Navegação Principal"
         className={`fixed top-0 bottom-0 left-0 z-50 w-72 surface-canvas flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full'

@@ -51,7 +51,9 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
 
   return (
     <div
-      data-state="idle" onClick={onSelectCard}
+      data-state={isSelected ? 'pressed' : 'idle'}
+      aria-busy="false"
+      onClick={onSelectCard}
       className={`flex-1 flex flex-col rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer ${
         isSelected
           ? 'ui-card-soft-active'

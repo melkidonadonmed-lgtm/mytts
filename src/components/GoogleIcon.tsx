@@ -8,12 +8,9 @@ export interface GoogleIconProps {
   grade?: -25 | 0 | 200;
   className?: string;
   title?: string;
+  state?: 'idle' | 'loading' | 'success' | 'error';
 }
 
-/**
- * Componente oficial de Ícones do Google (Material Symbols Rounded)
- * Renderiza símbolos vetoriais para indicadores de estado vazio, carregando, sucesso e erro.
- */
 export const GoogleIcon: React.FC<GoogleIconProps> = ({
   name,
   size = 20,
@@ -22,9 +19,14 @@ export const GoogleIcon: React.FC<GoogleIconProps> = ({
   grade = 0,
   className = '',
   title,
+  state = 'idle',
 }) => {
+  const resolvedName = name.trim() || 'help_outline';
   return (
     <span
+      data-state={state}
+      aria-busy={state === 'loading' ? 'true' : undefined}
+      role={state === 'error' ? 'alert' : undefined}
       className={`material-symbols-rounded inline-flex items-center justify-center select-none shrink-0 leading-none align-middle ${className}`}
       style={{
         fontSize: `${size}px`,
@@ -35,7 +37,8 @@ export const GoogleIcon: React.FC<GoogleIconProps> = ({
       title={title}
       aria-hidden={title ? undefined : 'true'}
     >
-      {name}
+      {resolvedName}
     </span>
   );
 };
+

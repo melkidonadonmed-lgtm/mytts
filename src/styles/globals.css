@@ -230,9 +230,57 @@
   background-color: var(--accent-point);
 }
 
+/* ==========================================================================
+   MODERN WEB GUIDANCE (Container Queries, Fluid Scaling cqi, Browser UI Theming)
+   ========================================================================== */
+
+html {
+  accent-color: var(--accent-point);
+  scrollbar-color: var(--text-muted) var(--surface-inset);
+  scrollbar-width: thin;
+}
+
+::selection {
+  background-color: var(--accent-soft-bg);
+  color: var(--accent-point);
+}
+
+input:user-invalid,
+textarea:user-invalid,
+select:user-invalid {
+  outline: 2px solid #f43f5e;
+  outline-offset: 2px;
+}
+
+.island-container,
+.bento-card-soft,
+.ui-card-soft {
+  container-type: inline-size;
+}
+
+.fluid-island-title {
+  font-size: clamp(1rem, 2.5cqi + 0.65rem, 1.375rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+@container (max-width: 380px) {
+  .island-responsive-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
+

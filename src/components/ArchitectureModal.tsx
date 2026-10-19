@@ -16,11 +16,19 @@ interface ArchitectureModalProps {
 
 export const ArchitectureModal: React.FC<ArchitectureModalProps> = ({ onClose }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text).catch((e) => console.warn('Clipboard indisponível:', e));
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+    setCopyError(null);
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey(null), 2000);
+      })
+      .catch(() => {
+        setCopyError('Falha ao copiar para a área de transferência.');
+      });
   };
 
   const schemaJson = `{
@@ -85,8 +93,17 @@ LEIS INVIOLÁVEIS:
    - Cada fala deve soar como fala humana real improvisada em estúdio.`;
 
   return (
-    <div data-state="idle" className="surface-raised fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 overflow-y-auto">
+    <div
+      data-state={copyError ? 'error' : copiedKey ? 'pressed' : 'idle'}
+      aria-busy="false"
+      className="surface-raised fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 overflow-y-auto"
+    >
       <div className="bg-slate-900 border  rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col gap-6 my-8 max-h-[90vh] overflow-y-auto">
+        {copyError && (
+          <div role="alert" className="text-xs text-rose-400 font-mono">
+            {copyError}
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b ">
           <div>

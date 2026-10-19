@@ -23,29 +23,22 @@ export async function parseApiJson<T extends Record<string, unknown>>(
   }
 }
 
+const postJson = async <T extends Record<string, unknown>>(
+  endpoint: string,
+  payload: unknown
+): Promise<T & { ok: boolean; error?: string }> => {
+  const resp = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseApiJson<T>(resp);
+};
+
 export async function requestDebateScript(
   payload: GenerateScriptPayload
 ): Promise<{ ok: boolean; success?: boolean; script?: DebateScript; error?: string }> {
-  const resp = await fetch('/api/generate-script', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return parseApiJson(resp);
-}
-
-export async function requestSynthesizeTurn(payload: {
-  turn: unknown;
-  speakerName: string;
-  voiceId: string;
-  language: string;
-}): Promise<{ ok: boolean; success?: boolean; audioBase64?: string; durationSec?: number; error?: string }> {
-  const resp = await fetch('/api/synthesize-turn', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return parseApiJson(resp);
+  return postJson('/api/generate-script', payload);
 }
 
 export async function requestSynthesizeSpeech(payload: {
@@ -56,12 +49,7 @@ export async function requestSynthesizeSpeech(payload: {
   language: string;
   autoProsody: boolean;
 }): Promise<{ ok: boolean; success?: boolean; audioBase64?: string; durationSec?: number; error?: string }> {
-  const resp = await fetch('/api/synthesize-speech', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return parseApiJson(resp);
+  return postJson('/api/synthesize-speech', payload);
 }
 
 export async function requestPreviewVoice(payload: {
@@ -69,24 +57,14 @@ export async function requestPreviewVoice(payload: {
   speakerName: string;
   language: string;
 }): Promise<{ ok: boolean; success?: boolean; audioBase64?: string; error?: string }> {
-  const resp = await fetch('/api/preview-voice', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return parseApiJson(resp);
+  return postJson('/api/preview-voice', payload);
 }
 
 export async function requestTranscribeAudio(payload: {
   audioData: string;
   mimeType: string;
 }): Promise<{ ok: boolean; success?: boolean; transcript?: string; error?: string }> {
-  const resp = await fetch('/api/transcribe-audio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return parseApiJson(resp);
+  return postJson('/api/transcribe-audio', payload);
 }
 
 export async function requestExtractTextJson(payload: {
@@ -94,12 +72,7 @@ export async function requestExtractTextJson(payload: {
   mimeType: string;
   fileName: string;
 }): Promise<{ ok: boolean; success?: boolean; text?: string; error?: string }> {
-  const resp = await fetch('/api/extract-text', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return parseApiJson(resp);
+  return postJson('/api/extract-text', payload);
 }
 
 export async function requestMixAudio(payload: {
@@ -117,11 +90,6 @@ export async function requestMixAudio(payload: {
   warning?: string;
   error?: string;
 }> {
-  const resp = await fetch('/api/mix-audio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return parseApiJson(resp);
+  return postJson('/api/mix-audio', payload);
 }
 
