@@ -50,27 +50,29 @@
    DESIGN SYSTEM TÁTIL MELKI — TEMA BINÁRIO (DARK & LIGHT)
    ========================================================================== */
 
-/* 1. MODO ESCURO CANÔNICO (Padrão Melki) */
+/* 1. MODO ESCURO CANÔNICO (Padrão Cinza sobre Cinza Monolítico para Áudio Studio) */
 :root {
   color-scheme: dark;
 
-  --bg-canvas: #090b0e;
-  --bg-surface-0: #101520;
-  --bg-surface-1: #151b26;
-  --bg-surface-2: #1b2332;
-  --bg-surface-inset: #0c1017;
-  --bg-card: #131824;
-  --bg-card-hover: #1a2233;
+  --bg-canvas: #57545d;
+  --bg-surface-0: #49464f;
+  --bg-surface-1: #49464f;
+  --bg-surface-2: #635f6a;
+  --bg-surface-inset: #3e3b44;
+  --bg-card: #49464f;
+  --bg-card-hover: #534f5a;
+  --canvas-dot-color: rgba(255, 255, 255, 0.17);
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-tactile: rgba(255, 255, 255, 0.12);
-  --border-hover: rgba(255, 255, 255, 0.22);
-  --border-rim-light: rgba(255, 255, 255, 0.14);
-  --border-focus: rgba(59, 130, 246, 0.5);
+  --border-subtle: rgba(255, 255, 255, 0.14);
+  --border-tactile: rgba(255, 255, 255, 0.18);
+  --border-hover: rgba(255, 255, 255, 0.34);
+  --border-rim-light: rgba(255, 255, 255, 0.22);
+  --border-focus: rgba(53, 172, 216, 0.65);
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
+  /* Tipografia de Alta Nitidez (Zero Aspecto Borrado/Craquelado) */
+  --text-primary: #FFFFFF;
+  --text-secondary: #ECEAF2;
+  --text-tertiary: #D4D1DE;
   --text-on-accent: #ffffff;
 
   --accent-primary: #0284c7;
@@ -78,52 +80,53 @@
   --accent-amber: #d97706;
 
   /* Badges Dinâmicas */
-  --badge-blue-bg: rgba(37, 99, 235, 0.20);
-  --badge-blue-text: #93c5fd;
-  --badge-blue-border: rgba(37, 99, 235, 0.45);
+  --badge-blue-bg: rgba(53, 172, 216, 0.20);
+  --badge-blue-text: #bae6fd;
+  --badge-blue-border: rgba(53, 172, 216, 0.45);
 
   --badge-green-bg: rgba(16, 185, 129, 0.20);
   --badge-green-text: #6ee7b7;
   --badge-green-border: rgba(16, 185, 129, 0.45);
 
-  --badge-amber-bg: rgba(217, 119, 6, 0.20);
-  --badge-amber-text: #fcd34d;
+  --badge-amber-bg: rgba(217, 119, 6, 0.22);
+  --badge-amber-text: #fde68a;
   --badge-amber-border: rgba(217, 119, 6, 0.45);
 
   --badge-purple-bg: rgba(139, 92, 246, 0.20);
-  --badge-purple-text: #c4b5fd;
+  --badge-purple-text: #ddd6fe;
   --badge-purple-border: rgba(139, 92, 246, 0.45);
 
-  --code-color: #93c5fd;
-  --code-bg: rgba(37, 99, 235, 0.12);
-  --code-border: rgba(37, 99, 235, 0.3);
+  --code-color: #bae6fd;
+  --code-bg: rgba(53, 172, 216, 0.14);
+  --code-border: rgba(53, 172, 216, 0.32);
 }
 
-/* 2. MODO CLARO ERGONÔMICO (WCAG AAA - Alto Contraste Tipográfico) */
+/* 2. MODO CLARO MODERNO (Ad Lucem — Alto Contraste Tipográfico & Superfícies Esculpidas) */
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-canvas: #f1f5f9;
-  --bg-surface-0: #ffffff;
-  --bg-surface-1: #ffffff;
-  --bg-surface-2: #edf1f7;
-  --bg-surface-inset: #e2e8f0;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f8fafc;
+  --bg-canvas: #F3F3F5;
+  --bg-surface-0: #FFFFFF;
+  --bg-surface-1: #FFFFFF;
+  --bg-surface-2: #E6E6EA;
+  --bg-surface-inset: #E8E8EE;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FFFFFF;
+  --canvas-dot-color: rgba(24, 24, 27, 0.14);
 
-  --border-subtle: rgba(15, 23, 42, 0.08);
-  --border-tactile: rgba(15, 23, 42, 0.15);
-  --border-hover: rgba(15, 23, 42, 0.30);
-  --border-rim-light: rgba(255, 255, 255, 0.95);
-  --border-focus: rgba(30, 64, 175, 0.5);
+  --border-subtle: rgba(24, 24, 27, 0.10);
+  --border-tactile: rgba(24, 24, 27, 0.16);
+  --border-hover: rgba(2, 132, 199, 0.45);
+  --border-rim-light: rgba(255, 255, 255, 0.98);
+  --border-focus: rgba(2, 132, 199, 0.55);
 
-  --text-primary: #0f172a; /* Slate 900 */
-  --text-secondary: #334155; /* Slate 700 - Contraste alto e nítido */
-  --text-tertiary: #475569; /* Slate 600 */
+  --text-primary: #09090B;
+  --text-secondary: #27272A;
+  --text-tertiary: #52525B;
   --text-on-accent: #ffffff;
 
-  --accent-primary: #1e40af;
-  --accent-primary-hover: #1e3a8a;
+  --accent-primary: #0284c7;
+  --accent-primary-hover: #1e6091;
   --accent-amber: #92400e;
 
   /* Badges Alto Contraste no Modo Claro */
@@ -149,8 +152,16 @@
 }
 
 @layer base {
+  html,
   body {
-    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 450;
+    letter-spacing: -0.006em;
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    text-rendering: optimizeLegibility;
+    font-optical-sizing: auto;
+    font-synthesis: none;
     background-color: var(--bg-canvas);
     color: var(--text-primary);
     transition: background-color 0.2s ease, color 0.2s ease;
@@ -158,17 +169,21 @@
   
   h1, h2, h3, h4 {
     font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
     text-wrap: balance;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.018em;
+    text-rendering: geometricPrecision;
   }
 
-  p, blockquote, article {
-    text-wrap: pretty;
+  p, blockquote, article, span, label, select, button {
+    text-rendering: optimizeLegibility;
+    font-optical-sizing: auto;
   }
 
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-feature-settings: "tnum" 1;
+    font-weight: 500;
+    font-feature-settings: "tnum" 1, "zero" 1;
     font-variant-numeric: tabular-nums;
   }
 }
@@ -209,33 +224,35 @@
 }
 
 /* ==========================================================================
-   COMPONENTES TÁTEIS UNIVERSAIS (ADAPTÁVEIS A AMBOS OS TEMAS)
+   COMPONENTES TÁTEIS UNIVERSAIS COM MOVIMENTO SPRING NO HOVER
    ========================================================================== */
 
-/* Cartão com Acabamento Mate */
+/* Cartão com Acabamento Mate + Elevação Física Spring ao passar o mouse */
 .card-matte {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-top: 1px solid var(--border-rim-light);
   border-radius: 1rem;
   box-shadow: 
-    0 1px 2px 0 rgba(0, 0, 0, 0.05),
-    0 8px 24px -4px rgba(0, 0, 0, 0.12);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-:root .card-matte {
-  box-shadow: 
-    0 1px 2px 0 rgba(0, 0, 0, 0.4),
-    0 8px 24px -4px rgba(0, 0, 0, 0.6),
-    var(--border-rim-light);
+    0 2px 4px 0 rgba(0, 0, 0, 0.28),
+    0 10px 24px -4px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 0 var(--border-rim-light);
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.22s ease,
+    background-color 0.22s ease;
 }
 
 :root .card-matte:hover {
+  transform: translateY(-4px);
+  background: var(--bg-card-hover);
   border-color: var(--border-hover);
+  border-top-color: rgba(255, 255, 255, 0.38);
   box-shadow: 
-    0 2px 6px 0 rgba(0, 0, 0, 0.45),
-    0 12px 28px -4px rgba(0, 0, 0, 0.7);
+    0 6px 14px -2px rgba(0, 0, 0, 0.45),
+    0 18px 36px -6px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.28);
 }
 
 [data-theme="light"] .card-matte {
@@ -243,33 +260,56 @@
   border: 1px solid #cbd5e1 !important;
   box-shadow: 
     0 1px 3px rgba(15, 23, 42, 0.05),
-    0 4px 14px -2px rgba(15, 23, 42, 0.07) !important;
+    0 6px 16px -2px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 0 #ffffff !important;
 }
 
 [data-theme="light"] .card-matte:hover {
-  border-color: #94a3b8 !important;
+  transform: translateY(-4px);
+  border-color: #38bdf8 !important;
   box-shadow: 
-    0 2px 6px rgba(15, 23, 42, 0.08),
-    0 10px 24px -3px rgba(15, 23, 42, 0.1) !important;
+    0 6px 14px -2px rgba(2, 132, 199, 0.10),
+    0 16px 32px -4px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 0 #ffffff !important;
 }
 
-/* Card Ativo / Selecionado */
+/* Card Ativo / Selecionado com Elevação Spring */
 .card-matte-active {
   background: var(--bg-surface-2);
-  border: 1px solid rgba(59, 130, 246, 0.45);
-  border-top: 1px solid rgba(96, 165, 250, 0.65);
+  border: 1px solid rgba(53, 172, 216, 0.55);
+  border-top: 1px solid rgba(125, 211, 252, 0.78);
   border-radius: 1rem;
   box-shadow: 
-    0 0 0 1px rgba(59, 130, 246, 0.25),
-    0 8px 24px -4px rgba(0, 0, 0, 0.5);
+    0 0 0 1px rgba(53, 172, 216, 0.28),
+    0 10px 26px -4px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.22s ease;
+}
+
+.card-matte-active:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 0 0 1px rgba(53, 172, 216, 0.42),
+    0 16px 34px -4px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.32);
 }
 
 [data-theme="light"] .card-matte-active {
-  background: #f8fafc !important;
-  border: 1px solid #2563eb !important;
+  background: #ffffff !important;
+  border: 1px solid #0284c7 !important;
   box-shadow: 
-    0 0 0 1px rgba(37, 99, 235, 0.35),
-    0 4px 16px -2px rgba(37, 99, 235, 0.12) !important;
+    0 0 0 1px rgba(2, 132, 199, 0.35),
+    0 8px 22px -2px rgba(2, 132, 199, 0.14) !important;
+}
+
+[data-theme="light"] .card-matte-active:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 0 0 1px rgba(2, 132, 199, 0.5),
+    0 14px 30px -3px rgba(2, 132, 199, 0.2) !important;
 }
 
 /* Cavidade Tátil / Input Sunken (Search, Textareas, Filters) */
@@ -301,10 +341,10 @@
 }
 
 [data-theme="light"] .input-sunken:focus {
-  border-color: #1e40af !important;
+  border-color: #0284c7 !important;
   box-shadow: 
     inset 1px 1px 3px rgba(15, 23, 42, 0.08),
-    0 0 0 2px rgba(30, 64, 175, 0.2) !important;
+    0 0 0 2px rgba(2, 132, 199, 0.2) !important;
 }
 
 /* Botões Táteis com Acabamento Mate */
@@ -315,12 +355,20 @@
   justify-content: center;
   gap: 0.5rem;
   border-radius: 0.75rem;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif !important;
   font-weight: 600;
-  letter-spacing: 0.01em;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  letter-spacing: 0.005em;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: pointer;
   user-select: none;
+}
+
+.btn-matte:hover {
+  transform: translateY(-1.5px);
 }
 
 .btn-matte:active {
@@ -329,67 +377,67 @@
 
 /* Botão Primário Mineral */
 .btn-matte-primary {
-  background: #1e3a6e;
+  background: #0284c7;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-top: 1px solid rgba(255, 255, 255, 0.32);
   box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.20),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
     0 2px 6px 0 rgba(0, 0, 0, 0.35);
 }
 
 .btn-matte-primary:hover {
-  background: #254b8c;
+  background: #1e6091;
   color: #ffffff !important;
 }
 
 [data-theme="light"] .btn-matte-primary {
-  background: #1e40af !important;
+  background: #0284c7 !important;
   color: #ffffff !important;
-  border: 1px solid #1e3a8a !important;
-  box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25) !important;
+  border: 1px solid #1e6091 !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
 }
 
 [data-theme="light"] .btn-matte-primary:hover {
-  background: #1e3a8a !important;
+  background: #1e6091 !important;
 }
 
 /* Botão Secundário / Dark */
 .btn-matte-dark {
-  background: #181f2c;
-  color: #cbd5e1;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  background: #3e3b44;
+  color: #F7F6F9;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
 }
 
 .btn-matte-dark:hover {
-  background: #20293a;
-  color: #f8fafc;
+  background: #635f6a;
+  color: #FFFFFF;
 }
 
 [data-theme="light"] .btn-matte-dark {
   background: #ffffff !important;
-  color: #1e293b !important;
+  color: #18181B !important;
   border: 1px solid #cbd5e1 !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
 }
 
 [data-theme="light"] .btn-matte-dark:hover {
   background: #f1f5f9 !important;
-  color: #0f172a !important;
+  color: #09090B !important;
   border-color: #94a3b8 !important;
 }
 
 /* Botão Âmbar Mineral */
 .btn-matte-amber {
-  background: #854d0e;
+  background: #b45309;
   color: #ffffff !important;
-  border: 1px solid #a16207;
+  border: 1px solid #d97706;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 .btn-matte-amber:hover {
-  background: #a16207;
+  background: #d97706;
 }
 
 [data-theme="light"] .btn-matte-amber {
@@ -450,7 +498,7 @@
 }
 
 [data-theme="light"] .slider-matte::-webkit-slider-thumb {
-  background: #1e40af !important;
+  background: #0284c7 !important;
   border: 2px solid #ffffff !important;
 }
 
@@ -469,16 +517,13 @@
 }
 
 /* Containers estruturais */
-[data-theme="light"] .bg-slate-950 {
-  background-color: var(--bg-canvas) !important;
-}
-
 [data-theme="light"] aside,
 [data-theme="light"] .bg-slate-950\/90,
 [data-theme="light"] .bg-slate-950\/80,
 [data-theme="light"] .bg-slate-950\/70,
 [data-theme="light"] .bg-slate-950\/60 {
   background-color: #ffffff !important;
+  background-image: none !important;
 }
 
 [data-theme="light"] .bg-slate-900,
@@ -489,11 +534,13 @@
 [data-theme="light"] .bg-slate-900\/50,
 [data-theme="light"] .bg-slate-900\/40 {
   background-color: #ffffff !important;
+  background-image: none !important;
 }
 
 [data-theme="light"] .bg-slate-800,
 [data-theme="light"] .bg-slate-850 {
   background-color: #edf1f7 !important;
+  background-image: none !important;
 }
 
 /* Linhas divisórias e bordas */
@@ -556,56 +603,56 @@
 /* Tipografia de Alto Contraste no Modo Claro (Anti-desbotamento WCAG AAA) */
 [data-theme="light"] .text-white:not(.btn-matte-primary):not(.btn-matte-primary *):not(.btn-matte-amber):not(.btn-matte-amber *):not(.btn-matte-accent):not(.btn-matte-accent *):not(.bg-rose-500):not(.bg-rose-500 *):not(.bg-amber-500):not(.bg-amber-500 *):not(.bg-blue-600):not(.bg-blue-600 *):not(.bg-sky-600):not(.bg-sky-600 *),
 [data-theme="light"] .text-slate-100 {
-  color: #0f172a !important; /* Slate 900 - Contraste > 14:1 */
+  color: #09090B !important;
 }
 
 [data-theme="light"] .text-slate-200,
 [data-theme="light"] .text-slate-300 {
-  color: #1e293b !important; /* Slate 800 - Contraste > 11:1 */
+  color: #18181B !important;
 }
 
 [data-theme="light"] .text-slate-400 {
-  color: #334155 !important; /* Slate 700 - Contraste > 8:1 */
+  color: #27272A !important;
 }
 
 [data-theme="light"] .text-slate-500 {
-  color: #475569 !important; /* Slate 600 - Contraste > 6:1 */
+  color: #3F3F46 !important;
 }
 
 /* Acentos de cores, badges e links no Modo Claro (Anti-pastel, WCAG AAA) */
 [data-theme="light"] .text-sky-200,
 [data-theme="light"] .text-sky-300,
 [data-theme="light"] .text-sky-400 {
-  color: #1e40af !important; /* Deep Blue - Contraste > 7:1 */
+  color: #0369a1 !important;
 }
 
 [data-theme="light"] .text-amber-200,
 [data-theme="light"] .text-amber-300,
 [data-theme="light"] .text-amber-400 {
-  color: #92400e !important; /* Deep Amber - Contraste > 7:1 */
+  color: #92400e !important;
 }
 
 [data-theme="light"] .text-amber-400\/80,
 [data-theme="light"] .text-amber-400\/90 {
-  color: #78350f !important; /* Deep Bronze */
+  color: #78350f !important;
 }
 
 [data-theme="light"] .text-emerald-200,
 [data-theme="light"] .text-emerald-300,
 [data-theme="light"] .text-emerald-400 {
-  color: #065f46 !important; /* Deep Emerald - Contraste > 7:1 */
+  color: #065f46 !important;
 }
 
 [data-theme="light"] .text-rose-200,
 [data-theme="light"] .text-rose-300,
 [data-theme="light"] .text-rose-400 {
-  color: #9f1239 !important; /* Deep Rose - Contraste > 7:1 */
+  color: #9f1239 !important;
 }
 
 [data-theme="light"] .text-purple-200,
 [data-theme="light"] .text-purple-300,
 [data-theme="light"] .text-purple-400 {
-  color: #581c87 !important; /* Deep Purple - Contraste > 7:1 */
+  color: #581c87 !important;
 }
 
 /* Badges e Chips no Modo Claro */
@@ -640,9 +687,9 @@
 [data-theme="light"] .bg-rose-950\/60,
 [data-theme="light"] .bg-rose-950\/70,
 [data-theme="light"] .bg-rose-950\/80 {
-  background-color: #fff1f2 !important; /* Rose 50 */
-  border-color: #fecdd3 !important;     /* Rose 200 */
-  color: #9f1239 !important;            /* Rose 800 - Contraste > 7:1 */
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+  color: #9f1239 !important;
 }
 
 /* Teclas KBD no Modo Claro */
@@ -710,5 +757,10 @@
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+  .card-matte:hover,
+  .card-matte-active:hover,
+  .btn-matte:hover {
+    transform: none !important;
   }
 }

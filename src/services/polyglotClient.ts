@@ -1,6 +1,31 @@
 import type { ChunkItem, TargetLang } from '../types/chunks';
 import type { FlashcardItem, AlignedChunk } from '../types/polyglot';
+import {
+  FAVORITE_VOICES_STORAGE_KEY,
+  DEFAULT_FAVORITE_VOICES_BY_LANG,
+  sanitizeFavoriteVoices,
+} from '../types/voices';
 import { parseApiJson } from './apiClient';
+
+export { FAVORITE_VOICES_STORAGE_KEY, DEFAULT_FAVORITE_VOICES_BY_LANG, sanitizeFavoriteVoices };
+
+export const readFavoriteVoicesByLanguage = (): Record<'en' | 'it' | 'ja', string> => {
+  try {
+    const raw = readBrowserState(FAVORITE_VOICES_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_FAVORITE_VOICES_BY_LANG };
+    return sanitizeFavoriteVoices(JSON.parse(raw));
+  } catch {
+    return { ...DEFAULT_FAVORITE_VOICES_BY_LANG };
+  }
+};
+
+export const saveFavoriteVoicesByLanguage = (
+  favorites: Record<'en' | 'it' | 'ja', string>
+): Record<'en' | 'it' | 'ja', string> => {
+  const clean = sanitizeFavoriteVoices(favorites);
+  persistBrowserState(FAVORITE_VOICES_STORAGE_KEY, JSON.stringify(clean));
+  return clean;
+};
 
 export async function requestTranslateParallelChunks(text: string): Promise<{
   ok: boolean;
@@ -72,7 +97,9 @@ export async function requestGenerateChunks(payload: {
 
 export function persistBrowserState(key: string, value: string): void {
   try {
-    localStorage.setItem(key, value);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
   } catch {
     // Fallback silencioso em modo privado/quota excedida
   }
@@ -80,9 +107,11 @@ export function persistBrowserState(key: string, value: string): void {
 
 export function readBrowserState(key: string): string | null {
   try {
-    return localStorage.getItem(key);
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+    return null;
   } catch {
     return null;
   }
 }
-

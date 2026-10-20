@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Sidebar, AppTab } from './components/Sidebar';
 import { StudioWorkspace } from './components/StudioWorkspace';
 import { PolyglotChatStudio } from './components/PolyglotChatStudio';
-import { LiveVoiceMic } from './components/LiveVoiceMic';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { VoiceLibrary } from './components/VoiceLibraryModal';
 import { DocumentInputSection } from './components/DocumentInputSection';
@@ -22,9 +21,9 @@ import { SOFT_UI_PRESETS } from './config/tokens';
 import type { SoftUIThemePreset } from './types';
 import { AlertCircle, Menu } from 'lucide-react';
 
-// Estados globais da aplicação: empty (nenhum) | loading (carregando) | success (sucesso) | error (erro)
+// Orquestrador principal do MyTTS Studio (Chat Poliglota como página principal e sincronização global de voz por Card)
 export default function App() {
-  const [activeTab, setActiveTab] = useState<AppTab>('reader');
+  const [activeTab, setActiveTab] = useState<AppTab>('polyglot');
   const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(GEMINI_VOICES[0]); // Puck default
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
@@ -138,6 +137,17 @@ export default function App() {
     });
     return () => unsub();
   }, [player]);
+
+  // Sincroniza a voz global com o turno de debate em foco quando estiver tocando
+  useEffect(() => {
+    if (!isPlaying) return;
+    const turnVoiceId = script?.turns?.[playerCurrentTurn]?.voice_id;
+    if (!turnVoiceId) return;
+    const matched = GEMINI_VOICES.find((v) => v.id === turnVoiceId);
+    if (matched && matched.id !== selectedVoice.id) {
+      setSelectedVoice(matched);
+    }
+  }, [playerCurrentTurn, isPlaying, script, selectedVoice.id]);
 
   const syncTurnsToPlayer = (updatedScript: DebateScript): void => {
     const readyTurns = updatedScript.turns
@@ -306,6 +316,22 @@ export default function App() {
     setScript({ ...script, turns: updatedTurns });
   };
 
+  const handleUpdateTurnVoice = (turnIndex: number, newVoiceId: string): void => {
+    const updatedTurns = [...script.turns];
+    updatedTurns[turnIndex] = {
+      ...updatedTurns[turnIndex],
+      voice_id: newVoiceId,
+      audioBase64: undefined,
+      audioStatus: 'idle',
+    };
+    setScript({ ...script, turns: updatedTurns });
+
+    const matchedVoice = GEMINI_VOICES.find((v) => v.id === newVoiceId);
+    if (matchedVoice) {
+      setSelectedVoice(matchedVoice);
+    }
+  };
+
   const mainCanvasRef = useRef<HTMLElement | null>(null);
   const activeTurn = script?.turns[playerCurrentTurn];
   const activeSpeaker = activeTurn
@@ -341,11 +367,12 @@ export default function App() {
       className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200"
     >
       
-      {/* 1. Sidebar Persistente Estilo ElevenLabs */}
+      {/* 1. Sidebar Persistente Minimalista (Cinza Monolítico / Ad Lucem) */}
       <Sidebar
         activeTab={activeTab}
         onSelectTab={handleNavigateTab}
         selectedVoice={selectedVoice}
+        onSelectVoice={setSelectedVoice}
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
         onOpenVoiceLibrary={() => handleNavigateTab('voices')}
@@ -409,7 +436,15 @@ export default function App() {
 
         {/* 3. Canvas de Conteúdo por Módulo */}
         <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none">
-          {/* Módulo 1: Central de Criação Unificada (Solo + Debate) */}
+          {/* Módulo Principal (#1): Chat Poliglota Multimodal (EN, IT, JA) com atalho Mic/Live API */}
+          {activeTab === 'polyglot' && (
+            <PolyglotChatStudio
+              globalVoice={selectedVoice}
+              onSyncGlobalVoice={setSelectedVoice}
+            />
+          )}
+
+          {/* Módulo 2: Central de Criação Unificada (Solo + Debate) */}
           {activeTab === 'reader' && (
             <StudioWorkspace
               text={documentText}
@@ -426,26 +461,11 @@ export default function App() {
               isSynthesizingDebate={isSynthesizing}
               onSynthesizeSingleTurn={handleSynthesizeSingleTurn}
               onUpdateTurnText={handleUpdateTurnText}
+              onUpdateTurnVoice={handleUpdateTurnVoice}
             />
           )}
 
-          {/* Módulo 2: Chat Poliglota Multimodal (EN, IT, JA) */}
-          {activeTab === 'polyglot' && (
-            <PolyglotChatStudio />
-          )}
-
-          {/* Módulo 3: Ditado & Microfone ao Vivo */}
-          {activeTab === 'mic' && (
-            <LiveVoiceMic
-              selectedVoice={selectedVoice}
-              onSendToReader={(transcribedText) => {
-                setDocumentText((prev) => (prev.trim() ? `${prev.trim()}\n\n${transcribedText}` : transcribedText));
-                setActiveTab('reader');
-              }}
-            />
-          )}
-
-          {/* Módulo 4: Estúdio de Debate com 2 Vozes */}
+          {/* Módulo 3: Estúdio de Debate com 2 Vozes */}
           {activeTab === 'debate' && (
             <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-36 flex flex-col gap-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
@@ -483,6 +503,7 @@ export default function App() {
                     onPlayTurn={(idx) => player.play(idx)}
                     onSynthesizeTurn={handleSynthesizeSingleTurn}
                     onUpdateTurnText={handleUpdateTurnText}
+                    onUpdateTurnVoice={handleUpdateTurnVoice}
                     isSynthesizing={isSynthesizing}
                   />
                 </div>
@@ -490,18 +511,18 @@ export default function App() {
             </div>
           )}
 
-          {/* Módulo 5: FastChunks (Treinamento Lexical de Idiomas) */}
+          {/* Módulo 4: FastChunks (Treinamento Lexical de Idiomas) */}
           {activeTab === 'chunks' && (
             <FastChunkAudioApp />
           )}
 
-          {/* Módulo 6: Biblioteca de Vozes Neurais */}
+          {/* Módulo 5: Biblioteca de Vozes Neurais */}
           {activeTab === 'voices' && (
             <VoiceLibrary
               selectedVoice={selectedVoice}
               onSelectVoice={(v) => {
                 setSelectedVoice(v);
-                setActiveTab('reader');
+                setActiveTab('polyglot');
               }}
             />
           )}
@@ -539,7 +560,7 @@ export default function App() {
 
       {/* Modal de Arquitetura e Inspeção */}
       {activeTab === 'architecture' && (
-        <ArchitectureModal onClose={() => setActiveTab('reader')} />
+        <ArchitectureModal onClose={() => setActiveTab('polyglot')} />
       )}
 
       {/* Command Palette Modal Tátil (Ctrl + K) */}
@@ -562,4 +583,3 @@ export default function App() {
     </div>
   );
 }
-

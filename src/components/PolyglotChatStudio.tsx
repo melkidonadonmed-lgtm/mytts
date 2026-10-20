@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PolyglotMessage, FlashcardItem } from '../types/polyglot';
+import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { ParallelMessageBlock } from './ParallelMessageBlock';
 import { AgentInputDock } from './AgentInputDock';
 import { FlashcardDeckDrawer } from './FlashcardDeckDrawer';
 import { ExportInteractionModal } from './ExportInteractionModal';
 import { GoogleIcon } from './GoogleIcon';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
+import { concatenateWavBuffers } from '../utils/audioEngine';
 import {
   generateAudioCacheKey,
   synthesizeWithCache,
@@ -17,9 +19,10 @@ import {
   requestGenerateFlashcard,
   persistBrowserState,
   readBrowserState,
+  readFavoriteVoicesByLanguage,
+  saveFavoriteVoicesByLanguage,
 } from '../services/polyglotClient';
 
-// Mensagem inicial de exemplo de alta fluência
 const INITIAL_DEMO_MESSAGE: PolyglotMessage = {
   id: 'msg-demo-1',
   userPrompt: 'Gostaria de pedir um café expresso e a conta com gentileza.',
@@ -45,10 +48,23 @@ const INITIAL_DEMO_MESSAGE: PolyglotMessage = {
     it: 'Potrei avere un caffè espresso, per favore, e il conto quando è pronto?',
     ja: 'エスプレッソを一杯お願いします、そしてお会計もお願いできますか？',
   },
+  cardVoices: {
+    en: 'Puck',
+    it: 'Kore',
+    ja: 'Aoede',
+  },
   status: 'ready',
 };
 
-export const PolyglotChatStudio: React.FC = () => {
+export interface PolyglotChatStudioProps {
+  globalVoice?: VoiceProfile;
+  onSyncGlobalVoice?: (voice: VoiceProfile) => void;
+}
+
+export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
+  globalVoice,
+  onSyncGlobalVoice,
+}) => {
   const [messages, setMessages] = useState<PolyglotMessage[]>([INITIAL_DEMO_MESSAGE]);
   const [isLoading, setIsLoading] = useState(false);
   const [deck, setDeck] = useState<FlashcardItem[]>(() => {
@@ -64,22 +80,24 @@ export const PolyglotChatStudio: React.FC = () => {
   const [exportingMessage, setExportingMessage] = useState<PolyglotMessage | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Idioma selecionado por mensagem (padrão 'en')
+  // Mensagem ativa e idioma focado por mensagem
+  const [focusedMessageId, setFocusedMessageId] = useState<string>('msg-demo-1');
   const [selectedLanguageByMsg, setSelectedLanguageByMsg] = useState<Record<string, 'en' | 'it' | 'ja'>>({
     'msg-demo-1': 'en',
   });
 
-  // Configurações de voz por idioma
-  const [voiceByLang, setVoiceByLang] = useState<Record<'en' | 'it' | 'ja', string>>({
-    en: 'Puck',
-    it: 'Kore',
-    ja: 'Aoede',
-  });
+  // Perfis favoritos de vozes por idioma salvos no navegador + Voz individual por Card (messageId -> { en, it, ja })
+  const [defaultVoiceByLang, setDefaultVoiceByLang] = useState<Record<'en' | 'it' | 'ja', string>>(
+    () => readFavoriteVoicesByLanguage()
+  );
+  const [cardVoicesByMsg, setCardVoicesByMsg] = useState<
+    Record<string, Record<'en' | 'it' | 'ja', string>>
+  >(() => ({
+    'msg-demo-1': readFavoriteVoicesByLanguage(),
+  }));
 
-  // Velocidade de reprodução
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
 
-  // Estados do Player de Áudio Flutuante
   const [playingBlockInfo, setPlayingBlockInfo] = useState<{
     messageId: string;
     lang: 'en' | 'it' | 'ja';
@@ -89,13 +107,11 @@ export const PolyglotChatStudio: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  // Modo Sequencial (Trilogia EN -> IT -> JA)
   const [isPlayingSequence, setIsPlayingSequence] = useState(false);
   const [sequenceStep, setSequenceStep] = useState<string | null>(null);
   const sequenceAbortRef = useRef<boolean>(false);
   const isMountedRef = useRef<boolean>(true);
 
-  // Estado de chunk avulso e flashcard
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
   const [generatingCardKey, setGeneratingCardKey] = useState<string | null>(null);
 
@@ -107,42 +123,88 @@ export const PolyglotChatStudio: React.FC = () => {
   } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const lastSyncedVoiceIdRef = useRef<string>(globalVoice?.id || 'Puck');
 
-  // Salvar deck no navegador
+  const syncVoiceToGlobal = useCallback(
+    (voiceId: string) => {
+      lastSyncedVoiceIdRef.current = voiceId;
+      if (onSyncGlobalVoice) {
+        const found = GEMINI_VOICES.find((v) => v.id === voiceId || v.name === voiceId);
+        if (found) {
+          onSyncGlobalVoice(found);
+        }
+      }
+    },
+    [onSyncGlobalVoice]
+  );
+
+  // Se a voz global mudar externamente (ex: Ctrl+K ou Biblioteca de Vozes), atualiza o card focado atual
+  useEffect(() => {
+    if (!globalVoice || globalVoice.id === lastSyncedVoiceIdRef.current) return;
+    lastSyncedVoiceIdRef.current = globalVoice.id;
+    const activeLang = selectedLanguageByMsg[focusedMessageId] || 'en';
+    setCardVoicesByMsg((prev) => ({
+      ...prev,
+      [focusedMessageId]: {
+        ...(prev[focusedMessageId] || defaultVoiceByLang),
+        [activeLang]: globalVoice.id,
+      },
+    }));
+    setDefaultVoiceByLang((prev) => ({ ...prev, [activeLang]: globalVoice.id }));
+  }, [globalVoice, focusedMessageId, selectedLanguageByMsg, defaultVoiceByLang]);
+
   useEffect(() => {
     persistBrowserState('mytts_polyglot_deck', JSON.stringify(deck));
   }, [deck]);
 
-  // Conjunto de chaves de áudio já persistidas no cache local
+  // Persiste automaticamente os perfis favoritos de vozes por idioma no navegador
+  useEffect(() => {
+    saveFavoriteVoicesByLanguage(defaultVoiceByLang);
+  }, [defaultVoiceByLang]);
+
+  const getLanguageTag = (code: string): string => {
+    if (code === 'it') return 'it-IT';
+    if (code === 'ja') return 'ja-JP';
+    return 'en-US';
+  };
+
+  const getCardVoicesForMessage = useCallback(
+    (messageId: string): Record<'en' | 'it' | 'ja', string> => {
+      return cardVoicesByMsg[messageId] || defaultVoiceByLang;
+    },
+    [cardVoicesByMsg, defaultVoiceByLang]
+  );
+
   const [cachedKeysSet, setCachedKeysSet] = useState<Set<string>>(new Set());
 
   const getMessageAudioCacheKey = useCallback(
     (messageId: string, lang: 'en' | 'it' | 'ja') => {
       const msg = messages.find((m) => m.id === messageId);
       if (!msg || !msg.fullText[lang]) return '';
+      const voices = getCardVoicesForMessage(messageId);
       return generateAudioCacheKey({
         type: 'speech',
         text: msg.fullText[lang],
-        voiceId: voiceByLang[lang],
+        voiceId: voices[lang],
         language: getLanguageTag(lang),
         speed: playbackSpeed,
         emotion: 'natural',
       });
     },
-    [messages, voiceByLang, playbackSpeed]
+    [messages, getCardVoicesForMessage, playbackSpeed]
   );
 
-  // Sincroniza em lote as chaves de mensagens já em cache local (IndexedDB/L1)
   useEffect(() => {
     let isSubscribed = true;
     const allKeys: string[] = [];
     messages.forEach((msg) => {
+      const voices = getCardVoicesForMessage(msg.id);
       (['en', 'it', 'ja'] as const).forEach((lang) => {
         if (msg.fullText[lang]) {
           const k = generateAudioCacheKey({
             type: 'speech',
             text: msg.fullText[lang],
-            voiceId: voiceByLang[lang],
+            voiceId: voices[lang],
             language: getLanguageTag(lang),
             speed: playbackSpeed,
             emotion: 'natural',
@@ -163,14 +225,12 @@ export const PolyglotChatStudio: React.FC = () => {
     return () => {
       isSubscribed = false;
     };
-  }, [messages, voiceByLang, playbackSpeed]);
+  }, [messages, getCardVoicesForMessage, playbackSpeed]);
 
-  // Rolar para a última mensagem ao adicionar conteúdo
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Sinaliza desmontagem e aborta qualquer trilogia sequencial em andamento
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -181,16 +241,9 @@ export const PolyglotChatStudio: React.FC = () => {
 
   const showToast = (msg: string): void => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3200);
   };
 
-  const getLanguageTag = (code: string): string => {
-    if (code === 'it') return 'it-IT';
-    if (code === 'ja') return 'ja-JP';
-    return 'en-US';
-  };
-
-  // Parar qualquer áudio em execução com limpeza de memória
   const stopCurrentAudio = useCallback((): void => {
     if (activeAudioRef.current) {
       activeAudioRef.current.audio.pause();
@@ -203,9 +256,13 @@ export const PolyglotChatStudio: React.FC = () => {
     setPlayingAudioKey(null);
   }, []);
 
-  // Seleção de card / idioma para uma mensagem
+  // Quando seleciona/foca um card, a voz global muda junto para refletir a voz do card focado!
   const handleSelectLanguage = (messageId: string, lang: 'en' | 'it' | 'ja'): void => {
+    setFocusedMessageId(messageId);
     setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
+    const voices = getCardVoicesForMessage(messageId);
+    syncVoiceToGlobal(voices[lang]);
+
     if (
       activeAudioRef.current &&
       activeAudioRef.current.messageId === messageId &&
@@ -215,8 +272,84 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Reprodução ou Pausa do Áudio do Card Selecionado
-  const handleTogglePlay = async (messageId: string, lang: 'en' | 'it' | 'ja'): Promise<void> => {
+  // Alteração de voz diretamente no próprio Card (independente por card + sincroniza voz global + salva perfil favorito do idioma)
+  const handleChangeCardVoice = (
+    messageId: string,
+    lang: 'en' | 'it' | 'ja',
+    voiceId: string
+  ): void => {
+    setFocusedMessageId(messageId);
+    setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
+    setCardVoicesByMsg((prev) => ({
+      ...prev,
+      [messageId]: {
+        ...(prev[messageId] || defaultVoiceByLang),
+        [lang]: voiceId,
+      },
+    }));
+    setDefaultVoiceByLang((prev) => ({ ...prev, [lang]: voiceId }));
+    syncVoiceToGlobal(voiceId);
+
+    if (
+      activeAudioRef.current &&
+      activeAudioRef.current.messageId === messageId &&
+      activeAudioRef.current.lang === lang
+    ) {
+      stopCurrentAudio();
+    }
+  };
+
+  // Alteração do perfil favorito de voz para um idioma na barra superior
+  const handleChangeFavoriteLanguageVoice = (
+    lang: 'en' | 'it' | 'ja',
+    voiceId: string
+  ): void => {
+    setDefaultVoiceByLang((prev) => ({ ...prev, [lang]: voiceId }));
+    setCardVoicesByMsg((prev) => ({
+      ...prev,
+      [focusedMessageId]: {
+        ...(prev[focusedMessageId] || defaultVoiceByLang),
+        [lang]: voiceId,
+      },
+    }));
+    setSelectedLanguageByMsg((prev) => ({ ...prev, [focusedMessageId]: lang }));
+    syncVoiceToGlobal(voiceId);
+    const langLabels: Record<'en' | 'it' | 'ja', string> = {
+      en: 'Inglês (EN)',
+      it: 'Italiano (IT)',
+      ja: 'Japonês (JA)',
+    };
+    showToast(`Voz favorita de ${langLabels[lang]} salva como ${voiceId}`);
+  };
+
+  // Aplica o perfil favorito de vozes (EN, IT, JA) a todos os cards do chat atual
+  const handleApplyFavoritesToAllCards = (): void => {
+    setCardVoicesByMsg(() => {
+      const next: Record<string, Record<'en' | 'it' | 'ja', string>> = {};
+      messages.forEach((m) => {
+        next[m.id] = { ...defaultVoiceByLang };
+      });
+      return next;
+    });
+    const currentLang = selectedLanguageByMsg[focusedMessageId] || 'en';
+    syncVoiceToGlobal(defaultVoiceByLang[currentLang]);
+    showToast(
+      `Perfis favoritos (${defaultVoiceByLang.en} / ${defaultVoiceByLang.it} / ${defaultVoiceByLang.ja}) aplicados a todos os cards!`
+    );
+  };
+
+  // Reprodução ou Pausa do Áudio do Card usando a voz exclusiva do card
+  const handleTogglePlay = async (
+    messageId: string,
+    lang: 'en' | 'it' | 'ja',
+    overrideMsg?: PolyglotMessage
+  ): Promise<void> => {
+    setFocusedMessageId(messageId);
+    setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
+    const voices = getCardVoicesForMessage(messageId);
+    const cardVoiceId = voices[lang];
+    syncVoiceToGlobal(cardVoiceId);
+
     if (
       activeAudioRef.current &&
       activeAudioRef.current.messageId === messageId &&
@@ -233,19 +366,18 @@ export const PolyglotChatStudio: React.FC = () => {
     }
 
     stopCurrentAudio();
-    const targetMsg = messages.find((m) => m.id === messageId);
+    const targetMsg = overrideMsg || messages.find((m) => m.id === messageId);
     if (!targetMsg || !targetMsg.fullText[lang]) return;
 
     const cacheKey = generateAudioCacheKey({
       type: 'speech',
       text: targetMsg.fullText[lang],
-      voiceId: voiceByLang[lang],
+      voiceId: cardVoiceId,
       language: getLanguageTag(lang),
       speed: playbackSpeed,
       emotion: 'natural',
     });
 
-    // Se o áudio não estiver no cache local (0ms), exibe o spinner de síntese
     const cached = await getCachedAudio(cacheKey);
     if (!cached) {
       setIsLoadingAudio(true);
@@ -257,7 +389,7 @@ export const PolyglotChatStudio: React.FC = () => {
         endpoint: '/api/synthesize-speech',
         body: {
           text: targetMsg.fullText[lang],
-          voiceId: voiceByLang[lang],
+          voiceId: cardVoiceId,
           language: getLanguageTag(lang),
           speed: playbackSpeed,
           emotion: 'natural',
@@ -265,7 +397,7 @@ export const PolyglotChatStudio: React.FC = () => {
         cacheKey,
         metadata: {
           language: getLanguageTag(lang),
-          voiceId: voiceByLang[lang],
+          voiceId: cardVoiceId,
           speed: playbackSpeed,
           emotion: 'natural',
         },
@@ -274,7 +406,6 @@ export const PolyglotChatStudio: React.FC = () => {
       setCachedKeysSet((prev) => new Set(prev).add(cacheKey));
       const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
 
-      // Componente desmontado durante a síntese: não criar áudio órfão nem setState
       if (!isMountedRef.current) {
         revokeAudioUrl(blobUrl);
         return;
@@ -311,7 +442,110 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Replay do áudio do card
+  // Download WAV 24kHz de um Card Individual
+  const handleDownloadCardWav = async (messageId: string, lang: 'en' | 'it' | 'ja'): Promise<void> => {
+    const targetMsg = messages.find((m) => m.id === messageId);
+    if (!targetMsg || !targetMsg.fullText[lang]) return;
+    const voices = getCardVoicesForMessage(messageId);
+    const cardVoiceId = voices[lang];
+
+    const cacheKey = generateAudioCacheKey({
+      type: 'speech',
+      text: targetMsg.fullText[lang],
+      voiceId: cardVoiceId,
+      language: getLanguageTag(lang),
+      speed: playbackSpeed,
+      emotion: 'natural',
+    });
+
+    try {
+      showToast(`Preparando WAV 24kHz (${lang.toUpperCase()} · ${cardVoiceId})...`);
+      const data = await synthesizeWithCache({
+        endpoint: '/api/synthesize-speech',
+        body: {
+          text: targetMsg.fullText[lang],
+          voiceId: cardVoiceId,
+          language: getLanguageTag(lang),
+          speed: playbackSpeed,
+          emotion: 'natural',
+        },
+        cacheKey,
+        metadata: {
+          language: getLanguageTag(lang),
+          voiceId: cardVoiceId,
+          speed: playbackSpeed,
+          emotion: 'natural',
+        },
+      });
+
+      setCachedKeysSet((prev) => new Set(prev).add(cacheKey));
+      const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `mytts-card-${lang}-${cardVoiceId.toLowerCase()}-${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => revokeAudioUrl(blobUrl), 2000);
+      showToast(`Áudio WAV (${lang.toUpperCase()} · ${cardVoiceId}) baixado com sucesso!`);
+    } catch (e: unknown) {
+      console.warn('Falha ao baixar WAV do card:', e);
+      showToast('Erro ao gerar WAV do card.');
+    }
+  };
+
+  // Exportação WAV Concatenada da Trilogia Completa (EN + IT + JA respeitando a voz de cada card)
+  const handleExportTrilogyWav = async (message: PolyglotMessage): Promise<void> => {
+    const voices = getCardVoicesForMessage(message.id);
+    const langs: Array<'en' | 'it' | 'ja'> = ['en', 'it', 'ja'];
+    const base64List: string[] = [];
+
+    for (const lang of langs) {
+      const text = message.fullText[lang];
+      if (!text) continue;
+      const voiceId = voices[lang];
+      const cacheKey = generateAudioCacheKey({
+        type: 'speech',
+        text,
+        voiceId,
+        language: getLanguageTag(lang),
+        speed: playbackSpeed,
+        emotion: 'natural',
+      });
+
+      const data = await synthesizeWithCache({
+        endpoint: '/api/synthesize-speech',
+        body: {
+          text,
+          voiceId,
+          language: getLanguageTag(lang),
+          speed: playbackSpeed,
+          emotion: 'natural',
+        },
+        cacheKey,
+        metadata: {
+          language: getLanguageTag(lang),
+          voiceId,
+          speed: playbackSpeed,
+          emotion: 'natural',
+        },
+      });
+      base64List.push(data.audioBase64);
+    }
+
+    if (base64List.length === 0) return;
+    const combinedWavBlob = concatenateWavBuffers(base64List);
+    const url = URL.createObjectURL(combinedWavBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mytts-trilogia-en-it-ja-${Date.now()}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showToast(`Master WAV da Trilogia (${voices.en} → ${voices.it} → ${voices.ja}) exportado!`);
+  };
+
   const handleReplay = (messageId: string, lang: 'en' | 'it' | 'ja'): void => {
     if (
       activeAudioRef.current &&
@@ -327,7 +561,6 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Seek na barra de progresso (scrubber)
   const handleSeek = (time: number): void => {
     if (activeAudioRef.current) {
       activeAudioRef.current.audio.currentTime = time;
@@ -335,7 +568,6 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Alteração de velocidade
   const handleChangeSpeed = (newSpeed: number): void => {
     setPlaybackSpeed(newSpeed);
     if (activeAudioRef.current) {
@@ -343,15 +575,6 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Alteração de voz
-  const handleChangeVoice = (lang: 'en' | 'it' | 'ja', voice: string): void => {
-    setVoiceByLang((prev) => ({ ...prev, [lang]: voice }));
-    if (activeAudioRef.current && activeAudioRef.current.lang === lang) {
-      stopCurrentAudio();
-    }
-  };
-
-  // Aguarda o fim do áudio em reprodução (polling com cleanup garantido em todos os caminhos)
   const waitForAudioEnd = useCallback((isStopped: () => boolean): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
       let pollId: ReturnType<typeof setInterval> | null = null;
@@ -397,7 +620,6 @@ export const PolyglotChatStudio: React.FC = () => {
     });
   }, []);
 
-  // Modo Trilogia Sequencial (EN -> IT -> JA)
   const handlePlaySequence = async (messageId: string): Promise<void> => {
     if (isPlayingSequence) {
       sequenceAbortRef.current = true;
@@ -443,20 +665,24 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Envio de nova mensagem para alinhamento em 3 línguas
-  const handleSendMessage = async (text: string): Promise<void> => {
+  const handleSendMessage = async (text: string, autoPlayAfter = false): Promise<void> => {
     const newMessageId = `msg-${Date.now()}`;
+    const initialCardVoices = { ...defaultVoiceByLang };
     const placeholderMessage: PolyglotMessage = {
       id: newMessageId,
       userPrompt: text,
       timestamp: Date.now(),
       chunks: [],
       fullText: { en: '', it: '', ja: '' },
+      cardVoices: initialCardVoices,
       status: 'loading',
     };
 
     setMessages((prev) => [...prev, placeholderMessage]);
+    setFocusedMessageId(newMessageId);
     setSelectedLanguageByMsg((prev) => ({ ...prev, [newMessageId]: 'en' }));
+    setCardVoicesByMsg((prev) => ({ ...prev, [newMessageId]: initialCardVoices }));
+    syncVoiceToGlobal(initialCardVoices.en);
     setIsLoading(true);
 
     try {
@@ -465,18 +691,18 @@ export const PolyglotChatStudio: React.FC = () => {
         throw new Error(data.error || 'Falha ao processar os chunks paralelos.');
       }
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === newMessageId
-            ? {
-                ...msg,
-                chunks: data.chunks!,
-                fullText: data.fullText!,
-                status: 'ready',
-              }
-            : msg
-        )
-      );
+      const readyMessage: PolyglotMessage = {
+        ...placeholderMessage,
+        chunks: data.chunks,
+        fullText: data.fullText,
+        status: 'ready',
+      };
+
+      setMessages((prev) => prev.map((msg) => (msg.id === newMessageId ? readyMessage : msg)));
+
+      if (autoPlayAfter) {
+        await handleTogglePlay(newMessageId, 'en', readyMessage);
+      }
     } catch (err: unknown) {
       console.error(err);
       setMessages((prev) =>
@@ -495,7 +721,6 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Reprodução de chunk individual com sotaque nativo e cache local
   const handlePlayChunkAudio = async (text: string, language: string): Promise<void> => {
     stopCurrentAudio();
     setPlayingAudioKey(text);
@@ -531,7 +756,6 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
-  // Geração de Flashcard via Gemini 3.8 Flash
   const handleCreateFlashcard = async (chunkText: string, language: string): Promise<void> => {
     setGeneratingCardKey(chunkText);
 
@@ -551,47 +775,118 @@ export const PolyglotChatStudio: React.FC = () => {
     }
   };
 
+  const currentFocusedLang = selectedLanguageByMsg[focusedMessageId] || 'en';
+  const currentFocusedVoice = getCardVoicesForMessage(focusedMessageId)[currentFocusedLang];
+
   return (
     <div className="flex-1 flex flex-col min-h-screen font-sans">
       
-      {/* 1. Header Minimalista do Estúdio Poliglota */}
-      <header className="sticky top-0 z-20 dock-matte px-4 sm:px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-500 dark:text-amber-400">
-            <GoogleIcon name="translate" size={20} />
+      {/* 1. Header Minimalista do Estúdio Poliglota + Perfis Favoritos de Voz por Idioma */}
+      <header className="sticky top-0 z-20 dock-matte px-4 sm:px-6 py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400">
+              <GoogleIcon name="translate" size={20} />
+            </div>
+            <div>
+              <h1 className="text-sm sm:text-base font-bold text-primary flex items-center gap-2 font-display">
+                <span>Chat Poliglota Multimodal</span>
+                <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                  🇺🇸 EN • 🇮🇹 IT • 🇯🇵 JA
+                </span>
+              </h1>
+              <p className="text-[11px] text-secondary">
+                Escolha a voz diretamente em cada card · A voz global acompanha o card focado ({currentFocusedVoice})
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 font-display">
-              <span>Chat Poliglota Multimodal</span>
-              <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-                🇺🇸 EN • 🇮🇹 IT • 🇯🇵 JA
-              </span>
-            </h1>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400">
-              Tradução paralela em 3 línguas com controle de áudio individual e foco tátil
-            </p>
-          </div>
+
+          {/* Botão Mobile de Acesso ao Deck */}
+          <button
+            type="button"
+            onClick={() => setIsDeckDrawerOpen(true)}
+            className="xl:hidden btn-matte btn-matte-dark px-3 py-1.5 text-xs text-primary font-medium cursor-pointer"
+            title="Ver Flashcards salvos"
+          >
+            <GoogleIcon name="style" size={16} className="text-amber-400" />
+            <span>Deck</span>
+            <span className="bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums">
+              {deck.length}
+            </span>
+          </button>
         </div>
 
-        {/* Botão de Acesso ao Deck de Flashcards */}
-        <button
-          type="button"
-          onClick={() => setIsDeckDrawerOpen(true)}
-          className="btn-matte btn-matte-dark px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 font-medium"
-          title="Ver Flashcards salvos"
-        >
-          <GoogleIcon name="style" size={16} className="text-amber-600 dark:text-amber-400" />
-          <span>Meu Deck</span>
-          <span className="bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono">
-            {deck.length}
-          </span>
-        </button>
+        {/* Barra de Perfis Favoritos de Vozes por Idioma (Salvos no Navegador) + Botão de Deck */}
+        <div className="flex flex-wrap items-center justify-between xl:justify-end gap-2">
+          <div
+            className="pill-nav-shell flex flex-wrap items-center gap-1.5 px-2.5 py-1.5"
+            aria-label="Perfis favoritos de vozes por idioma"
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 flex items-center gap-1 opacity-85">
+              <GoogleIcon name="bookmark" size={13} />
+              <span>Vozes Favoritas:</span>
+            </span>
+
+            {(
+              [
+                { code: 'en', flag: '🇺🇸', label: 'EN' },
+                { code: 'it', flag: '🇮🇹', label: 'IT' },
+                { code: 'ja', flag: '🇯🇵', label: 'JA' },
+              ] as const
+            ).map((item) => (
+              <label
+                key={item.code}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-black/15 hover:bg-black/25 text-[11px] font-bold cursor-pointer transition-colors"
+                title={`Voz favorita padrão para novos cards em ${item.label}`}
+              >
+                <span>{item.flag}</span>
+                <span>{item.label}:</span>
+                <select
+                  aria-label={`Voz favorita para ${item.label}`}
+                  value={defaultVoiceByLang[item.code]}
+                  onChange={(e) => handleChangeFavoriteLanguageVoice(item.code, e.target.value)}
+                  className="bg-transparent font-mono font-bold text-[11px] focus:outline-none cursor-pointer"
+                >
+                  {GEMINI_VOICES.map((v) => (
+                    <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+
+            <button
+              type="button"
+              onClick={handleApplyFavoritesToAllCards}
+              className="px-2.5 py-1 rounded-full bg-amber-400 text-slate-950 hover:bg-amber-300 text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+              title="Aplicar estas vozes favoritas a todos os cards da conversa atual"
+            >
+              <GoogleIcon name="sync" size={12} />
+              <span>Aplicar aos Cards</span>
+            </button>
+          </div>
+
+          {/* Botão Desktop de Acesso ao Deck de Flashcards */}
+          <button
+            type="button"
+            onClick={() => setIsDeckDrawerOpen(true)}
+            className="hidden xl:inline-flex btn-matte btn-matte-dark px-3 py-1.5 text-xs text-primary font-medium cursor-pointer"
+            title="Ver Flashcards salvos"
+          >
+            <GoogleIcon name="style" size={16} className="text-amber-400" />
+            <span>Meu Deck</span>
+            <span className="bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums">
+              {deck.length}
+            </span>
+          </button>
+        </div>
       </header>
 
       {/* 2. Toast de Feedback Suave */}
       {toastMessage && (
-        <div className="fixed top-16 right-4 z-40 bg-white dark:bg-slate-900 border border-emerald-500/40 text-emerald-800 dark:text-emerald-200 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
-          <GoogleIcon name="check_circle" size={16} filled className="text-emerald-500 dark:text-emerald-400" />
+        <div className="fixed top-16 right-4 z-40 card-matte border border-emerald-500/40 text-primary px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
+          <GoogleIcon name="check_circle" size={16} filled className="text-emerald-400" />
           <span className="font-semibold">{toastMessage}</span>
         </div>
       )}
@@ -600,10 +895,13 @@ export const PolyglotChatStudio: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-32 flex flex-col gap-6">
         {messages.map((message) => {
           const selectedLang = selectedLanguageByMsg[message.id] || 'en';
+          const cardVoices = getCardVoicesForMessage(message.id);
           const isThisBlockPlaying =
             playingBlockInfo?.messageId === message.id && isPlayingAudio;
           const isThisBlockLoading =
             playingBlockInfo?.messageId === message.id && isLoadingAudio;
+          const playingLangForThisMsg =
+            playingBlockInfo?.messageId === message.id ? playingBlockInfo.lang : null;
 
           const isCachedByLang = {
             en: cachedKeysSet.has(getMessageAudioCacheKey(message.id, 'en')),
@@ -614,7 +912,7 @@ export const PolyglotChatStudio: React.FC = () => {
           return (
             <ParallelMessageBlock
               key={message.id}
-              message={message}
+              message={{ ...message, cardVoices }}
               onPlayChunkAudio={handlePlayChunkAudio}
               onCreateFlashcard={handleCreateFlashcard}
               playingAudioKey={playingAudioKey}
@@ -623,6 +921,7 @@ export const PolyglotChatStudio: React.FC = () => {
               onSelectLanguage={(lang) => handleSelectLanguage(message.id, lang)}
               isPlaying={isThisBlockPlaying}
               isLoading={isThisBlockLoading}
+              playingLangForThisMsg={playingLangForThisMsg}
               isCachedByLang={isCachedByLang}
               onTogglePlay={(lang) => handleTogglePlay(message.id, lang)}
               onReplay={(lang) => handleReplay(message.id, lang)}
@@ -631,22 +930,24 @@ export const PolyglotChatStudio: React.FC = () => {
               onSeek={handleSeek}
               speed={playbackSpeed}
               onChangeSpeed={handleChangeSpeed}
-              voiceByLang={voiceByLang}
-              onChangeVoice={handleChangeVoice}
+              cardVoices={cardVoices}
+              onChangeCardVoice={(lang, voice) => handleChangeCardVoice(message.id, lang, voice)}
+              onDownloadCardWav={(lang) => handleDownloadCardWav(message.id, lang)}
               onPlaySequence={() => handlePlaySequence(message.id)}
               isPlayingSequence={isPlayingSequence}
               sequenceStep={sequenceStep}
-              onOpenExport={(msg) => setExportingMessage(msg)}
+              onOpenExport={(msg) => setExportingMessage({ ...msg, cardVoices })}
             />
           );
         })}
         <div ref={messagesEndRef} />
       </main>
 
-      {/* 4. Dock Inferior Multimodal (Agent Input Dock) */}
+      {/* 4. Dock Inferior Multimodal com Atalho de Mic e Live API */}
       <AgentInputDock
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
+        activeVoiceName={currentFocusedVoice}
       />
 
       {/* 5. Gaveta Lateral Retrátil de Flashcards */}
@@ -659,14 +960,16 @@ export const PolyglotChatStudio: React.FC = () => {
         onPlayCardAudio={handlePlayChunkAudio}
       />
 
-      {/* 6. Modal de Exportação de Fast Chunks da Interação */}
+      {/* 6. Modal de Exportação com Prévia do Formato e Download WAV da Trilogia */}
       <ExportInteractionModal
         isOpen={Boolean(exportingMessage)}
         onClose={() => setExportingMessage(null)}
         message={exportingMessage}
+        cardVoices={exportingMessage ? getCardVoicesForMessage(exportingMessage.id) : undefined}
         onAddCardsToDeck={(newCards) => {
           setDeck((prev) => [...newCards, ...prev]);
         }}
+        onExportTrilogyWav={handleExportTrilogyWav}
         onShowToast={showToast}
       />
     </div>

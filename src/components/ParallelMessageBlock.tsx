@@ -1,5 +1,5 @@
 /**
- * Bloco de mensagem paralela trilingue (estados de UI: vazio, carregando, sucesso e erro).
+ * Bloco de mensagem paralela trilingue com voz individual por card e sincronização global.
  */
 import React, { useState } from 'react';
 import { PolyglotMessage } from '../types/polyglot';
@@ -15,11 +15,12 @@ export interface ParallelMessageBlockProps {
   playingAudioKey: string | null;
   generatingCardKey: string | null;
 
-  // Controle de Áudio Flutuante por Bloco/Card
+  // Controle de Áudio e Voz por Card (sincronizado com Voz Global)
   selectedLanguage: 'en' | 'it' | 'ja';
   onSelectLanguage: (lang: 'en' | 'it' | 'ja') => void;
   isPlaying: boolean;
   isLoading: boolean;
+  playingLangForThisMsg?: 'en' | 'it' | 'ja' | null;
   isCachedByLang?: Record<'en' | 'it' | 'ja', boolean>;
   onTogglePlay: (lang: 'en' | 'it' | 'ja') => void;
   onReplay: (lang: 'en' | 'it' | 'ja') => void;
@@ -28,8 +29,9 @@ export interface ParallelMessageBlockProps {
   onSeek: (time: number) => void;
   speed: number;
   onChangeSpeed: (speed: number) => void;
-  voiceByLang: Record<'en' | 'it' | 'ja', string>;
-  onChangeVoice: (lang: 'en' | 'it' | 'ja', voice: string) => void;
+  cardVoices: Record<'en' | 'it' | 'ja', string>;
+  onChangeCardVoice: (lang: 'en' | 'it' | 'ja', voice: string) => void;
+  onDownloadCardWav?: (lang: 'en' | 'it' | 'ja') => void;
   onPlaySequence: () => void;
   isPlayingSequence: boolean;
   sequenceStep: string | null;
@@ -46,6 +48,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
   onSelectLanguage,
   isPlaying,
   isLoading,
+  playingLangForThisMsg,
   isCachedByLang,
   onTogglePlay,
   onReplay,
@@ -54,8 +57,9 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
   onSeek,
   speed,
   onChangeSpeed,
-  voiceByLang,
-  onChangeVoice,
+  cardVoices,
+  onChangeCardVoice,
+  onDownloadCardWav,
   onPlaySequence,
   isPlayingSequence,
   sequenceStep,
@@ -90,25 +94,25 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-xs font-bold text-slate-300 font-display">Você</span>
+            <span className="text-xs font-bold text-primary font-display">Você</span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-slate-500">
+              <span className="text-[10px] font-mono tabular-nums text-secondary">
                 {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
               {message.status === 'ready' && onOpenExport && (
                 <button
                   type="button"
                   onClick={() => onOpenExport(message)}
-                  className="btn-matte btn-matte-dark px-2 py-0.5 text-[11px] text-amber-300 hover:text-white rounded-lg flex items-center gap-1 border border-amber-400/20 hover:border-amber-400/40 transition-all cursor-pointer"
-                  title="Exportar Fast Chunks desta interação (Anki, Markdown, JSON ou Deck)"
+                  className="btn-matte btn-matte-dark px-2.5 py-0.5 text-[11px] text-amber-300 hover:text-white rounded-lg flex items-center gap-1 border border-amber-400/20 hover:border-amber-400/40 transition-all cursor-pointer"
+                  title="Exportar Fast Chunks e Áudio desta interação (Anki CSV, Markdown, JSON, WAV ou Deck)"
                 >
                   <GoogleIcon name="download" size={13} className="text-amber-400" />
-                  <span>Exportar Chunks</span>
+                  <span>Exportar Chunks / WAV</span>
                 </button>
               )}
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-slate-100 whitespace-pre-wrap leading-relaxed">
+          <p className="text-xs sm:text-sm text-primary whitespace-pre-wrap leading-relaxed prose-measure">
             {message.userPrompt}
           </p>
         </div>
@@ -118,7 +122,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
       {message.status === 'loading' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-6 card-matte rounded-2xl animate-pulse">
           {['Inglês', 'Italiano', 'Japonês'].map((lang, idx) => (
-            <div key={idx} className="h-40 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-2.5 text-slate-400 text-xs">
+            <div key={idx} className="h-40 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-2.5 text-secondary text-xs">
               <GoogleIcon name="progress_activity" size={24} className="animate-spin text-amber-400" />
               <span>Alinhando chunks em {lang}...</span>
             </div>
@@ -128,13 +132,13 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
 
       {/* 3. Error State */}
       {message.status === 'error' && (
-        <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 p-4 rounded-xl text-xs flex items-center gap-2.5">
+        <div role="alert" className="bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 p-4 rounded-xl text-xs flex items-center gap-2.5">
           <GoogleIcon name="error" size={20} className="text-rose-600 dark:text-rose-400 shrink-0" />
           <span>{message.error || 'Falha ao processar os chunks paralelos desta mensagem.'}</span>
         </div>
       )}
 
-      {/* 4. Canvas dos 3 Cards Paralelos (Multi-Pane) */}
+      {/* 4. Canvas dos 3 Cards Paralelos com Voz Independente por Card */}
       {message.status === 'ready' && (
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-stretch">
@@ -150,6 +154,12 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'en'}
               isCached={isCachedByLang?.en}
+              cardVoice={cardVoices.en}
+              onChangeCardVoice={(v) => onChangeCardVoice('en', v)}
+              isPlayingCard={isPlaying && playingLangForThisMsg === 'en'}
+              isLoadingCard={isLoading && playingLangForThisMsg === 'en'}
+              onTogglePlayCard={() => onTogglePlay('en')}
+              onDownloadCardWav={onDownloadCardWav ? () => onDownloadCardWav('en') : undefined}
               onSelectCard={() => onSelectLanguage('en')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -166,6 +176,12 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'it'}
               isCached={isCachedByLang?.it}
+              cardVoice={cardVoices.it}
+              onChangeCardVoice={(v) => onChangeCardVoice('it', v)}
+              isPlayingCard={isPlaying && playingLangForThisMsg === 'it'}
+              isLoadingCard={isLoading && playingLangForThisMsg === 'it'}
+              onTogglePlayCard={() => onTogglePlay('it')}
+              onDownloadCardWav={onDownloadCardWav ? () => onDownloadCardWav('it') : undefined}
               onSelectCard={() => onSelectLanguage('it')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
@@ -182,13 +198,19 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               hoveredChunkId={hoveredChunkId}
               isSelected={selectedLanguage === 'ja'}
               isCached={isCachedByLang?.ja}
+              cardVoice={cardVoices.ja}
+              onChangeCardVoice={(v) => onChangeCardVoice('ja', v)}
+              isPlayingCard={isPlaying && playingLangForThisMsg === 'ja'}
+              isLoadingCard={isLoading && playingLangForThisMsg === 'ja'}
+              onTogglePlayCard={() => onTogglePlay('ja')}
+              onDownloadCardWav={onDownloadCardWav ? () => onDownloadCardWav('ja') : undefined}
               onSelectCard={() => onSelectLanguage('ja')}
               onHoverChunk={setHoveredChunkId}
               onClickChunk={handleClickChunk}
             />
           </div>
 
-          {/* 5. Controlador de Áudio Flutuante Posicionado Logo Abaixo dos Cards */}
+          {/* 5. Controlador de Áudio Flutuante Sincronizado com o Card Focado */}
           <FloatingCardAudioController
             selectedLanguage={selectedLanguage}
             onSelectLanguage={onSelectLanguage}
@@ -203,12 +225,13 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
             onSeek={onSeek}
             speed={speed}
             onChangeSpeed={onChangeSpeed}
-            selectedVoice={voiceByLang[selectedLanguage]}
-            onChangeVoice={(v) => onChangeVoice(selectedLanguage, v)}
+            selectedVoice={cardVoices[selectedLanguage]}
+            cardVoices={cardVoices}
             onPlaySequence={onPlaySequence}
             isPlayingSequence={isPlayingSequence}
             sequenceStep={sequenceStep}
             onOpenExport={onOpenExport ? () => onOpenExport(message) : undefined}
+            onDownloadFocusedWav={onDownloadCardWav ? () => onDownloadCardWav(selectedLanguage) : undefined}
           />
         </div>
       )}

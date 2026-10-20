@@ -1,7 +1,7 @@
 /**
- * Modal de exportação de interação poliglota (estados de UI: vazio, carregando, sucesso e erro).
+ * Modal de exportação de interação poliglota com Preview Ao Vivo do formato e exportação WAV 24kHz.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PolyglotMessage, FlashcardItem } from '../types/polyglot';
 import { GoogleIcon } from './GoogleIcon';
 import {
@@ -12,13 +12,15 @@ import {
   triggerFileDownload,
 } from '../utils/interactionExporter';
 
-export type ExportFormat = 'anki-csv' | 'markdown' | 'json' | 'deck';
+export type ExportFormat = 'anki-csv' | 'markdown' | 'json' | 'wav-trilogy' | 'deck';
 
 export interface ExportInteractionModalProps {
   isOpen: boolean;
   onClose: () => void;
   message: PolyglotMessage | null;
+  cardVoices?: Record<'en' | 'it' | 'ja', string>;
   onAddCardsToDeck: (cards: FlashcardItem[]) => void;
+  onExportTrilogyWav?: (message: PolyglotMessage) => Promise<void>;
   onShowToast: (msg: string) => void;
 }
 
@@ -26,12 +28,15 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
   isOpen,
   onClose,
   message,
+  cardVoices = { en: 'Puck', it: 'Kore', ja: 'Aoede' },
   onAddCardsToDeck,
+  onExportTrilogyWav,
   onShowToast,
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('anki-csv');
+  const [isExportingWav, setIsExportingWav] = useState(false);
+  const [copiedPreview, setCopiedPreview] = useState(false);
 
-  // Fechar com tecla ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -42,54 +47,109 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen || !message) return null;
+  const messageWithVoices: PolyglotMessage | null = useMemo(() => {
+    if (!message) return null;
+    return {
+      ...message,
+      cardVoices: message.cardVoices || cardVoices,
+    };
+  }, [message, cardVoices]);
 
-  const totalChunks = message.chunks.length;
+  const previewContent = useMemo(() => {
+    if (!messageWithVoices) return '';
+    switch (selectedFormat) {
+      case 'anki-csv':
+        return generateInteractionAnkiCsv(messageWithVoices).replace(/^\uFEFF/, '');
+      case 'markdown':
+        return generateInteractionMarkdown(messageWithVoices);
+      case 'json':
+        return generateInteractionJson(messageWithVoices);
+      case 'wav-trilogy':
+        return [
+          `RIFF WAVE PCM 16-bit · 24.000 Hz Mono (Cabeçalho Canônico de 44 Bytes)`,
+          `-------------------------------------------------------------------`,
+          `Faixa 1 [🇺🇸 Inglês   · Voz ${messageWithVoices.cardVoices?.en || 'Puck'}]: "${messageWithVoices.fullText.en}"`,
+          `Faixa 2 [🇮🇹 Italiano · Voz ${messageWithVoices.cardVoices?.it || 'Kore'}]: "${messageWithVoices.fullText.it}"`,
+          `Faixa 3 [🇯🇵 Japonês  · Voz ${messageWithVoices.cardVoices?.ja || 'Aoede'}]: "${messageWithVoices.fullText.ja}"`,
+        ].join('\n');
+      case 'deck': {
+        const cards = convertInteractionToFlashcards(messageWithVoices);
+        return cards
+          .map((c, idx) => `[Card ${idx + 1} · ${c.language}] Frente: "${c.front}" → Verso: "${c.back}"`)
+          .join('\n');
+      }
+    }
+  }, [messageWithVoices, selectedFormat]);
 
-  const handleConfirmExport = () => {
-    const timestampStr = new Date(message.timestamp).toISOString().slice(0, 10);
-    const sanitizedTitle = message.userPrompt.slice(0, 24).replace(/[^a-zA-Z0-9]/g, '_');
+  if (!isOpen || !messageWithVoices) return null;
+
+  const totalChunks = messageWithVoices.chunks.length;
+
+  const handleCopyPreview = () => {
+    navigator.clipboard.writeText(previewContent).catch((err) => console.warn('Clipboard error:', err));
+    setCopiedPreview(true);
+    onShowToast('Prévia do formato copiada para a área de transferência!');
+    setTimeout(() => setCopiedPreview(false), 1800);
+  };
+
+  const handleConfirmExport = async () => {
+    const timestampStr = new Date(messageWithVoices.timestamp).toISOString().slice(0, 10);
+    const sanitizedTitle = messageWithVoices.userPrompt.slice(0, 24).replace(/[^a-zA-Z0-9]/g, '_');
 
     switch (selectedFormat) {
       case 'anki-csv': {
-        const csvContent = generateInteractionAnkiCsv(message);
+        const csvContent = generateInteractionAnkiCsv(messageWithVoices);
         triggerFileDownload(
           csvContent,
           `mytts-anki-${sanitizedTitle}-${timestampStr}.csv`,
           'text/csv;charset=utf-8;'
         );
         onShowToast(`Arquivo Anki (.csv) de ${totalChunks} chunks exportado com sucesso!`);
+        onClose();
         break;
       }
       case 'markdown': {
-        const mdContent = generateInteractionMarkdown(message);
+        const mdContent = generateInteractionMarkdown(messageWithVoices);
         triggerFileDownload(
           mdContent,
           `mytts-chunks-${sanitizedTitle}-${timestampStr}.md`,
           'text/markdown;charset=utf-8;'
         );
         onShowToast(`Tabela Markdown de estudo exportada com sucesso!`);
+        onClose();
         break;
       }
       case 'json': {
-        const jsonContent = generateInteractionJson(message);
+        const jsonContent = generateInteractionJson(messageWithVoices);
         triggerFileDownload(
           jsonContent,
           `mytts-interaction-${sanitizedTitle}-${timestampStr}.json`,
           'application/json;charset=utf-8;'
         );
         onShowToast(`Arquivo JSON estruturado exportado com sucesso!`);
+        onClose();
+        break;
+      }
+      case 'wav-trilogy': {
+        if (onExportTrilogyWav) {
+          setIsExportingWav(true);
+          try {
+            await onExportTrilogyWav(messageWithVoices);
+            onClose();
+          } finally {
+            setIsExportingWav(false);
+          }
+        }
         break;
       }
       case 'deck': {
-        const newCards = convertInteractionToFlashcards(message);
+        const newCards = convertInteractionToFlashcards(messageWithVoices);
         onAddCardsToDeck(newCards);
         onShowToast(`${newCards.length} Flashcards (EN/IT/JA) adicionados ao seu Deck local!`);
+        onClose();
         break;
       }
     }
-
-    onClose();
   };
 
   const exportOptions: {
@@ -103,58 +163,65 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
       id: 'anki-csv',
       title: 'Flashcards Anki (.csv)',
       icon: 'style',
-      badge: 'Recomendado',
-      desc: 'Delimitador ponto e vírgula, codificação UTF-8 BOM, colunas de frente, verso, rōmaji e frases de contexto.',
+      badge: 'UTF-8 BOM · ;',
+      desc: 'Colunas higienizadas (Inglês, Tradução PT-BR, Italiano, Japonês Kanji, Rōmaji e Tríade de Contexto).',
     },
     {
       id: 'markdown',
       title: 'Tabela de Estudo Markdown (.md)',
       icon: 'article',
       badge: 'Obsidian / Notion',
-      desc: 'Tabela comparativa limpa com os chunks em inglês, italiano e japonês com rōmaji, pronta para suas notas.',
+      desc: 'Tabela comparativa com as vozes selecionadas por card, frases completas e blocos lexicais.',
+    },
+    {
+      id: 'wav-trilogy',
+      title: 'Áudio Master da Trilogia (.wav)',
+      icon: 'graphic_eq',
+      badge: '24kHz PCM RIFF',
+      desc: `Concatena o áudio neural dos 3 cards (${cardVoices.en} → ${cardVoices.it} → ${cardVoices.ja}) em um único WAV.`,
     },
     {
       id: 'deck',
       title: 'Salvar Direto no Meu Deck',
       icon: 'bookmark_add',
-      badge: 'Sem Arquivo',
-      desc: `Injeta automaticamente ${totalChunks * 3} cartões (EN, IT e JA) no deck interno do MyTTS para treino imediato.`,
+      badge: 'Treino Local',
+      desc: `Adiciona ${totalChunks * 3} cartões (EN, IT e JA) ao Deck interno do MyTTS sem baixar arquivo.`,
     },
     {
       id: 'json',
       title: 'Estrutura JSON Completa (.json)',
       icon: 'code',
-      badge: 'Desenvolvedor',
-      desc: 'Exporta os blocos, frases integrais e timestamps em formato JSON estruturado para integrações ou backup.',
+      badge: 'Schema v2',
+      desc: 'Exporta chunks, frases integrais, vozes de cada card e timestamps para integrações.',
     },
   ];
 
   return (
     <div
       data-state="idle"
-      aria-busy="false"
+      aria-busy={isExportingWav}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-export-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-2xl card-matte rounded-3xl p-5 sm:p-6 shadow-2xl overflow-y-auto max-h-[90vh] flex flex-col gap-4 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header do Modal */}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-800/80 pb-4">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-800/80 pb-3.5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
               <GoogleIcon name="download" size={22} />
             </div>
             <div>
-              <h2 id="modal-export-title" className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-display">
-                Exportar Fast Chunks da Interação
+              <h2 id="modal-export-title" className="text-base sm:text-lg font-bold text-primary font-display">
+                Exportar Interação &amp; Inspecionar Formato
               </h2>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                Selecione o formato para salvar os blocos lexicais e traduções
+              <p className="text-xs text-secondary">
+                Verifique a estrutura exata do formato abaixo antes de baixar ou copiar
               </p>
             </div>
           </div>
@@ -162,126 +229,113 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+            className="p-1.5 rounded-xl text-secondary hover:text-primary hover:bg-slate-800/60 cursor-pointer transition-colors"
             aria-label="Fechar janela"
           >
             <GoogleIcon name="close" size={20} />
           </button>
         </div>
 
-        {/* Resumo da Interação Selecionada */}
-        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-[11px] font-mono">
-            <span className="text-slate-600 dark:text-slate-400 uppercase font-semibold">Frase de Origem:</span>
-            <span className="text-amber-800 dark:text-amber-400 font-bold bg-amber-400/15 px-2 py-0.5 rounded-md border border-amber-400/30">
-              {totalChunks} {totalChunks === 1 ? 'bloco lexical' : 'blocos lexicais'}
-            </span>
-          </div>
-          <p className="text-xs text-slate-800 dark:text-slate-200 line-clamp-2 italic font-serif">
-            "{message.userPrompt}"
-          </p>
-        </div>
-
         {/* Opções de Formato de Exportação */}
-        <div className="flex flex-col gap-2.5">
-          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider font-mono">
-            Como você deseja exportar?
-          </span>
-
-          <div className="grid grid-cols-1 gap-2">
-            {exportOptions.map((opt) => {
-              const isSelected = selectedFormat === opt.id;
-              return (
-                <div
-                  key={opt.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedFormat(opt.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedFormat(opt.id);
-                    }
-                  }}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-left outline-none ${
-                    isSelected
-                      ? 'bg-amber-500/15 border-amber-500/70 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/30'
-                      : 'bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-950/80'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                        isSelected
-                          ? 'bg-amber-500 text-white shadow-sm'
-                          : 'bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <GoogleIcon name={opt.icon} size={20} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
-                          {opt.title}
-                        </span>
-                        <span
-                          className={`text-[10px] font-mono px-1.5 py-0.2 rounded-md font-semibold ${
-                            isSelected
-                              ? 'bg-amber-500 text-white'
-                              : 'bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-800'
-                          }`}
-                        >
-                          {opt.badge}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug mt-0.5">
-                        {opt.desc}
-                      </p>
-                    </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {exportOptions.map((opt) => {
+            const isSelected = selectedFormat === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSelectedFormat(opt.id)}
+                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-2.5 text-left ${
+                  isSelected
+                    ? 'card-matte-active'
+                    : 'bg-slate-950/50 border-slate-800/80 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                      isSelected
+                        ? 'btn-matte-amber text-white shadow-sm'
+                        : 'bg-slate-900 border border-slate-800 text-secondary'
+                    }`}
+                  >
+                    <GoogleIcon name={opt.icon} size={18} />
                   </div>
-
-                  <div className="shrink-0">
-                    <div
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
-                        isSelected
-                          ? 'border-amber-500 bg-amber-500'
-                          : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900'
-                      }`}
-                    >
-                      {isSelected && (
-                        <div className="w-2 h-2 rounded-full bg-white dark:bg-slate-950" />
-                      )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-bold text-primary">
+                        {opt.title}
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-amber-300 border border-slate-800 font-semibold">
+                        {opt.badge}
+                      </span>
                     </div>
+                    <p className="text-[11px] text-secondary leading-snug mt-0.5 line-clamp-2">
+                      {opt.desc}
+                    </p>
                   </div>
                 </div>
-              );
-            })}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Prévia Ao Vivo do Formato de Exportação */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-secondary font-semibold">
+              Prévia do Formato Gerado ({selectedFormat.toUpperCase()} · {totalChunks} chunks)
+            </span>
+            <button
+              type="button"
+              onClick={handleCopyPreview}
+              className="text-[11px] font-mono text-amber-300 hover:text-white flex items-center gap-1 cursor-pointer"
+            >
+              <GoogleIcon name={copiedPreview ? 'check' : 'content_copy'} size={14} />
+              <span>{copiedPreview ? 'Copiado!' : 'Copiar Texto'}</span>
+            </button>
           </div>
+          <pre className="p-3 rounded-xl input-sunken text-[11px] font-mono tabular-nums text-primary overflow-x-auto max-h-40 leading-relaxed whitespace-pre">
+            {previewContent}
+          </pre>
         </div>
 
         {/* Rodapé com Botões de Ação */}
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800/80">
+        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-800/80">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-secondary hover:text-primary transition-colors cursor-pointer"
           >
             Cancelar
           </button>
 
           <button
             type="button"
+            disabled={isExportingWav}
             onClick={handleConfirmExport}
-            className="btn-matte btn-matte-amber px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-lg shadow-amber-500/20 active:translate-y-px transition-all cursor-pointer"
+            className="btn-matte btn-matte-amber px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-lg active:translate-y-px transition-all cursor-pointer disabled:opacity-50"
           >
             <GoogleIcon
-              name={selectedFormat === 'deck' ? 'bookmark_add' : 'download'}
+              name={
+                isExportingWav
+                  ? 'progress_activity'
+                  : selectedFormat === 'deck'
+                  ? 'bookmark_add'
+                  : 'download'
+              }
               size={18}
-              filled
-              className="text-white"
+              filled={!isExportingWav}
+              className={isExportingWav ? 'animate-spin text-white' : 'text-white'}
             />
             <span>
-              {selectedFormat === 'deck' ? 'Adicionar ao Deck' : 'Confirmar e Baixar'}
+              {isExportingWav
+                ? 'Sintetizando e Concatenando WAV...'
+                : selectedFormat === 'deck'
+                ? 'Adicionar ao Deck'
+                : selectedFormat === 'wav-trilogy'
+                ? 'Baixar WAV da Trilogia'
+                : 'Confirmar e Baixar Arquivo'}
             </span>
           </button>
         </div>

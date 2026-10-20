@@ -1,5 +1,5 @@
 /**
- * Visualizador e editor de roteiro de debate (estados de UI: vazio, carregando, sucesso e erro).
+ * Visualizador e editor de roteiro de debate com seleção de voz independente por card de turno.
  */
 import React, { useState } from 'react';
 import {
@@ -8,8 +8,10 @@ import {
   Edit2,
   Check,
   Download,
+  Volume2,
 } from 'lucide-react';
 import { DebateScript, DebateTurn } from '../types/debate';
+import { GEMINI_VOICES } from '../types/voices';
 import { base64ToArrayBuffer } from '../utils/audioEngine';
 
 interface ScriptViewerProps {
@@ -19,6 +21,7 @@ interface ScriptViewerProps {
   onPlayTurn: (index: number) => void;
   onSynthesizeTurn: (turnIndex: number) => Promise<void>;
   onUpdateTurnText: (turnIndex: number, newText: string) => void;
+  onUpdateTurnVoice?: (turnIndex: number, newVoiceId: string) => void;
   isSynthesizing: boolean;
 }
 
@@ -29,6 +32,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
   onPlayTurn,
   onSynthesizeTurn,
   onUpdateTurnText,
+  onUpdateTurnVoice,
   isSynthesizing,
 }) => {
   const [editingTurnIndex, setEditingTurnIndex] = useState<number | null>(null);
@@ -113,7 +117,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
             <h1 className="text-lg font-bold text-white tracking-tight">{script.title}</h1>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+          <div className="flex items-center gap-2 text-xs text-slate-400 font-mono tabular-nums">
             <span>{script.turns.length} turnos de fala</span>
             <span aria-hidden="true">·</span>
             <span className="uppercase text-amber-400">{script.tensionIntensity}</span>
@@ -141,12 +145,12 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
           return (
             <div
               key={turn.turn}
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-4 rounded-xl border ${
                 isActive
-                  ? 'border-amber-400/90 bg-slate-900/95 ring-1 ring-amber-400/50 shadow-lg shadow-amber-500/10'
+                  ? 'card-matte-active border-amber-400/90 ring-1 ring-amber-400/50 shadow-lg shadow-amber-500/10'
                   : isSelected
-                  ? 'border-slate-700 bg-slate-900/90'
-                  : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700'
+                  ? 'card-matte-active'
+                  : 'card-matte'
               }`}
             >
               {/* Turn Header */}
@@ -170,13 +174,30 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                   </div>
                 </div>
 
-                {/* Prosody & Emotion Metadata */}
-                <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                {/* Seletor de Voz por Card de Turno + Prosody Metadata */}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 font-mono">
+                  {onUpdateTurnVoice && (
+                    <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-700/80 rounded-lg px-2 py-1">
+                      <Volume2 className="w-3 h-3 text-sky-400 shrink-0" />
+                      <select
+                        aria-label={`Selecionar voz do turno ${turn.turn}`}
+                        value={turn.voice_id}
+                        onChange={(e) => onUpdateTurnVoice(index, e.target.value)}
+                        className="bg-transparent text-[11px] font-bold font-sans text-slate-100 focus:outline-none cursor-pointer"
+                      >
+                        {GEMINI_VOICES.map((v) => (
+                          <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">
+                            {v.name} ({v.gender === 'female' ? 'F' : 'M'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <span className="capitalize text-slate-300 font-medium">{turn.emotion}</span>
                   <span aria-hidden="true" className="text-slate-600">·</span>
-                  <span>{turn.prosody.speech_rate.toFixed(2)}x ritmo</span>
+                  <span className="tabular-nums">{turn.prosody.speech_rate.toFixed(2)}x ritmo</span>
                   <span aria-hidden="true" className="text-slate-600">·</span>
-                  <span>+{turn.prosody.pre_delay_ms}ms gap</span>
+                  <span className="tabular-nums">+{turn.prosody.pre_delay_ms}ms gap</span>
                   {turn.prosody.breath_sound && (
                     <>
                       <span aria-hidden="true" className="text-slate-600">·</span>
@@ -199,14 +220,14 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                     <button
                       type="button"
                       onClick={() => setEditingTurnIndex(null)}
-                      className="px-3 py-1 text-xs text-slate-400 hover:text-white"
+                      className="px-3 py-1 text-xs text-slate-400 hover:text-white cursor-pointer"
                     >
                       Cancelar
                     </button>
                     <button
                       type="button"
                       onClick={() => saveEdit(index)}
-                      className="px-3 py-1 bg-amber-400 text-slate-950 font-semibold text-xs rounded-md flex items-center gap-1"
+                      className="px-3 py-1 bg-amber-400 text-slate-950 font-semibold text-xs rounded-md flex items-center gap-1 cursor-pointer"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>Salvar Edição</span>
@@ -214,12 +235,13 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                   </div>
                 </div>
               ) : (
-                <div
+                <button
+                  type="button"
                   onClick={() => onPlayTurn(index)}
-                  className="text-sm text-slate-200 leading-relaxed cursor-pointer hover:text-white transition-colors"
+                  className="text-left w-full text-sm text-slate-200 leading-relaxed cursor-pointer hover:text-white transition-colors"
                 >
                   {renderProsodicText(turn.text)}
-                </div>
+                </button>
               )}
 
               {/* Turn Footer Actions */}
@@ -249,7 +271,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDownloadTurn(turn)}
-                      className="p-1 hover:text-slate-200 transition-colors"
+                      className="p-1 hover:text-slate-200 transition-colors cursor-pointer"
                       title="Baixar áudio deste turno (.wav)"
                     >
                       <Download className="w-3.5 h-3.5" />

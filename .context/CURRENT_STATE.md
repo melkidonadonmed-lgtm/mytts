@@ -1,33 +1,30 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Consolidação Tripla (`arquitetura-design-implementacao-sistema` v2.0.0 + `code-quality-audit-3d-physics` v1.0.0 + `frontend-code-architect` v4.0.0 & `DESIGN.md v4.5-soft`).
-- **Status da Branch**: `main` (Trio de qualidade `npm run lint && npm test && npm run build` 100% verde, 13/13 suítes Nível 4 aprovadas, zero warnings de chunk).
+- **Fase**: Refatoração Arquitetural Minimalista (`minimal-impact-ui` + `frontend-code-architect` + `arquitetura-design-implementacao-sistema` + `modern-web-guidance` + `code-quality-audit-3d-physics`).
+- **Status da Branch**: `main` (Trio de qualidade `npm run lint && npm test && npm run build` 100% verde, 14/14 suítes Nível 4 aprovadas, `audit_tactile_ui.py` = 100.0/100, `deterministic_scorer.py` SGA = 100.0/100).
 
 ## Decisões Arquiteturais e Correções Aplicadas
-1. **Arquitetura Frontend Soft Tactile & Design Atômico (`frontend-code-architect` v4.0.0 & `DESIGN.md v4.5-soft`)**:
-   - Eliminação de 100% das instâncias de glassmorphism (`backdrop-blur-*`) em `src/App.tsx`, `ArchitectureModal.tsx`, `CommandPaletteModal.tsx`, `DebateConfigPanel.tsx`, `DocumentInputSection.tsx`, `ExportInteractionModal.tsx`, `FastChunkAudioApp.tsx`, `FlashcardDeckDrawer.tsx` e `Sidebar.tsx` (`AUDIT-VIS-01`).
-   - Substituição do token residual `#1d4ed8` (cobalto banido) em [`src/index.css`](../src/index.css) por **Cerulean Sapphire** (`#0284c7`) e **Ocean Sapphire** (`#1e6091`).
-   - Estruturação modular de Design Atômico em 5 camadas: [`src/components/ui/SoftCard.tsx`](../src/components/ui/SoftCard.tsx) (FSM determinística `idle | loading | error | pressed`), [`src/components/bento/BentoStudioCard.tsx`](../src/components/bento/BentoStudioCard.tsx), [`src/components/layout/BentoGridShell.tsx`](../src/components/layout/BentoGridShell.tsx), [`src/config/tokens.ts`](../src/config/tokens.ts), [`src/styles/globals.css`](../src/styles/globals.css), [`src/styles/theme.css`](../src/styles/theme.css) e [`src/types/index.ts`](../src/types/index.ts), além de `#sidebar-active-tracker` (`surface-inset`) em [`src/components/Sidebar.tsx`](../src/components/Sidebar.tsx) e atualização de [`DESIGN.md`](../DESIGN.md) para `v4.5-soft`.
-2. **Arquitetura em Ilhas Funcionais e Score Determinístico (`arquitetura-design-implementacao-sistema` v2.0.0)**:
-   - `SGA = 100.00 / 100` (`INE = 100.0`, `ICI = 100.0`, `IPC = 100.0`, `IRM = 100.0`, `ICTE = 100.0`) sobre `32` nós, `30/30` telas/ilhas com 4 estados mapeados, `113/113` funções coesas e `0` ocorrências de hardcode/acoplamento Data-UI, com atualização de [`docs/resolution_diff_v1_v2.html`](../docs/resolution_diff_v1_v2.html).
-3. **Auditoria de Física/DSP Numérico e AST (`code-quality-audit-3d-physics` v1.0.0)**:
-   - `Snorm = 100.00 / 100` em [`src/utils/audioEngine.ts`](../src/utils/audioEngine.ts) e [`src/utils/proceduralSoundtracks.ts`](../src/utils/proceduralSoundtracks.ts) (`s1..s5 = 100.0`, `S1..S5 = 100.0`, `5/5` testes determinísticos `Pass@10` aprovados) e `0` alertas no `js_ts_ast_parser.js` em 100% dos arquivos `.ts/.tsx`.
-4. **Suíte de Testes Nível 4 (`tests/audio-engine.test.ts` + `test-audio-engine.ts`)**:
-   - Adição da `Suite 13` validando `resolveCardFSMState`, `sanitizeCardTitle` e ausência de hexadecimais de azul cobalto nos 4 presets Soft UI (`13/13` suítes Nível 4 aprovadas, `score_medio = 100.0`).
-5. **Otimizações de Engenharia Reversa Estática (`REA` — `ev_7fe68b1c0f939a28...`)**:
-   - [`src/utils/audioEngine.ts`](../src/utils/audioEngine.ts): Isolamento das conexões Web Audio em `setupAudioGraph()` (conectando `voiceGainNode`, `musicGainNode`, `analyser` e `masterGainNode` uma única vez) e preservação incremental de Blob URLs e do índice de reprodução ativa em `setTurns()`.
-   - [`src/App.tsx`](../src/App.tsx) & [`src/components/StudioWorkspace.tsx`](../src/components/StudioWorkspace.tsx): Integração de `synthesizeWithCache` (`L1/L2 IndexedDB`) tanto no modo Solo (`StudioWorkspace`) quanto nos turnos de Debate (`App.tsx`), com pool de concorrência controlada (`concurrency = 2`) e invalidação seletiva em `forceRegenerate`.
-   - [`src/components/BottomAudioDock.tsx`](../src/components/BottomAudioDock.tsx) & [`src/services/apiClient.ts`](../src/services/apiClient.ts): Mixagem Master Broadcast Híbrida (`requestMixAudio` -> `/api/mix-audio` com FFmpeg `sidechaincompress` frame-a-frame e fallback transparente para `OfflineAudioContext` 44.1kHz).
-   - [`src/server/audioContainer.ts`](../src/server/audioContainer.ts), [`server.ts`](../server.ts) & [`src/services/chunkStorage.ts`](../src/services/chunkStorage.ts): Desacoplamento de `ensureWavContainer`, `pcmToWav`, `sanitizeUserId`, `capText` e `formatForTts` em módulo testável (`Suite 14`), repasse de `language` em `POST /api/synthesize-turn`, allowlists em `POST /api/preview-voice` e persistência em lote `saveUserChunks` em `POST /api/generate-chunks`.
+1. **Tema Minimalista de Estúdio de Áudio (`minimal-impact-ui` & `frontend-code-architect`)**:
+   - **Modo Escuro (Cinza sobre Cinza Monolítico)**: Canvas `#57545d`, cards esculpidos `#49464f`, superfícies elevadas `#635f6a`, contraste `#232127` e menus em pílula `#8e8999` com texto `#16151A` (`.pill-nav-shell`), sombras físicas de 3 camadas e Rim Light 1px (`135°`).
+   - **Modo Claro Moderno (`Ad Lucem`)**: Canvas `#F3F3F5`, cards `#FFFFFF`, superfície elevada `#E6E6EA` e contraste `#18181C`, preservando `SOFT_UI_PRESETS.slate.accentPoint === '#0284C7'`.
+2. **Chat Poliglota como Página Principal & Remoção da Aba Isolada de Gravação**:
+   - `activeTab` padrão definido como `'polyglot'` em [`src/App.tsx`](../src/App.tsx) e item #1 na [`src/components/Sidebar.tsx`](../src/components/Sidebar.tsx).
+   - Aba dedicada `'mic'` (`LiveVoiceMic.tsx`) eliminada da navegação; atalhos de **Ditado Rápido** e **Live Mic API** integrados diretamente no dock do Chat ([`src/components/AgentInputDock.tsx`](../src/components/AgentInputDock.tsx)) com gravação instantânea, transcrição Gemini e resposta traduzida falada automaticamente.
+3. **Voz Independente por Card + Sincronização Bidirecional Global**:
+   - Adicionado seletor `<select>` de voz neural diretamente no cabeçalho de cada Card de idioma ([`src/components/LanguageColumnCard.tsx`](../src/components/LanguageColumnCard.tsx)) e de cada Card de turno de debate ([`src/components/ScriptViewer.tsx`](../src/components/ScriptViewer.tsx)).
+   - Estado `cardVoices: { en, it, ja }` persistido por mensagem em [`src/types/polyglot.ts`](../src/types/polyglot.ts) e [`src/components/PolyglotChatStudio.tsx`](../src/components/PolyglotChatStudio.tsx).
+   - Ao clicar/focar um Card ou alterar a voz no Card, a voz global (`selectedVoice` na Sidebar/Header) e o indicador da barra inferior ([`src/components/FloatingCardAudioController.tsx`](../src/components/FloatingCardAudioController.tsx)) sincronizam automaticamente, eliminando conflitos de nomes de vozes na interface.
+4. **Exportação Multi-Formato Revisada + Preview ao Vivo + Exportação WAV 24kHz**:
+   - Corrigida duplicação de colunas no CSV Anki em [`src/utils/interactionExporter.ts`](../src/utils/interactionExporter.ts) e incluído metadado `cardVoices` nos relatórios Markdown e JSON.
+   - Adicionado **Preview ao Vivo do Formato (`<pre>`)**, cópia rápida e exportação de **Áudio Master da Trilogia (`.wav` 24kHz concatenado EN + IT + JA)** em [`src/components/ExportInteractionModal.tsx`](../src/components/ExportInteractionModal.tsx), além de botão de download `.wav` individual em cada Card.
 
 ## Testes Reais e Verificações Auditáveis
 - `npm run lint` (`tsc --noEmit`): Exit code `0` (0 erros).
 - `npm test` (`tsx test-audio-engine.ts`): Exit code `0` (14/14 suítes Nível 4 aprovadas).
-- `npm run build` (`vite build`): Exit code `0` (`dist/` compilado em 297ms sem warnings).
-- `deterministic_scorer.py --scan . --html-out docs/resolution_diff_v1_v2.html`: `SGA = 100.0` (`32` nós, `30/30` telas, `113/113` funções).
-- `state_checker_observer.py --json src/utils/audioEngine.ts`: `s_norm = 100.0`.
-- `test_quality_auditor.py`: `100.0/100` (`NÍVEL 4: DETERMINÍSTICO & RESILIENTE`) em `test-audio-engine.ts` e `tests/audio-engine.test.ts`.
+- `npm run build` (`vite build`): Exit code `0` (`dist/` compilado sem warnings).
+- `audit_tactile_ui.py`: `Readiness Score: 100.0/100.0` (`A11y: 100.0 | FSM: 100.0 | Tokens/Layers: 100.0 | Sec: 100.0`).
+- `deterministic_scorer.py --scan src`: `SGA = 100.0` (`28` nós, `0` órfãos, `26/26` telas com 4 estados, `102/102` funções coesas).
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.

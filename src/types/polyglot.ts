@@ -29,6 +29,11 @@ export interface PolyglotMessage {
     it: string;
     ja: string;
   };
+  cardVoices?: {
+    en: string;
+    it: string;
+    ja: string;
+  };
   status: 'loading' | 'ready' | 'error';
   error?: string;
 }

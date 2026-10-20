@@ -19,6 +19,10 @@ import {
   generateInteractionJson,
   convertInteractionToFlashcards,
 } from './src/utils/interactionExporter';
+import {
+  sanitizeFavoriteVoices,
+  DEFAULT_FAVORITE_VOICES_BY_LANG,
+} from './src/services/polyglotClient';
 import { EXTERNAL_LINKS } from './src/config/constants';
 
 type TestFn = () => void | Promise<void>;
@@ -327,6 +331,15 @@ test('Suite 08: Exportador Multi-Formato de Interação Poliglota (Anki, MD, JSO
   assert.strictEqual(deckCards[0].language, 'en-US');
   assert.strictEqual(deckCards[1].language, 'it-IT');
   assert.strictEqual(deckCards[2].language, 'ja-JP');
+
+  // Validação determinística de perfis favoritos de vozes por idioma e sanitização de fallback
+  const customFavorites = sanitizeFavoriteVoices({ en: 'Fenrir', it: 'Aoede', ja: 'Kore' });
+  assert.strictEqual(customFavorites.en, 'Fenrir');
+  assert.strictEqual(customFavorites.it, 'Aoede');
+  assert.strictEqual(customFavorites.ja, 'Kore');
+
+  const fallbackFavorites = sanitizeFavoriteVoices({ en: 'VozInexistente', it: 123, ja: '' });
+  assert.deepStrictEqual(fallbackFavorites, DEFAULT_FAVORITE_VOICES_BY_LANG);
 });
 
 import { runContractTests } from './tests/audio-engine.test';

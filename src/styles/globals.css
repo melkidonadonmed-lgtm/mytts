@@ -4,59 +4,91 @@
    ========================================================================== */
 
 :root {
-  /* Pilha de 4+1 Camadas Tonais (Dark Default: Obsidian 4K) */
-  --surface-canvas: #0B0E14;
-  --surface-inset: #07090D;
-  --surface-flat: #10141D;
-  --surface-raised: #151A26;
-  --surface-contrast: #F1F5F9;
+  /* Pilha de 4+1 Camadas Tonais (Padrão Áudio Studio: Cinza sobre Cinza Monolítico) */
+  --surface-canvas: #57545d;
+  --surface-inset: #3e3b44;
+  --surface-flat: #49464f;
+  --surface-raised: #635f6a;
+  --surface-contrast: #232127;
 
-  --text-primary: #F1F5F9;
-  --text-secondary: #CBD5E1;
-  --text-muted: #94A3B8;
+  --text-primary: #F7F6F9;
+  --text-secondary: #DFDDE4;
+  --text-muted: #BDB9C6;
 
-  /* Destaque Focal Único — Cerulean / Mineral Ice (Zero Cobalto) */
-  --accent-point: #38BDF8;
+  /* Barra de Menu em Pílula (#8e8999 com tinta escura #16151A) */
+  --nav-shell-bg: #8e8999;
+  --nav-shell-ink: #16151A;
+  --nav-active-bg: #18181C;
+  --nav-active-ink: #F5F4F8;
+
+  /* Destaque Focal Único — 98/2 Rule */
+  --accent-point: #35acd8;
   --accent-sapphire: #0284C7;
-  --accent-soft-bg: rgba(56, 189, 248, 0.14);
+  --accent-soft-bg: rgba(53, 172, 216, 0.14);
 
-  /* Física Tactile / Neumorfismo Suave Direcional 135° */
-  --shadow-card: 10px 10px 26px rgba(2, 4, 9, 0.72), -6px -6px 18px rgba(30, 41, 59, 0.28);
-  --shadow-float: 14px 14px 34px rgba(2, 4, 9, 0.85), -8px -8px 22px rgba(30, 41, 59, 0.35);
-  --shadow-inset: inset 3px 3px 8px rgba(2, 4, 9, 0.82), inset -2px -2px 6px rgba(30, 41, 59, 0.25);
+  /* Sombra Esculpida 3 Camadas + 1px Rim Light */
+  --rim-light: rgba(255, 255, 255, 0.14);
+  --shadow-card:
+    0 2px 4px rgba(15, 14, 18, 0.28),
+    0 10px 24px -4px rgba(15, 14, 18, 0.36),
+    0 20px 40px -12px rgba(15, 14, 18, 0.24),
+    inset 0 1px 0 0 var(--rim-light);
+  --shadow-float:
+    0 4px 8px rgba(15, 14, 18, 0.34),
+    0 16px 32px -4px rgba(15, 14, 18, 0.45),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+  --shadow-inset:
+    inset 2px 2px 6px rgba(15, 14, 18, 0.48),
+    inset -1px -1px 3px rgba(255, 255, 255, 0.08);
 
-  --soft-shadow-main: 10px 10px 26px rgba(2, 4, 9, 0.72);
-  --soft-shadow-light: -6px -6px 18px rgba(30, 41, 59, 0.28);
+  --soft-shadow-main: 0 10px 24px -4px rgba(15, 14, 18, 0.36);
+  --soft-shadow-light: inset 0 1px 0 0 var(--rim-light);
   --soft-shadow-inset: var(--shadow-inset);
 
-  --radius-lg: 24px;
+  --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 8px;
-  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 [data-theme="light"] {
-  --surface-canvas: #EEF2F6;
-  --surface-inset: #E2E8F0;
-  --surface-flat: #E9EEF5;
-  --surface-raised: #F8FAFC;
-  --surface-contrast: #0F172A;
+  /* Claro Editorial Moderno (Ad Lucem) */
+  --surface-canvas: #F3F3F5;
+  --surface-inset: #E8E8EE;
+  --surface-flat: #E6E6EA;
+  --surface-raised: #FFFFFF;
+  --surface-contrast: #18181C;
 
-  --text-primary: #0F172A;
-  --text-secondary: #334155;
-  --text-muted: #64748B;
+  --text-primary: #111115;
+  --text-secondary: #3F3F46;
+  --text-muted: #686873;
+
+  --nav-shell-bg: rgba(230, 230, 234, 0.94);
+  --nav-shell-ink: #18181B;
+  --nav-active-bg: #18181C;
+  --nav-active-ink: #FFFFFF;
 
   --accent-point: #0284C7;
   --accent-sapphire: #1E6091;
-  --accent-soft-bg: #E0F2FE;
+  --accent-soft-bg: rgba(2, 132, 199, 0.12);
 
-  /* Física Tactile / Neumorfismo Suave Direcional 135° (Soft Light) */
-  --shadow-card: 10px 10px 24px rgba(148, 163, 184, 0.32), -8px -8px 20px rgba(255, 255, 255, 0.92);
-  --shadow-float: 14px 14px 32px rgba(148, 163, 184, 0.42), -10px -10px 26px rgba(255, 255, 255, 0.98);
-  --shadow-inset: inset 3px 3px 7px rgba(148, 163, 184, 0.35), inset -3px -3px 7px rgba(255, 255, 255, 0.85);
+  /* Sombra Esculpida 3 Camadas + 1px Rim Light (Ad Lucem) */
+  --rim-light: rgba(255, 255, 255, 0.95);
+  --shadow-card:
+    0 1px 2px rgba(9, 9, 11, 0.05),
+    0 8px 24px -4px rgba(9, 9, 11, 0.07),
+    0 20px 40px -12px rgba(9, 9, 11, 0.04),
+    inset 0 1px 0 0 var(--rim-light);
+  --shadow-float:
+    0 4px 10px rgba(9, 9, 11, 0.07),
+    0 16px 32px -6px rgba(9, 9, 11, 0.1),
+    inset 0 1px 0 0 #FFFFFF;
+  --shadow-inset:
+    inset 2px 2px 5px rgba(24, 24, 27, 0.08),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.9);
 
-  --soft-shadow-main: 10px 10px 24px rgba(148, 163, 184, 0.32);
-  --soft-shadow-light: -8px -8px 20px rgba(255, 255, 255, 0.92);
+  --soft-shadow-main: 0 8px 24px -4px rgba(9, 9, 11, 0.07);
+  --soft-shadow-light: inset 0 1px 0 0 var(--rim-light);
   --soft-shadow-inset: var(--shadow-inset);
 }
 

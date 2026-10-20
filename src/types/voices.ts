@@ -61,3 +61,35 @@ export const GEMINI_VOICES: VoiceProfile[] = [
     tone: 'Respirado, suave, intimista',
   },
 ];
+
+export const FAVORITE_VOICES_STORAGE_KEY = 'mytts_favorite_voices_by_lang';
+
+export const DEFAULT_FAVORITE_VOICES_BY_LANG: Record<'en' | 'it' | 'ja', string> = {
+  en: 'Puck',
+  it: 'Kore',
+  ja: 'Aoede',
+};
+
+const VALID_VOICE_IDS = new Set(GEMINI_VOICES.map((v) => v.id));
+
+export function sanitizeFavoriteVoices(
+  raw: unknown
+): Record<'en' | 'it' | 'ja', string> {
+  if (!raw || typeof raw !== 'object') {
+    return { ...DEFAULT_FAVORITE_VOICES_BY_LANG };
+  }
+  const candidate = raw as Record<string, unknown>;
+  const en =
+    typeof candidate.en === 'string' && VALID_VOICE_IDS.has(candidate.en)
+      ? candidate.en
+      : DEFAULT_FAVORITE_VOICES_BY_LANG.en;
+  const it =
+    typeof candidate.it === 'string' && VALID_VOICE_IDS.has(candidate.it)
+      ? candidate.it
+      : DEFAULT_FAVORITE_VOICES_BY_LANG.it;
+  const ja =
+    typeof candidate.ja === 'string' && VALID_VOICE_IDS.has(candidate.ja)
+      ? candidate.ja
+      : DEFAULT_FAVORITE_VOICES_BY_LANG.ja;
+  return { en, it, ja };
+}

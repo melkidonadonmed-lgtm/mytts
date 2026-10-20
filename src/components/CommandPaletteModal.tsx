@@ -36,7 +36,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Focus no input ao abrir
   useEffect(() => {
     if (isOpen) {
       setQuery('');
@@ -45,53 +44,39 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
     }
   }, [isOpen]);
 
-  // Lista de comandos disponíveis
   const commands: CommandItem[] = useMemo(() => {
     const list: CommandItem[] = [
-      // Módulos
-      {
-        id: 'tab-reader',
-        title: 'Estúdio de Criação Principal',
-        subtitle: 'Leitura Solo 1 Voz & Debate 2 Vozes no mesmo canvas',
-        category: 'Navegação',
-        icon: 'headphones',
-        shortcut: '1',
-        action: () => {
-          onSelectTab('reader');
-          onClose();
-        },
-      },
       {
         id: 'tab-polyglot',
-        title: 'Chat Poliglota Multimodal',
-        subtitle: 'Tradução paralela em EN, IT & JA com blocos lexicais FastChunks',
+        title: 'Chat Poliglota Multimodal (Página Principal)',
+        subtitle: 'Tradução paralela EN, IT & JA com voz por card + atalho Live Mic',
         category: 'Navegação',
         icon: 'translate',
-        shortcut: '2',
+        shortcut: '1',
         action: () => {
           onSelectTab('polyglot');
           onClose();
         },
       },
       {
-        id: 'tab-mic',
-        title: 'Microfone & Ditado Ao Vivo',
-        subtitle: 'Gravar fala com WebRTC e transcrever com Gemini 3.8',
+        id: 'tab-reader',
+        title: 'Estúdio de Criação (Solo & 2 Vozes)',
+        subtitle: 'Leitura Solo 1 Voz & Debate 2 Vozes no mesmo canvas',
         category: 'Navegação',
-        icon: 'mic',
-        shortcut: '3',
+        icon: 'headphones',
+        shortcut: '2',
         action: () => {
-          onSelectTab('mic');
+          onSelectTab('reader');
           onClose();
         },
       },
       {
         id: 'tab-debate',
         title: 'Estúdio de Debate Dialético',
-        subtitle: 'Discussão antagônica e embate de ideias entre 2 vozes',
+        subtitle: 'Discussão antagônica e embate de ideias com voz por turno',
         category: 'Navegação',
         icon: 'group',
-        shortcut: '4',
+        shortcut: '3',
         action: () => {
           onSelectTab('debate');
           onClose();
@@ -103,7 +88,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         subtitle: 'Frases coloquiais em EN, IT & JA com repetição espaçada',
         category: 'Navegação',
         icon: 'bolt',
-        shortcut: '5',
+        shortcut: '4',
         action: () => {
           onSelectTab('chunks');
           onClose();
@@ -115,7 +100,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         subtitle: 'Catálogo de timbres e audição de amostras de 3 segundos',
         category: 'Navegação',
         icon: 'record_voice_over',
-        shortcut: '6',
+        shortcut: '5',
         action: () => {
           onSelectTab('voices');
           onClose();
@@ -134,12 +119,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       },
     ];
 
-    // Vozes Neurais
     GEMINI_VOICES.forEach((voice) => {
       list.push({
         id: `voice-${voice.id}`,
         title: `Voz: ${voice.name} (${voice.archetype})`,
-        subtitle: `${voice.gender === 'female' ? 'Feminina' : 'Masculina'} · ${voice.styleDescription}`,
+        subtitle: `${voice.gender === 'female' ? 'Feminina' : 'Masculina'} · Sincroniza com o card focado`,
         category: 'Vozes Neurais',
         icon: 'mic_none',
         shortcut: currentVoice.id === voice.id ? 'Ativa' : undefined,
@@ -150,7 +134,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       });
     });
 
-    // Ações Rápidas
     if (onOpenDeck) {
       list.push({
         id: 'action-deck',
@@ -166,7 +149,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       });
     }
 
-    // Presets Soft UI v4.5 (Obsidian Dark, Nexus Slate, Moss & Calm, Soft Sapphire)
     const applyPresetCommand = (presetId: 'obsidian' | 'slate' | 'moss' | 'sapphire', mode: 'dark' | 'light') => {
       document.documentElement.setAttribute('data-theme', mode);
       document.body.setAttribute('data-theme', mode);
@@ -180,8 +162,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 
     list.push({
       id: 'preset-obsidian',
-      title: 'Tema Soft UI: Obsidian Dark (#090B0E / #38BDF8)',
-      subtitle: 'Paleta mineral escura padrão de estúdio sem ofuscamento',
+      title: 'Tema: Cinza Studio Monolítico (#57545d / #49464f)',
+      subtitle: 'Cinza sobre cinza arquitetônico com menus #8e8999 (Padrão Escuro)',
       category: 'Ações Rápidas',
       icon: 'dark_mode',
       action: () => applyPresetCommand('obsidian', 'dark'),
@@ -189,8 +171,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 
     list.push({
       id: 'preset-slate',
-      title: 'Tema Soft UI: Nexus Slate Cerulean (#F1F4F8 / #0284C7)',
-      subtitle: 'Modo claro neutro com acento Cerulean Sapphire (Zero Cobalto)',
+      title: 'Tema: Ad Lucem Moderno (#F3F3F5 / #FFFFFF)',
+      subtitle: 'Modo claro moderno editorial com alto contraste e superfície esculpida',
       category: 'Ações Rápidas',
       icon: 'light_mode',
       action: () => applyPresetCommand('slate', 'light'),
@@ -198,7 +180,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 
     list.push({
       id: 'preset-moss',
-      title: 'Tema Soft UI: Moss & Calm (#F4F3EC / #174930)',
+      title: 'Tema: Moss & Calm (#F4F3EC / #174930)',
       subtitle: 'Modo claro orgânico com acento verde floresta sereno',
       category: 'Ações Rápidas',
       icon: 'palette',
@@ -207,17 +189,16 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 
     list.push({
       id: 'preset-sapphire',
-      title: 'Tema Soft UI: Soft Sapphire (#F5F4EE / #1E6091)',
-      subtitle: 'Modo claro editorial aquecido com acento Ocean Sapphire',
+      title: 'Tema: Terminal IBM Ex Umbris (#070709 / #101014)',
+      subtitle: 'Preto profundo técnico de alto contraste',
       category: 'Ações Rápidas',
       icon: 'palette',
-      action: () => applyPresetCommand('sapphire', 'light'),
+      action: () => applyPresetCommand('sapphire', 'dark'),
     });
 
     return list;
   }, [onSelectTab, onSelectVoice, currentVoice, onOpenDeck, onClose]);
 
-  // Filtragem
   const filteredCommands = useMemo(() => {
     if (!query.trim()) return commands;
     const lower = query.toLowerCase();
@@ -229,7 +210,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
     );
   }, [commands, query]);
 
-  // Navegação por teclado dentro do modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
@@ -258,7 +238,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, filteredCommands, selectedIndex, onClose]);
 
-  // Scroll automático do item selecionado
   useEffect(() => {
     if (listRef.current) {
       const activeEl = listRef.current.querySelector('[data-selected="true"]');
@@ -277,7 +256,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Paleta de Comandos e Busca Rápida"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/85 transition-opacity"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/80 transition-opacity"
       onClick={onClose}
     >
       <div
@@ -285,13 +264,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Barra de Busca Sunken */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60">
-          <GoogleIcon name="search" size={22} className="text-amber-500 dark:text-amber-400 shrink-0" />
+        <div className="p-4 border-b border-slate-800 flex items-center gap-3 bg-slate-950/60">
+          <GoogleIcon name="search" size={22} className="text-amber-400 shrink-0" />
           <input
             ref={inputRef}
             type="text"
             className="input-sunken w-full text-base sm:text-lg font-medium"
-            placeholder="Digite para navegar ou buscar vozes... (ex: Chat, Puck, Debate, Deck)"
+            placeholder="Digite para navegar, trocar tema ou escolher voz... (Ctrl+K)"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -304,10 +283,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* Lista de Resultados */}
-        <div ref={listRef} className="overflow-y-auto p-2 divide-y divide-slate-100 dark:divide-slate-800/40">
+        <div ref={listRef} className="overflow-y-auto p-2 divide-y divide-slate-800/40">
           {filteredCommands.length === 0 ? (
-            <div className="py-12 text-center text-slate-600 dark:text-slate-400 flex flex-col items-center gap-2">
-              <GoogleIcon name="search_off" size={32} className="text-slate-400 dark:text-slate-600" />
+            <div className="py-12 text-center text-secondary flex flex-col items-center gap-2">
+              <GoogleIcon name="search_off" size={32} className="text-secondary" />
               <p className="text-sm font-medium">Nenhum comando ou voz encontrado para &quot;{query}&quot;</p>
             </div>
           ) : (
@@ -322,8 +301,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                   className={
                     'px-4 py-3 rounded-xl flex items-center justify-between cursor-pointer transition-all ' +
                     (isSelected
-                      ? 'card-matte-active text-slate-900 dark:text-white shadow-md'
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 border border-transparent')
+                      ? 'card-matte-active text-primary shadow-md'
+                      : 'hover:bg-slate-800/40 text-secondary border border-transparent')
                   }
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -331,19 +310,19 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                       className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
                         isSelected
                           ? 'btn-matte-amber text-white font-bold'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                          : 'bg-slate-900 text-secondary'
                       }`}
                     >
                       <GoogleIcon name={cmd.icon} size={20} />
                     </div>
                     <div className="truncate">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm truncate text-slate-900 dark:text-slate-100">{cmd.title}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-400 font-mono">
+                        <span className="font-bold text-sm truncate text-primary">{cmd.title}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-secondary font-mono">
                           {cmd.category}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 truncate mt-0.5">{cmd.subtitle}</p>
+                      <p className="text-xs text-secondary truncate mt-0.5">{cmd.subtitle}</p>
                     </div>
                   </div>
 
@@ -352,7 +331,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                       <kbd
                         className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
                           cmd.shortcut === 'Ativa'
-                            ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/30 font-semibold'
+                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-semibold'
                             : ''
                         }`}
                       >
@@ -360,7 +339,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                       </kbd>
                     )}
                     {isSelected && (
-                      <GoogleIcon name="keyboard_return" size={16} className="text-amber-600 dark:text-amber-400" />
+                      <GoogleIcon name="keyboard_return" size={16} className="text-amber-400" />
                     )}
                   </div>
                 </div>
@@ -370,7 +349,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* Rodapé de Instrução Tátil */}
-        <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-950/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
+        <div className="px-4 py-2.5 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between text-[11px] text-secondary">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 font-mono rounded">↑↓</kbd>
@@ -385,7 +364,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
               <span>Fechar</span>
             </span>
           </div>
-          <span className="font-mono text-amber-700 dark:text-amber-400/80 font-semibold">MyTTS Studio · Padrão Tátil Melki</span>
+          <span className="font-mono text-amber-400 font-semibold">MyTTS Studio · Cinza Studio &amp; Ad Lucem</span>
         </div>
       </div>
     </div>

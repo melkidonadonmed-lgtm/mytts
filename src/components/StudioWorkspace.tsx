@@ -1,5 +1,5 @@
 /**
- * Bancada principal do estúdio de áudio (estados de UI: vazio, carregando, sucesso e erro).
+ * Bancada principal do estúdio de áudio (Solo + Debate Dialético).
  */
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -44,6 +44,7 @@ interface StudioWorkspaceProps {
   isSynthesizingDebate: boolean;
   onSynthesizeSingleTurn: (turnIndex: number) => Promise<void>;
   onUpdateTurnText: (turnIndex: number, newText: string) => void;
+  onUpdateTurnVoice?: (turnIndex: number, newVoiceId: string) => void;
 }
 
 export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
@@ -60,6 +61,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   isSynthesizingDebate,
   onSynthesizeSingleTurn,
   onUpdateTurnText,
+  onUpdateTurnVoice,
 }) => {
   const [mode, setMode] = useState<StudioMode>('solo');
 
@@ -318,7 +320,6 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     };
     await onGenerateDebate([spk1, spk2], debateTension);
   };
-
 
   const formatTime = (secs: number): string => {
     const mins = Math.floor(secs / 60);
@@ -601,7 +602,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           {/* Etapa 4: Player Visual em Linha (Solo) */}
           {soloAudioUrl && (
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-2 animate-in fade-in">
-              <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-mono tabular-nums">
                 <span className="text-sky-300 font-bold flex items-center gap-1.5 font-sans">
                   <Volume2 className="w-3.5 h-3.5 text-sky-400" />
                   Áudio Pronto ({selectedVoice.name} · {calibration})
@@ -750,6 +751,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 onPlayTurn={(index) => player.play(index)}
                 onSynthesizeTurn={onSynthesizeSingleTurn}
                 onUpdateTurnText={onUpdateTurnText}
+                onUpdateTurnVoice={onUpdateTurnVoice}
                 isSynthesizing={isSynthesizingDebate}
               />
             </div>

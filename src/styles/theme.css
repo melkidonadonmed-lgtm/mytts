@@ -1,26 +1,52 @@
 /* ==========================================================================
-   CATÁLOGO DE PRESETS TONAIS SOFT UI (DESIGN.md v4.5-soft)
-   1. Nexus Slate Cerulean (#F1F4F8 / #0284C7) — Light
-   2. Moss & Calm (#F4F3EC / #174930) — Light
-   3. Soft Sapphire (#F5F4EE / #1E6091) — Light
-   4. Obsidian Dark (#090B0E / #38BDF8) — Dark
+   CATÁLOGO DE PRESETS TONAIS EX UMBRIS + AD LUCEM (v5.0 Minimalist Impact)
+   1. Cinza Studio Monolítico (#57545d / #49464f / Menu #8e8999) — Dark/Gray Default
+   2. Ad Lucem Moderno (#F3F3F5 / #FFFFFF / #0284C7) — Light Default
+   3. Moss & Calm (#F4F3EC / #174930) — Light Organic
+   4. Terminal IBM Ex Umbris (#070709 / #101014) — Deep Dark
    ========================================================================== */
 
+[data-preset="obsidian"] {
+  --surface-canvas: #57545d;
+  --surface-flat: #49464f;
+  --surface-raised: #635f6a;
+  --surface-inset: #3e3b44;
+  --surface-contrast: #232127;
+  --accent-point: #35acd8;
+  --accent-sapphire: #0284C7;
+  --nav-shell-bg: #8e8999;
+  --nav-shell-ink: #16151A;
+  --canvas-dot-color: rgba(255, 255, 255, 0.17);
+
+  --bg-canvas: #57545d !important;
+  --bg-surface-0: #49464f !important;
+  --bg-surface-1: #49464f !important;
+  --bg-surface-2: #635f6a !important;
+  --bg-surface-inset: #3e3b44 !important;
+  --bg-card: #49464f !important;
+  --bg-card-hover: #534f5a !important;
+  --accent-primary: #35acd8 !important;
+  --accent-primary-hover: #0284C7 !important;
+}
+
 [data-preset="slate"] {
-  --surface-canvas: #F1F4F8;
-  --surface-flat: #E9EEF5;
-  --surface-raised: #F8FAFC;
-  --surface-inset: #E5E9F0;
-  --surface-contrast: #1E293B;
+  --surface-canvas: #F3F3F5;
+  --surface-flat: #E6E6EA;
+  --surface-raised: #FFFFFF;
+  --surface-inset: #E8E8EE;
+  --surface-contrast: #18181C;
   --accent-point: #0284C7;
   --accent-sapphire: #1E6091;
+  --nav-shell-bg: rgba(230, 230, 234, 0.94);
+  --nav-shell-ink: #18181B;
+  --canvas-dot-color: rgba(24, 24, 27, 0.14);
 
-  --bg-canvas: #F1F4F8 !important;
-  --bg-surface-0: #F8FAFC !important;
+  --bg-canvas: #F3F3F5 !important;
+  --bg-surface-0: #FFFFFF !important;
   --bg-surface-1: #FFFFFF !important;
-  --bg-surface-2: #E9EEF5 !important;
-  --bg-surface-inset: #E5E9F0 !important;
-  --bg-card: #F8FAFC !important;
+  --bg-surface-2: #E6E6EA !important;
+  --bg-surface-inset: #E8E8EE !important;
+  --bg-card: #FFFFFF !important;
   --bg-card-hover: #FFFFFF !important;
   --accent-primary: #0284C7 !important;
   --accent-primary-hover: #1E6091 !important;
@@ -34,6 +60,7 @@
   --surface-contrast: #1A2E22;
   --accent-point: #174930;
   --accent-sapphire: #059669;
+  --canvas-dot-color: rgba(23, 73, 48, 0.15);
 
   --bg-canvas: #F4F3EC !important;
   --bg-surface-0: #F8F7F2 !important;
@@ -47,43 +74,98 @@
 }
 
 [data-preset="sapphire"] {
-  --surface-canvas: #F5F4EE;
-  --surface-flat: #EDEBE3;
-  --surface-raised: #FAF9F5;
-  --surface-inset: #E6E5DD;
-  --surface-contrast: #1E293B;
-  --accent-point: #1E6091;
+  --surface-canvas: #070709;
+  --surface-flat: #101014;
+  --surface-raised: #18181E;
+  --surface-inset: #050507;
+  --surface-contrast: #1D1D24;
+  --accent-point: #35acd8;
   --accent-sapphire: #0284C7;
+  --canvas-dot-color: rgba(53, 172, 216, 0.16);
 
-  --bg-canvas: #F5F4EE !important;
-  --bg-surface-0: #FAF9F5 !important;
-  --bg-surface-1: #FFFFFF !important;
-  --bg-surface-2: #EDEBE3 !important;
-  --bg-surface-inset: #E6E5DD !important;
-  --bg-card: #FAF9F5 !important;
-  --bg-card-hover: #FFFFFF !important;
-  --accent-primary: #1E6091 !important;
+  --bg-canvas: #070709 !important;
+  --bg-surface-0: #101014 !important;
+  --bg-surface-1: #101014 !important;
+  --bg-surface-2: #18181E !important;
+  --bg-surface-inset: #050507 !important;
+  --bg-card: #101014 !important;
+  --bg-card-hover: #18181E !important;
+  --accent-primary: #35acd8 !important;
   --accent-primary-hover: #0284C7 !important;
 }
 
-[data-preset="obsidian"] {
-  --surface-canvas: #090B0E;
-  --surface-flat: #101520;
-  --surface-raised: #131824;
-  --surface-inset: #0C1017;
-  --surface-contrast: #1E293B;
-  --accent-point: #38BDF8;
-  --accent-sapphire: #0284C7;
+/* Fundo com Aspecto de Canva com Pontos (Dot-Matrix Studio Grid 22x22px) */
+.canvas-dot-grid,
+body,
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-950,
+[data-theme="dark"][data-preset="sapphire"] .bg-slate-950,
+[data-theme="light"] .bg-slate-950 {
+  background-color: var(--bg-canvas) !important;
+  background-image: radial-gradient(
+    circle,
+    var(--canvas-dot-color, rgba(255, 255, 255, 0.16)) 1.35px,
+    transparent 1.45px
+  ) !important;
+  background-size: 22px 22px !important;
+  background-position: 0 0 !important;
+}
 
-  --bg-canvas: #090B0E !important;
-  --bg-surface-0: #101520 !important;
-  --bg-surface-1: #151B26 !important;
-  --bg-surface-2: #1B2332 !important;
-  --bg-surface-inset: #0C1017 !important;
-  --bg-card: #131824 !important;
-  --bg-card-hover: #1A2233 !important;
-  --accent-primary: #0284C7 !important;
-  --accent-primary-hover: #1E6091 !important;
+/* Aplicação das superfícies Cinza sobre Cinza (#57545d / #49464f / #635f6a) no modo escuro padrão */
+[data-theme="dark"][data-preset="obsidian"] aside {
+  background-color: #49464f !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-900,
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/90,
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/80,
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/70,
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/60 {
+  background-color: #49464f !important;
+  background-image: none !important;
+}
+
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/70,
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/60,
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/80 {
+  background-color: #3e3b44 !important;
+  background-image: none !important;
+}
+
+[data-theme="dark"][data-preset="obsidian"] .bg-slate-800 {
+  background-color: #635f6a !important;
+  background-image: none !important;
+}
+
+[data-theme="dark"][data-preset="obsidian"] .border-slate-800,
+[data-theme="dark"][data-preset="obsidian"] .border-slate-800\/80,
+[data-theme="dark"][data-preset="obsidian"] .border-slate-800\/70,
+[data-theme="dark"][data-preset="obsidian"] .border-slate-800\/60,
+[data-theme="dark"][data-preset="obsidian"] .border-slate-700 {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* Pílula de Navegação Nítida (#8e8999 com tinta escura #16151A no Cinza Studio) */
+.pill-nav-shell {
+  background-color: var(--nav-shell-bg);
+  color: var(--nav-shell-ink);
+  border-radius: 9999px;
+  padding: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.pill-nav-item {
+  color: var(--nav-shell-ink) !important;
+  font-weight: 600;
+  border-radius: 9999px;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pill-nav-item[data-active="true"] {
+  background-color: var(--nav-active-bg) !important;
+  color: var(--nav-active-ink) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
 /* Aplicação das superfícies minerais dos presets claros sobre containers e cartões */
@@ -91,21 +173,16 @@
 [data-theme="light"][data-preset="moss"] aside,
 [data-theme="light"][data-preset="moss"] .bg-slate-900 {
   background-color: #F8F7F2 !important;
+  background-image: none !important;
   border-color: #D6D2C4 !important;
-}
-
-[data-theme="light"][data-preset="sapphire"] .card-matte,
-[data-theme="light"][data-preset="sapphire"] aside,
-[data-theme="light"][data-preset="sapphire"] .bg-slate-900 {
-  background-color: #FAF9F5 !important;
-  border-color: #DCD9CE !important;
 }
 
 [data-theme="light"][data-preset="slate"] .card-matte,
 [data-theme="light"][data-preset="slate"] aside,
 [data-theme="light"][data-preset="slate"] .bg-slate-900 {
-  background-color: #F8FAFC !important;
-  border-color: #CBD5E1 !important;
+  background-color: #FFFFFF !important;
+  background-image: none !important;
+  border-color: rgba(24, 24, 27, 0.1) !important;
 }
 
 [data-theme="light"] .btn-matte-primary {

@@ -10,27 +10,27 @@ export function generateInteractionAnkiCsv(message: PolyglotMessage): string {
   const headers = [
     'Frente (Original)',
     'Verso (Tradução / Contexto)',
-    'Pronúncia (Japonês Rōmaji)',
     'Italiano',
-    'Inglês',
-    'Frase Completa (Contexto)',
-    'Prompt Original',
+    'Japonês (Kanji/Kana)',
+    'Pronúncia (Japonês Rōmaji)',
+    'Frase Completa (EN / IT / JA)',
   ];
 
   const escapeCsv = (str: string = ''): string => {
-    const clean = str.replace(/"/g, '""').trim();
+    const clean = str.replace(/\r?\n/g, ' ').replace(/"/g, '""').trim();
     return `"${clean}"`;
   };
+
+  const fullContextTriad = `${message.fullText.en} | ${message.fullText.it} | ${message.fullText.ja}`;
 
   const rows = message.chunks.map((chunk) => {
     return [
       escapeCsv(chunk.en),
       escapeCsv(message.userPrompt),
-      escapeCsv(chunk.jaPronunciation || chunk.ja),
       escapeCsv(chunk.it),
-      escapeCsv(chunk.en),
-      escapeCsv(message.fullText.en),
-      escapeCsv(message.userPrompt),
+      escapeCsv(chunk.ja),
+      escapeCsv(chunk.jaPronunciation || chunk.ja),
+      escapeCsv(fullContextTriad),
     ].join(';');
   });
 
@@ -40,15 +40,17 @@ export function generateInteractionAnkiCsv(message: PolyglotMessage): string {
 // 2. Exportação para Markdown (Tabela Comparativa pronta para Obsidian e Notion)
 export function generateInteractionMarkdown(message: PolyglotMessage): string {
   const dateStr = new Date(message.timestamp).toLocaleString('pt-BR');
+  const voices = message.cardVoices || { en: 'Puck', it: 'Kore', ja: 'Aoede' };
 
   let md = `# Interação de Estudo Poliglota — MyTTS Studio\n\n`;
   md += `**Data:** ${dateStr}\n`;
-  md += `**Texto Original (PT-BR):** "${message.userPrompt}"\n\n`;
+  md += `**Texto Original (PT-BR):** "${message.userPrompt}"\n`;
+  md += `**Vozes por Card:** 🇺🇸 ${voices.en} · 🇮🇹 ${voices.it} · 🇯🇵 ${voices.ja}\n\n`;
   
   md += `## 1. Frases Completas Alinhadas\n\n`;
-  md += `- 🇺🇸 **Inglês:** ${message.fullText.en}\n`;
-  md += `- 🇮🇹 **Italiano:** ${message.fullText.it}\n`;
-  md += `- 🇯🇵 **Japonês:** ${message.fullText.ja}\n\n`;
+  md += `- 🇺🇸 **Inglês (${voices.en}):** ${message.fullText.en}\n`;
+  md += `- 🇮🇹 **Italiano (${voices.it}):** ${message.fullText.it}\n`;
+  md += `- 🇯🇵 **Japonês (${voices.ja}):** ${message.fullText.ja}\n\n`;
 
   md += `## 2. Decomposição em Blocos Lexicais (Fast Chunks)\n\n`;
   md += `| # | 🇺🇸 Inglês | 🇮🇹 Italiano | 🇯🇵 Japonês | Pronúncia Fonética (Rōmaji) |\n`;
@@ -66,6 +68,7 @@ export function generateInteractionMarkdown(message: PolyglotMessage): string {
 
 // 3. Exportação para JSON Estruturado
 export function generateInteractionJson(message: PolyglotMessage): string {
+  const voices = message.cardVoices || { en: 'Puck', it: 'Kore', ja: 'Aoede' };
   const exportPayload = {
     exportedAt: new Date().toISOString(),
     sourceApp: 'MyTTS Studio Polyglot Chat',
@@ -73,6 +76,7 @@ export function generateInteractionJson(message: PolyglotMessage): string {
       id: message.id,
       promptPtBr: message.userPrompt,
       timestamp: message.timestamp,
+      cardVoices: voices,
       fullText: message.fullText,
       chunks: message.chunks.map((c) => ({
         id: c.id,
