@@ -69,7 +69,13 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy no Google Cloud Run
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          ENV_VARS="NODE_ENV=production,GCP_PROJECT_ID=${{ env.PROJECT_ID }}"
+          if [ -n "$GEMINI_API_KEY" ]; then
+            ENV_VARS="${ENV_VARS},GEMINI_API_KEY=${GEMINI_API_KEY}"
+          fi
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --project ${{ env.PROJECT_ID }} \
@@ -78,4 +84,4 @@ jobs:
             --allow-unauthenticated \
             --port 8080 \
             --quiet \
-            --update-env-vars NODE_ENV=production,GCP_PROJECT_ID=${{ env.PROJECT_ID }}
+            --update-env-vars "${ENV_VARS}"

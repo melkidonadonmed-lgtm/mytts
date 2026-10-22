@@ -31,6 +31,9 @@ COPY --from=builder /app/server.ts ./server.ts
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
+# Ensure local fallback directory exists and is writable by non-root user
+RUN mkdir -p /app/.data && chown -R node:node /app/.data
+
 # Run as non-root user
 USER node
 

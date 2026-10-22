@@ -27,10 +27,14 @@ const execFileAsync = promisify(execFile);
 
 dotenv.config();
 
-// Fail-fast: a chave da API Gemini é obrigatória para todos os fluxos principais do servidor
+// Validação da chave da API Gemini no boot (em Cloud Run, mantém o container ouvindo a porta para não derrubar o health probe)
 if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.trim() === '') {
-  console.error('[BOOT] FATAL: GEMINI_API_KEY não configurada. Defina-a no .env ou nas variáveis de ambiente antes de iniciar.');
-  process.exit(1);
+  if (process.env.K_SERVICE) {
+    console.error('[BOOT] WARN: GEMINI_API_KEY ausente no ambiente Cloud Run. Configure a variável de ambiente no serviço.');
+  } else {
+    console.error('[BOOT] FATAL: GEMINI_API_KEY não configurada. Defina-a no .env ou nas variáveis de ambiente antes de iniciar.');
+    process.exit(1);
+  }
 }
 
 const __filename = fileURLToPath(import.meta.url);

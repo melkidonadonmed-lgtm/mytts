@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Firestore } from '@google-cloud/firestore';
@@ -19,7 +20,10 @@ class LocalFsAdapter implements IChunkStorage {
   private filePath: string;
 
   constructor() {
-    this.dataDir = path.resolve(__dirname, '../../.data');
+    const defaultDir = process.env.K_SERVICE
+      ? path.join(os.tmpdir(), 'mytts-data')
+      : path.resolve(__dirname, '../../.data');
+    this.dataDir = defaultDir;
     this.filePath = path.join(this.dataDir, 'chunks.json');
     this.ensureDir();
   }
@@ -32,8 +36,19 @@ class LocalFsAdapter implements IChunkStorage {
       if (!fs.existsSync(this.filePath)) {
         fs.writeFileSync(this.filePath, JSON.stringify({}), 'utf-8');
       }
-    } catch (err: unknown) {
-      console.warn('[LocalFsAdapter] Aviso ao criar pasta .data:', err);
+    } catch {
+      try {
+        this.dataDir = path.join(os.tmpdir(), 'mytts-data');
+        this.filePath = path.join(this.dataDir, 'chunks.json');
+        if (!fs.existsSync(this.dataDir)) {
+          fs.mkdirSync(this.dataDir, { recursive: true });
+        }
+        if (!fs.existsSync(this.filePath)) {
+          fs.writeFileSync(this.filePath, JSON.stringify({}), 'utf-8');
+        }
+      } catch (fallbackErr: unknown) {
+        console.warn('[LocalFsAdapter] Aviso ao criar pasta de dados temporária:', fallbackErr);
+      }
     }
   }
 
