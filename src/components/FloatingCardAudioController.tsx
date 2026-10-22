@@ -57,9 +57,9 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
   };
 
   const languageLabels: Record<'en' | 'it' | 'ja', { title: string; flag: string; badge: string }> = {
-    en: { title: 'Inglês', flag: '🇺🇸', badge: 'US Native' },
-    it: { title: 'Italiano', flag: '🇮🇹', badge: 'Coloquial' },
-    ja: { title: 'Japonês', flag: '🇯🇵', badge: 'Tokyo Std' },
+    en: { title: 'Inglês', flag: 'EN', badge: 'US Native' },
+    it: { title: 'Italiano', flag: 'IT', badge: 'Coloquial' },
+    ja: { title: 'Japonês', flag: 'JA', badge: 'Tokyo Std' },
   };
 
   const progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
@@ -86,12 +86,12 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                   className="pill-nav-item px-3 py-1.5 text-xs inline-flex items-center gap-1.5 cursor-pointer btn-anti-squish"
                   title={`Focar card ${meta.title} (Voz: ${vName})`}
                 >
-                  <span className="text-sm leading-none">{meta.flag}</span>
+                  <span className="text-[10px] font-mono font-bold px-1 py-0.5 rounded bg-black/20">{meta.flag}</span>
                   <span>{meta.title}</span>
                   <span className="text-[10px] font-mono opacity-80">· {vName}</span>
                   {isCachedByLang?.[lang] && (
-                    <span className="text-[10px] font-mono font-bold leading-none" title="Áudio pronto no cache local (0ms)">
-                      ⚡
+                    <span className="text-[9px] font-mono tabular-nums font-bold leading-none text-emerald-300" title="Áudio pronto no cache local (0ms)">
+                      0ms
                     </span>
                   )}
                 </button>
@@ -189,8 +189,8 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                   <GoogleIcon name="play_arrow" size={20} filled className="text-white" />
                   <span>Ouvir {languageLabels[selectedLanguage].title} · {selectedVoice}</span>
                   {isCached && (
-                    <span className="text-[10px] font-mono bg-white/20 text-white px-1.5 py-0.5 rounded font-bold">
-                      ⚡ 0ms
+                    <span className="text-[10px] font-mono tabular-nums bg-white/20 text-white px-1.5 py-0.5 rounded font-bold">
+                      CACHE 0ms
                     </span>
                   )}
                 </>

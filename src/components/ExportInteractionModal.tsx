@@ -68,9 +68,9 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
         return [
           `RIFF WAVE PCM 16-bit · 24.000 Hz Mono (Cabeçalho Canônico de 44 Bytes)`,
           `-------------------------------------------------------------------`,
-          `Faixa 1 [🇺🇸 Inglês   · Voz ${messageWithVoices.cardVoices?.en || 'Puck'}]: "${messageWithVoices.fullText.en}"`,
-          `Faixa 2 [🇮🇹 Italiano · Voz ${messageWithVoices.cardVoices?.it || 'Kore'}]: "${messageWithVoices.fullText.it}"`,
-          `Faixa 3 [🇯🇵 Japonês  · Voz ${messageWithVoices.cardVoices?.ja || 'Aoede'}]: "${messageWithVoices.fullText.ja}"`,
+          `Faixa 1 [EN Inglês   · Voz ${messageWithVoices.cardVoices?.en || 'Puck'}]: "${messageWithVoices.fullText.en}"`,
+          `Faixa 2 [IT Italiano · Voz ${messageWithVoices.cardVoices?.it || 'Kore'}]: "${messageWithVoices.fullText.it}"`,
+          `Faixa 3 [JA Japonês  · Voz ${messageWithVoices.cardVoices?.ja || 'Aoede'}]: "${messageWithVoices.fullText.ja}"`,
         ].join('\n');
       case 'deck': {
         const cards = convertInteractionToFlashcards(messageWithVoices);

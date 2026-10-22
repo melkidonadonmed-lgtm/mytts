@@ -71,8 +71,8 @@
 
   /* Tipografia de Alta Nitidez (Zero Aspecto Borrado/Craquelado) */
   --text-primary: #FFFFFF;
-  --text-secondary: #ECEAF2;
-  --text-tertiary: #D4D1DE;
+  --text-secondary: #F3F1F8;
+  --text-tertiary: #DFDCE8;
   --text-on-accent: #ffffff;
 
   --accent-primary: #0284c7;
@@ -155,10 +155,10 @@
   html,
   body {
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-weight: 450;
-    letter-spacing: -0.006em;
-    -webkit-font-smoothing: subpixel-antialiased;
-    -moz-osx-font-smoothing: auto;
+    font-weight: 400;
+    letter-spacing: -0.008em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-optical-sizing: auto;
     font-synthesis: none;
@@ -171,17 +171,21 @@
     font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
     font-weight: 700;
     text-wrap: balance;
-    letter-spacing: -0.018em;
-    text-rendering: geometricPrecision;
+    letter-spacing: -0.02em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   p, blockquote, article, span, label, select, button {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-optical-sizing: auto;
   }
 
   code, pre, .font-mono {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-weight: 500;
     font-feature-settings: "tnum" 1, "zero" 1;
     font-variant-numeric: tabular-nums;
@@ -368,7 +372,7 @@
 }
 
 .btn-matte:hover {
-  transform: translateY(-1.5px);
+  transform: translateY(-2px);
 }
 
 .btn-matte:active {

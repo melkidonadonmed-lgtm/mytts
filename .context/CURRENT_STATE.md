@@ -18,6 +18,14 @@
 4. **Exportação Multi-Formato Revisada + Preview ao Vivo + Exportação WAV 24kHz**:
    - Corrigida duplicação de colunas no CSV Anki em [`src/utils/interactionExporter.ts`](../src/utils/interactionExporter.ts) e incluído metadado `cardVoices` nos relatórios Markdown e JSON.
    - Adicionado **Preview ao Vivo do Formato (`<pre>`)**, cópia rápida e exportação de **Áudio Master da Trilogia (`.wav` 24kHz concatenado EN + IT + JA)** em [`src/components/ExportInteractionModal.tsx`](../src/components/ExportInteractionModal.tsx), além de botão de download `.wav` individual em cada Card.
+5. **Nitidez Tipográfica, Ícones Vetoriais Lucide (`stroke-width: 1.75`), Zero Emojis e Zero Sobreposições**:
+   - Corrigida tipografia embaçada em [`src/index.css`](../src/index.css), [`src/styles/theme.css`](../src/styles/theme.css) e [`index.html`](../index.html): removido `font-weight: 450` (substituído por `400`/`500`/`600`/`700` discretos), aplicado `-webkit-font-smoothing: antialiased` e `-moz-osx-font-smoothing: grayscale`, eliminado deslocamento fracionário `translateY(-1.5px)` / `-translate-y-0.5` e elevado contraste de texto secundário/terciário.
+   - Substituída fonte de ligaturas genérica (`Material Symbols Rounded`) em [`src/components/GoogleIcon.tsx`](../src/components/GoogleIcon.tsx) por ícones SVG vetoriais `lucide-react` (`strokeWidth={1.75}`), e removidos todos os emojis da UI (`AUDIT-VIS-EMOJI` = 0 ocorrências).
+   - Eliminadas todas as sobreposições de layout:
+     - [`src/components/VoiceCardGrid.tsx`](../src/components/VoiceCardGrid.tsx): trocado `lg:grid-cols-5` fixo por `grid-cols-[repeat(auto-fit,minmax(185px,1fr))]` para evitar esmagamento de 5 colunas dentro do painel lateral de debate.
+     - [`src/components/LanguageColumnCard.tsx`](../src/components/LanguageColumnCard.tsx): cabeçalho reestruturado em 2 linhas para evitar colisão entre título/badge, seletor `<select>` de voz e botões de ação em larguras intermediárias (`1024px–1360px`).
+     - [`src/components/ParallelMessageBlock.tsx`](../src/components/ParallelMessageBlock.tsx): corrigido cálculo de coordenadas de [`src/components/ChunkActionMenu.tsx`](../src/components/ChunkActionMenu.tsx) (`position: fixed` relativo à viewport sem somar `window.scrollY`/`window.scrollX`, com flip automático acima do dock inferior).
+     - [`src/App.tsx`](../src/App.tsx), [`src/components/PolyglotChatStudio.tsx`](../src/components/PolyglotChatStudio.tsx) e [`src/components/FastChunkAudioApp.tsx`](../src/components/FastChunkAudioApp.tsx): headers internos configurados como `lg:sticky lg:top-0` para nunca colidirem com o header mobile fixo, além de barra de navegação rápida horizontal no mobile e `pb-40` para respiro sobre o dock.
 
 ## Testes Reais e Verificações Auditáveis
 - `npm run lint` (`tsc --noEmit`): Exit code `0` (0 erros).

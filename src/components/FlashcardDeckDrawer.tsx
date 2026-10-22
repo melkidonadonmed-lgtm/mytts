@@ -31,9 +31,9 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
   };
 
   const getLanguageFlag = (lang: string) => {
-    if (lang.includes('it')) return '🇮🇹';
-    if (lang.includes('ja')) return '🇯🇵';
-    return '🇺🇸';
+    if (lang.includes('it')) return 'IT';
+    if (lang.includes('ja')) return 'JP';
+    return 'EN';
   };
 
   return (
@@ -98,7 +98,9 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
                 {/* Topo do Card */}
                 <div className="flex items-center justify-between">
                   <span className="text-xs flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-300">
-                    <span className="text-base">{getLanguageFlag(card.language)}</span>
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                      {getLanguageFlag(card.language)}
+                    </span>
                     <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                       {card.language}
                     </span>
@@ -131,8 +133,9 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
 
                 {/* Pronúncia Fonética */}
                 {card.pronunciation && (
-                  <p className="text-[11px] font-mono text-amber-800 dark:text-amber-400/90 -mt-1 font-semibold">
-                    🗣️ {card.pronunciation}
+                  <p className="text-[11px] font-mono text-amber-800 dark:text-amber-400/90 -mt-1 font-semibold flex items-center gap-1.5">
+                    <GoogleIcon name="record_voice_over" size={13} className="text-amber-500 shrink-0" />
+                    <span>{card.pronunciation}</span>
                   </p>
                 )}
 

@@ -386,34 +386,68 @@ export default function App() {
       {/* 2. Área de Trabalho Principal (com margem para sidebar no desktop) */}
       <div className="flex-1 flex flex-col lg:pl-72 min-h-screen">
         
-        {/* Header Mobile com Hamburger */}
-        <header className="h-14 px-4 border-b border-slate-800/80 bg-slate-950 flex items-center justify-between lg:hidden sticky top-0 z-30">
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
-              aria-label="Abrir menu de navegação"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
-              <span>MyTTS</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
-                Studio
+        {/* Header Mobile com Hamburger e Atalho Rápido de Abas */}
+        <header className="px-4 py-2.5 border-b border-slate-800/80 dock-matte flex flex-col gap-2 lg:hidden sticky top-0 z-30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                aria-label="Abrir menu de navegação"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
+                <span>MyTTS</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+                  Studio
+                </span>
               </span>
-            </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsCommandPaletteOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300 hover:text-white cursor-pointer"
+                title="Abrir Paleta de Comandos (Ctrl+K)"
+              >
+                Ctrl+K
+              </button>
+              <div
+                className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-[10px] font-bold`}
+              >
+                {selectedVoice.name[0]}
+              </div>
+              <span className="text-xs font-bold text-slate-300 font-mono">
+                {selectedVoice.name}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-[10px] font-bold`}
-            >
-              {selectedVoice.name[0]}
-            </div>
-            <span className="text-xs font-bold text-slate-300 font-mono">
-              {selectedVoice.name}
-            </span>
-          </div>
+          {/* Navegação Horizontal Rápida no Mobile */}
+          <nav aria-label="Navegação rápida mobile" className="pill-nav-shell flex items-center gap-1 overflow-x-auto no-scrollbar">
+            {(
+              [
+                { id: 'polyglot', label: 'Poliglota' },
+                { id: 'reader', label: 'Estúdio' },
+                { id: 'debate', label: 'Debate (2)' },
+                { id: 'chunks', label: 'FastChunks' },
+                { id: 'voices', label: 'Vozes' },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                data-active={activeTab === item.id}
+                onClick={() => handleNavigateTab(item.id)}
+                className="pill-nav-item px-3 py-1 text-[11px] font-semibold whitespace-nowrap cursor-pointer shrink-0"
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
         </header>
 
         {/* Banner de Erro Global */}

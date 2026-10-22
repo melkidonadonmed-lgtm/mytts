@@ -782,7 +782,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     <div className="flex-1 flex flex-col min-h-screen font-sans">
       
       {/* 1. Header Minimalista do Estúdio Poliglota + Perfis Favoritos de Voz por Idioma */}
-      <header className="sticky top-0 z-20 dock-matte px-4 sm:px-6 py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+      <header className="lg:sticky lg:top-0 z-20 dock-matte px-4 sm:px-6 py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400">
@@ -792,7 +792,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
               <h1 className="text-sm sm:text-base font-bold text-primary flex items-center gap-2 font-display">
                 <span>Chat Poliglota Multimodal</span>
                 <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-                  🇺🇸 EN • 🇮🇹 IT • 🇯🇵 JA
+                  EN • IT • JA
                 </span>
               </h1>
               <p className="text-[11px] text-secondary">
@@ -810,7 +810,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
           >
             <GoogleIcon name="style" size={16} className="text-amber-400" />
             <span>Deck</span>
-            <span className="bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums">
+            <span className="bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums">
               {deck.length}
             </span>
           </button>
@@ -829,9 +829,9 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
             {(
               [
-                { code: 'en', flag: '🇺🇸', label: 'EN' },
-                { code: 'it', flag: '🇮🇹', label: 'IT' },
-                { code: 'ja', flag: '🇯🇵', label: 'JA' },
+                { code: 'en', flag: 'EN', label: 'EN' },
+                { code: 'it', flag: 'IT', label: 'IT' },
+                { code: 'ja', flag: 'JA', label: 'JA' },
               ] as const
             ).map((item) => (
               <label
@@ -839,8 +839,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-black/15 hover:bg-black/25 text-[11px] font-bold cursor-pointer transition-colors"
                 title={`Voz favorita padrão para novos cards em ${item.label}`}
               >
-                <span>{item.flag}</span>
-                <span>{item.label}:</span>
+                <span className="font-mono text-[10px] opacity-80">{item.label}:</span>
                 <select
                   aria-label={`Voz favorita para ${item.label}`}
                   value={defaultVoiceByLang[item.code]}
@@ -876,7 +875,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
           >
             <GoogleIcon name="style" size={16} className="text-amber-400" />
             <span>Meu Deck</span>
-            <span className="bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums">
+            <span className="bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums">
               {deck.length}
             </span>
           </button>
@@ -891,8 +890,8 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         </div>
       )}
 
-      {/* 3. Feed de Mensagens do Chat (Canvas Multi-Pane) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-32 flex flex-col gap-6">
+      {/* 3. Feed de Mensagens do Chat (Canvas Multi-Pane com espaçamento seguro para o Dock) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-40 flex flex-col gap-6">
         {messages.map((message) => {
           const selectedLang = selectedLanguageByMsg[message.id] || 'en';
           const cardVoices = getCardVoicesForMessage(message.id);

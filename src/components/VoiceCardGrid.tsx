@@ -113,7 +113,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
     <div
       role="radiogroup"
       aria-label="Seleção de Vozes Neurais"
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3"
+      className="grid grid-cols-[repeat(auto-fit,minmax(185px,1fr))] gap-3"
     >
       {GEMINI_VOICES.map((voice) => {
         const isSelectedSolo = !multiSpeakerMode && selectedVoice?.id === voice.id;

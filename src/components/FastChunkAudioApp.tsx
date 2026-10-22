@@ -174,11 +174,11 @@ export const FastChunkAudioApp: React.FC = () => {
     return newId;
   }, []);
 
-  // Idiomas disponíveis com bandeiras e identificadores
+  // Idiomas disponíveis com códigos técnicos e identificadores
   const languages: { code: TargetLang; label: string; flag: string }[] = [
-    { code: 'en-US', label: 'Inglês', flag: '🇺🇸' },
-    { code: 'it-IT', label: 'Italiano', flag: '🇮🇹' },
-    { code: 'ja-JP', label: 'Japonês', flag: '🇯🇵' },
+    { code: 'en-US', label: 'Inglês', flag: 'EN' },
+    { code: 'it-IT', label: 'Italiano', flag: 'IT' },
+    { code: 'ja-JP', label: 'Japonês', flag: 'JA' },
   ];
 
   // Interrompe o áudio caso o componente desmonte ou mude de idioma
@@ -457,17 +457,17 @@ export const FastChunkAudioApp: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 selection:bg-amber-500/20">
       
-      {/* 1. Header Focado e Rápido */}
-      <header className="sticky top-0 z-30 bg-slate-950 border-b border-slate-800/80 px-4 py-3.5 sm:px-6">
+      {/* 1. Header Focado e Rápido (Sticky apenas no desktop para evitar colisão com header mobile) */}
+      <header className="lg:sticky lg:top-0 z-20 dock-matte border-b border-slate-800/80 px-4 py-3.5 sm:px-6">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Sparkles className="h-5 w-5 fill-current" />
+              <Sparkles className="h-5 w-5" />
             </div>
             <div>
               <h1 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
                 FastChunks
-                <span className="text-[10px] font-mono bg-amber-400/10 text-amber-300 border border-amber-400/20 rounded-full px-2 py-0.2">
+                <span className="text-[10px] font-mono bg-amber-400/10 text-amber-300 border border-amber-400/20 rounded-full px-2 py-0.5">
                   Áudio Direto
                 </span>
               </h1>
@@ -481,7 +481,7 @@ export const FastChunkAudioApp: React.FC = () => {
               <button
                 key={rate}
                 onClick={() => setPlaybackRate(rate)}
-                className={`min-h-[32px] px-2.5 rounded-md text-xs font-mono font-semibold transition-all cursor-pointer ${
+                className={`min-h-[32px] px-2.5 rounded-md text-xs font-mono tabular-nums font-semibold transition-all cursor-pointer ${
                   playbackRate === rate
                     ? 'bg-amber-400 text-slate-950 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -516,7 +516,9 @@ export const FastChunkAudioApp: React.FC = () => {
                     : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                 }`}
               >
-                <span className="text-base">{lang.flag}</span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/25 border border-white/10">
+                  {lang.flag}
+                </span>
                 <span>{lang.label}</span>
               </button>
             );
@@ -528,8 +530,8 @@ export const FastChunkAudioApp: React.FC = () => {
           onClick={() => setIsModalOpen(true)}
           className="min-h-[46px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
         >
-          <Sparkles className="w-4 h-4 fill-current" />
-          <span>✨ Extrair ou Criar Chunks com Gemini AI</span>
+          <Sparkles className="w-4 h-4" />
+          <span>Extrair ou Criar Chunks com Gemini AI</span>
         </button>
 
         {/* Campo de Busca Rápida de Situação / Expressão */}
@@ -601,10 +603,10 @@ export const FastChunkAudioApp: React.FC = () => {
                       </span>
                       {cachedChunkIds.has(item.id) && (
                         <span
-                          className="text-[9px] font-mono font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/25 flex items-center gap-0.5"
+                          className="text-[9px] font-mono tabular-nums font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/25 flex items-center gap-0.5"
                           title="Áudio persistido no cache local IndexedDB (0ms de latência)"
                         >
-                          <span>⚡ 0ms</span>
+                          <span>CACHE 0ms</span>
                         </span>
                       )}
                       {item.isCustom && (
@@ -646,8 +648,9 @@ export const FastChunkAudioApp: React.FC = () => {
 
                   {/* Guia Fonético */}
                   {item.pronunciationHint && (
-                    <p className="text-xs font-mono text-amber-400/80 mb-2">
-                      🗣️ {item.pronunciationHint}
+                    <p className="text-xs font-mono text-amber-400/80 mb-2 flex items-center gap-1.5">
+                      <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>/{item.pronunciationHint}/</span>
                     </p>
                   )}
 
@@ -682,9 +685,9 @@ export const FastChunkAudioApp: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <Sparkles className={`w-3.5 h-3.5 fill-current ${cachedChunkIds.has(item.id) ? 'text-emerald-400' : 'text-amber-400'}`} />
+                          <Sparkles className={`w-3.5 h-3.5 ${cachedChunkIds.has(item.id) ? 'text-emerald-400' : 'text-amber-400'}`} />
                           <span>
-                            {isSpeaking ? 'Tocando...' : cachedChunkIds.has(item.id) ? '⚡ Neural (0ms)' : 'Voz Neural IA'}
+                            {isSpeaking ? 'Tocando...' : cachedChunkIds.has(item.id) ? 'Neural (0ms)' : 'Voz Neural IA'}
                           </span>
                         </>
                       )}

@@ -134,7 +134,9 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-xl leading-none">{lang.flag}</span>
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 border border-slate-700/80 leading-none shrink-0">
+                    {lang.flag}
+                  </span>
                   <div className="truncate">
                     <p className={`text-xs font-semibold truncate ${isSelected ? 'text-sky-900 dark:text-sky-200' : 'text-slate-800 dark:text-slate-200'}`}>
                       {lang.nativeName}

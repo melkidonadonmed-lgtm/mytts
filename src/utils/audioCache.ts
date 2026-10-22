@@ -306,7 +306,7 @@ export async function isAudioCached(key: string): Promise<boolean> {
 
 /**
  * Consulta em lote o status de cache para uma lista de chaves.
- * Útil para marcar badges visuais "⚡ Em cache" na interface sem overhead de memória.
+ * Útil para marcar badges visuais "Em cache (0ms)" na interface sem overhead de memória.
  */
 export async function getCachedKeySet(keys: string[]): Promise<Set<string>> {
   const cachedSet = new Set<string>();

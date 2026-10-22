@@ -97,25 +97,25 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     {
       id: 'natural',
       label: 'Natural & Fluido',
-      icon: '🌿',
+      icon: '01',
       desc: 'Ritmo equilibrado de fala humana com respirações orgânicas nos pontos e vírgulas.',
     },
     {
       id: 'storytelling',
       label: 'Narrativo & Envolvente',
-      icon: '📖',
+      icon: '02',
       desc: 'Cadência rica de audiolivro, com modulação acolhedora e pausas para reflexão.',
     },
     {
       id: 'technical',
       label: 'Técnico & Notícia',
-      icon: '🏛️',
+      icon: '03',
       desc: 'Dicção cristalina, ritmo firme e profissional para relatórios e análises.',
     },
     {
       id: 'spontaneous',
       label: 'Espontâneo & Conversa',
-      icon: '☕',
+      icon: '04',
       desc: 'Inflexão descontraída e ágil, como em um podcast ou diálogo informal.',
     },
   ];
@@ -450,8 +450,10 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                           : 'bg-slate-100 dark:bg-slate-900/60 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-900'
                       }`}
                     >
-                      <span className="text-xs font-bold flex items-center gap-1">
-                        <span>{preset.icon}</span>
+                      <span className="text-xs font-bold flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-black/20 text-amber-300 border border-white/10">
+                          {preset.icon}
+                        </span>
                         <span>{preset.label}</span>
                       </span>
                       <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">

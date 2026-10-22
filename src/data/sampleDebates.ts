@@ -5,7 +5,7 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
     code: 'pt-BR',
     name: 'Português (Brasil)',
     nativeName: 'Português',
-    flag: '🇧🇷',
+    flag: 'BR',
     defaultSpeakers: [
       {
         id: 'speaker1',
@@ -31,7 +31,7 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
     code: 'en-US',
     name: 'English (US)',
     nativeName: 'English',
-    flag: '🇺🇸',
+    flag: 'US',
     defaultSpeakers: [
       {
         id: 'speaker1',
@@ -57,7 +57,7 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
     code: 'it-IT',
     name: 'Italiano',
     nativeName: 'Italiano',
-    flag: '🇮🇹',
+    flag: 'IT',
     defaultSpeakers: [
       {
         id: 'speaker1',
@@ -83,7 +83,7 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
     code: 'ja-JP',
     name: 'Japanese',
     nativeName: '日本語',
-    flag: '🇯🇵',
+    flag: 'JP',
     defaultSpeakers: [
       {
         id: 'speaker1',

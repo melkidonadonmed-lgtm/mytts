@@ -61,7 +61,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-white/[0.04]',
     text: 'text-slate-300',
     border: 'border-white/[0.08]',
-    icon: '💭',
+    icon: '~',
   },
   inquisitive: {
     label: 'Inquisitive',
@@ -69,7 +69,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-white/[0.04]',
     text: 'text-slate-300',
     border: 'border-white/[0.08]',
-    icon: '🔍',
+    icon: '?',
   },
   skeptical: {
     label: 'Skeptical',
@@ -77,7 +77,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-white/[0.04]',
     text: 'text-slate-300',
     border: 'border-white/[0.08]',
-    icon: '🤨',
+    icon: '!',
   },
   ironic: {
     label: 'Ironic',
@@ -85,7 +85,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-amber-500/10',
     text: 'text-amber-300',
     border: 'border-amber-500/25',
-    icon: '😏',
+    icon: '≠',
   },
   passionate: {
     label: 'Passionate',
@@ -93,7 +93,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-amber-500/10',
     text: 'text-amber-300',
     border: 'border-amber-500/25',
-    icon: '🔥',
+    icon: '+',
   },
   resolute: {
     label: 'Resolute',
@@ -101,7 +101,7 @@ const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: strin
     bg: 'bg-white/[0.04]',
     text: 'text-slate-300',
     border: 'border-white/[0.08]',
-    icon: '⚡',
+    icon: '→',
   },
 };
 
@@ -260,7 +260,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
     bg: 'bg-slate-800',
     text: 'text-slate-300',
     border: 'border-slate-700',
-    icon: '🎙️',
+    icon: '•',
   };
 
   const prosody = currentTurn?.prosody || {
@@ -763,7 +763,9 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                               />
                             )}
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-lg">{preset.icon}</span>
+                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 border border-slate-700/80">
+                                {preset.icon}
+                              </span>
                               {isSelected && (
                                 <span className="flex h-2 w-2 relative">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />

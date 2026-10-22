@@ -74,12 +74,23 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
 
   const handleClickChunk = (chunkText: string, language: string, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const menuHeight = 178;
+    const menuWidth = 285;
+    // Posicionamento relativo à viewport (fixed) com flip automático acima se próximo ao dock inferior
+    const shouldFlipUp = rect.bottom + menuHeight + 90 > viewportHeight;
+    const safeTop = shouldFlipUp
+      ? Math.max(16, rect.top - menuHeight - 8)
+      : Math.max(16, rect.bottom + 8);
+    const safeLeft = Math.max(16, Math.min(viewportWidth - menuWidth - 16, rect.left));
+
     setActiveMenu({
       chunkText,
       language,
       position: {
-        top: rect.bottom + window.scrollY + 6,
-        left: rect.left + window.scrollX,
+        top: safeTop,
+        left: safeLeft,
       },
     });
   };
@@ -143,11 +154,11 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
         <div className="flex flex-col gap-2">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-stretch">
             
-            {/* Coluna 🇺🇸 Inglês */}
+            {/* Coluna EN Inglês */}
             <LanguageColumnCard
               languageCode="en"
               languageTitle="Inglês"
-              flag="🇺🇸"
+              flag="EN"
               badgeText="US Native"
               chunks={message.chunks}
               fullText={message.fullText.en}
@@ -165,11 +176,11 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               onClickChunk={handleClickChunk}
             />
 
-            {/* Coluna 🇮🇹 Italiano */}
+            {/* Coluna IT Italiano */}
             <LanguageColumnCard
               languageCode="it"
               languageTitle="Italiano"
-              flag="🇮🇹"
+              flag="IT"
               badgeText="Coloquial"
               chunks={message.chunks}
               fullText={message.fullText.it}
@@ -187,11 +198,11 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
               onClickChunk={handleClickChunk}
             />
 
-            {/* Coluna 🇯🇵 Japonês */}
+            {/* Coluna JA Japonês */}
             <LanguageColumnCard
               languageCode="ja"
               languageTitle="Japonês"
-              flag="🇯🇵"
+              flag="JA"
               badgeText="Tokyo Std"
               chunks={message.chunks}
               fullText={message.fullText.ja}

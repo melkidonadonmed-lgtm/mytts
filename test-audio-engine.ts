@@ -129,7 +129,7 @@ test('Suite 05: Calibração Fonética PT-BR, Sanitização de Tags e Casos de B
   const longSentence =
     'Este é um parágrafo bastante extenso que discute os fundamentos da inteligência artificial generativa e da síntese neural de voz, explicando como modelos modernos conseguem simular o ritmo biológico e a cadência humana sem ruídos digitais perceptíveis.';
   const dirtyText =
-    `Excelente novidade! 🚀 O pacote custa R$ 1.500,00 e o link é ${EXTERNAL_LINKS.SAMPLE_AUDIT_URL}. Veja o log: console.log("ok");`;
+    `Excelente novidade! \u{1F680} O pacote custa R$ 1.500,00 e o link é ${EXTERNAL_LINKS.SAMPLE_AUDIT_URL}. Veja o log: console.log("ok");`;
 
   // 2. ACT
   const naturalPrompt = getEmotionStyle('natural', 1.0);
@@ -154,7 +154,7 @@ test('Suite 05: Calibração Fonética PT-BR, Sanitização de Tags e Casos de B
   assert.ok(prosodyResult.includes('...') || prosodyResult.includes('—'));
   assert.ok(cleanEdgeCase.includes('R$ 1.500,00'));
   assert.ok(cleanEdgeCase.includes(EXTERNAL_LINKS.SAMPLE_AUDIT_URL));
-  assert.ok(cleanEdgeCase.includes('🚀'));
+  assert.ok(cleanEdgeCase.includes('\u{1F680}'));
   assert.ok(cleanEdgeCase.includes('console.log("ok");'));
 });
 
@@ -345,7 +345,7 @@ test('Suite 08: Exportador Multi-Formato de Interação Poliglota (Anki, MD, JSO
 import { runContractTests } from './tests/audio-engine.test';
 
 async function runAllTests(): Promise<void> {
-  console.log('🧪 Iniciando Verificação Determinística de Engenharia de Áudio (mytts — Nível 4)...\n');
+  console.log('[TEST] Iniciando Verificação Determinística de Engenharia de Áudio (mytts — Nível 4)...\n');
   let passed = 0;
   for (const t of registeredTests) {
     await t.fn();
@@ -354,10 +354,10 @@ async function runAllTests(): Promise<void> {
   }
   const contractPassed = await runContractTests();
   const totalPassed = passed + contractPassed;
-  console.log(`\n🎉 ${totalPassed}/${totalPassed} suítes concluídas com 100% de conformidade Nível 4!`);
+  console.log(`\n[PASS] ${totalPassed}/${totalPassed} suítes concluídas com 100% de conformidade Nível 4!`);
 }
 
 runAllTests().catch((err: unknown) => {
-  console.error('❌ Falha na suíte de testes:', err);
+  console.error('[FAIL] Falha na suíte de testes:', err);
   process.exit(1);
 });
