@@ -269,7 +269,7 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
             <button
               type="button"
               onClick={() => setActiveMobileSpeaker(0)}
-              className={`min-h-[38px] px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+              className={`min-h-[44px] px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 activeMobileSpeaker === 0
                   ? 'bg-sky-500/20 text-sky-300 border border-sky-400/30'
                   : 'text-slate-400'
@@ -280,7 +280,7 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
             <button
               type="button"
               onClick={() => setActiveMobileSpeaker(1)}
-              className={`min-h-[38px] px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+              className={`min-h-[44px] px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 activeMobileSpeaker === 1
                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
                   : 'text-slate-400'

@@ -528,7 +528,7 @@ export const FastChunkAudioApp: React.FC = () => {
         {/* Botão de Destaque: Gerar com IA / Extrair Chunks */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="min-h-[46px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
+          className="min-h-[48px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
         >
           <Sparkles className="w-4 h-4" />
           <span>Extrair ou Criar Chunks com Gemini AI</span>
@@ -541,7 +541,7 @@ export const FastChunkAudioApp: React.FC = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por situação (ex: topo, relaxa, resumindo)..."
-            className="min-h-[46px] w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 pl-10 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-400/70 focus:outline-none transition-colors"
+            className="min-h-[48px] w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 pl-10 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-400/70 focus:outline-none transition-colors"
           />
           <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
         </div>

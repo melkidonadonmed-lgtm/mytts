@@ -170,7 +170,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                     e.stopPropagation();
                     previewVoice(voice);
                   }}
-                  className={`flex-1 min-h-[42px] rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
+                  className={`flex-1 min-h-[44px] rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
                     isPlaying
                       ? 'btn-matte btn-matte-amber text-white font-bold shadow-sm'
                       : 'btn-matte btn-matte-dark text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white'
@@ -201,7 +201,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
                     e.stopPropagation();
                     onSelectVoice(voice);
                   }}
-                  className={`min-h-[42px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:translate-y-px ${
+                  className={`min-h-[44px] px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:translate-y-px ${
                     isSelected
                       ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 cursor-default'
                       : 'btn-matte btn-matte-amber text-white shadow-sm'

@@ -157,7 +157,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
           )}
         </div>
       ) : (
-        <label className="relative flex flex-col items-center justify-center min-h-[180px] rounded-xl border-2 border-dashed border-slate-800 hover:border-amber-400/50 bg-slate-950/50 p-6 text-center transition-all cursor-pointer group">
+        <label className="relative flex flex-col items-center justify-center min-h-[128px] rounded-xl border-2 border-dashed border-slate-800 hover:border-amber-400/50 bg-slate-950/50 p-6 text-center transition-all cursor-pointer group">
           <input
             type="file"
             accept=".pdf,.txt,.md,.json"
@@ -202,12 +202,12 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
           </span>
         </div>
 
-        {/* Botão de Geração com Altura Ergonômica de 50px */}
+        {/* Botão de Geração com Altura Ergonômica de 56px */}
         <button
           type="button"
           onClick={onGenerateDebate}
           disabled={!textInput.trim() || isGenerating}
-          className="min-h-[50px] w-full sm:w-auto px-6 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+          className="min-h-[56px] w-full sm:w-auto px-6 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
         >
           {isGenerating ? (
             <>

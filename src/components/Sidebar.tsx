@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
 import { EXTERNAL_LINKS } from '../config/constants';
@@ -73,6 +73,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
       description: 'Catálogo e audição de amostras',
     },
   ];
+
+  // Suporte a tecla Escape e bloqueio de rolagem do body quando o drawer mobile está aberto
+  useEffect(() => {
+    if (!isOpenMobile) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onToggleMobile();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpenMobile, onToggleMobile]);
 
   return (
     <>
@@ -208,6 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={item.id}
                 type="button"
+                aria-current={isActive ? 'page' : undefined}
                 onClick={() => {
                   onSelectTab(item.id);
                   if (isOpenMobile) onToggleMobile();
@@ -279,7 +297,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       role="radio"
                       aria-checked={isSelected}
                       onClick={() => onSelectPreset(presetKey)}
-                      className={`min-h-[34px] px-1 py-1 rounded-lg text-[10px] font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer btn-anti-squish ${
+                      className={`min-h-[44px] px-1 py-1 rounded-lg text-[10px] font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer btn-anti-squish ${
                         isSelected
                           ? 'card-matte-active text-primary font-bold'
                           : 'text-secondary hover:text-primary'
@@ -303,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleTheme}
-              className="w-full min-h-[38px] px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs font-semibold cursor-pointer transition-all active:translate-y-px"
+              className="w-full min-h-[44px] px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs font-semibold cursor-pointer transition-all active:translate-y-px"
               title="Alternar entre Cinza Studio (Escuro) e Ad Lucem (Claro Moderno)"
             >
               <div className="flex items-center gap-2">

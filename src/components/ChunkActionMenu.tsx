@@ -65,7 +65,7 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
         top: `${Math.max(10, position.top)}px`,
         left: `${Math.max(10, Math.min(window.innerWidth - 300, position.left))}px`,
       }}
-      className="fixed z-50 dock-matte rounded-2xl p-2.5 flex flex-col gap-1.5 min-w-[250px] max-w-[320px] animate-in fade-in zoom-in-95 duration-150"
+      className="fixed z-50 dock-matte rounded-2xl p-2.5 flex flex-col gap-1.5 min-w-[240px] max-w-[280px] animate-in fade-in zoom-in-95 duration-150"
       role="dialog"
       aria-label="Ações para o trecho de texto"
     >
@@ -87,7 +87,7 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
         type="button"
         onClick={() => onPlayChunkAudio(chunkText, language)}
         disabled={isPlaying}
-        className="btn-matte btn-matte-dark w-full min-h-[38px] px-3 py-2 text-xs text-slate-800 dark:text-slate-200 justify-start"
+        className="btn-matte btn-matte-dark w-full min-h-[44px] px-3 py-2 text-xs text-slate-800 dark:text-slate-200 justify-start"
       >
         {isPlaying ? (
           <>
@@ -107,7 +107,7 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
         type="button"
         onClick={() => onCreateFlashcard(chunkText, language)}
         disabled={isGeneratingCard}
-        className="btn-matte btn-matte-amber w-full min-h-[38px] px-3 py-2 text-xs font-bold text-white justify-start"
+        className="btn-matte btn-matte-amber w-full min-h-[44px] px-3 py-2 text-xs font-bold text-white justify-start"
       >
         {isGeneratingCard ? (
           <>
@@ -126,7 +126,7 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
       <button
         type="button"
         onClick={handleCopy}
-        className="btn-matte w-full min-h-[32px] px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-[11px] justify-start"
+        className="btn-matte w-full min-h-[44px] px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-[11px] justify-start"
       >
         {copied ? (
           <>

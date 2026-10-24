@@ -441,8 +441,9 @@ export default function App() {
                 key={item.id}
                 type="button"
                 data-active={activeTab === item.id}
+                aria-current={activeTab === item.id ? 'page' : undefined}
                 onClick={() => handleNavigateTab(item.id)}
-                className="pill-nav-item px-3 py-1 text-[11px] font-semibold whitespace-nowrap cursor-pointer shrink-0"
+                className="pill-nav-item min-h-[32px] px-3 py-1 text-[11px] font-semibold whitespace-nowrap cursor-pointer shrink-0"
               >
                 {item.label}
               </button>

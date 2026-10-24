@@ -76,7 +76,7 @@
       font-family: var(--font-mono);
       font-size: var(--step-mono);
       font-variant-numeric: tabular-nums;
-      padding: 4px 10px;
+      padding: 4px 12px;
       border: 1px solid currentColor;
       border-radius: 6px;
       flex-shrink: 0;
@@ -110,14 +110,14 @@
 
     th, td {
       text-align: left;
-      padding: 10px 12px;
+      padding: 8px 12px;
       border-bottom: 1px solid rgba(128, 128, 128, 0.25);
     }
 
     /* Cores Semânticas Exclusivas para Diff Arquitetural (V1 vs V2) */
-    .diff-removed { color: #b91c1c; background: #fef2f2; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
-    .diff-modified { color: #b45309; background: #fffbeb; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
-    .diff-added { color: #047857; background: #ecfdf5; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
+    .diff-removed { color: #b91c1c; background: #fef2f2; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
+    .diff-modified { color: #b45309; background: #fffbeb; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
+    .diff-added { color: #047857; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -192,7 +192,7 @@
     <!-- Ilha 2: Histórico Simples V1 -> V2 -->
     <article class="island">
       <h2>2. Histórico de Resolução (V1 vs V2)</h2>
-      <ul style="list-style: none; display: grid; gap: 10px;">
+      <ul style="list-style: none; display: grid; gap: 8px;">
         <li>
           <span class="mono-badge diff-removed">[REMOVIDO V1]</span>
           Corte de 3 features cosméticas fora do MVP e eliminação de 5 strings/limites hardcoded na camada de UI.

@@ -264,7 +264,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                 className="btn-matte btn-matte-dark px-3 py-1 text-xs text-secondary hover:text-primary rounded-xl shrink-0 font-medium cursor-pointer"
                 title={sug}
               >
-                <span className="truncate max-w-[260px]">{sug}</span>
+                <span className="truncate max-w-[240px]">{sug}</span>
               </button>
             ))}
           </div>
@@ -274,7 +274,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
         {attachedFileName && (
           <div className="flex items-center gap-2 text-xs text-amber-300 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-xl w-fit">
             <GoogleIcon name="description" size={16} />
-            <span className="truncate max-w-[220px] font-medium">{attachedFileName}</span>
+            <span className="truncate max-w-[240px] font-medium">{attachedFileName}</span>
             <button
               type="button"
               onClick={() => setAttachedFileName(null)}
@@ -367,7 +367,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               placeholder="Digite, cole um texto ou use o atalho Live Mic para alinhar em 3 idiomas..."
               rows={1}
               disabled={isLoading}
-              className="w-full bg-transparent border-0 text-primary placeholder-slate-400 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-40 min-h-[38px] leading-relaxed"
+              className="w-full bg-transparent border-0 text-primary placeholder-slate-400 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-40 min-h-[44px] leading-relaxed"
             />
             {inputText && (
               <button

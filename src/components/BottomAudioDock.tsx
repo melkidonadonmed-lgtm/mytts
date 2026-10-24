@@ -1015,8 +1015,8 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                     title={isDucking ? 'Auto-Ducking ativo na fala' : 'Trilha sonora ativa'}
                   >
                     <span>{currentPresetMeta.icon}</span>
-                    <span className="truncate max-w-[65px] sm:max-w-none">{currentPresetMeta.ptName.split(' ')[0]}</span>
-                    {isDucking && <span className="text-[9px] text-amber-400 font-bold hidden sm:inline">-14dB</span>}
+                    <span className="truncate max-w-[64px] sm:max-w-none">{currentPresetMeta.ptName.split(' ')[0]}</span>
+                    {isDucking && <span className="text-[10px] text-amber-400 font-bold hidden sm:inline">-14dB</span>}
                   </span>
                 ) : (
                   <span
@@ -1105,7 +1105,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               type="button"
               onClick={handleCycleSpeed}
               aria-label={`Velocidade atual: ${playbackRate}x. Toque para alterar.`}
-              className="flex min-h-[44px] min-w-[44px] sm:min-w-[52px] items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-slate-200 hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm"
+              className="flex min-h-[44px] min-w-[44px] sm:min-w-[56px] items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-slate-200 hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm"
             >
               <Gauge className="w-3.5 h-3.5 hidden sm:block text-slate-400" />
               <span>{playbackRate.toFixed(2).replace(/\.00$/, '')}x</span>

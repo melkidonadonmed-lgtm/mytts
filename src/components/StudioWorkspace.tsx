@@ -551,7 +551,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               type="button"
               onClick={() => handleSoloSynthesizeAndPlay(false)}
               disabled={isSoloSynthesizing || !text.trim()}
-              className="btn-matte-primary w-full sm:flex-1 min-h-[52px] rounded-2xl text-white font-bold text-sm tracking-normal flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
+              className="btn-matte-primary w-full sm:flex-1 min-h-[56px] rounded-2xl text-white font-bold text-sm tracking-normal flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
             >
               {isSoloSynthesizing ? (
                 <>
@@ -581,7 +581,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   type="button"
                   onClick={() => handleSoloSynthesizeAndPlay(true)}
                   disabled={isSoloSynthesizing || !text.trim()}
-                  className="w-full sm:w-auto min-h-[52px] px-4 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px disabled:opacity-50"
+                  className="w-full sm:w-auto min-h-[56px] px-4 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px disabled:opacity-50"
                   title="Gerar nova síntese forçada com a voz ativa atual"
                 >
                   <RotateCw className="w-4 h-4 text-sky-400" />
@@ -591,7 +591,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 <button
                   type="button"
                   onClick={handleDownloadSoloWav}
-                  className="w-full sm:w-auto min-h-[52px] px-5 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px"
+                  className="w-full sm:w-auto min-h-[56px] px-5 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px"
                   title="Baixar arquivo WAV canônico (24kHz)"
                 >
                   <Download className="w-4 h-4 text-emerald-400" />
@@ -723,7 +723,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             type="button"
             onClick={handleTriggerDebate}
             disabled={isGeneratingDebate || isSynthesizingDebate || !text.trim()}
-            className="min-h-[52px] w-full rounded-2xl btn-matte-primary text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
+            className="min-h-[56px] w-full rounded-2xl btn-matte-primary text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
           >
             {isGeneratingDebate ? (
               <>

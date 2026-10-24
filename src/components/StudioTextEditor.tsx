@@ -239,7 +239,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={handlePasteClipboard}
-            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
+            className="btn-matte-dark min-h-[44px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
             title="Colar texto da área de transferência"
           >
             <Clipboard className="w-4 h-4 text-amber-400" />
@@ -250,7 +250,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="btn-matte-dark min-h-[40px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
+            className="btn-matte-dark min-h-[44px] px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px"
             title="Carregar PDF, TXT ou Markdown"
           >
             <UploadCloud className="w-4 h-4 text-sky-400" />
@@ -268,7 +268,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={toggleDictation}
-            className={`min-h-[40px] px-4 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px border ${
+            className={`min-h-[44px] px-4 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px border ${
               isDictating
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
                 : 'btn-matte-dark'
@@ -294,7 +294,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           {uploadedFileName && (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800/80 text-[11px] text-emerald-900 dark:text-emerald-300 font-medium">
               <FileCheck2 className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[140px]">{uploadedFileName}</span>
+              <span className="truncate max-w-[128px]">{uploadedFileName}</span>
             </div>
           )}
 
@@ -306,7 +306,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
                 else onChangeText('');
                 setUploadedFileName(null);
               }}
-              className="min-h-[40px] px-3 rounded-xl btn-matte-dark text-slate-700 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+              className="min-h-[44px] px-3 rounded-xl btn-matte-dark text-slate-700 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
               title="Limpar editor"
             >
               <Trash2 className="w-3.5 h-3.5" />
