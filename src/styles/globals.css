@@ -4,12 +4,33 @@
    ========================================================================== */
 
 :root {
+  /* Camada 1: Tokens Primitivos Perceptuais (OKLCH & Escala Modular Base-4 / Base-8) */
+  --primitive-gray-500: oklch(0.45 0.015 295);
+  --primitive-gray-600: oklch(0.40 0.015 295);
+  --primitive-gray-700: oklch(0.36 0.015 295);
+  --primitive-gray-400: oklch(0.49 0.015 295);
+  --primitive-sky-500: oklch(0.71 0.13 225);
+  --primitive-amber-500: oklch(0.68 0.16 65);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
   /* Pilha de 4+1 Camadas Tonais (Padrão Áudio Studio: Cinza sobre Cinza Monolítico) */
   --surface-canvas: #57545d;
   --surface-inset: #3e3b44;
   --surface-flat: #49464f;
   --surface-raised: #635f6a;
   --surface-contrast: #232127;
+
+  /* Camada 2: Tokens Semânticos Adaptativos (OKLCH + light-dark + color-mix) */
+  --ink-primary: light-dark(oklch(0.18 0.01 285), oklch(0.97 0.005 285));
+  --ink-secondary: light-dark(oklch(0.36 0.01 285), oklch(0.90 0.01 285));
+  --border-semantic: color-mix(in oklab, var(--ink-primary) 16%, transparent);
 
   --text-primary: #F7F6F9;
   --text-secondary: #DFDDE4;
@@ -26,20 +47,29 @@
   --accent-sapphire: #0284C7;
   --accent-soft-bg: rgba(53, 172, 216, 0.14);
 
-  /* Sombra Esculpida 3 Camadas + 1px Rim Light */
+  /* Sombra Esculpida 3 Camadas + 1px Rim Light (3 Níveis de Elevação Canônicos) */
   --rim-light: rgba(255, 255, 255, 0.14);
-  --shadow-card:
+  --catch-light: inset 0 1px 0 0 var(--rim-light);
+  --specular-rim: inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+  --shadow-elevation-1:
+    0 1px 2px rgba(15, 14, 18, 0.24),
+    0 4px 12px -2px rgba(15, 14, 18, 0.30),
+    var(--catch-light);
+  --shadow-elevation-2:
     0 2px 4px rgba(15, 14, 18, 0.28),
     0 10px 24px -4px rgba(15, 14, 18, 0.36),
     0 20px 40px -12px rgba(15, 14, 18, 0.24),
-    inset 0 1px 0 0 var(--rim-light);
-  --shadow-float:
+    var(--catch-light);
+  --shadow-elevation-3:
     0 4px 8px rgba(15, 14, 18, 0.34),
     0 16px 32px -4px rgba(15, 14, 18, 0.45),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+    var(--specular-rim);
+  --shadow-card: var(--shadow-elevation-2);
+  --shadow-float: var(--shadow-elevation-3);
   --shadow-inset:
     inset 2px 2px 6px rgba(15, 14, 18, 0.48),
     inset -1px -1px 3px rgba(255, 255, 255, 0.08);
+  --sunken-recess: var(--shadow-inset);
 
   --soft-shadow-main: 0 10px 24px -4px rgba(15, 14, 18, 0.36);
   --soft-shadow-light: inset 0 1px 0 0 var(--rim-light);
@@ -49,6 +79,7 @@
   --radius-md: 14px;
   --radius-sm: 8px;
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-theme="light"] {
@@ -92,6 +123,15 @@
   --soft-shadow-inset: var(--shadow-inset);
 }
 
+/* Contenção BFC (Anti-Colapso de Margem) & Box Model Lógico (Eixo 1) */
+.bfc-flow-root {
+  display: flow-root;
+}
+
+.prose > * + * {
+  margin-block-start: 1rem;
+}
+
 /* Camadas de Superfície (4+1 Tonal Stack) */
 .surface-canvas {
   background-color: var(--surface-canvas);
@@ -113,6 +153,7 @@
   background-color: var(--surface-raised);
   box-shadow: var(--shadow-card);
   border-radius: var(--radius-lg);
+  isolation: isolate;
 }
 
 .surface-contrast {
@@ -124,22 +165,72 @@
   clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 0 100%);
 }
 
-/* Card Bento Tátil sem Bordas Duras (Iluminação 135°) */
+/* Card Bento Tátil sem Bordas Duras (Iluminação 135° + Isolation) */
 .ui-card-soft,
 .bento-card-soft {
   background-color: var(--surface-raised);
   color: var(--text-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  padding: 1.5rem;
+  padding-block: 24px;
+  padding-inline: 24px;
   transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
   position: relative;
+  isolation: isolate;
+  container-type: inline-size;
 }
 
 .ui-card-soft:hover,
 .bento-card-soft:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-float);
+}
+
+/* As 4 Variantes Canônicas de Cards (Eixo 7: Elevated, Outlined, Filled/Subtle, Interactive) */
+.card-elevated {
+  background-color: var(--surface-raised);
+  box-shadow: var(--shadow-elevation-2);
+  border-radius: var(--radius-lg);
+  padding-block: 24px;
+  padding-inline: 24px;
+  isolation: isolate;
+}
+
+.card-outlined {
+  background-color: transparent;
+  border: 1px solid var(--border-semantic);
+  border-radius: var(--radius-lg);
+  padding-block: 24px;
+  padding-inline: 24px;
+  isolation: isolate;
+}
+
+.card-filled {
+  background-color: var(--surface-flat);
+  border-radius: var(--radius-md);
+  padding-block: 16px;
+  padding-inline: 16px;
+  isolation: isolate;
+}
+
+.card-interactive {
+  background-color: var(--surface-raised);
+  box-shadow: var(--shadow-elevation-1);
+  border-radius: var(--radius-lg);
+  padding-block: 16px;
+  padding-inline: 16px;
+  isolation: isolate;
+  cursor: pointer;
+  transition: transform 0.22s var(--ease-spring), box-shadow 0.22s var(--ease-spring), border-color 0.2s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-elevation-2);
+}
+
+.card-interactive:active {
+  transform: translateY(0px);
 }
 
 .ui-card-soft:focus-visible,
@@ -154,9 +245,12 @@
   background-color: var(--surface-raised);
   color: var(--text-primary);
   font-weight: 600;
+  min-block-size: 44px;
+  min-inline-size: 44px;
   min-height: 44px;
   min-width: 44px;
-  padding: 0.65rem 1.25rem;
+  padding-block: 8px;
+  padding-inline: 20px;
   border-radius: var(--radius-md);
   border: none;
   box-shadow: var(--shadow-card);
@@ -182,9 +276,12 @@
   background-color: var(--accent-point);
   color: #ffffff;
   font-weight: 700;
+  min-block-size: 44px;
+  min-inline-size: 44px;
   min-height: 44px;
   min-width: 44px;
-  padding: 0.65rem 1.5rem;
+  padding-block: 8px;
+  padding-inline: 24px;
   border-radius: var(--radius-md);
   border: none;
   box-shadow: var(--shadow-card);
@@ -208,7 +305,8 @@
 .badge-soft {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.75rem;
+  padding-block: 4px;
+  padding-inline: 12px;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -223,18 +321,38 @@
   background-color: var(--surface-inset);
   box-shadow: var(--shadow-inset);
   border-radius: 9999px;
-  padding: 0.5rem 1rem;
+  padding-block: 8px;
+  padding-inline: 16px;
 }
 
 .activity-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: 12px;
+  padding-block: 12px;
+  padding-inline: 16px;
   border-radius: var(--radius-md);
   background-color: var(--surface-flat);
   transition: transform 0.15s var(--ease-spring);
+}
+
+/* Navegação Estrutural Camada 3: Breadcrumbs (<nav aria-label="Caminho de navegação"><ol role="list">) */
+.breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.breadcrumb-list li + li::before {
+  content: "/";
+  margin-inline-end: 8px;
+  opacity: 0.45;
+  font-family: var(--font-display, sans-serif);
 }
 
 /* Companion Sliding Tracker (#sidebar-active-tracker) */
@@ -250,6 +368,8 @@ html {
   accent-color: var(--accent-point);
   scrollbar-color: var(--text-muted) var(--surface-inset);
   scrollbar-width: thin;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
@@ -279,6 +399,25 @@ select:user-invalid {
   .island-responsive-row {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+/* Acessibilidade Motora para Dispositivos Touch (Eixo 9: >= 44x44px) */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  [role="radio"],
+  .pill-nav-item {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+}
+
+/* Suporte PWA Standalone (Eixo 6) */
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+    -webkit-user-select: none;
   }
 }
 

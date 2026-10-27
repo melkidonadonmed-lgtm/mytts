@@ -19,7 +19,16 @@ import { generateAudioCacheKey, synthesizeWithCache } from './utils/audioCache';
 import { persistBrowserState, readBrowserState } from './services/polyglotClient';
 import { SOFT_UI_PRESETS } from './config/tokens';
 import type { SoftUIThemePreset } from './types';
-import { AlertCircle, Menu } from 'lucide-react';
+import { GoogleIcon } from './components/GoogleIcon';
+
+const TAB_BREADCRUMB_LABELS: Record<AppTab, string> = {
+  polyglot: 'Chat Poliglota Multimodal',
+  reader: 'Estúdio de Criação (Solo & 2x)',
+  debate: 'Estúdio de Debate Dialético',
+  chunks: 'FastChunks (Treino Lexical)',
+  voices: 'Biblioteca de Vozes Neurais',
+  architecture: 'Arquitetura & Governança',
+};
 
 // Orquestrador principal do MyTTS Studio (Chat Poliglota como página principal e sincronização global de voz por Card)
 export default function App() {
@@ -396,11 +405,11 @@ export default function App() {
                 className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
                 aria-label="Abrir menu de navegação"
               >
-                <Menu className="w-5 h-5" />
+                <GoogleIcon name="menu" size={20} />
               </button>
               <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
                 <span>MyTTS</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+                <span className="text-xs font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
                   Studio
                 </span>
               </span>
@@ -410,13 +419,13 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setIsCommandPaletteOpen(true)}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300 hover:text-white cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300 hover:text-white cursor-pointer"
                 title="Abrir Paleta de Comandos (Ctrl+K)"
               >
                 Ctrl+K
               </button>
               <div
-                className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-[10px] font-bold`}
+                className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-bold`}
               >
                 {selectedVoice.name[0]}
               </div>
@@ -443,7 +452,7 @@ export default function App() {
                 data-active={activeTab === item.id}
                 aria-current={activeTab === item.id ? 'page' : undefined}
                 onClick={() => handleNavigateTab(item.id)}
-                className="pill-nav-item min-h-[32px] px-3 py-1 text-[11px] font-semibold whitespace-nowrap cursor-pointer shrink-0"
+                className="pill-nav-item min-h-11 px-3 py-1.5 text-xs font-semibold whitespace-nowrap cursor-pointer shrink-0"
               >
                 {item.label}
               </button>
@@ -456,12 +465,12 @@ export default function App() {
           <div className="max-w-4xl mx-auto w-full px-4 pt-4" role="alert">
             <div className="bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 px-4 py-2.5 rounded-xl text-xs flex items-center justify-between shadow-lg">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                <GoogleIcon name="error" size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
                 <span>{globalError}</span>
               </div>
               <button
                 onClick={() => setGlobalError(null)}
-                className="text-rose-700 hover:text-rose-900 dark:text-rose-400 dark:hover:text-white font-mono text-[11px] cursor-pointer"
+                className="text-rose-700 hover:text-rose-900 dark:text-rose-400 dark:hover:text-white font-mono text-xs cursor-pointer"
               >
                 dispensar
               </button>
@@ -469,8 +478,30 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. Canvas de Conteúdo por Módulo */}
-        <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none">
+        {/* 3. Canvas de Conteúdo por Módulo (com Camada 3: Breadcrumbs Estrutural) */}
+        <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none bfc-flow-root">
+          <nav
+            aria-label="Caminho de navegação"
+            className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-3 pb-1 flex items-center justify-between text-xs text-secondary"
+          >
+            <ol role="list" className="breadcrumb-list">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => handleNavigateTab('polyglot')}
+                  className="hover:text-primary transition-colors cursor-pointer font-medium"
+                >
+                  MyTTS Studio
+                </button>
+              </li>
+              <li aria-current="page" className="text-primary font-semibold">
+                {TAB_BREADCRUMB_LABELS[activeTab]}
+              </li>
+            </ol>
+            <span className="font-mono text-xs text-secondary hidden sm:inline tabular-nums">
+              Voz Ativa: <strong className="text-primary">{selectedVoice.name}</strong>
+            </span>
+          </nav>
           {/* Módulo Principal (#1): Chat Poliglota Multimodal (EN, IT, JA) com atalho Mic/Live API */}
           {activeTab === 'polyglot' && (
             <PolyglotChatStudio

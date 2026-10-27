@@ -171,7 +171,8 @@ body,
   background-color: var(--nav-shell-bg);
   color: var(--nav-shell-ink);
   border-radius: 9999px;
-  padding: 0.25rem;
+  padding-block: 4px;
+  padding-inline: 4px;
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
@@ -179,7 +180,11 @@ body,
   color: var(--nav-shell-ink) !important;
   font-weight: 600;
   border-radius: 9999px;
-  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .pill-nav-item[data-active="true"] {

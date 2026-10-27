@@ -204,7 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenCommandPalette();
                 if (isOpenMobile) onToggleMobile();
               }}
-              className="w-full px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs transition-all cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-2">
                 <GoogleIcon name="search" size={16} className="text-amber-400" />
@@ -217,8 +217,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {/* Navigation Items */}
-        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        {/* Navigation Items (Camada 1: Navegação Global) */}
+        <nav aria-label="Navegação principal" className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
@@ -230,7 +230,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onSelectTab(item.id);
                   if (isOpenMobile) onToggleMobile();
                 }}
-                className={`btn-matte w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all ${
+                className={`btn-matte w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${
                   isActive
                     ? 'card-matte-active'
                     : 'text-secondary hover:text-primary hover:bg-slate-500/10 border border-transparent'
@@ -297,7 +297,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       role="radio"
                       aria-checked={isSelected}
                       onClick={() => onSelectPreset(presetKey)}
-                      className={`min-h-[44px] px-1 py-1 rounded-lg text-[10px] font-semibold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer btn-anti-squish ${
+                      className={`min-h-[44px] px-1 py-1 rounded-lg text-[10px] font-semibold flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer btn-anti-squish ${
                         isSelected
                           ? 'card-matte-active text-primary font-bold'
                           : 'text-secondary hover:text-primary'
@@ -321,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleTheme}
-              className="w-full min-h-[44px] px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs font-semibold cursor-pointer transition-all active:translate-y-px"
+              className="w-full min-h-[44px] px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs font-semibold cursor-pointer transition-colors active:translate-y-px"
               title="Alternar entre Cinza Studio (Escuro) e Ad Lucem (Claro Moderno)"
             >
               <div className="flex items-center gap-2">
