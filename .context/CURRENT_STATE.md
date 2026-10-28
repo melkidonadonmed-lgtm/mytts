@@ -2,7 +2,7 @@
 
 ## Fase Atual
 - **Fase**: Refatoração Arquitetural Minimalista (`minimal-impact-ui` + `frontend-code-architect` + `arquitetura-design-implementacao-sistema` + `modern-web-guidance` + `code-quality-audit-3d-physics`).
-- **Status da Branch**: `main` (Trio de qualidade `npm run lint && npm test && npm run build` 100% verde, 14/14 suítes Nível 4 aprovadas, `audit_tactile_ui.py` = 100.0/100, `deterministic_scorer.py` SGA = 100.0/100).
+- **Status da Branch**: `main` (Trio de qualidade `npm run lint && npm test && npm run build` 100% verde, 14/14 suítes Nível 4 aprovadas, `audit_tactile_ui.py` = 100.0/100, `deterministic_scorer.py` SGA = 100.0/100, responsividade mobile 375x812 validada via Playwright com `scrollWidth === clientWidth`).
 
 ## Decisões Arquiteturais e Correções Aplicadas
 1. **Tema Minimalista de Estúdio de Áudio (`minimal-impact-ui` & `frontend-code-architect`)**:
@@ -18,22 +18,21 @@
 4. **Exportação Multi-Formato Revisada + Preview ao Vivo + Exportação WAV 24kHz**:
    - Corrigida duplicação de colunas no CSV Anki em [`src/utils/interactionExporter.ts`](../src/utils/interactionExporter.ts) e incluído metadado `cardVoices` nos relatórios Markdown e JSON.
    - Adicionado **Preview ao Vivo do Formato (`<pre>`)**, cópia rápida e exportação de **Áudio Master da Trilogia (`.wav` 24kHz concatenado EN + IT + JA)** em [`src/components/ExportInteractionModal.tsx`](../src/components/ExportInteractionModal.tsx), além de botão de download `.wav` individual em cada Card.
-5. **Nitidez Tipográfica, Ícones Vetoriais Lucide (`stroke-width: 1.75`), Zero Emojis e Zero Sobreposições**:
+5. **Nitidez Tipográfica, Ícones Vetoriais Lucide (`stroke-width: 1.75`), Zero Emojis e Navegação Mobile sem Estouro Horizontal**:
    - Corrigida tipografia embaçada em [`src/index.css`](../src/index.css), [`src/styles/theme.css`](../src/styles/theme.css) e [`index.html`](../index.html): removido `font-weight: 450` (substituído por `400`/`500`/`600`/`700` discretos), aplicado `-webkit-font-smoothing: antialiased` e `-moz-osx-font-smoothing: grayscale`, eliminado deslocamento fracionário `translateY(-1.5px)` / `-translate-y-0.5` e elevado contraste de texto secundário/terciário.
-   - Substituída fonte de ligaturas genérica (`Material Symbols Rounded`) em [`src/components/GoogleIcon.tsx`](../src/components/GoogleIcon.tsx) por ícones SVG vetoriais `lucide-react` (`strokeWidth={1.75}`), e removidos todos os emojis da UI (`AUDIT-VIS-EMOJI` = 0 ocorrências).
-   - Eliminadas todas as sobreposições de layout:
-     - [`src/components/VoiceCardGrid.tsx`](../src/components/VoiceCardGrid.tsx): trocado `lg:grid-cols-5` fixo por `grid-cols-[repeat(auto-fit,minmax(185px,1fr))]` para evitar esmagamento de 5 colunas dentro do painel lateral de debate.
-     - [`src/components/LanguageColumnCard.tsx`](../src/components/LanguageColumnCard.tsx): cabeçalho reestruturado em 2 linhas para evitar colisão entre título/badge, seletor `<select>` de voz e botões de ação em larguras intermediárias (`1024px–1360px`).
-     - [`src/components/ParallelMessageBlock.tsx`](../src/components/ParallelMessageBlock.tsx): corrigido cálculo de coordenadas de [`src/components/ChunkActionMenu.tsx`](../src/components/ChunkActionMenu.tsx) (`position: fixed` relativo à viewport sem somar `window.scrollY`/`window.scrollX`, com flip automático acima do dock inferior).
-     - [`src/App.tsx`](../src/App.tsx), [`src/components/PolyglotChatStudio.tsx`](../src/components/PolyglotChatStudio.tsx) e [`src/components/FastChunkAudioApp.tsx`](../src/components/FastChunkAudioApp.tsx): headers internos configurados como `lg:sticky lg:top-0` para nunca colidirem com o header mobile fixo, além de barra de navegação rápida horizontal no mobile e `pb-40` para respiro sobre o dock.
+   - Substituída fonte de ligaturas genérica (`Material Symbols Rounded`) em [`src/components/GoogleIcon.tsx`](../src/components/GoogleIcon.tsx) por ícones SVG vetoriais `lucide-react` (`strokeWidth={1.75}`), incluindo mapeamento de `menu: Menu` para o botão hamburger mobile.
+   - Eliminadas todas as sobreposições e quebras de layout no modo mobile:
+     - [`src/index.css`](../src/index.css): resolvido conflito de especificidade de `.btn-matte` com `.hidden` / breakpoints responsivos (`sm:`, `lg:`, `xl:`) e definidas `.no-scrollbar` / `.scrollbar-none`.
+     - [`src/App.tsx`](../src/App.tsx): barra de navegação rápida mobile em `grid-cols-5` dentro de `.pill-nav-shell` com todas as 5 abas 100% visíveis sem corte e sem scrollbar, além de contenção `min-w-0 max-w-full overflow-x-clip`.
+     - [`src/components/PolyglotChatStudio.tsx`](../src/components/PolyglotChatStudio.tsx): barra de Vozes Favoritas em grade simétrica de 3 colunas no mobile (`grid-cols-3 !rounded-2xl sm:!rounded-full`), eliminando a cápsula oval deformada e a duplicação do botão "Meu Deck".
+     - [`src/components/FloatingCardAudioController.tsx`](../src/components/FloatingCardAudioController.tsx): seletor de idiomas (`EN / IT / JA`) convertido para `grid-cols-3 w-full sm:w-auto` contido 100% dentro do card no mobile.
+     - [`src/components/AgentInputDock.tsx`](../src/components/AgentInputDock.tsx): `<textarea>` reestruturado para ocupar 100% da largura na primeira linha do compositor no mobile, com os botões de ação logo abaixo.
 
 ## Testes Reais e Verificações Auditáveis
 - `npm run lint` (`tsc --noEmit`): Exit code `0` (0 erros).
 - `npm test` (`tsx test-audio-engine.ts`): Exit code `0` (14/14 suítes Nível 4 aprovadas).
 - `npm run build` (`vite build`): Exit code `0` (`dist/` compilado sem warnings).
-- `audit_tactile_ui.py`: `Readiness Score: 100.0/100.0` (`A11y: 100.0 | FSM: 100.0 | Tokens/Layers: 100.0 | Sec: 100.0`).
-- `ui_ux_frontend_auditor.py --target .` & `--target src`: `SCORE FINAL: 100.0 / 100 | NOTA: A+ (Produção de Elite) | [PASS]` (100% aderência à escala de 8px, 0 valores arbitrários, 0 violações de contraste WCAG 2.1 AA, profundidade DOM `9 <= 12`, Divsoup Ratio `0.33 <= 0.45`, física de luz 135° e zero-reflow GPU).
-- `deterministic_scorer.py --scan src`: `SGA = 100.0` (`28` nós, `0` órfãos, `26/26` telas com 4 estados, `102/102` funções coesas).
+- Playwright Mobile (`375x812`): `scrollWidth === clientWidth === 375` em todas as 5 abas (`Poliglota`, `Estúdio`, `Debate`, `Chunks`, `Vozes`).
 
 ## Débitos Técnicos e Blockers
 - **Blockers**: Nenhum.

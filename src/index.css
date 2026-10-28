@@ -230,6 +230,17 @@
   white-space: nowrap;
 }
 
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Tipografia Semântica Determinística Tátil Melki */
 .text-primary {
   color: var(--text-primary) !important;
@@ -391,6 +402,37 @@
     box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: pointer;
   user-select: none;
+}
+
+.btn-matte.hidden {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .btn-matte.sm\:flex,
+  .btn-matte.sm\:inline-flex {
+    display: inline-flex;
+  }
+}
+
+@media (min-width: 1024px) {
+  .btn-matte.lg\:flex,
+  .btn-matte.lg\:inline-flex {
+    display: inline-flex;
+  }
+  .btn-matte.lg\:hidden {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .btn-matte.xl\:flex,
+  .btn-matte.xl\:inline-flex {
+    display: inline-flex;
+  }
+  .btn-matte.xl\:hidden {
+    display: none;
+  }
 }
 
 .btn-matte:hover {

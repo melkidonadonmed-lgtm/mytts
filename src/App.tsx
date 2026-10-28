@@ -358,14 +358,21 @@ export default function App() {
       const transition = docWithTransition.startViewTransition(() => setActiveTab(tab));
       if (transition && transition.finished) {
         transition.finished.then(() => {
+          window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
           mainCanvasRef.current?.focus({ preventScroll: true });
         }).catch(() => {});
       } else {
-        setTimeout(() => mainCanvasRef.current?.focus({ preventScroll: true }), 50);
+        setTimeout(() => {
+          window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+          mainCanvasRef.current?.focus({ preventScroll: true });
+        }, 50);
       }
     } else {
       setActiveTab(tab);
-      setTimeout(() => mainCanvasRef.current?.focus({ preventScroll: true }), 0);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+        mainCanvasRef.current?.focus({ preventScroll: true });
+      }, 0);
     }
   };
 
@@ -393,21 +400,21 @@ export default function App() {
       />
 
       {/* 2. Área de Trabalho Principal (com margem para sidebar no desktop) */}
-      <div className="flex-1 flex flex-col lg:pl-72 min-h-screen">
+      <div className="flex-1 flex flex-col lg:pl-72 min-h-screen min-w-0 max-w-full overflow-x-clip">
         
         {/* Header Mobile com Hamburger e Atalho Rápido de Abas */}
-        <header className="px-4 py-2.5 border-b border-slate-800/80 dock-matte flex flex-col gap-2 lg:hidden sticky top-0 z-30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+        <header className="px-3 sm:px-4 py-2 border-b border-slate-800/80 dock-matte !rounded-t-none !rounded-b-2xl flex flex-col gap-2 lg:hidden sticky top-0 z-30">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <button
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer shrink-0"
                 aria-label="Abrir menu de navegação"
               >
                 <GoogleIcon name="menu" size={20} />
               </button>
-              <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
+              <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5 truncate">
                 <span>MyTTS</span>
                 <span className="text-xs font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
                   Studio
@@ -415,7 +422,7 @@ export default function App() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsCommandPaletteOpen(true)}
@@ -425,7 +432,7 @@ export default function App() {
                 Ctrl+K
               </button>
               <div
-                className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-bold`}
+                className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-bold shrink-0`}
               >
                 {selectedVoice.name[0]}
               </div>
@@ -436,14 +443,17 @@ export default function App() {
           </div>
 
           {/* Navegação Horizontal Rápida no Mobile */}
-          <nav aria-label="Navegação rápida mobile" className="pill-nav-shell flex items-center gap-1 overflow-x-auto no-scrollbar">
+          <nav
+            aria-label="Navegação rápida mobile"
+            className="pill-nav-shell grid grid-cols-5 items-center gap-0.5 p-1 w-full overflow-hidden"
+          >
             {(
               [
-                { id: 'polyglot', label: 'Poliglota' },
-                { id: 'reader', label: 'Estúdio' },
-                { id: 'debate', label: 'Debate (2)' },
-                { id: 'chunks', label: 'FastChunks' },
-                { id: 'voices', label: 'Vozes' },
+                { id: 'polyglot', label: 'Poliglota', shortLabel: 'Poliglota' },
+                { id: 'reader', label: 'Estúdio', shortLabel: 'Estúdio' },
+                { id: 'debate', label: 'Debate (2)', shortLabel: 'Debate' },
+                { id: 'chunks', label: 'FastChunks', shortLabel: 'Chunks' },
+                { id: 'voices', label: 'Vozes', shortLabel: 'Vozes' },
               ] as const
             ).map((item) => (
               <button
@@ -452,9 +462,10 @@ export default function App() {
                 data-active={activeTab === item.id}
                 aria-current={activeTab === item.id ? 'page' : undefined}
                 onClick={() => handleNavigateTab(item.id)}
-                className="pill-nav-item min-h-11 px-3 py-1.5 text-xs font-semibold whitespace-nowrap cursor-pointer shrink-0"
+                className="pill-nav-item min-h-10 px-1 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold whitespace-nowrap cursor-pointer flex items-center justify-center text-center min-w-0"
               >
-                {item.label}
+                <span className="sm:hidden truncate">{item.shortLabel}</span>
+                <span className="hidden sm:inline">{item.label}</span>
               </button>
             ))}
           </nav>

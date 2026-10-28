@@ -99,12 +99,12 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
     <div data-state="idle" aria-busy={message.status === 'loading'} className="flex flex-col gap-3 py-4 border-b border-slate-800/80 last:border-0">
       
       {/* 1. Entrada / Pergunta do Usuário (Design Matte Limpo) */}
-      <div className="flex items-start gap-3 card-matte rounded-2xl p-4 max-w-3xl">
+      <div className="flex items-start gap-3 card-matte rounded-2xl p-3.5 sm:p-4 max-w-3xl">
         <div className="w-8 h-8 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
           <GoogleIcon name="person" size={18} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
             <span className="text-xs font-bold text-primary font-display">Você</span>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono tabular-nums text-secondary">

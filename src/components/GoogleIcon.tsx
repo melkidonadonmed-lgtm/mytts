@@ -43,6 +43,7 @@ import {
   BookmarkPlus,
   Sliders,
   Globe,
+  Menu,
   CircleDot,
   type LucideIcon,
 } from 'lucide-react';
@@ -103,6 +104,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   bookmark_add: BookmarkPlus,
   tune: Sliders,
   language: Globe,
+  menu: Menu,
 };
 
 /**

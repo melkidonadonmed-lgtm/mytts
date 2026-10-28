@@ -1,9 +1,17 @@
 # Log de Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-27T18:13:00-04:00 (Local)
+- **Data/Hora**: 2026-10-28T09:35:00-04:00 (Local)
 
-## Arquivos Tocados neste Turno (Auditoria Matemática Frontend UI/UX v3.0.0 — 9 Eixos SSOT)
+## Arquivos Tocados neste Turno (Correção de Navegação e Responsividade Mobile)
+- `src/components/GoogleIcon.tsx` (Mapeamento do ícone `menu: Menu` do `lucide-react` para o botão hamburger mobile).
+- `src/index.css` (Resolução de especificidade `.btn-matte.hidden` e breakpoints responsivos + utilitários `.no-scrollbar` / `.scrollbar-none`).
+- `src/App.tsx` (Contenção horizontal `min-w-0 max-w-full overflow-x-clip`, navegação rápida mobile em `grid-cols-5` sem corte/scrollbar e restauração de scroll ao topo na troca de abas).
+- `src/components/PolyglotChatStudio.tsx` (Layout responsivo da barra de Vozes Favoritas em grade de 3 colunas no mobile sem deformação oval, remoção do botão "Meu Deck" duplicado no mobile e supressão de `scrollIntoView` no mount inicial).
+- `src/components/FloatingCardAudioController.tsx` (Seletor de idiomas `EN / IT / JA` em `grid-cols-3` contido 100% dentro do card no mobile e alinhamento responsivo dos controles de reprodução/exportação).
+- `src/components/AgentInputDock.tsx`, `src/components/ParallelMessageBlock.tsx` (`<textarea>` com 100% da largura no mobile acima da linha de botões de ação, eliminando esmagamento do texto e scrollbar vertical interna).
+
+## Arquivos Tocados em Turnos Anteriores (Auditoria Matemática Frontend UI/UX v3.0.0 — 9 Eixos SSOT)
 - `src/styles/globals.css`, `src/styles/theme.css`, `src/index.css` (Tokens perceptuais `oklch()`/`light-dark()`/`color-mix()`, `--shadow-elevation-1..3`, `isolation: isolate`, Box Model lógico + `.bfc-flow-root`, 4 variantes de cards, `text-wrap: pretty`, transições zero-reflow GPU, `@media (pointer: coarse)` e `@media (display-mode: standalone)`).
 - `src/App.tsx`, `src/components/Sidebar.tsx` (Navegação em 3 Camadas completa com `aria-label="Navegação principal"`, Breadcrumbs estruturais `<nav aria-label="Caminho de navegação"><ol role="list">`, elevação de touch target mobile `.pill-nav-item` para `44px` e unificação de `GoogleIcon`).
 

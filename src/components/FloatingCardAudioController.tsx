@@ -69,10 +69,10 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
       <div className="flex flex-col gap-3">
         
         {/* Linha Superior: Seletor de Card em Pílula (#8e8999) + Status Sincronizado da Voz do Card */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800/80">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800/80">
           
           {/* Seletor Tátil dos 3 Cards mostrando a voz atribuída a cada card */}
-          <div className="pill-nav-shell flex items-center gap-1">
+          <div className="pill-nav-shell !rounded-2xl sm:!rounded-full grid grid-cols-3 sm:inline-flex items-center gap-1 w-full sm:w-auto p-1">
             {(['en', 'it', 'ja'] as const).map((lang) => {
               const isActive = selectedLanguage === lang;
               const meta = languageLabels[lang];
@@ -83,14 +83,14 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                   type="button"
                   data-active={isActive}
                   onClick={() => onSelectLanguage(lang)}
-                  className="pill-nav-item px-3 py-1.5 text-xs inline-flex items-center gap-1.5 cursor-pointer btn-anti-squish"
+                  className="pill-nav-item min-h-[38px] px-1.5 sm:px-3 py-1.5 text-[11px] sm:text-xs inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0"
                   title={`Focar card ${meta.title} (Voz: ${vName})`}
                 >
-                  <span className="text-[10px] font-mono font-bold px-1 py-0.5 rounded bg-black/20">{meta.flag}</span>
-                  <span>{meta.title}</span>
-                  <span className="text-[10px] font-mono opacity-80">· {vName}</span>
+                  <span className="text-[10px] font-mono font-bold px-1 py-0.5 rounded bg-black/20 shrink-0">{meta.flag}</span>
+                  <span className="truncate">{meta.title}</span>
+                  <span className="text-[10px] font-mono opacity-80 hidden md:inline shrink-0">· {vName}</span>
                   {isCachedByLang?.[lang] && (
-                    <span className="text-[9px] font-mono tabular-nums font-bold leading-none text-emerald-300" title="Áudio pronto no cache local (0ms)">
+                    <span className="text-[9px] font-mono tabular-nums font-bold leading-none text-emerald-300 hidden sm:inline shrink-0" title="Áudio pronto no cache local (0ms)">
                       0ms
                     </span>
                   )}
@@ -100,14 +100,14 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
           </div>
 
           {/* Indicador Único Sincronizado + Modo Trilogia Sequencial */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
             <div
-              className="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1 rounded-xl text-xs"
+              className="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1.5 rounded-xl text-xs min-w-0"
               title="A voz exibida aqui acompanha automaticamente o card selecionado acima"
             >
-              <GoogleIcon name="record_voice_over" size={15} className="text-amber-400" />
-              <span className="text-secondary text-[11px]">Voz sincronizada do card:</span>
-              <strong className="text-primary font-mono text-xs">{selectedVoice}</strong>
+              <GoogleIcon name="record_voice_over" size={15} className="text-amber-400 shrink-0" />
+              <span className="text-secondary text-[11px] truncate">Voz sincronizada do card:</span>
+              <strong className="text-primary font-mono text-xs shrink-0">{selectedVoice}</strong>
             </div>
 
             {onPlaySequence && (
@@ -116,7 +116,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 onClick={onPlaySequence}
                 disabled={isLoading}
                 title="Tocar os 3 cards em sequência respeitando a voz individual de cada card"
-                className={`btn-matte px-2.5 py-1 text-xs rounded-xl border transition-all ${
+                className={`btn-matte px-2.5 py-1.5 text-xs rounded-xl border transition-all shrink-0 ${
                   isPlayingSequence
                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse font-bold'
                     : 'btn-matte-dark text-secondary hover:text-primary'
@@ -124,6 +124,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               >
                 <GoogleIcon name="queue_music" size={16} className="text-amber-400" />
                 <span className="hidden md:inline font-medium">Trilogia (EN→IT→JA)</span>
+                <span className="md:hidden font-medium text-[11px]">Trilogia</span>
                 {isPlayingSequence && sequenceStep && (
                   <span className="text-[10px] font-mono bg-amber-500 text-white px-1.5 py-0.2 rounded font-bold">
                     {sequenceStep}
@@ -163,34 +164,34 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
         </div>
 
         {/* Linha Inferior: Controles Principais de Áudio (Play/Pause, Replay, Download WAV, Exportar, Velocidade) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2.5 pt-1">
           
           {/* Lado Esquerdo: Botão Play/Pause Principal + Replay */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={onTogglePlay}
               disabled={isLoading}
-              className="btn-matte btn-matte-amber h-11 px-5 text-sm rounded-xl font-bold flex items-center gap-2 text-white"
+              className="btn-matte btn-matte-amber h-11 px-4 sm:px-5 text-xs sm:text-sm rounded-xl font-bold flex-1 sm:flex-initial flex items-center justify-center gap-2 text-white min-w-0"
               title={isPlaying ? 'Pausar áudio' : `Ouvir ${languageLabels[selectedLanguage].title} (${selectedVoice})`}
             >
               {isLoading ? (
                 <>
                   <GoogleIcon name="progress_activity" size={20} className="animate-spin text-white" />
-                  <span>Sintetizando ({selectedVoice})...</span>
+                  <span className="truncate">Sintetizando ({selectedVoice})...</span>
                 </>
               ) : isPlaying ? (
                 <>
                   <GoogleIcon name="pause" size={20} filled className="text-white" />
-                  <span>Pausar ({selectedVoice})</span>
+                  <span className="truncate">Pausar ({selectedVoice})</span>
                 </>
               ) : (
                 <>
                   <GoogleIcon name="play_arrow" size={20} filled className="text-white" />
-                  <span>Ouvir {languageLabels[selectedLanguage].title} · {selectedVoice}</span>
+                  <span className="truncate">Ouvir {languageLabels[selectedLanguage].title} · {selectedVoice}</span>
                   {isCached && (
-                    <span className="text-[10px] font-mono tabular-nums bg-white/20 text-white px-1.5 py-0.5 rounded font-bold">
-                      CACHE 0ms
+                    <span className="text-[10px] font-mono tabular-nums bg-white/20 text-white px-1.5 py-0.5 rounded font-bold shrink-0">
+                      0ms
                     </span>
                   )}
                 </>
@@ -201,7 +202,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               type="button"
               onClick={onReplay}
               disabled={duration <= 0}
-              className="btn-matte btn-matte-dark h-11 w-11 rounded-xl text-secondary hover:text-primary"
+              className="btn-matte btn-matte-dark h-11 w-11 rounded-xl text-secondary hover:text-primary shrink-0"
               title="Reiniciar áudio do início"
             >
               <GoogleIcon name="replay" size={20} />
@@ -209,33 +210,36 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
           </div>
 
           {/* Lado Direito: Download WAV, Exportação Multi-Formato e Velocidade */}
-          <div className="flex flex-wrap items-center gap-2">
-            {onDownloadFocusedWav && (
-              <button
-                type="button"
-                onClick={onDownloadFocusedWav}
-                className="btn-matte btn-matte-dark h-9 px-3 rounded-xl text-xs text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer font-medium"
-                title={`Baixar WAV 24kHz do card ${languageLabels[selectedLanguage].title} (${selectedVoice})`}
-              >
-                <GoogleIcon name="graphic_eq" size={16} className="text-sky-400" />
-                <span>Baixar WAV</span>
-              </button>
-            )}
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              {onDownloadFocusedWav && (
+                <button
+                  type="button"
+                  onClick={onDownloadFocusedWav}
+                  className="btn-matte btn-matte-dark h-9 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs text-secondary hover:text-primary flex items-center gap-1 cursor-pointer font-medium"
+                  title={`Baixar WAV 24kHz do card ${languageLabels[selectedLanguage].title} (${selectedVoice})`}
+                >
+                  <GoogleIcon name="graphic_eq" size={16} className="text-sky-400" />
+                  <span>WAV</span>
+                </button>
+              )}
 
-            {onOpenExport && (
-              <button
-                type="button"
-                onClick={onOpenExport}
-                className="btn-matte btn-matte-dark h-9 px-3 rounded-xl text-xs text-amber-300 hover:text-white flex items-center gap-1.5 border border-amber-500/30 hover:border-amber-500/50 transition-all cursor-pointer font-medium"
-                title="Exportar Chunks e Áudio desta interação (Anki CSV, Markdown, JSON, WAV ou Deck)"
-              >
-                <GoogleIcon name="download" size={16} className="text-amber-400" />
-                <span>Exportar (CSV / MD / WAV)</span>
-              </button>
-            )}
+              {onOpenExport && (
+                <button
+                  type="button"
+                  onClick={onOpenExport}
+                  className="btn-matte btn-matte-dark h-9 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs text-amber-300 hover:text-white flex items-center gap-1 border border-amber-500/30 hover:border-amber-500/50 transition-all cursor-pointer font-medium"
+                  title="Exportar Chunks e Áudio desta interação (Anki CSV, Markdown, JSON, WAV ou Deck)"
+                >
+                  <GoogleIcon name="download" size={16} className="text-amber-400" />
+                  <span className="hidden sm:inline">Exportar (CSV / MD / WAV)</span>
+                  <span className="sm:hidden">Exportar</span>
+                </button>
+              )}
+            </div>
 
             {/* Seletor Tátil de Velocidade */}
-            <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
               <span className="text-[10px] font-mono uppercase text-secondary px-1 hidden sm:inline">
                 Ritmo:
               </span>
@@ -244,7 +248,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                   key={s}
                   type="button"
                   onClick={() => onChangeSpeed(s)}
-                  className={`btn-matte px-2 py-0.5 text-xs rounded-lg font-mono tabular-nums transition-all ${
+                  className={`btn-matte px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs rounded-lg font-mono tabular-nums transition-all ${
                     speed === s
                       ? 'btn-matte-amber text-white font-bold'
                       : 'text-secondary hover:text-primary'

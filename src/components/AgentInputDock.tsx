@@ -194,7 +194,10 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   ];
 
   return (
-    <div className="sticky bottom-0 z-30 w-full dock-matte px-4 py-3 sm:px-6">
+    <div
+      className="sticky bottom-0 z-30 w-full dock-matte !rounded-t-2xl !rounded-b-none sm:!rounded-2xl px-3 py-2.5 sm:px-6 sm:py-3"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.625rem)' }}
+    >
       <div className="max-w-7xl mx-auto flex flex-col gap-2">
         
         {/* Barra Interativa Live Voice API (quando ativada pelo atalho no Chat) */}
@@ -288,7 +291,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
         {/* Barra Central de Entrada (Com Atalho de Mic e Live API integrados) */}
         <form
           onSubmit={handleSubmit}
-          className="flex items-end gap-2 card-matte rounded-2xl p-2 focus-within:border-amber-400/50 transition-all shadow-xl"
+          className="flex flex-wrap sm:flex-nowrap items-center sm:items-end gap-1.5 sm:gap-2 card-matte rounded-2xl p-2 focus-within:border-amber-400/50 transition-all shadow-xl"
         >
           {/* Botão de Anexo */}
           <input
@@ -302,7 +305,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             title="Anexar arquivo (PDF, TXT, MD)"
-            className="btn-matte btn-matte-dark h-11 w-11 rounded-xl text-secondary hover:text-primary shrink-0"
+            className="order-2 sm:order-1 btn-matte btn-matte-dark h-10 w-10 sm:h-11 sm:w-11 rounded-xl text-secondary hover:text-primary shrink-0"
           >
             <GoogleIcon name="attach_file" size={20} />
           </button>
@@ -312,7 +315,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             type="button"
             onClick={() => toggleRecording(false)}
             title={isRecording ? 'Parar gravação e transcrever' : 'Ditar pelo microfone no chat'}
-            className={`btn-matte h-11 px-3 rounded-xl shrink-0 transition-all ${
+            className={`order-2 sm:order-1 btn-matte h-10 sm:h-11 px-2.5 sm:px-3 rounded-xl shrink-0 transition-all ${
               isRecording && !isLiveApiMode
                 ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/30'
                 : 'btn-matte-dark text-secondary hover:text-primary'
@@ -343,7 +346,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               }
             }}
             title="Atalho Mic com Live API: fale e ouça a tradução falada automaticamente"
-            className={`btn-matte h-11 px-3 rounded-xl transition-all shrink-0 text-xs font-semibold border ${
+            className={`order-2 sm:order-1 btn-matte h-10 sm:h-11 px-2.5 sm:px-3 rounded-xl transition-all shrink-0 text-xs font-semibold border ${
               isLiveApiMode
                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50 shadow-sm'
                 : 'btn-matte-dark text-secondary hover:text-primary'
@@ -354,20 +357,20 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               size={18}
               className={isLiveApiMode ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}
             />
-            <span className="hidden sm:inline">Live Mic</span>
+            <span className="text-[11px] sm:text-xs">Live Mic</span>
           </button>
 
           {/* Área de Texto Autoexpansível */}
-          <div className="flex-1 flex items-center gap-1.5 min-w-0">
+          <div className="order-1 sm:order-2 w-full sm:w-auto sm:flex-1 flex items-center gap-1.5 min-w-0 border-b border-white/10 sm:border-0 pb-1 sm:pb-0">
             <textarea
               ref={textareaRef}
               value={inputText}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Digite, cole um texto ou use o atalho Live Mic para alinhar em 3 idiomas..."
+              placeholder="Digite, cole um texto ou use o Live Mic para alinhar em 3 idiomas..."
               rows={1}
               disabled={isLoading}
-              className="w-full bg-transparent border-0 text-primary placeholder-slate-400 text-xs sm:text-sm focus:ring-0 resize-none py-2 px-1 max-h-40 min-h-[44px] leading-relaxed"
+              className="w-full bg-transparent border-0 text-primary placeholder-slate-400 text-xs sm:text-sm focus:ring-0 focus:outline-none resize-none py-1.5 sm:py-2 px-1.5 max-h-40 min-h-[38px] sm:min-h-[44px] leading-relaxed no-scrollbar"
             />
             {inputText && (
               <button
@@ -388,17 +391,17 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
           <button
             type="submit"
             disabled={!inputText.trim() || isLoading}
-            className="btn-matte btn-matte-amber h-11 px-4 rounded-xl text-xs font-bold text-white shrink-0 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+            className="order-3 ml-auto sm:ml-0 btn-matte btn-matte-amber h-10 sm:h-11 px-3.5 sm:px-4 rounded-xl text-xs font-bold text-white shrink-0 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
           >
             {isLoading ? (
               <>
                 <GoogleIcon name="progress_activity" size={18} className="animate-spin text-white" />
-                <span className="hidden sm:inline">Alinhando...</span>
+                <span>Alinhando...</span>
               </>
             ) : (
               <>
                 <GoogleIcon name="auto_awesome" size={18} filled className="text-white" />
-                <span className="hidden sm:inline">Traduzir Chunks</span>
+                <span>Traduzir</span>
               </>
             )}
           </button>
