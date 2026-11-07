@@ -1,9 +1,9 @@
 # CONTEXT.md — Regras de Negócio, Fronteiras e Restrições do MyTTS Studio
 
-> Documento canônico de contexto. Detalhes arquiteturais em `GEMINI.md`, design system em `design/design.md`, estado de sessão em `.context/CURRENT_STATE.md`.
+> Documento canônico de contexto. Detalhes arquiteturais em `AGENTS.md`, design system em `DESIGN.md` e `design/design.md`, estado de sessão em `.context/CURRENT_STATE.md`.
 
 ## 1. Identidade e Propósito
-O **MyTTS Studio** é uma estação de trabalho de áudio neural (síntese TTS, debates dual-speaker, ditado inteligente, treino de idiomas FastChunks e Chat Poliglota) construída sobre os modelos Gemini (TTS + LLM multimodal), com processamento de áudio Web Audio API no cliente e FFmpeg no backend.
+O **MyTTS Studio** é uma estação de trabalho de áudio neural (síntese TTS, debates dual-speaker, ditado inteligente, treino de idiomas FastChunks e Chat Poliglota) construída sobre os modelos Gemini (`gemini-3.8-flash-tts` + `gemini-3.8-flash`), com processamento de áudio Web Audio API no cliente e FFmpeg no backend.
 
 ## 2. Fronteiras do MVP Atual
 - Acesso **aberto**, sem onboarding: identidade por sessão de dispositivo via header `X-User-Id` (formato restrito a `[a-zA-Z0-9_-]{1,64}`, sanitizado no servidor).
@@ -11,7 +11,7 @@ O **MyTTS Studio** é uma estação de trabalho de áudio neural (síntese TTS, 
 - 7 módulos de UI em SPA de abas: Estúdio de Criação, Chat Poliglota, Microfone & Ditado, Estúdio de Debate, FastChunks, Biblioteca de Vozes, Arquitetura.
 
 ## 3. Restrições de Segurança (hard rules)
-- `GEMINI_API_KEY` é obrigatória: o servidor faz **fail-fast** no boot sem ela.
+- `GEMINI_API_KEY` via `.env` com failover automático para Vertex AI Application Default Credentials (`project: agent-md-506215, location: global`) quando a chave estiver ausente ou inativa (`401 ACCOUNT_STATE_INVALID`).
 - Rate limiting obrigatório em todos os endpoints de IA (120 req/15min/IP) e geral (300 req/15min/IP).
 - Payloads: máx. 2 MB por padrão; 25 MB em `/api/transcribe-audio`; 50 MB apenas em `/api/mix-audio`.
 - Textos para síntese truncados em 20.000 caracteres (chunks em 2.000, turnos em 5.000).

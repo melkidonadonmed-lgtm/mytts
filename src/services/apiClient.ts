@@ -1,10 +1,11 @@
-import type { DebateScript, LanguageCode, SpeakerProfile } from '../types/debate';
+import type { ConversationFormat, DebateScript, LanguageCode, SpeakerProfile } from '../types/debate';
 
 export interface GenerateScriptPayload {
   documentText: string;
   language: LanguageCode;
   audienceLevel: string;
   tensionIntensity: string;
+  format?: ConversationFormat;
   speakers: [SpeakerProfile, SpeakerProfile];
   maxTurns: number;
 }

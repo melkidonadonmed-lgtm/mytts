@@ -54,13 +54,12 @@ Roteiriza debate dialético entre 2 oradores via `gemini-3.8-flash` com schema J
 - **Response (`200 OK`):** `{ "success": true, "script": { "id": "...", "title": "...", "turns": [...] } }`
 
 ### 2.3. `POST /api/synthesize-speech`
-Síntese neural de leitura rápida com *Director's Chair* (`gemini-3.1-flash-tts-preview`) e cabeçalho RIFF WAV 24 kHz mono garantido por `ensureWavContainer`.
+Síntese neural de leitura rápida com *Director's Chair* (`gemini-3.8-flash-tts`, `speechMetadata: { speaker, style }` em camelCase e 42 tags vocais canônicas via `buildExpressiveTtsTranscript`) e cabeçalho RIFF WAV 24 kHz mono garantido por `ensureWavContainer`.
 - **Request:** `{ "text": "...", "voiceId": "Puck", "emotion": "natural", "speed": 1.0, "autoProsody": true, "language": "pt-BR" }`
 - **Response (`200 OK`):** `{ "success": true, "audioBase64": "UklGR...", "mimeType": "audio/wav", "durationSec": 4.2, "wordCount": 18 }`
 
-### 2.4. `POST /api/synthesize-turn` & `POST /api/synthesize-full`
-- `/api/synthesize-turn`: sintetiza um turno individual do roteiro (`{ turn, speakerName, voiceId }`) retornando `{ success: true, turnNumber, audioBase64, mimeType: "audio/wav", durationSec }`.
-- `/api/synthesize-full`: sintetiza o episódio multi-speaker completo (`multiSpeakerVoiceConfig`) retornando `{ success: true, audioBase64, mimeType: "audio/wav" }`.
+### 2.4. `POST /api/synthesize-turn`
+- `/api/synthesize-turn`: sintetiza um turno individual do roteiro (`{ turn, speakerName, voiceId }`) usando `gemini-3.8-flash-tts` com `speechMetadata` em camelCase e tags vocais inline, retornando `{ success: true, turnNumber, audioBase64, mimeType: "audio/wav", durationSec }`.
 
 ### 2.5. `POST /api/mix-audio`
 Mixagem broadcast server-side via `execFile('ffmpeg', ...)` com `sidechaincompress` e `amix`.
@@ -83,5 +82,5 @@ Transcrição pontuada de áudio capturado no microfone via `gemini-3.8-flash`.
 - `POST /api/generate-flashcard`: gera flashcard pedagógico Anki (`front`, `back`, `nuance`, `pronunciation`, `example`, `exampleTranslation`) -> `{ success: true, card: {...} }`.
 
 ### 2.9. `GET /api/health` e Fallback 404
-- `GET /api/health`: `{ status: "online", service: "DialecticPod & FastChunks API", modelTts: "gemini-3.1-flash-tts-preview", modelGen: "gemini-3.8-flash", geminiKeyConfigured: true, storage: "local-fallback" | "firestore", uptimeSec }`.
+- `GET /api/health`: `{ status: "online", service: "DialecticPod & FastChunks API", modelTts: "gemini-3.8-flash-tts", modelGen: "gemini-3.8-flash", geminiKeyConfigured: true, storage: "local-fallback" | "firestore", uptimeSec }`.
 - Qualquer rota `/api/*` inexistente retorna `404 JSON` estruturado (`{ success: false, error: "Endpoint não encontrado: ..." }`).

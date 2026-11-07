@@ -92,14 +92,14 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
     >
       {/* 1. Alternador de Modo de Entrada (Touch Target de 44px) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-950 p-1 border border-slate-800 w-full sm:w-auto">
+        <div className="grid grid-cols-2 gap-1 rounded-xl surface-inset p-1 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setActiveTab('paste')}
-            className={`min-h-[44px] flex items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all cursor-pointer ${
+            className={`min-h-[40px] flex items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'paste'
-                ? 'bg-amber-400/10 border border-amber-400/40 text-amber-300 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'btn-matte-amber text-white shadow-sm'
+                : 'text-secondary hover:text-primary'
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -109,10 +109,10 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('upload')}
-            className={`min-h-[44px] flex items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all cursor-pointer ${
+            className={`min-h-[40px] flex items-center justify-center gap-2 rounded-lg px-4 text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'upload'
-                ? 'bg-amber-400/10 border border-amber-400/40 text-amber-300 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'btn-matte-amber text-white shadow-sm'
+                : 'text-secondary hover:text-primary'
             }`}
           >
             <UploadCloud className="w-4 h-4" />
@@ -128,7 +128,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
             setUploadedFileName(null);
             setUploadError(null);
           }}
-          className="min-h-[44px] flex items-center justify-center sm:justify-start gap-1.5 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white transition-all cursor-pointer"
+          className="min-h-[40px] flex items-center justify-center sm:justify-start gap-1.5 rounded-xl btn-matte-dark px-3 py-2 text-xs font-medium text-secondary hover:text-primary transition-all cursor-pointer"
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
           <span className="truncate">Usar ensaio de teste ({sampleForCurrentLang.language})</span>
@@ -141,30 +141,30 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
           <textarea
             value={textInput}
             onChange={(e) => onChangeText(e.target.value)}
-            placeholder="Cole aqui o texto, artigo, ensaio acadêmico ou relatório para converter em debate dialético..."
-            rows={7}
-            className="w-full rounded-xl border border-slate-800 bg-slate-950/80 p-3.5 text-base md:text-sm text-slate-100 placeholder-slate-600 focus:border-amber-400/80 focus:outline-none focus:ring-1 focus:ring-amber-400/80 transition-all resize-y leading-relaxed font-sans"
+            placeholder="Cole aqui o texto, artigo, ensaio ou conversa para renderizar em áudio..."
+            rows={5}
+            className="w-full rounded-xl input-sunken p-3.5 text-sm text-primary placeholder-slate-400 focus:outline-none transition-all resize-y leading-relaxed font-sans"
           />
           {textInput && (
             <button
               type="button"
               onClick={() => onChangeText('')}
               aria-label="Limpar texto"
-              className="absolute right-3 top-3 p-1.5 rounded-lg bg-slate-900/80 text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-all cursor-pointer"
+              className="absolute right-3 top-3 p-1.5 rounded-lg btn-matte-dark text-secondary hover:text-rose-400 transition-all cursor-pointer"
             >
               <Trash2 className="w-4 h-4" />
             </button>
           )}
         </div>
       ) : (
-        <label className="relative flex flex-col items-center justify-center min-h-[128px] rounded-xl border-2 border-dashed border-slate-800 hover:border-amber-400/50 bg-slate-950/50 p-6 text-center transition-all cursor-pointer group">
+        <label className="relative flex flex-col items-center justify-center min-h-[120px] rounded-xl border-2 border-dashed border-slate-700 hover:border-amber-400/50 surface-inset p-6 text-center transition-all cursor-pointer group">
           <input
             type="file"
             accept=".pdf,.txt,.md,.json"
             onChange={handleFileUpload}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 mb-2 group-hover:scale-110 transition-transform">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-400 mb-2">
             <UploadCloud className="w-6 h-6" />
           </div>
           {uploadedFileName ? (
@@ -174,10 +174,10 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
             </div>
           ) : (
             <>
-              <p className="text-xs sm:text-sm font-semibold text-slate-200">
+              <p className="text-xs sm:text-sm font-semibold text-primary">
                 Toque para selecionar documento
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <p className="text-[11px] text-secondary mt-0.5">
                 Suporta PDF, TXT, Markdown (.md) ou relatórios em texto puro
               </p>
             </>
@@ -190,33 +190,32 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
 
       {/* 3. Rodapé com Metadados e Ação Primária Ampla */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
+        <div className="flex items-center gap-3 text-xs text-secondary font-mono tabular-nums">
           <span className="flex items-center gap-1">
-            <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+            <BookOpen className="w-3.5 h-3.5 text-amber-400" />
             {wordCount} palavras
           </span>
           <span>•</span>
           <span className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
-            ~{estimatedDebateMinutes} min de debate
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            ~{estimatedDebateMinutes} min
           </span>
         </div>
 
-        {/* Botão de Geração com Altura Ergonômica de 56px */}
         <button
           type="button"
           onClick={onGenerateDebate}
           disabled={!textInput.trim() || isGenerating}
-          className="min-h-[56px] w-full sm:w-auto px-6 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+          className="min-h-[48px] w-full sm:w-auto px-6 rounded-xl btn-matte-amber text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
         >
           {isGenerating ? (
             <>
-              <span className="h-4 w-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
-              <span>Roteirizando Dialética...</span>
+              <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              <span>Roteirizando Conversa...</span>
             </>
           ) : (
             <>
-              <span>Gerar Debate em Áudio</span>
+              <span>Renderizar Conversa em Áudio</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}

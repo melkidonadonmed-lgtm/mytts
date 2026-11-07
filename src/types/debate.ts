@@ -4,6 +4,10 @@ export type AudienceLevel = 'layman' | 'intermediate' | 'expert';
 
 export type TensionIntensity = 'reflective' | 'balanced' | 'provocative';
 
+export type ConversationFormat = 'debate' | 'podcast' | 'bar_chat' | 'dinner';
+
+export type StudioRenderMode = 'solo' | ConversationFormat;
+
 export type TurnEmotion = 
   | 'thoughtful' 
   | 'inquisitive' 
@@ -47,6 +51,7 @@ export interface DebateConfig {
   language: LanguageCode;
   audienceLevel: AudienceLevel;
   tensionIntensity: TensionIntensity;
+  format?: ConversationFormat;
   speakers: [SpeakerProfile, SpeakerProfile];
   maxTurns: number;
 }
@@ -59,6 +64,7 @@ export interface DebateScript {
   language: LanguageCode;
   audienceLevel: AudienceLevel;
   tensionIntensity: TensionIntensity;
+  format?: ConversationFormat;
   speakers: [SpeakerProfile, SpeakerProfile];
   turns: DebateTurn[];
   fullAudioBase64?: string;

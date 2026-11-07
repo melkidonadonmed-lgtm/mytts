@@ -1,392 +1,430 @@
 /**
- * Painel de configuração dialética (estados de UI: vazio, carregando, sucesso e erro).
+ * Painel de configuração de Conversa & Debate — resolvido com 2 cards selecionáveis
+ * (Voz Neural, Idioma e Estilo) + Seletor de Formato de Renderização (Debate, Podcast, Bar, Jantar).
  */
-import React, { useState } from 'react';
-import { 
-  SlidersHorizontal, 
-  Globe2, 
-  Gauge, 
-  Flame, 
-  Volume2,
-  BrainCircuit,
-  MessageSquareQuote,
-  Check,
-  Users
-} from 'lucide-react';
+import React, { useState, useRef } from 'react';
 import {
-  AudienceLevel,
+  ConversationFormat,
   DebateConfig,
   LanguageCode,
   SpeakerProfile,
   TensionIntensity,
 } from '../types/debate';
 import { LANGUAGE_OPTIONS } from '../data/sampleDebates';
-import { VoiceCardGrid } from './VoiceCardGrid';
-import { GEMINI_VOICES, VoiceProfile } from '../types/voices';
+import { GEMINI_VOICES } from '../types/voices';
+import { GoogleIcon } from './GoogleIcon';
+import { requestPreviewVoice } from '../services/apiClient';
+import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback } from '../utils/audio';
 
 interface DebateConfigPanelProps {
   config: DebateConfig;
   onChangeConfig: (newConfig: DebateConfig) => void;
+  hideFormatSelector?: boolean;
 }
+
+export const SPEAKER_STYLE_OPTIONS: {
+  label: string;
+  roleTitle: string;
+  archetype: 'analytical' | 'provocateur';
+  tensionHint?: TensionIntensity;
+}[] = [
+  {
+    label: 'Analítico & Crítico (Rigor Metodológico)',
+    roleTitle: 'Analista Teórico & Fundamentado',
+    archetype: 'analytical',
+    tensionHint: 'balanced',
+  },
+  {
+    label: 'Provocador Pragmático (Cético & Direto)',
+    roleTitle: 'Provocador Pragmático & Cético',
+    archetype: 'provocateur',
+    tensionHint: 'provocative',
+  },
+  {
+    label: 'Host de Podcast (Curioso & Dinâmico)',
+    roleTitle: 'Co-Host de Podcast & Investigador',
+    archetype: 'analytical',
+    tensionHint: 'balanced',
+  },
+  {
+    label: 'Conversa de Bar (Coloquial & Espontâneo)',
+    roleTitle: 'Amigo de Bar Franco & Bem-Humorado',
+    archetype: 'provocateur',
+    tensionHint: 'provocative',
+  },
+  {
+    label: 'Mesa de Jantar (Caloroso & Reflexivo)',
+    roleTitle: 'Anfitrião Caloroso & Contador de Histórias',
+    archetype: 'analytical',
+    tensionHint: 'reflective',
+  },
+  {
+    label: 'Didático & Técnico (Explicação Clara)',
+    roleTitle: 'Especialista Didático & Prático',
+    archetype: 'analytical',
+    tensionHint: 'reflective',
+  },
+];
+
+export const FORMAT_RENDER_OPTIONS: {
+  id: ConversationFormat;
+  label: string;
+  badge: string;
+  icon: string;
+  desc: string;
+  defaultTension: TensionIntensity;
+}[] = [
+  {
+    id: 'debate',
+    label: 'Debate Dialético',
+    badge: 'Embate',
+    icon: 'forum',
+    desc: 'Tese vs. antítese sem clichês de concordância',
+    defaultTension: 'provocative',
+  },
+  {
+    id: 'podcast',
+    label: 'Podcast de Estúdio',
+    badge: '2 Hosts',
+    icon: 'podcasts',
+    desc: 'Co-apresentadores curiosos com ritmo radiofônico',
+    defaultTension: 'balanced',
+  },
+  {
+    id: 'bar_chat',
+    label: 'Conversa de Bar',
+    badge: 'Coloquial',
+    icon: 'local_cafe',
+    desc: 'Papo descontraído, franco e espontâneo entre amigos',
+    defaultTension: 'provocative',
+  },
+  {
+    id: 'dinner',
+    label: 'Mesa de Jantar',
+    badge: 'Família',
+    icon: 'restaurant',
+    desc: 'Conversa calorosa, reflexiva e acolhedora',
+    defaultTension: 'reflective',
+  },
+];
 
 export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
   config,
   onChangeConfig,
+  hideFormatSelector = false,
 }) => {
-  const [activeMobileSpeaker, setActiveMobileSpeaker] = useState<0 | 1>(0);
-  const [activeSlot, setActiveSlot] = useState<1 | 2>(1);
+  const [previewingSlot, setPreviewingSlot] = useState<0 | 1 | null>(null);
+  const previewAudioRef = useRef<{ audio: HTMLAudioElement; url: string } | null>(null);
+
+  const activeFormat: ConversationFormat = config.format || 'debate';
+
+  const handleFormatChange = (format: ConversationFormat) => {
+    const preset = FORMAT_RENDER_OPTIONS.find((f) => f.id === format);
+    const updatedSpeakers = [...config.speakers] as [SpeakerProfile, SpeakerProfile];
+
+    if (format === 'podcast') {
+      updatedSpeakers[0] = { ...updatedSpeakers[0], roleTitle: 'Co-Host de Podcast & Investigador' };
+      updatedSpeakers[1] = { ...updatedSpeakers[1], roleTitle: 'Co-Host Convidado & Pragmático' };
+    } else if (format === 'bar_chat') {
+      updatedSpeakers[0] = { ...updatedSpeakers[0], roleTitle: 'Amigo de Bar Observador & Irônico' };
+      updatedSpeakers[1] = { ...updatedSpeakers[1], roleTitle: 'Amigo de Bar Franco & Bem-Humorado' };
+    } else if (format === 'dinner') {
+      updatedSpeakers[0] = { ...updatedSpeakers[0], roleTitle: 'Anfitrião Caloroso & Reflexivo' };
+      updatedSpeakers[1] = { ...updatedSpeakers[1], roleTitle: 'Convidado de Jantar & Contador de Histórias' };
+    } else {
+      updatedSpeakers[0] = { ...updatedSpeakers[0], roleTitle: 'Analista Teórico & Fundamentado' };
+      updatedSpeakers[1] = { ...updatedSpeakers[1], roleTitle: 'Provocador Pragmático & Cético' };
+    }
+
+    onChangeConfig({
+      ...config,
+      format,
+      tensionIntensity: preset?.defaultTension || config.tensionIntensity,
+      speakers: updatedSpeakers,
+    });
+  };
 
   const handleLanguageChange = (langCode: LanguageCode) => {
     const matched = LANGUAGE_OPTIONS.find((l) => l.code === langCode);
-    if (matched) {
-      onChangeConfig({
-        ...config,
-        language: langCode,
-        speakers: matched.defaultSpeakers,
-      });
-    }
+    onChangeConfig({
+      ...config,
+      language: langCode,
+      speakers: matched ? matched.defaultSpeakers : config.speakers,
+    });
   };
 
   const handleSpeakerChange = (index: 0 | 1, field: keyof SpeakerProfile, value: string) => {
     const updatedSpeakers = [...config.speakers] as [SpeakerProfile, SpeakerProfile];
-    updatedSpeakers[index] = {
+    const nextSpeaker = {
       ...updatedSpeakers[index],
       [field]: value,
     };
+
+    // Quando o usuário troca a voz na lista, sincroniza o nome padrão se for nome de voz
+    if (field === 'voiceId') {
+      const voiceObj = GEMINI_VOICES.find((v) => v.id === value);
+      if (voiceObj) {
+        nextSpeaker.name = voiceObj.name;
+      }
+    }
+
+    updatedSpeakers[index] = nextSpeaker;
     onChangeConfig({
       ...config,
       speakers: updatedSpeakers,
     });
   };
 
-  const spk1Voice: VoiceProfile =
-    GEMINI_VOICES.find((v) => v.id.toLowerCase() === (config.speakers[0]?.voiceId || '').toLowerCase()) ||
-    GEMINI_VOICES[1]; // Kore fallback
-  const spk2Voice: VoiceProfile =
-    GEMINI_VOICES.find((v) => v.id.toLowerCase() === (config.speakers[1]?.voiceId || '').toLowerCase()) ||
-    GEMINI_VOICES[0]; // Puck fallback
+  const handlePreviewSpeaker = async (index: 0 | 1) => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.audio.pause();
+      revokeAudioUrl(previewAudioRef.current.url);
+      previewAudioRef.current = null;
+    }
 
-  const audienceLevels: { id: AudienceLevel; label: string; shortDesc: string }[] = [
-    { id: 'layman', label: 'Leigo', shortDesc: 'Analogias' },
-    { id: 'intermediate', label: 'Médio', shortDesc: 'Equilibrado' },
-    { id: 'expert', label: 'Perito', shortDesc: 'Rigor Puro' },
-  ];
+    if (previewingSlot === index) {
+      setPreviewingSlot(null);
+      return;
+    }
 
-  const tensionLevels: { id: TensionIntensity; label: string; shortDesc: string }[] = [
-    { id: 'reflective', label: 'Reflexiva', shortDesc: 'Cautelosa' },
-    { id: 'balanced', label: 'Equilibrada', shortDesc: 'Ágil' },
-    { id: 'provocative', label: 'Provocativa', shortDesc: 'Atrito' },
-  ];
+    const spk = config.speakers[index];
+    setPreviewingSlot(index);
+
+    try {
+      const res = await requestPreviewVoice({
+        voiceId: spk.voiceId,
+        speakerName: spk.name,
+        language: config.language,
+      });
+      if (res.ok && res.audioBase64) {
+        const url = base64ToBlobUrl(res.audioBase64, 'audio/wav');
+        const audio = new Audio(url);
+        audio.preservesPitch = true;
+        previewAudioRef.current = { audio, url };
+        audio.onended = () => setPreviewingSlot(null);
+        audio.onerror = () => setPreviewingSlot(null);
+        await audio.play();
+        return;
+      }
+    } catch (err: unknown) {
+      console.warn('Erro ao reproduzir preview de voz no painel de debate:', err);
+    }
+
+    speakBrowserFallback(`Olá, eu sou ${spk.name}, na configuração ${spk.roleTitle}.`, {
+      lang: config.language,
+      voiceId: spk.voiceId,
+      onEnd: () => setPreviewingSlot(null),
+      onError: () => setPreviewingSlot(null),
+    });
+  };
 
   return (
-    <section 
+    <section
       data-state="idle"
       aria-busy="false"
-      aria-label="Painel de Calibração do Debate"
-      className="rounded-2xl card-matte p-4 sm:p-5"
+      aria-label="Configuração da Conversa em 2 Cards"
+      className="flex flex-col gap-4"
     >
-      <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
-            <SlidersHorizontal className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-slate-100 font-sans">
-              Calibração do Debate
+      {/* 1. Barra de Formato de Renderização (Debate, Podcast, Conversa de Bar, Mesa de Jantar) */}
+      {!hideFormatSelector && (
+      <div className="rounded-2xl card-matte p-3.5 sm:p-4 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <GoogleIcon name="tune" size={18} className="text-amber-400" />
+            <h2 className="text-xs sm:text-sm font-bold text-primary font-display">
+              Formato de Renderização da Conversa
             </h2>
-            <p className="text-[11px] text-slate-400">
-              Ajuste idioma, profundidade e a postura dos debatedores.
-            </p>
           </div>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-slate-950 px-2.5 py-1 border border-slate-800 text-[11px] font-mono text-slate-400">
-          <span>24kHz</span>
-          <span>•</span>
-          <span className="text-sky-400">studio</span>
-        </div>
-      </div>
-
-      {/* 2. Seleção de Idioma Matriz */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-            <Globe2 className="h-4 w-4 text-sky-400" />
-            <span>Idioma Matriz (Vozes Nativas)</span>
-          </label>
-          <span className="text-[11px] font-mono text-slate-400 uppercase">
-            {config.language}
+          <span className="text-[11px] font-mono text-secondary">
+            Escolha a dinâmica e configure as 2 vozes nos cards abaixo
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          {LANGUAGE_OPTIONS.map((lang) => {
-            const isSelected = config.language === lang.code;
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {FORMAT_RENDER_OPTIONS.map((fmt) => {
+            const isSelected = activeFormat === fmt.id;
             return (
               <button
-                key={lang.code}
+                key={fmt.id}
                 type="button"
-                onClick={() => handleLanguageChange(lang.code)}
-                className={`relative min-h-[48px] w-full flex items-center justify-between px-3 py-2 rounded-xl border text-left transition-all active:translate-y-px cursor-pointer ${
+                aria-pressed={isSelected}
+                onClick={() => handleFormatChange(fmt.id)}
+                className={`p-3 rounded-xl text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
                   isSelected
-                    ? 'border-sky-500/60 bg-sky-100 dark:bg-sky-500/15 text-sky-950 dark:text-white shadow-sm ring-1 ring-sky-500/30'
-                    : 'border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950/60 text-slate-700 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-700 hover:text-slate-950 dark:hover:text-slate-200'
+                    ? 'card-matte-active ring-1 ring-amber-400/50'
+                    : 'btn-matte-dark hover:border-amber-400/30'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 border border-slate-700/80 leading-none shrink-0">
-                    {lang.flag}
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-primary font-display">
+                    <GoogleIcon
+                      name={fmt.icon}
+                      size={16}
+                      className={isSelected ? 'text-amber-400' : 'text-secondary'}
+                    />
+                    <span>{fmt.label}</span>
                   </span>
-                  <div className="truncate">
-                    <p className={`text-xs font-semibold truncate ${isSelected ? 'text-sky-900 dark:text-sky-200' : 'text-slate-800 dark:text-slate-200'}`}>
-                      {lang.nativeName}
-                    </p>
-                    <p className="text-[10px] text-slate-600 dark:text-slate-400 truncate">{lang.name.split(' ')[0]}</p>
-                  </div>
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                      isSelected
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'surface-inset text-secondary'
+                    }`}
+                  >
+                    {fmt.badge}
+                  </span>
                 </div>
-                {isSelected && (
-                  <Check className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 ml-1" />
-                )}
+                <p className="text-[11px] text-secondary leading-snug">{fmt.desc}</p>
               </button>
             );
           })}
         </div>
       </div>
+      )}
 
-      {/* 3. Controles Segmentados em Barra Única (Audience & Tension) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        
-        {/* Nível do Público */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 font-sans">
-            <Gauge className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-            <span>Nível do Público</span>
-          </label>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 dark:bg-slate-950/80 p-1 border border-slate-300 dark:border-slate-800">
-            {audienceLevels.map((lvl) => {
-              const active = config.audienceLevel === lvl.id;
-              return (
+      {/* 2. Os DOIS Cards Selecionáveis (Voz Neural + Idioma + Estilo) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {([0, 1] as const).map((idx) => {
+          const spk = config.speakers[idx];
+          const isFirst = idx === 0;
+          const voiceMeta =
+            GEMINI_VOICES.find((v) => v.id.toLowerCase() === spk.voiceId.toLowerCase()) ||
+            GEMINI_VOICES[idx];
+
+          return (
+            <div
+              key={spk.id}
+              className="rounded-2xl card-matte p-4 flex flex-col gap-3.5 transition-all"
+            >
+              {/* Topo do Card: Avatar da Voz + Nome Editável + Botão Ouvir Preview */}
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800/60">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div
+                    className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${voiceMeta.avatarColor} flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0`}
+                  >
+                    {spk.name?.[0] || voiceMeta.name[0]}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-amber-400 block">
+                      {isFirst ? 'Card 1 · Primeiro Interlocutor' : 'Card 2 · Segundo Interlocutor'}
+                    </span>
+                    <input
+                      type="text"
+                      aria-label={`Nome do Interlocutor ${idx + 1}`}
+                      value={spk.name}
+                      onChange={(e) => handleSpeakerChange(idx, 'name', e.target.value)}
+                      placeholder={voiceMeta.name}
+                      className="w-full bg-transparent text-sm font-bold text-primary font-display focus:outline-none border-b border-transparent focus:border-amber-400/60 truncate"
+                    />
+                  </div>
+                </div>
+
                 <button
-                  key={lvl.id}
                   type="button"
-                  onClick={() => onChangeConfig({ ...config, audienceLevel: lvl.id })}
-                  className={`min-h-[44px] flex flex-col items-center justify-center rounded-lg px-2 py-1 text-center transition-all active:translate-y-px cursor-pointer font-sans ${
-                    active
-                      ? 'bg-sky-100 dark:bg-sky-500/20 border border-sky-400/50 text-sky-900 dark:text-sky-200 font-bold shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  onClick={() => handlePreviewSpeaker(idx)}
+                  className={`h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0 transition-all ${
+                    previewingSlot === idx
+                      ? 'btn-matte-amber text-white'
+                      : 'btn-matte-dark text-secondary hover:text-primary'
                   }`}
+                  title={`Ouvir amostra da voz ${spk.voiceId}`}
                 >
-                  <span className="text-xs font-semibold leading-tight">{lvl.label}</span>
-                  <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">{lvl.shortDesc}</span>
+                  <GoogleIcon
+                    name={previewingSlot === idx ? 'stop' : 'volume_up'}
+                    size={16}
+                    className={previewingSlot === idx ? 'text-white' : 'text-amber-400'}
+                  />
+                  <span>{previewingSlot === idx ? 'Ouvindo' : 'Ouvir Voz'}</span>
                 </button>
-              );
-            })}
-          </div>
-        </div>
+              </div>
 
-        {/* Tensão Dialética */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 font-sans">
-            <Flame className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-            <span>Intensidade do Conflito</span>
-          </label>
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 dark:bg-slate-950/80 p-1 border border-slate-300 dark:border-slate-800">
-            {tensionLevels.map((t) => {
-              const active = config.tensionIntensity === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => onChangeConfig({ ...config, tensionIntensity: t.id })}
-                  className={`min-h-[44px] flex flex-col items-center justify-center rounded-lg px-2 py-1 text-center transition-all active:translate-y-px cursor-pointer font-sans ${
-                    active
-                      ? 'bg-sky-100 dark:bg-sky-500/20 border border-sky-400/50 text-sky-900 dark:text-sky-200 font-bold shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
+              {/* Lista Selecionável 1: Nome da Voz Neural */}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={`debate-card-voice-${idx}`}
+                  className="text-[11px] font-mono uppercase tracking-wider text-secondary font-semibold flex items-center justify-between"
                 >
-                  <span className="text-xs font-semibold leading-tight">{t.label}</span>
-                  <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">{t.shortDesc}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-      </div>
-
-      {/* 4. Grade de Seleção de Vozes por Card (Visual Tátil) */}
-      <div className="pt-2 border-t border-slate-800/80 mb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-sky-400" />
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-sans">
-              Selecione as Vozes Neurais por Card:
-            </h3>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs font-mono">
-            <span className="text-slate-400">Atribuindo para:</span>
-            <button
-              type="button"
-              onClick={() => setActiveSlot(activeSlot === 1 ? 2 : 1)}
-              className="px-2.5 py-0.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/40 font-bold cursor-pointer"
-            >
-              Orador {activeSlot}
-            </button>
-          </div>
-        </div>
-
-        <VoiceCardGrid
-          selectedVoice={spk1Voice}
-          onSelectVoice={() => {}}
-          multiSpeakerMode={true}
-          speaker1={spk1Voice}
-          speaker2={spk2Voice}
-          activeSlot={activeSlot}
-          onSelectSpeakerSlot={(slot, voice) => {
-            if (slot === 1) {
-              handleSpeakerChange(0, 'voiceId', voice.id);
-              handleSpeakerChange(0, 'name', voice.name);
-              handleSpeakerChange(0, 'roleTitle', voice.archetype);
-              setActiveSlot(2);
-            } else {
-              handleSpeakerChange(1, 'voiceId', voice.id);
-              handleSpeakerChange(1, 'name', voice.name);
-              handleSpeakerChange(1, 'roleTitle', voice.archetype);
-              setActiveSlot(1);
-            }
-          }}
-        />
-      </div>
-
-      {/* 5. Personas dos Debatedores com Tab Switcher no Mobile */}
-      <div className="pt-2 border-t border-slate-800/80">
-        
-        {/* Switcher visível apenas em telas menores que MD */}
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-300 font-sans">Configuração dos Debatedores</span>
-          
-          <div className="flex md:hidden rounded-lg bg-slate-950 p-1 border border-slate-800">
-            <button
-              type="button"
-              onClick={() => setActiveMobileSpeaker(0)}
-              className={`min-h-[44px] px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                activeMobileSpeaker === 0
-                  ? 'bg-sky-500/20 text-sky-300 border border-sky-400/30'
-                  : 'text-slate-400'
-              }`}
-            >
-              1. {config.speakers[0].name || 'Orador 1'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveMobileSpeaker(1)}
-              className={`min-h-[44px] px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                activeMobileSpeaker === 1
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
-                  : 'text-slate-400'
-              }`}
-            >
-              2. {config.speakers[1].name || 'Orador 2'}
-            </button>
-          </div>
-        </div>
-
-        {/* Container das Personas: No Mobile exibe a aba ativa; no Desktop exibe grid lado a lado */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* Card Interlocutor 1 (Tese / Analítico) */}
-          <div className={`rounded-xl border border-sky-500/20 bg-gradient-to-b from-sky-500/5 to-slate-950/70 p-4 transition-all ${
-            activeMobileSpeaker === 0 ? 'block' : 'hidden md:block'
-          }`}>
-            <div className="mb-3 flex items-center justify-between border-b border-sky-500/10 pb-2.5">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
-                  <BrainCircuit className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-sky-300 uppercase tracking-wider font-sans">
-                    Orador 1 (Tese & Evidência)
-                  </h3>
-                  <p className="text-[11px] text-slate-400">Perfil metódico e analítico</p>
-                </div>
-              </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/10 px-2.5 py-1 text-[11px] font-mono text-sky-300 border border-sky-400/30 font-bold">
-                <Volume2 className="h-3.5 w-3.5" />
-                {config.speakers[0].voiceId}
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block font-sans">Nome do Debatedor</label>
-                <input
-                  type="text"
-                  value={config.speakers[0].name}
-                  onChange={(e) => handleSpeakerChange(0, 'name', e.target.value)}
-                  className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-base md:text-xs text-slate-100 placeholder-slate-600 focus:border-sky-400 focus:outline-none"
-                />
+                  <span>1. Voz Neural</span>
+                  <span className="text-amber-400">{voiceMeta.archetype}</span>
+                </label>
+                <select
+                  id={`debate-card-voice-${idx}`}
+                  value={spk.voiceId}
+                  onChange={(e) => handleSpeakerChange(idx, 'voiceId', e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl input-sunken text-xs font-bold text-primary cursor-pointer focus:outline-none"
+                >
+                  {GEMINI_VOICES.map((v) => (
+                    <option
+                      key={v.id}
+                      value={v.id}
+                      className="bg-slate-900 text-slate-100"
+                    >
+                      {v.name} ({v.gender === 'male' ? 'Masculina' : 'Feminina'}) — {v.archetype}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block font-sans">Papel Conceitual</label>
-                <input
-                  type="text"
-                  value={config.speakers[0].roleTitle}
-                  onChange={(e) => handleSpeakerChange(0, 'roleTitle', e.target.value)}
-                  placeholder="ex.: Analista Teórica & Investigativa"
-                  className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-base md:text-xs text-slate-200 placeholder-slate-600 focus:border-sky-400 focus:outline-none"
-                />
+              {/* Lista Selecionável 2: Idioma */}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={`debate-card-lang-${idx}`}
+                  className="text-[11px] font-mono uppercase tracking-wider text-secondary font-semibold flex items-center justify-between"
+                >
+                  <span>2. Idioma da Conversa</span>
+                  <span>{config.language}</span>
+                </label>
+                <select
+                  id={`debate-card-lang-${idx}`}
+                  value={config.language}
+                  onChange={(e) => handleLanguageChange(e.target.value as LanguageCode)}
+                  className="w-full h-10 px-3 rounded-xl input-sunken text-xs font-bold text-primary cursor-pointer focus:outline-none"
+                >
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <option
+                      key={lang.code}
+                      value={lang.code}
+                      className="bg-slate-900 text-slate-100"
+                    >
+                      {lang.flag} · {lang.name} ({lang.nativeName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Lista Selecionável 3: Estilo / Postura na Conversa */}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={`debate-card-style-${idx}`}
+                  className="text-[11px] font-mono uppercase tracking-wider text-secondary font-semibold"
+                >
+                  3. Estilo & Papel na Dinâmica
+                </label>
+                <select
+                  id={`debate-card-style-${idx}`}
+                  value={spk.roleTitle}
+                  onChange={(e) => handleSpeakerChange(idx, 'roleTitle', e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl input-sunken text-xs font-bold text-primary cursor-pointer focus:outline-none"
+                >
+                  {SPEAKER_STYLE_OPTIONS.map((st) => (
+                    <option
+                      key={st.roleTitle}
+                      value={st.roleTitle}
+                      className="bg-slate-900 text-slate-100"
+                    >
+                      {st.label}
+                    </option>
+                  ))}
+                  {!SPEAKER_STYLE_OPTIONS.some((s) => s.roleTitle === spk.roleTitle) && (
+                    <option value={spk.roleTitle} className="bg-slate-900 text-slate-100">
+                      {spk.roleTitle}
+                    </option>
+                  )}
+                </select>
               </div>
             </div>
-          </div>
-
-          {/* Card Interlocutor 2 (Antítese / Provocador) */}
-          <div className={`rounded-xl border border-emerald-500/20 bg-gradient-to-b from-emerald-500/5 to-slate-950/70 p-4 transition-all ${
-            activeMobileSpeaker === 1 ? 'block' : 'hidden md:block'
-          }`}>
-            <div className="mb-3 flex items-center justify-between border-b border-emerald-500/10 pb-2.5">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
-                  <MessageSquareQuote className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-emerald-300 uppercase tracking-wider font-sans">
-                    Orador 2 (Antítese & Prática)
-                  </h3>
-                  <p className="text-[11px] text-slate-400">Perfil cético e provocador</p>
-                </div>
-              </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-mono text-emerald-300 border border-emerald-400/30 font-bold">
-                <Volume2 className="h-3.5 w-3.5" />
-                {config.speakers[1].voiceId}
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block font-sans">Nome do Debatedor</label>
-                <input
-                  type="text"
-                  value={config.speakers[1].name}
-                  onChange={(e) => handleSpeakerChange(1, 'name', e.target.value)}
-                  className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-base md:text-xs text-slate-100 placeholder-slate-600 focus:border-emerald-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-slate-400 mb-1 block font-sans">Papel Conceitual</label>
-                <input
-                  type="text"
-                  value={config.speakers[1].roleTitle}
-                  onChange={(e) => handleSpeakerChange(1, 'roleTitle', e.target.value)}
-                  placeholder="ex.: Provocador Pragmático & Cético"
-                  className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-950 px-3 text-base md:text-xs text-slate-200 placeholder-slate-600 focus:border-emerald-400 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-        </div>
+          );
+        })}
       </div>
     </section>
   );

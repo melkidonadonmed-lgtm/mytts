@@ -281,6 +281,7 @@ export const FastChunkAudioApp: React.FC = () => {
   const playAudioBase64 = useCallback(async (base64Audio: string, id: string): Promise<void> => {
     const blobUrl = base64ToBlobUrl(base64Audio, 'audio/wav');
     const audio = new Audio(blobUrl);
+    audio.preservesPitch = true;
     audio.playbackRate = playbackRate;
     audioPlayerRef.current = audio;
     setSpeakingId(id);

@@ -45,7 +45,7 @@ export interface ExportTurnInput {
 
 let sharedAudioContext: AudioContext | null = null;
 
-export function getAudioContext(): AudioContext {
+export function getAudioContext(autoResume = false): AudioContext {
   if (!sharedAudioContext) {
     const win = window as WindowWithWebkitAudio;
     const AudioContextClass = win.AudioContext || win.webkitAudioContext;
@@ -54,8 +54,8 @@ export function getAudioContext(): AudioContext {
     }
     sharedAudioContext = new AudioContextClass();
   }
-  if (sharedAudioContext.state === 'suspended') {
-    sharedAudioContext.resume();
+  if (autoResume && sharedAudioContext.state === 'suspended') {
+    void sharedAudioContext.resume().catch(() => {});
   }
   return sharedAudioContext;
 }
@@ -250,8 +250,8 @@ export type PlaybackListener = (state: PlayerState) => void;
  * Gapless Audio Player com Pitch Preservation, Multitrack e Auto-Ducking
  */
 export class GaplessAudioPlayer {
-  private audioContext: AudioContext;
-  private analyser: AnalyserNode;
+  private audioContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
   private audioElement: HTMLAudioElement;
   private mediaSourceNode: MediaElementAudioSourceNode | null = null;
   private voiceGainNode: GainNode | null = null;
@@ -290,11 +290,6 @@ export class GaplessAudioPlayer {
   private preDelayTimeout: number | null = null;
 
   constructor() {
-    this.audioContext = getAudioContext();
-    this.analyser = this.audioContext.createAnalyser();
-    this.analyser.fftSize = 256;
-    this.analyser.smoothingTimeConstant = 0.8;
-
     const pitchAudio = new Audio() as PitchPreservingAudioElement;
     pitchAudio.crossOrigin = 'anonymous';
     pitchAudio.preservesPitch = true;
@@ -302,12 +297,27 @@ export class GaplessAudioPlayer {
     pitchAudio.webkitPreservesPitch = true;
     this.audioElement = pitchAudio;
 
-    this.setupAudioGraph();
     this.setupEvents();
+  }
+
+  private ensureAudioContext(autoResume = false): AudioContext {
+    if (!this.audioContext) {
+      this.audioContext = getAudioContext(autoResume);
+    } else if (autoResume && this.audioContext.state === 'suspended') {
+      void this.audioContext.resume().catch(() => {});
+    }
+    if (!this.analyser) {
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 256;
+      this.analyser.smoothingTimeConstant = 0.8;
+    }
+    this.setupAudioGraph();
+    return this.audioContext;
   }
 
   private setupAudioGraph() {
     try {
+      if (!this.audioContext || !this.analyser) return;
       if (!this.masterGainNode) {
         this.masterGainNode = this.audioContext.createGain();
         this.masterGainNode.gain.value = this.volume;
@@ -368,7 +378,7 @@ export class GaplessAudioPlayer {
    * ou restaura o volume nominal nos silêncios/intervalos entre turnos
    */
   private applyDucking(duck: boolean) {
-    if (!this.musicGainNode || !this.soundtrackConfig.duckingEnabled) return;
+    if (!this.musicGainNode || !this.soundtrackConfig.duckingEnabled || !this.audioContext) return;
     const ctx = this.audioContext;
     const now = ctx.currentTime;
     const nominal = this.soundtrackConfig.musicVolume;
@@ -411,11 +421,12 @@ export class GaplessAudioPlayer {
     if (this.isMusicPlaying) return;
 
     try {
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
+      const ctx = this.ensureAudioContext(true);
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
       }
 
-      this.musicSourceNode = this.audioContext.createBufferSource();
+      this.musicSourceNode = ctx.createBufferSource();
       this.musicSourceNode.buffer = this.currentMusicBuffer;
       this.musicSourceNode.loop = true;
 
@@ -447,7 +458,8 @@ export class GaplessAudioPlayer {
   }
 
   public getAnalyserNode(): AnalyserNode {
-    return this.analyser;
+    this.ensureAudioContext(false);
+    return this.analyser!;
   }
 
   public subscribe(listener: PlaybackListener): () => void {
@@ -498,7 +510,8 @@ export class GaplessAudioPlayer {
       }
     } else {
       // Gera ou busca buffer procedural no cache
-      const buffer = await getOrGenerateSoundtrackBuffer(preset, this.audioContext.sampleRate);
+      const ctx = this.ensureAudioContext(false);
+      const buffer = await getOrGenerateSoundtrackBuffer(preset, ctx.sampleRate);
       this.currentMusicBuffer = buffer;
       if (this.isPlaying) {
         this.stopSoundtrack();
@@ -512,7 +525,7 @@ export class GaplessAudioPlayer {
   public setSoundtrackVolume(vol: number) {
     const clamped = Math.max(0, Math.min(1, vol));
     this.soundtrackConfig.musicVolume = clamped;
-    if (this.musicGainNode && !this.isDucking) {
+    if (this.musicGainNode && !this.isDucking && this.audioContext) {
       this.musicGainNode.gain.setValueAtTime(clamped, this.audioContext.currentTime);
     }
     this.notifyListeners();
@@ -520,7 +533,7 @@ export class GaplessAudioPlayer {
 
   public setDuckingEnabled(enabled: boolean) {
     this.soundtrackConfig.duckingEnabled = enabled;
-    if (!enabled && this.musicGainNode) {
+    if (!enabled && this.musicGainNode && this.audioContext) {
       this.musicGainNode.gain.setValueAtTime(
         this.soundtrackConfig.musicVolume,
         this.audioContext.currentTime
@@ -539,7 +552,7 @@ export class GaplessAudioPlayer {
 
   public setVoiceBoost(boostDb: number) {
     this.soundtrackConfig.voiceBoostDb = boostDb;
-    if (this.voiceGainNode) {
+    if (this.voiceGainNode && this.audioContext) {
       this.voiceGainNode.gain.setValueAtTime(
         Math.pow(10, boostDb / 20),
         this.audioContext.currentTime
@@ -633,8 +646,9 @@ export class GaplessAudioPlayer {
   }
 
   public async play(turnIndex?: number) {
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+    const ctx = this.ensureAudioContext(true);
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
     }
     this.setupAudioGraph();
 
@@ -714,7 +728,7 @@ export class GaplessAudioPlayer {
   public setVolume(vol: number) {
     this.volume = Math.max(0, Math.min(1, vol));
     this.audioElement.volume = this.volume;
-    if (this.masterGainNode) {
+    if (this.masterGainNode && this.audioContext) {
       this.masterGainNode.gain.setValueAtTime(
         this.volume,
         this.audioContext.currentTime
@@ -767,7 +781,7 @@ export class GaplessAudioPlayer {
       this.applyDucking(false);
       this.notifyListeners();
       // Outro sutil na trilha: fade out em 2s
-      if (this.musicGainNode && this.isMusicPlaying) {
+      if (this.musicGainNode && this.isMusicPlaying && this.audioContext) {
         const now = this.audioContext.currentTime;
         this.musicGainNode.gain.setValueAtTime(this.soundtrackConfig.musicVolume, now + 1.0);
         this.musicGainNode.gain.linearRampToValueAtTime(0.001, now + 2.5);
@@ -797,6 +811,7 @@ export class GaplessAudioPlayer {
     this.notifyListeners();
 
     try {
+      const ctx = this.ensureAudioContext(false);
       const sampleRate = 44100;
       const win = window as WindowWithWebkitAudio;
       const OfflineCtxClass =
@@ -819,7 +834,7 @@ export class GaplessAudioPlayer {
           (turn.prosody?.pre_delay_ms || turn.preDelayMs || 120) / 1000
         );
         const arrayBuf = base64ToArrayBuffer(b64);
-        const audioBuf = await this.audioContext.decodeAudioData(arrayBuf.slice(0));
+        const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
         decodedTurns.push({
           turnNumber: turn.turn || turn.turnNumber || 0,
           buffer: audioBuf,

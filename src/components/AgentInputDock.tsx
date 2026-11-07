@@ -1,40 +1,116 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { GoogleIcon } from './GoogleIcon';
-import { requestExtractTextJson, requestTranscribeAudio } from '../services/apiClient';
+import { Globe, Video, Sparkles, Radio, Plus, Headphones } from 'lucide-react';
+import { requestExtractTextJson } from '../services/apiClient';
+import type { AgentPersona } from '../types/polyglot';
+import type { StudioRenderMode } from '../types/debate';
+import { detectYoutubeUrl } from '../services/polyglotClient';
+import { startLiveVoiceMonitor, LiveVoiceMonitorHandle } from '../utils/liveVoiceMonitor';
+
+export type DockMode = 'translate' | 'live_tutor' | 'practice' | 'search_youtube';
+
+export interface AgentInputDockSubmitPayload {
+  text: string;
+  dockMode: DockMode;
+  persona: AgentPersona;
+  youtubeUrl?: string;
+  enableSearch: boolean;
+  audioBase64?: string;
+  mimeType?: string;
+  autoSpeakReply?: boolean;
+}
 
 export interface AgentInputDockProps {
-  onSendMessage: (text: string, autoPlayAfter?: boolean) => Promise<void>;
+  onSendMessage: (
+    text: string,
+    autoPlayAfter?: boolean,
+    payload?: AgentInputDockSubmitPayload
+  ) => Promise<void>;
+  onSendToCreationStudio?: (text: string, renderMode: StudioRenderMode) => void;
   isLoading: boolean;
   activeVoiceName?: string;
 }
 
+/**
+ * Ícone oficial estilo Gemini Live (Estrela Gemini de 4 pontas + Ondas Acústicas Live)
+ */
+const GeminiLiveSymbol: React.FC<{ active?: boolean }> = ({ active = false }) => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    className={active ? 'text-emerald-300 animate-pulse' : 'text-amber-400'}
+  >
+    {/* Ondas acústicas laterais do Gemini Live */}
+    <path
+      d="M4 9.5V14.5M7.2 7.5V16.5M16.8 7.5V16.5M20 9.5V14.5"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+    />
+    {/* Estrela central de 4 pontas do Gemini */}
+    <path
+      d="M12 4.5C12 8.2 9.8 10.5 6.5 12C9.8 13.5 12 15.8 12 19.5C12 15.8 14.2 13.5 17.5 12C14.2 10.5 12 8.2 12 4.5Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   onSendMessage,
+  onSendToCreationStudio,
   isLoading,
   activeVoiceName = 'Puck',
 }) => {
   const [inputText, setInputText] = useState('');
+  const [dockMode, setDockMode] = useState<DockMode>('translate');
+  const [enableWebSearch, setEnableWebSearch] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isLiveApiMode, setIsLiveApiMode] = useState(false);
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
+  const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
+  const [isCollapsedLine, setIsCollapsedLine] = useState(false);
+  const [voiceBands, setVoiceBands] = useState<[number, number, number, number, number]>([
+    18, 28, 22, 34, 18,
+  ]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const plusMenuRef = useRef<HTMLDivElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const voiceMonitorRef = useRef<LiveVoiceMonitorHandle | null>(null);
+
+  const detectedYoutubeUrl = useMemo(() => detectYoutubeUrl(inputText), [inputText]);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      voiceMonitorRef.current?.stop();
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
     };
   }, []);
+
+  // Fecha o menu "+" ao clicar fora
+  useEffect(() => {
+    if (!isPlusMenuOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
+        setIsPlusMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [isPlusMenuOpen]);
 
   const formatTimer = (secs: number): string => {
     const m = Math.floor(secs / 60);
@@ -42,24 +118,52 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
-    if (e) e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
+  const getPersonaFromMode = (mode: DockMode): AgentPersona => {
+    if (mode === 'live_tutor') return 'tutor_conversational';
+    if (mode === 'practice') return 'practice_partner';
+    return 'polyglot_translator';
+  };
 
-    const textToSend = inputText.trim();
+  const submitPromptWithPayload = async (
+    overrideText?: string,
+    overrideMode?: DockMode
+  ): Promise<void> => {
+    const textToSend = (overrideText ?? inputText).trim();
+    if (!textToSend || isLoading || isTranscribing) return;
+
+    const effectiveMode: DockMode = detectedYoutubeUrl
+      ? 'search_youtube'
+      : overrideMode ?? (enableWebSearch ? 'search_youtube' : dockMode);
+
+    const shouldAutoPlay =
+      isLiveApiMode || effectiveMode === 'live_tutor' || effectiveMode === 'practice';
+
     setInputText('');
     setAttachedFileName(null);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    await onSendMessage(textToSend, isLiveApiMode);
+
+    await onSendMessage(textToSend, shouldAutoPlay, {
+      text: textToSend,
+      dockMode: effectiveMode,
+      persona: getPersonaFromMode(effectiveMode),
+      youtubeUrl: detectedYoutubeUrl || undefined,
+      enableSearch: effectiveMode === 'search_youtube' || enableWebSearch,
+      autoSpeakReply: shouldAutoPlay,
+    });
+  };
+
+  const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
+    if (e) e.preventDefault();
+    await submitPromptWithPayload();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
     setInputText(e.target.value);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
     }
   };
 
@@ -75,6 +179,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     if (!file) return;
 
     setAttachedFileName(file.name);
+    setIsPlusMenuOpen(false);
 
     if (file.type === 'text/plain' || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
       const reader = new FileReader();
@@ -107,13 +212,20 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     }
   };
 
-  // Gravação via microfone integrada no Chat (modo Ditado ou Live API com resposta falada automática)
+  const stopRecordingNow = (): void => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    voiceMonitorRef.current?.stop();
+    voiceMonitorRef.current = null;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
   const toggleRecording = async (liveAutoSend = isLiveApiMode): Promise<void> => {
     setMicError(null);
     if (isRecording) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      mediaRecorderRef.current?.stop();
-      setIsRecording(false);
+      stopRecordingNow();
       return;
     }
 
@@ -128,6 +240,18 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
+      voiceMonitorRef.current = startLiveVoiceMonitor({
+        stream,
+        speechThreshold: 0.022,
+        silenceDurationMs: 1650,
+        onLevelChange: (_level, bands) => {
+          setVoiceBands(bands);
+        },
+        onSilenceAfterSpeech: () => {
+          stopRecordingNow();
+        },
+      });
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
@@ -136,6 +260,8 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
 
       mediaRecorder.onstop = async () => {
         if (timerRef.current) clearInterval(timerRef.current);
+        voiceMonitorRef.current?.stop();
+        voiceMonitorRef.current = null;
         stream.getTracks().forEach((track) => track.stop());
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         if (audioBlob.size === 0) return;
@@ -147,30 +273,34 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             try {
               const base64Audio = (reader.result as string)?.split(',')[1];
               if (!base64Audio) return;
-              const data = await requestTranscribeAudio({
-                audioData: base64Audio,
-                mimeType,
-              });
-              if (data.ok && data.success && data.transcript) {
-                const cleanTranscript = data.transcript.trim();
-                if (liveAutoSend && cleanTranscript) {
-                  await onSendMessage(cleanTranscript, true);
-                } else {
-                  setInputText((prev) => (prev ? `${prev} ${cleanTranscript}` : cleanTranscript));
+
+              const activeLiveMode: DockMode =
+                dockMode === 'translate' && liveAutoSend ? 'live_tutor' : dockMode;
+
+              await onSendMessage(
+                inputText.trim() || 'Fala enviada por Voz Live',
+                true,
+                {
+                  text: inputText.trim() || '',
+                  dockMode: activeLiveMode,
+                  persona: getPersonaFromMode(activeLiveMode),
+                  enableSearch: enableWebSearch,
+                  audioBase64: base64Audio,
+                  mimeType,
+                  autoSpeakReply: true,
                 }
-              } else {
-                setMicError(data.error || 'Não foi possível transcrever o áudio.');
-              }
+              );
+              setInputText('');
             } catch (innerErr: unknown) {
-              console.error('Erro na transcrição:', innerErr);
-              setMicError('Erro ao conectar ao serviço de transcrição.');
+              console.error('Erro no envio de voz Live:', innerErr);
+              setMicError('Erro ao processar áudio com o Agente Live.');
             } finally {
               setIsTranscribing(false);
             }
           };
           reader.readAsDataURL(audioBlob);
         } catch (err: unknown) {
-          console.error('Erro na transcrição:', err);
+          console.error('Erro na gravação Live:', err);
           setIsTranscribing(false);
         }
       };
@@ -187,191 +317,324 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     }
   };
 
-  const quickSuggestions = [
-    'Estou planejando uma viagem para o Japão e Itália',
-    'Como pedir um café e a conta educadamente?',
-    'Preciso de frases para uma reunião de negócios',
+  const activeServiceLabel = useMemo(() => {
+    if (detectedYoutubeUrl) return 'YouTube';
+    if (enableWebSearch || dockMode === 'search_youtube') return 'Busca Web';
+    if (dockMode === 'live_tutor') return 'Tutor Live';
+    if (dockMode === 'practice') return 'Parceiro';
+    return '3 Idiomas';
+  }, [dockMode, enableWebSearch, detectedYoutubeUrl]);
+
+  const studioRenderServices: { id: StudioRenderMode; label: string; icon: string; desc: string }[] = [
+    { id: 'solo', label: 'Leitura Solo', icon: 'headphones', desc: 'Narração 1 voz no Estúdio' },
+    { id: 'debate', label: 'Debate Dialético', icon: 'forum', desc: '2 vozes em embate de ideias' },
+    { id: 'podcast', label: 'Podcast de Estúdio', icon: 'podcasts', desc: '2 hosts conversando' },
+    { id: 'bar_chat', label: 'Conversa de Bar', icon: 'local_cafe', desc: 'Papo descontraído entre amigos' },
+    { id: 'dinner', label: 'Mesa de Jantar', icon: 'restaurant', desc: 'Conversa acolhedora em família' },
   ];
+
+  // MODO LINHA ANIMADA COLAPSADA (Pílula mínima flutuante)
+  if (isCollapsedLine) {
+    return (
+      <div className="sticky bottom-3 z-30 w-full max-w-2xl mx-auto px-4">
+        <div className="card-matte rounded-full px-4 py-2 shadow-2xl flex items-center justify-between gap-3 border border-amber-400/30">
+          <button
+            type="button"
+            onClick={() => setIsCollapsedLine(false)}
+            className="flex-1 flex items-center gap-3 text-left cursor-pointer min-w-0"
+            title="Expandir Pílula de Chat"
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+            <div className="flex-1 h-1.5 rounded-full surface-inset overflow-hidden">
+              <div className="h-full w-2/3 bg-gradient-to-r from-amber-500 via-emerald-400 to-amber-300 animate-pulse rounded-full" />
+            </div>
+            <span className="text-xs font-bold text-primary font-display truncate">
+              Abrir Pílula de Chat ({activeServiceLabel} · {activeVoiceName})
+            </span>
+          </button>
+
+          <button
+            type="button"
+            aria-label="Gemini Live"
+            onClick={() => {
+              setIsCollapsedLine(false);
+              setIsLiveApiMode(true);
+              toggleRecording(true);
+            }}
+            className="h-8 w-8 rounded-full btn-matte-dark flex items-center justify-center cursor-pointer shrink-0"
+            title="Iniciar conversa por voz no Gemini Live"
+          >
+            <GeminiLiveSymbol active={isLiveApiMode || isRecording} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="sticky bottom-0 z-30 w-full dock-matte !rounded-t-2xl !rounded-b-none sm:!rounded-2xl px-3 py-2.5 sm:px-6 sm:py-3"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.625rem)' }}
+      data-state={isRecording ? 'pressed' : isLoading || isTranscribing ? 'loading' : 'idle'}
+      aria-busy={isLoading || isTranscribing}
+      className="sticky bottom-3 z-30 w-full max-w-4xl mx-auto px-3 sm:px-5"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.25rem)' }}
     >
-      <div className="max-w-7xl mx-auto flex flex-col gap-2">
-        
-        {/* Barra Interativa Live Voice API (quando ativada pelo atalho no Chat) */}
-        {(isLiveApiMode || isRecording || isTranscribing || micError) && (
-          <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-2xl bg-slate-950/75 border border-slate-800 text-xs">
-            <div className="flex items-center gap-2.5">
-              <span
-                className={`w-2.5 h-2.5 rounded-full ${
-                  isRecording
-                    ? 'bg-rose-500 animate-ping'
-                    : isTranscribing
-                    ? 'bg-amber-400 animate-pulse'
-                    : 'bg-emerald-400 animate-pulse'
-                }`}
-              />
-              <span className="font-bold text-primary font-display">
-                {isRecording
-                  ? `Gravando Voz Ao Vivo (${formatTimer(recordingSeconds)})`
-                  : isTranscribing
-                  ? 'Gemini Live transcrevendo e alinhando 3 idiomas...'
-                  : `Modo Live API Ativo · Resposta automática com voz ${activeVoiceName}`}
-              </span>
-              {micError && <span className="text-rose-400 font-medium">· {micError}</span>}
-            </div>
+      <div className="relative flex flex-col gap-2" ref={plusMenuRef}>
+        {/* POPOVER DO BOTÃO "+" ESTILO CHAT LLM (Serviços do Chat + Enviar para Estúdio de Criação) */}
+        {isPlusMenuOpen && (
+          <div
+            role="menu"
+            aria-label="Selecionar serviço do chat ou enviar para o Estúdio de Criação"
+            className="absolute bottom-full left-0 mb-2.5 w-full sm:w-[420px] max-h-[72dvh] overflow-y-auto overscroll-contain rounded-2xl card-matte p-3 shadow-2xl border border-amber-400/30 z-50 flex flex-col gap-3 animate-in fade-in"
+          >
+            {/* Seção 1: Enviar Texto / Conversa para o Estúdio de Criação */}
+            {onSendToCreationStudio && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold flex items-center gap-1">
+                    <Headphones className="w-3 h-3" />
+                    <span>Enviar para o Estúdio de Criação</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-secondary">
+                    {inputText.trim() ? 'Usa o texto digitado' : 'Usa a conversa atual'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {studioRenderServices.map((srv) => (
+                    <button
+                      key={srv.id}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsPlusMenuOpen(false);
+                        onSendToCreationStudio(inputText.trim(), srv.id);
+                      }}
+                      className="p-2 rounded-xl btn-matte-dark hover:border-amber-400/40 text-left flex items-center gap-2 cursor-pointer transition-all"
+                    >
+                      <GoogleIcon name={srv.icon} size={16} className="text-amber-400 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-primary block truncate">
+                          {srv.label}
+                        </span>
+                        <span className="text-[10px] text-secondary block truncate">
+                          {srv.desc}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => toggleRecording(true)}
-                disabled={isTranscribing}
-                className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-                  isRecording
-                    ? 'bg-rose-500 text-white shadow-md'
-                    : 'btn-matte-amber text-white'
-                }`}
-              >
-                <GoogleIcon name={isRecording ? 'stop_circle' : 'mic'} size={16} />
-                <span>{isRecording ? 'Parar e Traduzir Agora' : 'Falar no Live API'}</span>
-              </button>
-              {isLiveApiMode && !isRecording && (
+            {/* Seção 2: Modo / Serviço do Chat LLM */}
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-800/60">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-secondary font-bold px-1">
+                Modo do Agente no Chat
+              </span>
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => {
+                    setDockMode('translate');
+                    setEnableWebSearch(false);
                     setIsLiveApiMode(false);
-                    setMicError(null);
+                    setIsPlusMenuOpen(false);
                   }}
-                  className="text-secondary hover:text-primary text-[11px] font-mono px-2 py-1 cursor-pointer"
+                  className={`p-2 rounded-xl text-left flex items-center gap-2 text-xs font-bold cursor-pointer ${
+                    dockMode === 'translate' && !enableWebSearch
+                      ? 'card-matte-active text-primary'
+                      : 'btn-matte-dark text-secondary hover:text-primary'
+                  }`}
                 >
-                  fechar live
+                  <GoogleIcon name="translate" size={15} className="text-amber-400 shrink-0" />
+                  <span className="truncate">Tradução 3 Idiomas</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setDockMode('live_tutor');
+                    setIsLiveApiMode(true);
+                    setIsPlusMenuOpen(false);
+                  }}
+                  className={`p-2 rounded-xl text-left flex items-center gap-2 text-xs font-bold cursor-pointer ${
+                    dockMode === 'live_tutor'
+                      ? 'card-matte-active text-primary'
+                      : 'btn-matte-dark text-secondary hover:text-primary'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="truncate">Agente Tutor Live</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setDockMode('practice');
+                    setIsLiveApiMode(true);
+                    setIsPlusMenuOpen(false);
+                  }}
+                  className={`p-2 rounded-xl text-left flex items-center gap-2 text-xs font-bold cursor-pointer ${
+                    dockMode === 'practice'
+                      ? 'card-matte-active text-primary'
+                      : 'btn-matte-dark text-secondary hover:text-primary'
+                  }`}
+                >
+                  <Radio className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span className="truncate">Parceiro de Conversa</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setEnableWebSearch(true);
+                    setDockMode('search_youtube');
+                    setIsPlusMenuOpen(false);
+                  }}
+                  className={`p-2 rounded-xl text-left flex items-center gap-2 text-xs font-bold cursor-pointer ${
+                    enableWebSearch || dockMode === 'search_youtube'
+                      ? 'card-matte-active text-primary'
+                      : 'btn-matte-dark text-secondary hover:text-primary'
+                  }`}
+                >
+                  <Globe className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="truncate">Busca Web & YouTube</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Seção 3: Anexar Documento */}
+            <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2 px-3 rounded-xl btn-matte-dark text-xs font-bold text-primary flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <GoogleIcon name="attach_file" size={16} className="text-amber-400" />
+                <span>Anexar Arquivo (PDF, TXT ou Markdown)</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Banner Compacto de Link do YouTube ou Gravação Live Ativa */}
+        {detectedYoutubeUrl && (
+          <div className="rounded-2xl card-matte border border-rose-500/40 px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 shadow-lg">
+            <div className="flex items-center gap-2 min-w-0">
+              <Video className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="text-xs font-bold text-primary truncate">
+                YouTube detectado:
+              </span>
+              <span className="text-[11px] font-mono text-rose-300 truncate max-w-[240px]">
+                {detectedYoutubeUrl}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  submitPromptWithPayload(
+                    `Analise o vídeo do YouTube ${detectedYoutubeUrl} e crie uma conversa prática nos 3 idiomas baseada nele.`,
+                    'search_youtube'
+                  )
+                }
+                className="px-2.5 py-1 rounded-full btn-matte-amber text-white text-[11px] font-bold cursor-pointer"
+              >
+                Gerar Conversa
+              </button>
+              {onSendToCreationStudio && (
+                <button
+                  type="button"
+                  onClick={() => onSendToCreationStudio(inputText.trim(), 'podcast')}
+                  className="px-2.5 py-1 rounded-full btn-matte-dark text-primary text-[11px] font-semibold cursor-pointer"
+                >
+                  + Podcast no Estúdio
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* Sugestões Rápidas (Pills Táteis) se o campo estiver vazio */}
-        {!inputText && !isRecording && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-[11px] pt-1">
-            <span className="font-semibold text-secondary uppercase tracking-wider text-[10px] shrink-0 font-mono select-none">
-              Sugestões:
-            </span>
-            {quickSuggestions.map((sug, idx) => (
+        {(isLiveApiMode || isRecording || isTranscribing || micError) && (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 rounded-full card-matte border border-emerald-500/30 text-xs shadow-lg">
+            <div className="flex items-center gap-2.5">
+              {isRecording ? (
+                <div className="flex items-end gap-0.5 h-3.5 px-1" aria-hidden="true">
+                  {voiceBands.map((b, i) => (
+                    <span
+                      key={i}
+                      style={{ height: `${Math.max(25, b)}%` }}
+                      className="w-1 bg-emerald-400 rounded-full transition-all duration-75"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              )}
+              <span className="font-bold text-primary text-[11px] sm:text-xs">
+                {isRecording
+                  ? `Ouvindo (${formatTimer(recordingSeconds)}) · Envia ao pausar`
+                  : isTranscribing
+                  ? 'Gemini Live processando sua voz...'
+                  : `Gemini Live Ativo (${activeVoiceName})`}
+              </span>
+              {micError && <span className="text-rose-400 font-medium">· {micError}</span>}
+            </div>
+            {isLiveApiMode && !isRecording && (
               <button
-                key={idx}
                 type="button"
-                onClick={() => setInputText(sug)}
-                className="btn-matte btn-matte-dark px-3 py-1 text-xs text-secondary hover:text-primary rounded-xl shrink-0 font-medium cursor-pointer"
-                title={sug}
+                onClick={() => {
+                  setIsLiveApiMode(false);
+                  setMicError(null);
+                }}
+                className="text-secondary hover:text-primary text-[10px] font-mono px-2 cursor-pointer"
               >
-                <span className="truncate max-w-[240px]">{sug}</span>
+                fechar
               </button>
-            ))}
+            )}
           </div>
         )}
 
-        {/* Indicador de Arquivo Anexado */}
-        {attachedFileName && (
-          <div className="flex items-center gap-2 text-xs text-amber-300 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-xl w-fit">
-            <GoogleIcon name="description" size={16} />
-            <span className="truncate max-w-[240px] font-medium">{attachedFileName}</span>
-            <button
-              type="button"
-              onClick={() => setAttachedFileName(null)}
-              className="text-amber-400 hover:text-primary p-0.5 cursor-pointer ml-1"
-            >
-              <GoogleIcon name="close" size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* Barra Central de Entrada (Com Atalho de Mic e Live API integrados) */}
+        {/* COMPOSITOR FLEX BAR (Linha 1: Texto 100% largura | Linha 2: Barra Flex de Ações com DOM Order === Visual Order) */}
         <form
           onSubmit={handleSubmit}
-          className="flex flex-wrap sm:flex-nowrap items-center sm:items-end gap-1.5 sm:gap-2 card-matte rounded-2xl p-2 focus-within:border-amber-400/50 transition-all shadow-xl"
+          className="flex flex-col gap-1.5 card-matte rounded-2xl sm:rounded-3xl px-3 py-2 sm:px-4 sm:py-2.5 shadow-2xl border border-slate-700/70 focus-within:border-amber-400/60 focus-within:ring-2 focus-within:ring-amber-400/20 transition-all"
         >
-          {/* Botão de Anexo */}
           <input
+            id="dock-file-upload"
+            name="attachment"
+            aria-label="Selecionar arquivo para anexar"
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
             accept=".txt,.md,.pdf"
             className="hidden"
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            title="Anexar arquivo (PDF, TXT, MD)"
-            className="order-2 sm:order-1 btn-matte btn-matte-dark h-10 w-10 sm:h-11 sm:w-11 rounded-xl text-secondary hover:text-primary shrink-0"
-          >
-            <GoogleIcon name="attach_file" size={20} />
-          </button>
 
-          {/* Botão de Ditado Rápido no Microfone */}
-          <button
-            type="button"
-            onClick={() => toggleRecording(false)}
-            title={isRecording ? 'Parar gravação e transcrever' : 'Ditar pelo microfone no chat'}
-            className={`order-2 sm:order-1 btn-matte h-10 sm:h-11 px-2.5 sm:px-3 rounded-xl shrink-0 transition-all ${
-              isRecording && !isLiveApiMode
-                ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/30'
-                : 'btn-matte-dark text-secondary hover:text-primary'
-            }`}
-          >
-            {isTranscribing && !isLiveApiMode ? (
-              <GoogleIcon name="progress_activity" size={20} className="animate-spin text-amber-400" />
-            ) : isRecording && !isLiveApiMode ? (
-              <>
-                <GoogleIcon name="mic_off" size={18} />
-                <span className="text-[11px] font-mono tabular-nums">{formatTimer(recordingSeconds)}</span>
-              </>
-            ) : (
-              <GoogleIcon name="mic" size={20} />
-            )}
-          </button>
-
-          {/* Atalho Direto Mic Live API (Conversação & Tradução Instantânea com Voz) */}
-          <button
-            type="button"
-            onClick={() => {
-              const nextLive = !isLiveApiMode;
-              setIsLiveApiMode(nextLive);
-              if (nextLive && !isRecording) {
-                toggleRecording(true);
-              } else if (!nextLive && isRecording) {
-                toggleRecording(false);
-              }
-            }}
-            title="Atalho Mic com Live API: fale e ouça a tradução falada automaticamente"
-            className={`order-2 sm:order-1 btn-matte h-10 sm:h-11 px-2.5 sm:px-3 rounded-xl transition-all shrink-0 text-xs font-semibold border ${
-              isLiveApiMode
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50 shadow-sm'
-                : 'btn-matte-dark text-secondary hover:text-primary'
-            }`}
-          >
-            <GoogleIcon
-              name="podcasts"
-              size={18}
-              className={isLiveApiMode ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}
-            />
-            <span className="text-[11px] sm:text-xs">Live Mic</span>
-          </button>
-
-          {/* Área de Texto Autoexpansível */}
-          <div className="order-1 sm:order-2 w-full sm:w-auto sm:flex-1 flex items-center gap-1.5 min-w-0 border-b border-white/10 sm:border-0 pb-1 sm:pb-0">
+          {/* Linha 1: Campo de Texto Autoexpansível com 100% da Largura Útil */}
+          <div className="w-full flex items-center gap-1.5 min-w-0">
             <textarea
+              id="dock-prompt-textarea"
+              name="prompt"
+              aria-label="Mensagem, pergunta ou link do YouTube"
               ref={textareaRef}
               value={inputText}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Digite, cole um texto ou use o Live Mic para alinhar em 3 idiomas..."
+              placeholder="Digite, cole link do YouTube ou use +..."
               rows={1}
               disabled={isLoading}
-              className="w-full bg-transparent border-0 text-primary placeholder-slate-400 text-xs sm:text-sm focus:ring-0 focus:outline-none resize-none py-1.5 sm:py-2 px-1.5 max-h-40 min-h-[38px] sm:min-h-[44px] leading-relaxed no-scrollbar"
+              className="dock-composer-textarea w-full bg-transparent border-0 text-primary placeholder-slate-400 text-[13px] sm:text-sm focus:ring-0 focus:outline-none resize-none py-1 px-0.5 max-h-32 min-h-[30px] leading-snug no-scrollbar"
             />
+            {attachedFileName && (
+              <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full truncate max-w-[120px] shrink-0">
+                {attachedFileName}
+              </span>
+            )}
             {inputText && (
               <button
                 type="button"
@@ -379,45 +642,121 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                   setInputText('');
                   if (textareaRef.current) textareaRef.current.style.height = 'auto';
                 }}
-                className="text-secondary hover:text-primary p-1 rounded-lg text-xs shrink-0 cursor-pointer transition-colors"
-                title="Limpar texto digitado"
+                className="btn-compact-touch text-secondary hover:text-primary p-1 rounded-full shrink-0 cursor-pointer"
+                title="Limpar texto"
               >
-                <GoogleIcon name="close" size={16} />
+                <GoogleIcon name="close" size={15} />
               </button>
             )}
           </div>
 
-          {/* Botão Enviar / Traduzir (Único CTA Primário Sólido) */}
-          <button
-            type="submit"
-            disabled={!inputText.trim() || isLoading}
-            className="order-3 ml-auto sm:ml-0 btn-matte btn-matte-amber h-10 sm:h-11 px-3.5 sm:px-4 rounded-xl text-xs font-bold text-white shrink-0 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
-          >
-            {isLoading ? (
-              <>
-                <GoogleIcon name="progress_activity" size={18} className="animate-spin text-white" />
-                <span>Alinhando...</span>
-              </>
-            ) : (
-              <>
-                <GoogleIcon name="auto_awesome" size={18} filled className="text-white" />
-                <span>Traduzir</span>
-              </>
-            )}
-          </button>
-        </form>
+          {/* Linha 2: Flex Bar de Controles (Esquerda: + & Serviço Ativo | Direita: Mic, Gemini Live, Enviar, Recolher) */}
+          <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/[0.08]">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {/* 1. Botão "+" estilo Chat LLM (Abre Serviços e Estúdio de Criação) */}
+              <button
+                type="button"
+                aria-expanded={isPlusMenuOpen}
+                aria-label="Abrir menu de serviços e Estúdio de Criação"
+                onClick={() => setIsPlusMenuOpen((prev) => !prev)}
+                title="Adicionar ao Estúdio de Criação (Debate, Podcast, Bar, Jantar), trocar serviço ou anexar arquivo"
+                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all ${
+                  isPlusMenuOpen
+                    ? 'btn-matte-amber text-white rotate-45'
+                    : 'btn-matte-dark text-primary hover:border-amber-400/50'
+                }`}
+              >
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
 
-        {/* Rodapé Sutil de Atalho */}
-        <div className="flex items-center justify-between px-2 text-[10px] font-mono tabular-nums text-secondary">
-          <span className="hidden sm:inline">
-            Enter para traduzir · Shift+Enter para nova linha · Live Mic para voz direta
-          </span>
-          {inputText && (
-            <span className="text-primary font-medium">
-              {inputText.trim().split(/\s+/).filter(Boolean).length} palavras · {inputText.length} caracteres
-            </span>
-          )}
-        </div>
+              {/* 2. Chip do Serviço Ativo (Clicável para abrir o menu "+" no mobile e desktop) */}
+              <button
+                type="button"
+                onClick={() => setIsPlusMenuOpen((prev) => !prev)}
+                className="btn-compact-touch inline-flex items-center gap-1 h-8 px-2.5 rounded-full surface-inset text-[11px] font-bold text-amber-300 hover:text-primary shrink-0 cursor-pointer transition-colors"
+                title="Serviço ativo (toque para mudar ou enviar ao Estúdio de Criação)"
+              >
+                <span className="truncate max-w-[110px] sm:max-w-none">{activeServiceLabel}</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* 3. Botão Microfone de Ditado */}
+              <button
+                type="button"
+                aria-pressed={isRecording && !isLiveApiMode}
+                onClick={() => toggleRecording(false)}
+                title="Ditar pelo microfone"
+                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                  isRecording && !isLiveApiMode
+                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-md'
+                    : 'btn-matte-dark text-secondary hover:text-primary'
+                }`}
+              >
+                <GoogleIcon name="mic" size={18} />
+              </button>
+
+              {/* 4. Botão Gemini Live (APENAS o símbolo do Gemini Live) */}
+              <button
+                type="button"
+                aria-label="Ativar Gemini Live por voz"
+                aria-pressed={isLiveApiMode}
+                onClick={() => {
+                  const nextLive = !isLiveApiMode;
+                  setIsLiveApiMode(nextLive);
+                  if (nextLive) {
+                    if (dockMode === 'translate') setDockMode('live_tutor');
+                    if (!isRecording) toggleRecording(true);
+                  } else if (isRecording) {
+                    stopRecordingNow();
+                  }
+                }}
+                title="Gemini Live (Conversa por voz em tempo real com detecção automática de fala)"
+                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer border ${
+                  isLiveApiMode
+                    ? 'bg-emerald-500/20 border-emerald-400/60 shadow-md ring-2 ring-emerald-400/30'
+                    : 'btn-matte-dark hover:border-amber-400/50'
+                }`}
+              >
+                <GeminiLiveSymbol active={isLiveApiMode || isRecording} />
+              </button>
+
+              {/* 5. Botão Enviar / Executar */}
+              <button
+                type="submit"
+                disabled={!inputText.trim() || isLoading}
+                title="Enviar mensagem (Enter)"
+                className="btn-matte-amber h-9 sm:h-10 px-3.5 sm:px-4 rounded-full text-xs font-bold text-white shrink-0 disabled:opacity-45 transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
+              >
+                {isLoading ? (
+                  <GoogleIcon name="progress_activity" size={18} className="animate-spin text-white" />
+                ) : (
+                  <>
+                    <GoogleIcon name="arrow_upward" size={18} className="text-white" />
+                    <span className="hidden sm:inline">
+                      {detectedYoutubeUrl
+                        ? 'Vídeo'
+                        : enableWebSearch || dockMode === 'search_youtube'
+                        ? 'Buscar'
+                        : 'Enviar'}
+                    </span>
+                  </>
+                )}
+              </button>
+
+              {/* 6. Botão Colapsar para Linha Animada */}
+              <button
+                type="button"
+                onClick={() => setIsCollapsedLine(true)}
+                title="Recolher Pílula de Chat para Linha Animada"
+                aria-label="Recolher Pílula de Chat para Linha Animada"
+                className="btn-compact-touch h-8 w-8 rounded-full text-secondary hover:text-primary flex items-center justify-center shrink-0 cursor-pointer"
+              >
+                <GoogleIcon name="minimize" size={16} />
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   );

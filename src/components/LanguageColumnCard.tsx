@@ -66,49 +66,56 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
     <div
       data-state={isSelected ? 'pressed' : 'idle'}
       aria-busy={isLoadingCard}
-      onClick={onSelectCard}
-      className={`group flex-1 flex flex-col rounded-2xl overflow-hidden cursor-pointer ${
-        isSelected ? 'card-matte-active' : 'card-matte'
+      className={`group flex-1 flex flex-col rounded-2xl overflow-hidden ${
+        isPlayingCard
+          ? 'card-matte-active ring-2 ring-amber-400/60'
+          : isSelected
+          ? 'card-matte-active'
+          : 'card-matte'
       }`}
     >
-      {/* 1. Cabeçalho Estruturado em 2 Linhas (Zero Colisão em Colunas 1/3) */}
-      <div className="px-3.5 py-2.5 bg-slate-950/60 border-b border-slate-800/70 flex flex-col gap-2">
+      {/* 1. Cabeçalho Estruturado com Espaçamento Amplo e Zero Colisão */}
+      <div className="px-4 py-3 surface-inset border-b border-slate-800/60 flex flex-col gap-2">
         {/* Linha 1: Identificação do Idioma + Ações Rápidas (Download WAV & Copiar) */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={onSelectCard}
+            aria-pressed={isSelected}
+            title={`Selecionar coluna de ${languageTitle}`}
+            className="chunk-inline-btn flex items-center gap-2 min-w-0 text-left cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-amber-400"
+          >
             <span
-              className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0 select-none"
-              aria-label={languageTitle}
+              className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 select-none"
+              aria-hidden="true"
             >
               {flag}
             </span>
-            <h3 className="text-xs font-bold text-primary font-display tracking-tight truncate">
+            <h3 className="text-xs sm:text-sm font-bold text-primary font-display tracking-tight truncate">
               {languageTitle}
             </h3>
-            <span className="text-[10px] font-mono font-medium text-secondary bg-slate-900 px-1.5 py-0.5 rounded-md border border-slate-800 shrink-0">
+            <span className="text-[10px] font-mono font-medium text-secondary px-2 py-0.5 rounded-md border border-slate-700/50 shrink-0">
               {badgeText}
             </span>
-          </div>
+          </button>
 
-          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-            {/* Botão Baixar WAV Direto do Card */}
+          <div className="flex items-center gap-1 shrink-0">
             {onDownloadCardWav && (
               <button
                 type="button"
                 onClick={onDownloadCardWav}
                 title={`Baixar áudio WAV 24kHz deste card (${languageTitle} · ${cardVoice})`}
-                className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-slate-800/60 transition-colors cursor-pointer"
+                className="btn-compact-touch p-1.5 rounded-lg text-secondary hover:text-primary transition-colors cursor-pointer"
               >
                 <GoogleIcon name="download" size={15} />
               </button>
             )}
 
-            {/* Botão Copiar */}
             <button
               type="button"
               onClick={handleCopyFull}
               title="Copiar texto completo deste idioma"
-              className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-slate-800/60 transition-colors cursor-pointer"
+              className="btn-compact-touch p-1.5 rounded-lg text-secondary hover:text-primary transition-colors cursor-pointer"
             >
               {copiedFull ? (
                 <GoogleIcon name="check" size={15} className="text-emerald-400" />
@@ -120,27 +127,31 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
         </div>
 
         {/* Linha 2: Seletor de Voz Neural Exclusivo do Card + Botão Ouvir/Pausar */}
-        <div className="flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between gap-2">
           <label
-            className={`flex-1 min-w-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] transition-all cursor-pointer ${
+            className={`flex-1 min-w-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-xl border text-[11px] transition-all cursor-pointer ${
               isSelected
-                ? 'bg-amber-500/15 border-amber-400/50 text-amber-200 font-bold'
-                : 'bg-slate-900/90 border-slate-800 text-secondary hover:text-primary hover:border-slate-600'
+                ? 'bg-amber-500/15 border-amber-400/50 text-primary font-bold'
+                : 'btn-matte-dark text-secondary hover:text-primary'
             }`}
             title="Escolher voz neural para este card (sincroniza com o controle global)"
           >
             <GoogleIcon name="record_voice_over" size={14} className="text-amber-400 shrink-0" />
             <select
+              id={`card-voice-${languageCode}`}
+              name={`cardVoice_${languageCode}`}
               aria-label={`Voz do card ${languageTitle}`}
               value={cardVoice}
-              onChange={(e) => onChangeCardVoice(e.target.value)}
+              onChange={(e) => {
+                onChangeCardVoice(e.target.value);
+              }}
               className="w-full bg-transparent text-primary font-semibold text-[11px] focus:outline-none cursor-pointer truncate"
             >
               {GEMINI_VOICES.map((v) => (
                 <option
                   key={v.id}
                   value={v.id}
-                  className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                  className="bg-slate-900 text-slate-100"
                 >
                   {v.name} ({v.gender === 'male' ? 'M' : 'F'})
                 </option>
@@ -148,14 +159,15 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
             </select>
           </label>
 
-          {/* Botão Ouvir / Pausar Direto no Card */}
           {onTogglePlayCard && (
             <button
               type="button"
-              onClick={onTogglePlayCard}
+              onClick={() => {
+                onTogglePlayCard();
+              }}
               disabled={isLoadingCard}
               title={isPlayingCard ? `Pausar ${languageTitle}` : `Ouvir ${languageTitle} com voz ${cardVoice}`}
-              className={`h-7 px-3 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0 btn-anti-squish ${
+              className={`btn-compact-touch h-8 px-3.5 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0 btn-anti-squish ${
                 isPlayingCard
                   ? 'btn-matte-amber text-white shadow-sm'
                   : 'btn-matte-dark text-secondary hover:text-primary'
@@ -168,59 +180,73 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
               ) : (
                 <GoogleIcon name="play_arrow" size={14} filled className="text-amber-400" />
               )}
-              <span className="font-mono tabular-nums text-[10px]">{isCached ? '0ms' : 'Ouvir'}</span>
+              <span className="font-mono tabular-nums text-[10px]">
+                {isPlayingCard ? 'Tocando' : isCached ? '0ms' : 'Ouvir'}
+              </span>
             </button>
           )}
         </div>
       </div>
 
-      {/* 2. Corpo Editorial Nítido com Chunks Interativos (Zero Deslocamento Subpixel) */}
-      <div className="p-4 flex-1 flex flex-col justify-between text-[14.5px] leading-[1.68] select-text gap-3">
-        <div className="flex flex-wrap gap-x-1 gap-y-1.5 items-baseline">
+      {/* 2. Corpo Editorial Nítido com Respiro Generoso e Chunks Reativos */}
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between text-[15px] leading-[1.72] select-text gap-4">
+        <div
+          lang={getLanguageTag(languageCode)}
+          className="flex flex-wrap gap-x-1.5 gap-y-2 items-baseline"
+        >
           {chunks.map((chunk) => {
             const chunkText =
               languageCode === 'en' ? chunk.en : languageCode === 'it' ? chunk.it : chunk.ja;
             const isHovered = hoveredChunkId === chunk.id;
 
             return (
-              <span
+              <button
+                type="button"
                 key={chunk.id}
                 onMouseEnter={() => onHoverChunk(chunk.id)}
                 onMouseLeave={() => onHoverChunk(null)}
+                onFocus={() => onHoverChunk(chunk.id)}
+                onBlur={() => onHoverChunk(null)}
                 onClick={(e) => {
-                  e.stopPropagation();
+                  onSelectCard();
                   onClickChunk(chunkText, getLanguageTag(languageCode), e);
                 }}
                 title="Clique para ouvir esta frase ou criar flashcard"
-                className={`inline-block cursor-pointer rounded-lg px-1.5 py-0.5 transition-colors duration-150 relative ${
+                className={`chunk-inline-btn text-left inline-block cursor-pointer rounded-xl px-2 py-1 transition-all duration-150 relative ${
                   isHovered
-                    ? 'bg-amber-100 text-amber-950 dark:bg-amber-400/25 dark:text-amber-100 font-semibold ring-1 ring-amber-400/60 shadow-sm'
-                    : isSelected
-                    ? 'text-primary font-medium hover:bg-white/10'
+                    ? 'bg-amber-400/25 text-primary font-semibold ring-1 ring-amber-400/70 shadow-sm -translate-y-[1px]'
                     : 'text-primary font-medium hover:bg-white/10'
                 }`}
               >
                 <span>{chunkText}</span>
                 {languageCode === 'ja' && chunk.jaPronunciation && (
-                  <span className="block text-[11px] font-mono text-amber-800 dark:text-amber-300 mt-0.5 tracking-tight pointer-events-none select-none font-semibold">
+                  <span className="block text-[11px] font-mono text-amber-300 mt-0.5 tracking-tight pointer-events-none select-none font-semibold">
                     {chunk.jaPronunciation}
                   </span>
                 )}
-              </span>
+              </button>
             );
           })}
         </div>
 
         {/* Rodapé Sutil de Status de Foco e Voz Sincronizada */}
-        <div className="flex items-center justify-between pt-2.5 border-t border-slate-800/40 text-[11px] font-mono tabular-nums font-medium text-secondary">
-          <span className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between pt-2.5 border-t border-slate-800/50 text-[11px] font-mono tabular-nums font-medium text-secondary">
+          <button
+            type="button"
+            onClick={onSelectCard}
+            className="btn-compact-touch flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors"
+          >
             <span
               className={`w-2 h-2 rounded-full transition-transform duration-200 ${
-                isSelected ? 'bg-amber-400 animate-pulse' : 'bg-slate-400/60'
+                isPlayingCard
+                  ? 'bg-emerald-400 animate-ping'
+                  : isSelected
+                  ? 'bg-amber-400 animate-pulse'
+                  : 'bg-slate-400/60'
               }`}
             />
             <span>{isSelected ? `Card Ativo · Voz ${cardVoice}` : `Voz do card: ${cardVoice}`}</span>
-          </span>
+          </button>
           {isCached && (
             <span className="text-emerald-400 font-semibold" title="Áudio em cache local 0ms">
               CACHE 0ms

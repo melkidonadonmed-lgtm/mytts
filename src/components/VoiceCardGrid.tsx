@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Loader2, Check } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
-import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
+import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback, stopBrowserSpeech } from '../utils/audio';
 import { requestPreviewVoice } from '../services/apiClient';
 
 interface VoiceCardGridProps {
@@ -35,6 +35,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
       if (audioRef.current) {
         audioRef.current.pause();
       }
+      stopBrowserSpeech();
       revokeAudioUrl(currentBlobUrlRef.current);
     };
   }, []);
@@ -47,6 +48,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
       if (audioRef.current) {
         audioRef.current.pause();
       }
+      stopBrowserSpeech();
       setPreviewingVoiceId(null);
       return;
     }
@@ -55,6 +57,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
     if (audioRef.current) {
       audioRef.current.pause();
     }
+    stopBrowserSpeech();
     revokeAudioUrl(currentBlobUrlRef.current);
     currentBlobUrlRef.current = null;
 
@@ -75,6 +78,7 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
       currentBlobUrlRef.current = blobUrl;
 
       const audio = new Audio(blobUrl);
+      audio.preservesPitch = true;
       audioRef.current = audio;
 
       audio.onended = () => {
@@ -88,7 +92,21 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
       await audio.play();
       setPreviewingVoiceId(voice.id);
     } catch (err: unknown) {
-      console.warn('Erro ao reproduzir preview da voz:', err);
+      console.warn('Erro ao reproduzir preview da voz (acionando fallback Web Speech):', err);
+      const started = speakBrowserFallback(
+        `Olá, sou ${voice.name}. Esta é uma demonstração de síntese da minha voz no estúdio.`,
+        {
+          lang: 'pt-BR',
+          rate: 1.0,
+          voiceId: voice.id,
+          onStart: () => setPreviewingVoiceId(voice.id),
+          onEnd: () => setPreviewingVoiceId(null),
+          onError: () => setPreviewingVoiceId(null),
+        }
+      );
+      if (started) {
+        setPreviewingVoiceId(voice.id);
+      }
     } finally {
       setLoadingVoiceId(null);
     }
@@ -153,12 +171,12 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-sm text-slate-900 dark:text-slate-100 font-sans">{voice.name}</span>
+                    <span className="font-extrabold text-sm text-primary font-display">{voice.name}</span>
                     {isSelectedSolo && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                     )}
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block font-sans">
+                  <span className="text-[10px] font-semibold text-secondary uppercase tracking-wider block font-mono">
                     {voice.gender === 'female' ? 'Feminina' : 'Masculina'}
                   </span>
                 </div>
@@ -173,8 +191,8 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                 aria-label={`Ouvir amostra de 3 segundos da voz ${voice.name}`}
                 className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                   isPlaying
-                    ? 'btn-matte-primary text-white shadow-md'
-                    : 'btn-matte-dark text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                    ? 'btn-matte-amber text-white shadow-md'
+                    : 'btn-matte-dark text-secondary hover:text-primary'
                 }`}
               >
                 {isLoading ? (
@@ -182,42 +200,46 @@ export const VoiceCardGrid: React.FC<VoiceCardGridProps> = ({
                 ) : isPlaying ? (
                   <Pause className="w-3.5 h-3.5 fill-current" />
                 ) : (
-                  <Play className="w-3.5 h-3.5 fill-current translate-x-0.5 text-sky-600 dark:text-sky-400" />
+                  <Play className="w-3.5 h-3.5 fill-current translate-x-0.5 text-amber-400" />
                 )}
               </button>
             </div>
 
             {/* Descrição e Arquétipo */}
             <div className="flex-1">
-              <p className="text-xs font-bold text-sky-800 dark:text-sky-300 mb-1 flex items-center gap-1 font-sans">
+              <p className="text-xs font-bold text-amber-300 mb-1 flex items-center gap-1 font-sans">
                 <span>{voice.archetype}</span>
               </p>
-              <p className="text-[11px] text-slate-700 dark:text-slate-300 leading-snug line-clamp-2 font-sans">
+              <p className="text-[11px] text-secondary leading-snug line-clamp-2 font-sans">
                 {voice.bestFor}
               </p>
             </div>
 
             {/* Rodapé de Ação e Seleção Tátil Explícita */}
-            <div className="pt-2 border-t border-slate-200 dark:border-slate-800/60">
+            <div className="pt-2 border-t border-slate-800/60">
               {!multiSpeakerMode ? (
                 /* Modo Solo: Botão de Seleção para Leitura */
-                isSelectedSolo ? (
-                  <div className="w-full py-1.5 px-3 rounded-xl btn-matte-primary text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm font-sans">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>Voz Ativa no Leitor</span>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelect(voice);
-                    }}
-                    className="w-full py-1.5 px-3 rounded-xl btn-matte-dark text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer font-sans"
-                  >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelect(voice);
+                  }}
+                  className={`w-full py-1.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer font-sans ${
+                    isSelectedSolo
+                      ? 'btn-matte-amber text-white shadow-sm'
+                      : 'btn-matte-dark text-secondary hover:text-primary'
+                  }`}
+                >
+                  {isSelectedSolo ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>Voz Ativa no Leitor</span>
+                    </>
+                  ) : (
                     <span>Selecionar esta Voz</span>
-                  </button>
-                )
+                  )}
+                </button>
               ) : (
                 /* Modo Debate: Atribuição Direta para Orador 1 ou Orador 2 */
                 <div className="flex flex-col gap-1.5 w-full">

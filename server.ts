@@ -11,13 +11,24 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { GoogleGenAI, Type } from '@google/genai';
 import { chunkStorage } from './src/services/chunkStorage';
+import { getConversationStorage } from './src/services/conversationStorage';
 import { ChunkItem, TargetLang } from './src/types/chunks';
-import { getEmotionStyle, applyAcousticProsody } from './src/utils/prosodyEngine';
+import type {
+  AgentPersona,
+  AgentExploreSource,
+  AlignedChunk,
+  GoogleUserSession,
+  SavedConversation,
+} from './src/types/polyglot';
+import {
+  getVoiceAcousticStyle,
+  buildExpressiveTtsTranscript,
+} from './src/utils/prosodyEngine';
 import {
   sanitizeUserId,
   capText,
-  formatForTts,
   ensureWavContainer,
+  formatGeminiError,
   ALLOWED_PREVIEW_VOICES,
   ALLOWED_PREVIEW_LANGS,
 } from './src/server/audioContainer';
@@ -25,16 +36,17 @@ import {
 const execFileAsync = promisify(execFile);
 
 
-dotenv.config();
+dotenv.config({ override: true });
 
-// Validação da chave da API Gemini no boot (em Cloud Run, mantém o container ouvindo a porta para não derrubar o health probe)
+const DEFAULT_GCP_PROJECT =
+  process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'agent-md-506215';
+const DEFAULT_VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'global';
+
+// Validação da chave da API Gemini no boot (com suporte nativo a failover para Vertex AI ADC)
 if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.trim() === '') {
-  if (process.env.K_SERVICE) {
-    console.error('[BOOT] WARN: GEMINI_API_KEY ausente no ambiente Cloud Run. Configure a variável de ambiente no serviço.');
-  } else {
-    console.error('[BOOT] FATAL: GEMINI_API_KEY não configurada. Defina-a no .env ou nas variáveis de ambiente antes de iniciar.');
-    process.exit(1);
-  }
+  console.warn(
+    `[BOOT] INFO: GEMINI_API_KEY ausente. Utilizando Vertex AI Application Default Credentials (projeto: ${DEFAULT_GCP_PROJECT}, location: ${DEFAULT_VERTEX_LOCATION}).`
+  );
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,6 +61,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 // Payload grande apenas nas rotas que recebem áudio ou PDF base64; o restante da API aceita no máximo 2 MB
 app.use('/api/extract-text', express.json({ limit: '25mb' }));
 app.use('/api/transcribe-audio', express.json({ limit: '25mb' }));
+app.use('/api/live-agent-turn', express.json({ limit: '25mb' }));
 app.use('/api/mix-audio', express.json({ limit: '50mb' }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
@@ -74,7 +87,6 @@ app.use(
     '/api/extract-text',
     '/api/generate-script',
     '/api/synthesize-turn',
-    '/api/synthesize-full',
     '/api/mix-audio',
     '/api/preview-voice',
     '/api/synthesize-chunk',
@@ -83,19 +95,155 @@ app.use(
     '/api/generate-chunks',
     '/api/translate-parallel-chunks',
     '/api/generate-flashcard',
+    '/api/live-agent-turn',
+    '/api/agent-explore',
   ],
   aiLimiter
 );
 
-// Server-side Gemini Client
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Server-side Gemini / Vertex AI Client com hot-reload de .env, detecção de chaves AQ. e failover automático para Vertex AI ADC
+let cachedApiKey = '';
+let cachedGenAiClient: GoogleGenAI | null = null;
+let cachedVertexAdcClient: GoogleGenAI | null = null;
+const invalidApiKeys = new Set<string>();
+
+function resolveActiveApiKey(): string {
+  try {
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+      const parsed = dotenv.parse(fs.readFileSync(envPath, 'utf-8'));
+      const fromFile = (parsed.GEMINI_API_KEY || parsed.GOOGLE_API_KEY || '').trim();
+      if (fromFile) {
+        return fromFile;
+      }
+    }
+  } catch {
+    // Fallback silencioso para process.env
+  }
+  return (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+}
+
+function getVertexAdcClient(): GoogleGenAI {
+  if (!cachedVertexAdcClient) {
+    // O construtor de @google/genai lê GEMINI_API_KEY/GOOGLE_API_KEY de process.env automaticamente
+    // e falha se apiKey coexistir com project/location. Isolamos process.env durante a instanciação.
+    const savedGeminiKey = process.env.GEMINI_API_KEY;
+    const savedGoogleKey = process.env.GOOGLE_API_KEY;
+    try {
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.GOOGLE_API_KEY;
+      cachedVertexAdcClient = new GoogleGenAI({
+        vertexai: true,
+        project: DEFAULT_GCP_PROJECT,
+        location: DEFAULT_VERTEX_LOCATION,
+      });
+    } finally {
+      if (savedGeminiKey !== undefined) process.env.GEMINI_API_KEY = savedGeminiKey;
+      if (savedGoogleKey !== undefined) process.env.GOOGLE_API_KEY = savedGoogleKey;
+    }
+  }
+  return cachedVertexAdcClient;
+}
+
+function getGenAiClient(): GoogleGenAI {
+  const currentKey = resolveActiveApiKey();
+  if (!currentKey || invalidApiKeys.has(currentKey)) {
+    return getVertexAdcClient();
+  }
+  if (!cachedGenAiClient || currentKey !== cachedApiKey) {
+    cachedApiKey = currentKey;
+    const isVertexExpress = currentKey.startsWith('AQ.');
+    cachedGenAiClient = new GoogleGenAI({
+      apiKey: currentKey,
+      vertexai: isVertexExpress,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return cachedGenAiClient;
+}
+
+function isAuthOrInvalidKeyError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return (
+    msg.includes('ACCOUNT_STATE_INVALID') ||
+    msg.includes('bound service account is deleted or disabled') ||
+    msg.includes('API_KEY_INVALID') ||
+    msg.includes('API key not valid') ||
+    msg.includes('UNAUTHENTICATED') ||
+    msg.includes('"code":401') ||
+    msg.includes('"code": 401')
+  );
+}
+
+const TTS_MODEL_CASCADE = [
+  'gemini-3.8-flash-tts',
+  'gemini-3.8-flash-lite-tts',
+  'gemini-3.1-flash-tts-preview',
+  'gemini-2.5-flash-preview-tts',
+];
+
+async function executeGenerateContentWithCascade(
+  client: GoogleGenAI,
+  params: Parameters<GoogleGenAI['models']['generateContent']>[0]
+) {
+  try {
+    return await client.models.generateContent(params);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('404') || msg.includes('NOT_FOUND') || msg.includes('not found')) {
+      const ttsIdx = TTS_MODEL_CASCADE.indexOf(params.model);
+      if (ttsIdx !== -1) {
+        for (let i = ttsIdx + 1; i < TTS_MODEL_CASCADE.length; i++) {
+          const fallbackModel = TTS_MODEL_CASCADE[i];
+          try {
+            return await client.models.generateContent({
+              ...params,
+              model: fallbackModel,
+            });
+          } catch (innerErr: unknown) {
+            const innerMsg = innerErr instanceof Error ? innerErr.message : String(innerErr);
+            if (i === TTS_MODEL_CASCADE.length - 1 || (!innerMsg.includes('404') && !innerMsg.includes('NOT_FOUND'))) {
+              throw innerErr;
+            }
+          }
+        }
+      }
+      if (params.model === 'gemini-3.8-flash') {
+        return await client.models.generateContent({
+          ...params,
+          model: 'gemini-2.5-flash',
+        });
+      }
+    }
+    throw err;
+  }
+}
+
+const ai = {
+  models: {
+    generateContent: async (params: Parameters<GoogleGenAI['models']['generateContent']>[0]) => {
+      const activeKey = resolveActiveApiKey();
+      const client = getGenAiClient();
+      try {
+        return await executeGenerateContentWithCascade(client, params);
+      } catch (err: unknown) {
+        if (activeKey && !invalidApiKeys.has(activeKey) && isAuthOrInvalidKeyError(err)) {
+          invalidApiKeys.add(activeKey);
+          console.warn(
+            '[Auth Failover] Chave GEMINI_API_KEY rejeitada (conta vinculada inativa/401). Alternando automaticamente para Vertex AI ADC (global)...'
+          );
+          const adcClient = getVertexAdcClient();
+          return await executeGenerateContentWithCascade(adcClient, params);
+        }
+        throw err;
+      }
     },
   },
-});
+};
 
 // 1. Text Ingestion & Parsing
 app.post('/api/extract-text', async (req, res) => {
@@ -146,7 +294,7 @@ app.post('/api/extract-text', async (req, res) => {
   }
 });
 
-// 2. Dialectic Debate Script Generator
+// 2. Dialectic Debate & Multi-Format Script Generator (Debate, Podcast, Conversa de Bar, Mesa de Jantar)
 app.post('/api/generate-script', async (req, res) => {
   try {
     const {
@@ -154,6 +302,7 @@ app.post('/api/generate-script', async (req, res) => {
       language = 'pt-BR',
       audienceLevel = 'intermediate',
       tensionIntensity = 'provocative',
+      format = 'debate',
       speakers,
       maxTurns = 6,
     } = req.body;
@@ -175,60 +324,58 @@ app.post('/api/generate-script', async (req, res) => {
 
     const languageDirectives: Record<string, string> = {
       'pt-BR': `Idioma estrito: Português do Brasil natural, contemporâneo e oralizado. Use marcadores rítmicos brasileiros autênticos ("Olha...", "Mas espera aí...", "Não é bem assim", "Na prática...").`,
-      'en-US': `Strict language: Natural spoken American English. Use authentic conversational debate rhythm ("Wait a second...", "Come on, look at the incentives", "Let's be real here...").`,
-      'it-IT': `Lingua rigorosa: Italiano naturale, colloquiale ma argomentativo. Usa intercalari e ritmo dialettico ("Ma fermiamoci un attimo...", "Non prendiamoci in giro", "I numeri dicono l'opposto").`,
-      'ja-JP': `厳格な言語：自然で流暢な現代日本語。知的で歯切れの良い討論トーン。漢字の誤読を避ける自然な文脈構成にし、口語表現と知的反論を両立（「ちょっと待ってください」「机上の空論に過ぎないのでは」「現場を直視すべきです」）。`,
+      'en-US': `Strict language: Natural spoken American English. Use authentic conversational rhythm ("Wait a second...", "Come on, look at the incentives", "Let's be real here...").`,
+      'it-IT': `Lingua rigorosa: Italiano naturale, colloquiale ed espressivo. Usa intercalari e ritmo autentico ("Ma fermiamoci un attimo...", "Guarda che...", "I numeri dicono l'opposto").`,
+      'ja-JP': `厳格な言語：自然で流暢な現代日本語。漢字の誤読を避ける自然な文脈構成にし、口語表現と知的な対話を両立（「ちょっと待ってください」「現場を直視すべきです」「なるほど、でも実際はどうでしょう」）。`,
+    };
+
+    const formatDirectives: Record<string, string> = {
+      debate: `FORMATO DE RENDERIZAÇÃO: DEBATE DIALÉTICO.
+Os interlocutores têm visões antagônicas ou complementares sob tensão: se um faz um ponto forte, o outro desafia a premissa, expõe o custo oculto ou contra-ataca com um exemplo prático. Proibido clichês de concordância passiva.`,
+      podcast: `FORMATO DE RENDERIZAÇÃO: PODCAST DE ESTÚDIO (2 HOSTS).
+Os interlocutores são co-apresentadores de um podcast envolvente e dinâmico. Eles constroem raciocínios juntos, fazem perguntas instigantes um ao outro, trazem bastidores e exemplos curiosos com ritmo radiofônico fluido.`,
+      bar_chat: `FORMATO DE RENDERIZAÇÃO: CONVERSA DE BAR / CAFÉ ENTRE AMIGOS.
+Papo espontâneo, descontraído, coloquial e bem-humorado em uma mesa de bar ou café. Sem formalidades acadêmicas: use analogias cotidianas afiadas, risadas naturais (<laugh>, <chuckle>), interjeições coloquiais e franqueza de amigos próximos.`,
+      dinner: `FORMATO DE RENDERIZAÇÃO: MESA DE JANTAR EM FAMÍLIA / AMIGOS.
+Conversa calorosa, acolhedora, reflexiva e humana ao redor de uma mesa de jantar. Mistura sabedoria prática, histórias do dia a dia, empatia e troca de experiências de forma leve e cativante.`,
     };
 
     const tensionDirectives: Record<string, string> = {
-      reflective: `Tensão Moderada: Foco em contra-exemplos, nuances conceituais e limites das premissas. Discussão ponderada com atrito intelectual civilizado.`,
-      balanced: `Tensão Dinâmica: Ataques incisivos a premissas fracas, defesas vigorosas e exigência de provas factuais. Ritmo ágil.`,
-      provocative: `Tensão Fervorosa & Incisiva: Desconstrução impiedosa de dogmas, confronto aberto entre teoria pura e realidade bruta, ironia socrática elegante, réplicas rápidas e objeções sem rodeios. Zero complacência.`,
+      reflective: `Dinâmica Reflexiva: Foco em nuances, escuta ativa e exemplos claros.`,
+      balanced: `Dinâmica Ágil: Troca rápida de ideias, perguntas diretas e exemplos práticos do mundo real.`,
+      provocative: `Dinâmica Fervorosa & Incisiva: Confronto direto entre teoria e realidade prática, ironia elegante, réplicas rápidas e zero rodeios.`,
     };
 
     const audienceDirectives: Record<string, string> = {
-      layman: `Nível Leigo: Analogias vivas, exemplos do cotidiano, vocabulário claro sem hermetismo burocrático, porém sem subestimar a inteligência do ouvinte.`,
-      intermediate: `Nível Intermediário: Equilíbrio perfeito entre clareza e densidade conceitual, citando trade-offs e impactos reais.`,
-      expert: `Nível Especialista: Rigor conceitual elevado, terminologia técnica precisa, análise epistemológica e de sistemas complexos.`,
+      layman: `Nível Acessível: Analogias vivas, exemplos do cotidiano e vocabulário claro.`,
+      intermediate: `Nível Equilibrado: Equilíbrio entre clareza e profundidade conceitual, citando impactos reais.`,
+      expert: `Nível Especialista: Rigor conceitual elevado, terminologia precisa e análise profunda.`,
     };
 
-    const systemInstruction = `Você é o Diretor Dramatúrgico e Roteirizador Dialético Chefe do DialecticPod.
-Sua missão é transformar o documento fornecido em uma discussão de áudio viva, hiper-realista e cativante entre dois interlocutores de IA com visões antagônicas.
+    const systemInstruction = `Você é o Diretor Dramatúrgico e Roteirizador Chefe de Áudio Neural do MyTTS Studio.
+Sua missão é transformar o texto ou tema fornecido em uma conversa de áudio viva, hiper-realista e cativante entre dois interlocutores:
 
 PERSONAGENS:
-- Interlocutor 1: "${speaker1.name}" (${speaker1.roleTitle}) — Perfil metódico, analítico, busca rigor metodológico, defende cautela epistemológica ou valoriza princípios fundamentais.
-- Interlocutor 2: "${speaker2.name}" (${speaker2.roleTitle}) — Perfil pragmático, provocador, cético em relação a purismos teóricos, focado em incentivos econômicos, dados do mundo real e aplicabilidade.
+- Interlocutor 1: "${speaker1.name}" (${speaker1.roleTitle}) — Voz: ${speaker1.voiceId}
+- Interlocutor 2: "${speaker2.name}" (${speaker2.roleTitle}) — Voz: ${speaker2.voiceId}
 
-DIRETRIZES FUNDAMENTAIS (LEIS INVIOLÁVEIS):
-1. PROIBIÇÃO ABSOLUTA DE CLICHÊS DE CONCORDÂNCIA:
-   NUNCA gere frases como:
-   - "Com certeza / Concordo plenamente"
-   - "Excelente ponto / Esse é um ótimo argumento"
-   - "Isso é fascinante / É muito interessante pensar nisso"
-   - "Em suma / Para resumir / Em conclusão"
-   Os interlocutores estão em debate real: se um faz um ponto forte, o outro desafia a premissa, expõe o custo oculto ou contra-ataca com um contra-exemplo prático.
+${formatDirectives[format] || formatDirectives['debate']}
 
-2. PONTUAÇÃO PROSÓDICA E AUDIO TAGS PARA SÍNTESE NEURAL (TTS):
-   O texto DEVE ser formatado com marcações prosódicas que o decodificador neural do Gemini TTS reconhece nativamente:
-   - Use reticências (...) para hesitações deliberadas, raciocínio em andamento e pausas reflexivas.
-   - Use travessões (—) para quebras súbitas de pensamento, correções imediatas e interrupções incisivas.
-   - Use tags expressivas em inglês entre colchetes diretamente no texto (o decodificador neural foi calibrado sobre elas):
-     * [deep breath] -> pausa audível para puxar fôlego antes de uma frase de impacto
-     * [sighs] -> suspiro sutil de cansaço ou desabafo cético
-     * [pause] -> silêncio reflexivo dramático de 0.5 a 1 segundo
-     * [laughs] ou [giggles] -> risadinha sarcástica, irônica ou descontraída
-     * [gasp] -> reação imediata de surpresa ou espanto
-     * [whispers] -> redução de volume para tom confidencial ou conspiratório
-   - Cada fala humana em estúdio tem nuances: inclua ao menos um marcador prosódico (...) ou tag de áudio por turno para garantir que a leitura soe 100% como conversa real e viva, nunca como texto corrido.
+DIRETRIZES PROSÓDICAS PARA SÍNTESE NEURAL (GEMINI 3.8 FLASH TTS):
+1. O texto DEVE ser formatado com as tags vocais angulares canônicas que o decodificador neural do Gemini 3.8 Flash TTS interpreta nativamente:
+   - Use tags angulares expressivas quando natural: <breath>, <heavy breath>, <sigh>, <laugh>, <chuckle>, <gasp>, <whispers>, <short pause>, <long pause>.
+   - Use backchannels curtos entre barras verticais quando natural no início de réplicas: |mhm|, |yeah|.
+   - Use reticências (...) para hesitações deliberadas e travessões (—) para quebras súbitas de pensamento.
+   - Inclua ao menos uma tag vocal (<breath>, <sigh>, <chuckle>, <short pause>) por turno para que a respiração e a emoção soem 100% humanas.
 
-3. IDIOMA E CALIBRAÇÃO:
+2. IDIOMA E CALIBRAÇÃO:
    ${languageDirectives[language] || languageDirectives['pt-BR']}
    ${tensionDirectives[tensionIntensity] || tensionDirectives['balanced']}
    ${audienceDirectives[audienceLevel] || audienceDirectives['intermediate']}
 
-4. ESTRUTURA:
+3. ESTRUTURA:
    - Gere exatamente entre 6 e ${Math.min(maxTurns, 8)} turnos alternados entre ${speaker1.name} e ${speaker2.name}.
-   - Inicie o debate in media res, já no centro da tensão do documento, sem introduções pomposas tipo "Olá ouvintes do podcast".`;
+   - Comece direto no assunto (in media res), sem introduções artificiais.`;
 
     const prompt = `Analise detalhadamente o seguinte documento e produza o roteiro de debate dialético estruturado em JSON:
 
@@ -283,11 +430,11 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
                   text: {
                     type: Type.STRING,
                     description:
-                      'Fala completa com marcações prosódicas (<breath>, <laugh>, reticências, travessões)',
+                      'Fala completa com marcações vocais canônicas (<breath>, <sigh>, <laugh>, <chuckle>, <short pause>, reticências, travessões)',
                   },
                   clean_text: {
                     type: Type.STRING,
-                    description: 'Texto sem as tags <breath>, <laugh>, etc.',
+                    description: 'Texto limpo sem as tags <breath>, <laugh>, etc.',
                   },
                   prosody: {
                     type: Type.OBJECT,
@@ -325,18 +472,28 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
       };
     }
 
-    // Ensure voice IDs match the selected speaker configuration
+    // Ensure voice IDs match the selected speaker configuration and normalize vocal tags to canonical angle brackets
     parsed.turns = (parsed.turns as RawScriptTurn[]).map((t: RawScriptTurn) => {
       const isSpk1 = t.speaker.toLowerCase().includes(speaker1.name.toLowerCase());
       const selectedVoice = isSpk1 ? speaker1.voiceId : speaker2.voiceId;
-      const clean =
-        t.clean_text ||
-        t.text.replace(/<[^>]+>/g, '').replace(/\|[^|]+\|/g, '').trim();
+      const normalizedText = buildExpressiveTtsTranscript(t.text, {
+        enabled: true,
+        language,
+        emotion: t.emotion,
+        injectNaturalBreaths: true,
+      });
+      const clean = (t.clean_text || normalizedText)
+        .replace(/<[^>]+>/g, '')
+        .replace(/\[[^\]]+\]/g, '')
+        .replace(/\|[^|]+\|/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
 
       return {
         ...t,
         speaker: isSpk1 ? speaker1.name : speaker2.name,
         voice_id: selectedVoice,
+        text: normalizedText,
         clean_text: clean,
         prosody: {
           pre_delay_ms: t.prosody?.pre_delay_ms || 100,
@@ -356,6 +513,7 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
         language,
         audienceLevel,
         tensionIntensity,
+        format,
         speakers: [speaker1, speaker2],
         turns: parsed.turns,
         createdAt: new Date().toISOString(),
@@ -369,7 +527,101 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
   }
 });
 
-// 3. Turn-by-Turn Neural TTS Synthesis (Gemini 3.8 Flash TTS)
+interface TtsSpeechMetadataPart {
+  text: string;
+  speechMetadata?: {
+    speaker: string;
+    style: string;
+  };
+}
+
+interface TtsSynthesisMetadataOptions {
+  speakerName?: string;
+  stylePrompt?: string;
+}
+
+// Helper compartilhado de síntese neural Gemini 3.8 Flash TTS -> WAV RIFF 24kHz com speechMetadata estruturado
+async function synthesizeGeminiTtsWav(
+  spokenText: string,
+  voiceName: string,
+  options?: TtsSynthesisMetadataOptions
+): Promise<{ wavBase64: string; durationSec: number }> {
+  const speaker = options?.speakerName || voiceName;
+  const style = options?.stylePrompt?.trim() || '';
+
+  const partPayload: TtsSpeechMetadataPart = style
+    ? {
+        text: spokenText,
+        speechMetadata: {
+          speaker,
+          style,
+        },
+      }
+    : { text: spokenText };
+
+  let response;
+  try {
+    response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash-tts',
+      contents: [
+        {
+          role: 'user',
+          parts: [partPayload],
+        },
+      ],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName },
+          },
+        },
+      },
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Se um modelo legado na cascata rejeitar speechMetadata, reexecuta com prompt inline clássico
+    if (
+      style &&
+      (msg.includes('speechMetadata') ||
+        msg.includes('speech_metadata') ||
+        msg.includes('Unknown name'))
+    ) {
+      response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-tts-preview',
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `Performance Direction (${speaker}): ${style}\n\n${spokenText}` }],
+          },
+        ],
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName },
+            },
+          },
+        },
+      });
+    } else {
+      throw err;
+    }
+  }
+
+  const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!base64Audio) {
+    throw new Error('Nenhum dado de áudio retornado pelo modelo neural de voz.');
+  }
+
+  const wavBase64 = ensureWavContainer(base64Audio, 24000);
+  const wavByteLength = Buffer.from(wavBase64, 'base64').length;
+  const rawPcmByteLength = Math.max(0, wavByteLength - 44);
+  const durationSec = Math.max(1.0, Number((rawPcmByteLength / 48000).toFixed(2)));
+  return { wavBase64, durationSec };
+}
+
+// 3. Turn-by-Turn Neural TTS Synthesis (Gemini 3.8 Flash TTS com speechMetadata + vocal tags)
 app.post('/api/synthesize-turn', async (req, res) => {
   try {
     const { turn, speakerName, voiceId, language = 'pt-BR' } = req.body;
@@ -379,148 +631,55 @@ app.post('/api/synthesize-turn', async (req, res) => {
     }
 
     const effectiveVoice = voiceId || turn.voice_id || 'Kore';
-    const effectiveSpeaker = speakerName || turn.speaker || 'Speaker';
+    const effectiveSpeaker = speakerName || turn.speaker || effectiveVoice;
     const effectiveLang = typeof language === 'string' && language ? language : 'pt-BR';
-    const emotionStyle = getEmotionStyle(turn.emotion, turn.prosody?.speech_rate, effectiveLang);
-    const formattedText = formatForTts(capText(String(turn.text), 5000));
+    const speechRate = Number(turn.prosody?.speech_rate) || 1.0;
+    const turnEmotion = typeof turn.emotion === 'string' && turn.emotion ? turn.emotion : 'natural';
 
-    // Prompt no padrão canônico Director's Chair do Gemini 3.1 Flash TTS
-    const directorPrompt = `Read the following dialogue turn as ${effectiveSpeaker} with live human conversational realism.
-Performance Direction: Deliver with ${emotionStyle}. Ensure natural breathiness, authentic pauses between thoughts, and realistic vocal cadence.
+    const voiceAcousticStyle = getVoiceAcousticStyle(
+      effectiveVoice,
+      turnEmotion,
+      speechRate,
+      effectiveLang
+    );
 
-${effectiveSpeaker}: ${formattedText}`;
-
-    // Call Gemini 3.1 Flash TTS
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-tts-preview',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: directorPrompt,
-            },
-          ],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: effectiveVoice },
-          },
-        },
-      },
+    let expressiveTranscript = buildExpressiveTtsTranscript(capText(String(turn.text), 5000), {
+      enabled: true,
+      speed: speechRate,
+      language: effectiveLang,
+      emotion: turnEmotion,
+      injectNaturalBreaths: true,
     });
 
-    const base64Audio =
-      response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-    if (!base64Audio) {
-      throw new Error('Nenhum dado de áudio retornado pelo modelo neural de voz.');
+    if (
+      turn.prosody?.breath_sound &&
+      !/^<(?:breath|heavy breath|sigh|short pause|long pause)/i.test(expressiveTranscript)
+    ) {
+      expressiveTranscript = `<breath> ${expressiveTranscript}`;
     }
 
-    const wavBase64 = ensureWavContainer(base64Audio, 24000);
+    const stylePrompt = `${voiceAcousticStyle} Dialogue context: Speaking as ${effectiveSpeaker} in a live, dynamic multi-speaker conversation with natural turn-taking, authentic emotional inflection, and realistic human breathing.`;
 
-    // Estimate duration: 24kHz, 16-bit mono = 48,000 bytes per second
-    const rawPcmByteLength = Buffer.from(base64Audio, 'base64').length;
-    const durationEstimateSec = Math.max(1.0, rawPcmByteLength / 48000);
+    const { wavBase64, durationSec } = await synthesizeGeminiTtsWav(
+      expressiveTranscript,
+      effectiveVoice,
+      {
+        speakerName: effectiveSpeaker,
+        stylePrompt,
+      }
+    );
 
     return res.json({
       success: true,
       turnNumber: turn.turn,
       audioBase64: wavBase64,
       mimeType: 'audio/wav',
-      durationSec: durationEstimateSec,
+      durationSec,
     });
   } catch (error: unknown) {
     console.error('Error in /api/synthesize-turn:', error);
     return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Falha na síntese de áudio do turno.',
-    });
-  }
-});
-
-// 4. Multi-Speaker Full Master Episode Synthesis (Gemini 3.8 Flash TTS multiSpeakerVoiceConfig)
-app.post('/api/synthesize-full', async (req, res) => {
-  try {
-    const { script } = req.body;
-
-    if (!script || !script.turns || script.turns.length === 0) {
-      return res.status(400).json({ error: 'Roteiro inválido.' });
-    }
-
-    const speaker1 = script.speakers[0];
-    const speaker2 = script.speakers[1];
-    const turnsList = script.turns as Array<{ speaker: string; text: string; emotion?: string }>;
-
-    const formattedLines = turnsList
-      .map((turn) => `${turn.speaker}: ${formatForTts(turn.text)}`)
-      .join('\n\n');
-
-    const spk1Style = getEmotionStyle(
-      turnsList.find((t) => t.speaker === speaker1.name)?.emotion || 'thoughtful'
-    );
-    const spk2Style = getEmotionStyle(
-      turnsList.find((t) => t.speaker === speaker2.name)?.emotion || 'skeptical'
-    );
-
-    const directorPrompt = `Director's Notes for Studio Podcast Debate:
-- Speaker "${speaker1.name}": ${spk1Style}
-- Speaker "${speaker2.name}": ${spk2Style}
-Deliver this dialogue between ${speaker1.name} and ${speaker2.name} with authentic live realism, natural breathing between sentences, spontaneous conversational friction, and convincing pacing.
-
-${formattedLines}`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-tts-preview',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: directorPrompt }],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          multiSpeakerVoiceConfig: {
-            speakerVoiceConfigs: [
-              {
-                speaker: speaker1.name,
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: speaker1.voiceId || 'Kore' },
-                },
-              },
-              {
-                speaker: speaker2.name,
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: speaker2.voiceId || 'Puck' },
-                },
-              },
-            ],
-          },
-        },
-      },
-    });
-
-    const base64Audio =
-      response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-    if (!base64Audio) {
-      throw new Error('Falha ao gerar o master estéreo do debate.');
-    }
-
-    const wavBase64 = ensureWavContainer(base64Audio, 24000);
-
-    return res.json({
-      success: true,
-      audioBase64: wavBase64,
-      mimeType: 'audio/wav',
-    });
-  } catch (error: unknown) {
-    console.error('Error in /api/synthesize-full:', error);
-    return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Falha ao sintetizar o episódio completo.',
+      error: formatGeminiError(error, 'Falha na síntese de áudio do turno.'),
     });
   }
 });
@@ -640,8 +799,61 @@ app.post('/api/mix-audio', async (req, res) => {
   }
 });
 
-// 6. Short Voice Sample Preview (3-second demonstration)
-const voicePreviewCache = new Map<string, string>();
+// 6. Short Voice Sample Preview (Demonstração expressiva personalizada por persona vocal)
+const voicePreviewCache = new Map<string, { wavBase64: string; durationSec: number }>();
+
+const VOICE_PREVIEW_EMOTIONS: Record<string, string> = {
+  Puck: 'spontaneous',
+  Kore: 'natural',
+  Aoede: 'storytelling',
+  Fenrir: 'resolute',
+  Enceladus: 'thoughtful',
+};
+
+function buildExpressivePreviewPhrase(voiceId: string, speakerName: string, language: string): string {
+  const byVoicePtBr: Record<string, string> = {
+    Puck: `<breath> Oi! Eu sou ${speakerName}. <chuckle> Percebe como a minha voz tem energia, ritmo vivo <short pause> e respiração natural de conversa real?`,
+    Kore: `<breath> Olá, eu sou ${speakerName}. <short pause> Minha leitura combina clareza analítica, presença serena <breath> e entonação humana fluida.`,
+    Aoede: `<breath> Olá... eu sou ${speakerName}. <short pause> Gosto de narrar cada ideia com calor humano, pausas suaves <sigh> e muita expressividade.`,
+    Fenrir: `<breath> Olá, sou ${speakerName}. <short pause> Trago um timbre grave, firme e articulado, <breath> com peso vocal para debates intensos.`,
+    Enceladus: `<heavy breath> Olá... sou ${speakerName}. <short pause> Minha voz tem textura íntima de estúdio, respiração próxima <sigh> e calma reflexiva.`,
+  };
+
+  const byVoiceEnUs: Record<string, string> = {
+    Puck: `<breath> Hey there! I'm ${speakerName}. <chuckle> Notice how my voice brings lively rhythm, spontaneous warmth, <short pause> and natural human breathing?`,
+    Kore: `<breath> Hello, I'm ${speakerName}. <short pause> My delivery blends poised clarity, balanced warmth, <breath> and authentic studio articulation.`,
+    Aoede: `<breath> Hello... I'm ${speakerName}. <short pause> I love shaping every story with velvety warmth, gentle pauses, <sigh> and deep emotion.`,
+    Fenrir: `<breath> Hello, I'm ${speakerName}. <short pause> I bring a deep, resonant baritone presence <breath> with grounded authority and clear cadence.`,
+    Enceladus: `<heavy breath> Hello... I'm ${speakerName}. <short pause> My voice carries an intimate close-mic texture, soft breathing, <sigh> and quiet reflection.`,
+  };
+
+  const byVoiceItIt: Record<string, string> = {
+    Puck: `<breath> Ciao! Sono ${speakerName}. <chuckle> Senti come la mia voce ha ritmo vivo, calore spontaneo <short pause> e un respiro davvero naturale?`,
+    Kore: `<breath> Ciao, sono ${speakerName}. <short pause> La mia voce unisce chiarezza, equilibrio <breath> e un'intonazione italiana autentica.`,
+    Aoede: `<breath> Ciao... sono ${speakerName}. <short pause> Amo raccontare ogni storia con calore, pause morbide <sigh> e profonda espressività.`,
+    Fenrir: `<breath> Ciao, sono ${speakerName}. <short pause> Porto un timbro profondo, deciso e autorevole, <breath> ideale per il confronto dialettico.`,
+    Enceladus: `<heavy breath> Ciao... sono ${speakerName}. <short pause> La mia voce ha una sfumatura intima da studio, respiro vicino <sigh> e calma riflessiva.`,
+  };
+
+  const byVoiceJaJp: Record<string, string> = {
+    Puck: `<breath> こんにちは、${speakerName}です！ <chuckle> 自然な息遣いと、生き生きとした会話のリズムを感じていただけますか？`,
+    Kore: `<breath> こんにちは、${speakerName}です。 <short pause> 明瞭で落ち着いたトーンと、自然な間の取り方で丁寧にお伝えします。`,
+    Aoede: `<breath> こんにちは… ${speakerName}です。 <short pause> 温かみのある表現と、豊かな感情を込めて物語をお届けします。`,
+    Fenrir: `<breath> こんにちは、${speakerName}です。 <short pause> 深みのある落ち着いた響きで、説得力のある対話を表現します。`,
+    Enceladus: `<heavy breath> こんにちは… ${speakerName}です。 <short pause> すぐそばで語りかけるような、静かで親密な息遣いをお聴きください。`,
+  };
+
+  if (language === 'en-US' || language === 'en') {
+    return byVoiceEnUs[voiceId] || byVoiceEnUs.Puck;
+  }
+  if (language === 'it-IT' || language === 'it') {
+    return byVoiceItIt[voiceId] || byVoiceItIt.Puck;
+  }
+  if (language === 'ja-JP' || language === 'ja') {
+    return byVoiceJaJp[voiceId] || byVoiceJaJp.Puck;
+  }
+  return byVoicePtBr[voiceId] || byVoicePtBr.Puck;
+}
 
 app.post('/api/preview-voice', async (req, res) => {
   try {
@@ -653,75 +865,43 @@ app.post('/api/preview-voice', async (req, res) => {
       typeof req.body?.speakerName === 'string' && req.body.speakerName.trim()
         ? capText(req.body.speakerName.trim(), 40)
         : voiceId;
-    const cacheKey = `${voiceId}_${language}`;
+    const cacheKey = `${voiceId}_${language}_${speakerName}`;
 
-    if (voicePreviewCache.has(cacheKey)) {
+    const cachedPreview = voicePreviewCache.get(cacheKey);
+    if (cachedPreview) {
       return res.json({
         success: true,
-        audioBase64: voicePreviewCache.get(cacheKey),
+        audioBase64: cachedPreview.wavBase64,
         mimeType: 'audio/wav',
-        durationSec: 3.0,
+        durationSec: cachedPreview.durationSec,
       });
     }
 
-    const previewPhrases: Record<string, string> = {
-      'pt-BR': `Olá, sou ${speakerName}. Esta é uma demonstração de síntese da minha voz neural no estúdio dialético.`,
-      'en-US': `Hello, I'm ${speakerName}. This is a demonstration sample of my neural voice in the dialectic studio.`,
-      'it-IT': `Ciao, sono ${speakerName}. Questo è un campione dimostrativo della mia voce neurale nello studio dialettico.`,
-      'ja-JP': `こんにちは、${speakerName}です。こちらは私のニューラル音声サンプルのプレビューです。`,
-    };
+    const phrase = buildExpressivePreviewPhrase(voiceId, speakerName, language);
+    const previewEmotion = VOICE_PREVIEW_EMOTIONS[voiceId] || 'natural';
+    const stylePrompt = getVoiceAcousticStyle(voiceId, previewEmotion, 1.0, language);
 
-    const phrase = previewPhrases[language] || previewPhrases['pt-BR'];
-    const directorPrompt = `Read with natural conversational realism, warm tone, clear pronunciation, and natural breathing:
-${speakerName}: ${phrase}`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-tts-preview',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: directorPrompt,
-            },
-          ],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voiceId },
-          },
-        },
-      },
+    const { wavBase64, durationSec } = await synthesizeGeminiTtsWav(phrase, voiceId, {
+      speakerName,
+      stylePrompt,
     });
-
-    const base64Audio =
-      response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-    if (!base64Audio) {
-      throw new Error('Nenhum dado retornado para a amostra de voz.');
-    }
-
-    const wavBase64 = ensureWavContainer(base64Audio, 24000);
-    voicePreviewCache.set(cacheKey, wavBase64);
+    voicePreviewCache.set(cacheKey, { wavBase64, durationSec });
 
     return res.json({
       success: true,
       audioBase64: wavBase64,
       mimeType: 'audio/wav',
-      durationSec: 3.0,
+      durationSec,
     });
   } catch (error: unknown) {
     console.error('Error in /api/preview-voice:', error);
     return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Falha ao gerar preview da voz.',
+      error: formatGeminiError(error, 'Falha ao gerar preview da voz.'),
     });
   }
 });
 
-// 6. FastChunks Neural Synthesis (Gemini 3.1 Flash TTS para Chunks de Idiomas)
+// 6. FastChunks Neural Synthesis (Gemini 3.8 Flash TTS para Chunks de Idiomas)
 app.post('/api/synthesize-chunk', async (req, res) => {
   try {
     const { text, language = 'en-US', voiceId } = req.body;
@@ -737,45 +917,18 @@ app.post('/api/synthesize-chunk', async (req, res) => {
 
     const selectedVoice = voiceId || defaultVoices[language] || 'Puck';
     const cleanText = capText(text, 2000).replace(/\(.*?\)/g, '').trim();
-
-    let phoneticDirection = 'Speak with natural American English conversational flow, natural breathing, and smooth pauses.';
-    if (language === 'it-IT' || language === 'it') {
-      phoneticDirection = 'Speak strictly in authentic, natural Italian with native Italian accent and cadence, lively tempo, open/closed vowels and natural double consonant rhythm. Avoid any English accent.';
-    } else if (language === 'ja-JP' || language === 'ja') {
-      phoneticDirection = 'Speak strictly in natural, native Japanese with standard Tokyo pitch-accent, authentic mora timing, and native inflection. Avoid any English or foreign accent.';
-    }
-
-    const directorPrompt = `Performance Direction: ${phoneticDirection}
-Read this conversational text in ${language} with maximum native fluency, authentic colloquial emotion, and natural breathing:
-"${cleanText}"`;
-
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-tts-preview',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: directorPrompt }],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: selectedVoice },
-          },
-        },
-      },
+    const expressiveChunk = buildExpressiveTtsTranscript(cleanText, {
+      enabled: true,
+      language,
+      emotion: 'spontaneous',
+      injectNaturalBreaths: true,
     });
+    const stylePrompt = getVoiceAcousticStyle(selectedVoice, 'spontaneous', 1.0, language);
 
-    const base64Audio =
-      response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-    if (!base64Audio) {
-      throw new Error('Falha ao sintetizar áudio neural para o chunk.');
-    }
-
-    const wavBase64 = ensureWavContainer(base64Audio, 24000);
+    const { wavBase64 } = await synthesizeGeminiTtsWav(expressiveChunk, selectedVoice, {
+      speakerName: selectedVoice,
+      stylePrompt,
+    });
 
     return res.json({
       success: true,
@@ -785,12 +938,12 @@ Read this conversational text in ${language} with maximum native fluency, authen
   } catch (error: unknown) {
     console.error('Error in /api/synthesize-chunk:', error);
     return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Falha na síntese do chunk.',
+      error: formatGeminiError(error, 'Falha na síntese do chunk.'),
     });
   }
 });
 
-// 7. Quick Reader Speech Synthesis (Speechify/ElevenLabs Style com Director's Chair)
+// 7. Quick Reader Speech Synthesis (Speechify/ElevenLabs Style com Director's Chair Gemini 3.8 Flash TTS)
 app.post('/api/synthesize-speech', async (req, res) => {
   try {
     const {
@@ -811,67 +964,39 @@ app.post('/api/synthesize-speech', async (req, res) => {
       (language === 'it-IT' || language === 'it'
         ? 'Kore'
         : language === 'ja-JP' || language === 'ja'
-        ? 'Aoede'
-        : language === 'en-US' || language === 'en'
-        ? 'Puck'
-        : 'Puck');
+          ? 'Aoede'
+          : 'Puck');
 
-    const emotionStyle = getEmotionStyle(emotion, speed, language);
-    const formattedText = applyAcousticProsody(capText(text), {
+    const stylePrompt = getVoiceAcousticStyle(resolvedVoiceId, emotion, speed, language);
+    const expressiveTranscript = buildExpressiveTtsTranscript(capText(text), {
       enabled: autoProsody,
       speed,
       language,
+      emotion,
+      injectNaturalBreaths: autoProsody,
     });
 
-    // Director's Chair prompt
-    const directorPrompt = `Performance Direction for ${resolvedVoiceId}:
-${emotionStyle}
-
-Text:
-${formattedText}`;
-
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-tts-preview',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: directorPrompt }],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: resolvedVoiceId },
-          },
-        },
-      },
-    });
-
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
-    if (!base64Audio) {
-      throw new Error('Nenhum dado de áudio retornado pelo modelo neural de voz.');
-    }
-
-    const wavBase64 = ensureWavContainer(base64Audio, 24000);
-
-    const rawPcmByteLength = Buffer.from(base64Audio, 'base64').length;
-    const durationEstimateSec = Math.max(1.0, rawPcmByteLength / 48000);
+    const { wavBase64, durationSec } = await synthesizeGeminiTtsWav(
+      expressiveTranscript,
+      resolvedVoiceId,
+      {
+        speakerName: resolvedVoiceId,
+        stylePrompt,
+      }
+    );
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
     return res.json({
       success: true,
       audioBase64: wavBase64,
       mimeType: 'audio/wav',
-      durationSec: durationEstimateSec,
+      durationSec,
       wordCount,
     });
   } catch (error: unknown) {
     console.error('Error in /api/synthesize-speech:', error);
     return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Falha na síntese de áudio do leitor.',
+      error: formatGeminiError(error, 'Falha na síntese de áudio do leitor.'),
     });
   }
 });
@@ -1193,9 +1318,17 @@ Regras Invioláveis:
       fullText: parsed.fullText,
     });
   } catch (error: unknown) {
-    console.error('Error in /api/translate-parallel-chunks:', error);
-    return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Falha ao processar tradução paralela dos chunks.',
+    console.warn('[WARN] /api/translate-parallel-chunks fallback ativado:', formatGeminiError(error, 'Erro tradução paralela'));
+    const fallback = buildFallbackPolyglotReply(
+      typeof req.body?.text === 'string' ? req.body.text : 'Conversa Poliglota',
+      'polyglot_translator'
+    );
+    return res.json({
+      success: true,
+      fallback: true,
+      warning: formatGeminiError(error, 'Operando em modo de contingência local.'),
+      chunks: fallback.chunks,
+      fullText: fallback.fullText,
     });
   }
 });
@@ -1271,7 +1404,625 @@ Contexto da conversa: "${contextSentence || chunkText}"`;
   } catch (error: unknown) {
     console.error('Error in /api/generate-flashcard:', error);
     return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Falha ao gerar flashcard com Gemini.',
+      error: formatGeminiError(error, 'Falha ao gerar flashcard com Gemini.'),
+    });
+  }
+});
+
+// ==========================================
+// Autenticação Google & Histórico de Conversas Familiar
+// ==========================================
+
+const conversationStorage = getConversationStorage();
+
+app.get('/api/auth/config', (_req, res) => {
+  res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '',
+    projectId: process.env.GCP_PROJECT_ID || 'agent-md-506215',
+    region: 'southamerica-east1',
+  });
+});
+
+app.post('/api/auth/google', (req, res) => {
+  try {
+    const { credential, email, name } = req.body as {
+      credential?: string;
+      email?: string;
+      name?: string;
+    };
+
+    if (credential && typeof credential === 'string') {
+      const parts = credential.split('.');
+      if (parts.length !== 3) {
+        return res.status(400).json({ error: 'Token Google inválido.' });
+      }
+      const payloadRaw = Buffer.from(parts[1], 'base64url').toString('utf-8');
+      const payload = JSON.parse(payloadRaw) as {
+        iss?: string;
+        sub?: string;
+        email?: string;
+        name?: string;
+        picture?: string;
+      };
+
+      if (
+        !payload.sub ||
+        (payload.iss !== 'https://accounts.google.com' && payload.iss !== 'accounts.google.com')
+      ) {
+        return res.status(401).json({ error: 'Emissor do token Google inválido.' });
+      }
+
+      const safeUid = sanitizeUserId(`google_${payload.sub}`);
+      const user: GoogleUserSession = {
+        uid: safeUid,
+        name: payload.name || payload.email?.split('@')[0] || 'Usuário Google',
+        email: payload.email || '',
+        picture: payload.picture,
+        idToken: credential,
+        isGoogleAuthenticated: true,
+      };
+      return res.json({ success: true, user });
+    }
+
+    if (email && typeof email === 'string' && email.includes('@')) {
+      const cleanEmail = email.trim().toLowerCase();
+      const safeUid = sanitizeUserId(`google_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`);
+      const displayName =
+        typeof name === 'string' && name.trim().length > 0
+          ? name.trim().slice(0, 60)
+          : cleanEmail.split('@')[0];
+
+      const user: GoogleUserSession = {
+        uid: safeUid,
+        name: displayName,
+        email: cleanEmail,
+        isGoogleAuthenticated: true,
+      };
+      return res.json({ success: true, user });
+    }
+
+    return res.status(400).json({ error: 'Credencial ou e-mail Google obrigatório.' });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao autenticar conta Google.',
+    });
+  }
+});
+
+app.get('/api/conversations', async (req, res) => {
+  try {
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const conversations = await conversationStorage.listByUser(userId);
+    return res.json({
+      success: true,
+      storageMode: conversationStorage.mode,
+      conversations,
+    });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao listar histórico de conversas.',
+    });
+  }
+});
+
+app.post('/api/conversations', async (req, res) => {
+  try {
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const body = req.body as Partial<SavedConversation>;
+    if (!body || !body.id || !Array.isArray(body.messages)) {
+      return res.status(400).json({ error: 'Dados da conversa inválidos (id e messages são obrigatórios).' });
+    }
+
+    const convToSave: SavedConversation = {
+      id: String(body.id).slice(0, 80),
+      userId,
+      userName: String(body.userName || 'Familiar').slice(0, 80),
+      userEmail: body.userEmail ? String(body.userEmail).slice(0, 120) : undefined,
+      title: String(body.title || 'Conversa Poliglota').slice(0, 140),
+      createdAt: body.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      pinned: Boolean(body.pinned),
+      originMode: body.originMode || 'polyglot',
+      messages: body.messages.slice(-40),
+    };
+
+    const saved = await conversationStorage.upsert(userId, convToSave);
+    return res.json({
+      success: true,
+      conversation: saved,
+    });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao salvar conversa no histórico.',
+    });
+  }
+});
+
+app.delete('/api/conversations/:id', async (req, res) => {
+  try {
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const convId = String(req.params.id || '').slice(0, 80);
+    const deleted = await conversationStorage.remove(userId, convId);
+    return res.json({
+      success: true,
+      deleted,
+    });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao remover conversa do histórico.',
+    });
+  }
+});
+
+// ==========================================
+// Live API & Agentes de Voz Conversacionais
+// ==========================================
+
+function buildFallbackPolyglotReply(
+  inputPrompt: string,
+  persona: AgentPersona,
+  youtubeUrl?: string
+): {
+  userTranscript: string;
+  agentReplyPtBr: string;
+  chunks: AlignedChunk[];
+  fullText: { en: string; it: string; ja: string };
+} {
+  const cleanPrompt = inputPrompt.trim() || 'Olá! Vamos praticar conversação hoje?';
+  const isYoutube = Boolean(youtubeUrl);
+
+  const agentReplyPtBr = isYoutube
+    ? `Analisei o link do YouTube (${youtubeUrl}). Preparei abaixo uma conversa prática em 3 idiomas com os pontos principais sobre "${cleanPrompt}" para estudo e escuta comparada.`
+    : persona === 'tutor_conversational'
+    ? `Ótima pergunta sobre "${cleanPrompt}"! Como seu Tutor Poliglota, estruturei uma resposta natural nos 3 idiomas abaixo para você ouvir a pronúncia e comparar cada bloco.`
+    : persona === 'practice_partner'
+    ? `Excelente iniciativa! Vamos praticar uma situação real sobre "${cleanPrompt}". Ouça a resposta abaixo e tente repetir em voz alta!`
+    : `Tradução e alinhamento em 3 idiomas concluídos para: "${cleanPrompt}".`;
+
+  const chunks: AlignedChunk[] = [
+    {
+      id: 0,
+      en: "That's a great topic to explore together,",
+      it: 'Questo è un ottimo argomento da esplorare insieme,',
+      ja: 'それは一緒に探求するのに素晴らしいテーマですね、',
+      jaPronunciation: 'Sore wa issho ni tankyū suru no ni subarashii tēma desu ne,',
+    },
+    {
+      id: 1,
+      en: 'let us break down the key ideas naturally',
+      it: 'analizziamo le idee principali in modo naturale',
+      ja: '重要なポイントを自然に整理してみましょう',
+      jaPronunciation: 'jūyō na pointo o shizen ni seiri shite mimashō',
+    },
+    {
+      id: 2,
+      en: 'and practice speaking step by step.',
+      it: 'e facciamo pratica parlando passo dopo passo.',
+      ja: 'そして一歩ずつ会話の練習をしていきましょう。',
+      jaPronunciation: 'soshite ippo zutsu kaiwa no renshū o shite ikimashō.',
+    },
+  ];
+
+  return {
+    userTranscript: cleanPrompt,
+    agentReplyPtBr,
+    chunks,
+    fullText: {
+      en: chunks.map((c) => c.en).join(' '),
+      it: chunks.map((c) => c.it).join(' '),
+      ja: chunks.map((c) => c.ja).join(' '),
+    },
+  };
+}
+
+export interface LiveAgentToolCallResult {
+  id: string;
+  name: 'create_study_flashcard' | 'switch_studio_voice';
+  behavior: 'NON_BLOCKING';
+  args: {
+    frontPhrase?: string;
+    backTranslation?: string;
+    targetVoice?: 'Puck' | 'Kore' | 'Aoede' | 'Fenrir' | 'Enceladus';
+    language?: 'en' | 'it' | 'ja' | 'all';
+  };
+  status: 'executed';
+  summaryPtBr: string;
+}
+
+const VALID_STUDIO_VOICES = new Set(['Puck', 'Kore', 'Aoede', 'Fenrir', 'Enceladus']);
+
+function resolveLiveToolCalls(
+  rawToolCalls: unknown,
+  userTranscript: string,
+  chunks: Array<{ en: string; it: string; ja: string }>
+): LiveAgentToolCallResult[] {
+  const results: LiveAgentToolCallResult[] = [];
+  const seenSignatures = new Set<string>();
+
+  if (Array.isArray(rawToolCalls)) {
+    for (const raw of rawToolCalls) {
+      if (!raw || typeof raw !== 'object') continue;
+      const candidate = raw as Record<string, unknown>;
+      const name = String(candidate.name || '');
+      if (name !== 'create_study_flashcard' && name !== 'switch_studio_voice') continue;
+
+      const sig = `${name}:${JSON.stringify(candidate)}`;
+      if (seenSignatures.has(sig)) continue;
+      seenSignatures.add(sig);
+
+      if (name === 'create_study_flashcard') {
+        const frontPhrase = String(candidate.frontPhrase || chunks[0]?.en || userTranscript).slice(0, 240);
+        const backTranslation = String(
+          candidate.backTranslation || `${chunks[0]?.it || ''} • ${chunks[0]?.ja || ''}`
+        ).slice(0, 240);
+        results.push({
+          id: `tool-fc-${Date.now()}-${results.length}`,
+          name: 'create_study_flashcard',
+          behavior: 'NON_BLOCKING',
+          args: { frontPhrase, backTranslation },
+          status: 'executed',
+          summaryPtBr: `Flashcard criado automaticamente: "${frontPhrase}"`,
+        });
+      } else if (name === 'switch_studio_voice') {
+        const rawVoice = String(candidate.targetVoice || 'Puck');
+        const targetVoice = (VALID_STUDIO_VOICES.has(rawVoice) ? rawVoice : 'Puck') as
+          | 'Puck'
+          | 'Kore'
+          | 'Aoede'
+          | 'Fenrir'
+          | 'Enceladus';
+        const rawLang = String(candidate.language || 'all');
+        const language = (['en', 'it', 'ja', 'all'].includes(rawLang) ? rawLang : 'all') as
+          | 'en'
+          | 'it'
+          | 'ja'
+          | 'all';
+        results.push({
+          id: `tool-voice-${Date.now()}-${results.length}`,
+          name: 'switch_studio_voice',
+          behavior: 'NON_BLOCKING',
+          args: { targetVoice, language },
+          status: 'executed',
+          summaryPtBr: `Voz do estúdio alterada para ${targetVoice} (${language.toUpperCase()})`,
+        });
+      }
+    }
+  }
+
+  // Detecção determinística de intenção de Function Calling caso o modelo omita ou esteja em fallback
+  if (results.length === 0 && userTranscript) {
+    const lower = userTranscript.toLowerCase();
+    if (lower.includes('flashcard') || lower.includes('salvar card') || lower.includes('salve um card')) {
+      const frontPhrase = chunks[0]?.en || userTranscript;
+      const backTranslation = chunks[0] ? `${chunks[0].it} • ${chunks[0].ja}` : 'Expressão salva via Agente Live';
+      results.push({
+        id: `tool-fc-${Date.now()}`,
+        name: 'create_study_flashcard',
+        behavior: 'NON_BLOCKING',
+        args: { frontPhrase, backTranslation },
+        status: 'executed',
+        summaryPtBr: `Flashcard criado automaticamente: "${frontPhrase}"`,
+      });
+    }
+    for (const v of ['Puck', 'Kore', 'Aoede', 'Fenrir', 'Enceladus'] as const) {
+      if (lower.includes(`voz ${v.toLowerCase()}`) || lower.includes(`mudar para ${v.toLowerCase()}`)) {
+        results.push({
+          id: `tool-voice-${Date.now()}`,
+          name: 'switch_studio_voice',
+          behavior: 'NON_BLOCKING',
+          args: { targetVoice: v, language: 'all' },
+          status: 'executed',
+          summaryPtBr: `Voz do estúdio alterada para ${v}`,
+        });
+        break;
+      }
+    }
+  }
+
+  return results;
+}
+
+app.post('/api/live-agent-turn', async (req, res) => {
+  const {
+    text,
+    audioBase64,
+    mimeType = 'audio/webm',
+    persona = 'tutor_conversational',
+    history = [],
+  } = req.body as {
+    text?: string;
+    audioBase64?: string;
+    mimeType?: string;
+    persona?: AgentPersona;
+    history?: Array<{ role: string; text: string }>;
+  };
+
+  if ((!text || !text.trim()) && !audioBase64) {
+    return res.status(400).json({ error: 'Forneça texto ou áudio para o turno do Agente Live.' });
+  }
+
+  const personaInstructions: Record<AgentPersona, string> = {
+    polyglot_translator:
+      'Você atua como um Tradutor Simultâneo Poliglota: transcreva o que o usuário disse e alinhe fielmente o conteúdo dele em Inglês (EN), Italiano (IT) e Japonês (JA), explicando brevemente em Português (agentReplyPtBr) qualquer expressão interessante.',
+    tutor_conversational:
+      'Você atua como um Tutor Poliglota caloroso e didático da família: responda diretamente à dúvida ou comentário do usuário em Português no campo "agentReplyPtBr" (2 a 3 frases claras) e elabore a sua fala/resposta prática dividida em chunks alinhados em Inglês (EN), Italiano (IT) e Japonês (JA).',
+    practice_partner:
+      'Você atua como um Parceiro Nativo de Conversação: reaja naturalmente ao que o usuário falou, dê um retorno encorajador em Português no campo "agentReplyPtBr" e faça uma pergunta curta do cotidiano alinhada em Inglês (EN), Italiano (IT) e Japonês (JA) para manter o diálogo vivo.',
+  };
+
+  try {
+    const recentContext = Array.isArray(history)
+      ? history
+          .slice(-4)
+          .map((h) => `${h.role}: ${h.text}`)
+          .join('\n')
+      : '';
+
+    const systemPrompt = `Você é o Agente de Voz em Tempo Real (Live API) do MyTTS Studio.
+Modo ativo: ${personaInstructions[persona] || personaInstructions.tutor_conversational}
+
+Ferramentas nativas do estúdio (Function Calling NON_BLOCKING disponíveis no array opcional "toolCalls"):
+- "create_study_flashcard": use quando o usuário pedir para criar/salvar um flashcard ou cartão de estudo.
+- "switch_studio_voice": use quando o usuário pedir para trocar a voz neural ("Puck", "Kore", "Aoede", "Fenrir" ou "Enceladus").
+
+Regras obrigatórias de saída JSON:
+1. "userTranscript": transcrição exata do que o usuário falou ou enviou.
+2. "agentReplyPtBr": resposta, dica ou explicação amigável em Português do Brasil (pt-BR).
+3. "chunks": array de 2 a 5 blocos semânticos alinhados (EN, IT, JA + jaPronunciation em Romaji).
+4. "fullText": texto completo contínuo em "en", "it" e "ja".
+5. "toolCalls": lista opcional de chamadas de função acionadas neste turno.`;
+
+    const parts: Array<
+      | { text: string }
+      | { inlineData: { data: string; mimeType: string } }
+    > = [];
+
+    if (audioBase64 && typeof audioBase64 === 'string') {
+      const cleanBase64 = audioBase64.includes(',') ? audioBase64.split(',')[1] : audioBase64;
+      parts.push({
+        inlineData: {
+          data: cleanBase64,
+          mimeType: mimeType || 'audio/webm',
+        },
+      });
+    }
+
+    parts.push({
+      text: `${
+        recentContext ? `Histórico recente da conversa:\n${recentContext}\n\n` : ''
+      }Entrada atual do usuário: ${
+        text && text.trim() ? `"${capText(text, 2000)}"` : '(Áudio falado pelo microfone Live)'
+      }`,
+    });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [{ role: 'user', parts }],
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.5,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            userTranscript: { type: Type.STRING },
+            agentReplyPtBr: { type: Type.STRING },
+            chunks: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.INTEGER },
+                  en: { type: Type.STRING },
+                  it: { type: Type.STRING },
+                  ja: { type: Type.STRING },
+                  jaPronunciation: { type: Type.STRING },
+                },
+                required: ['id', 'en', 'it', 'ja'],
+              },
+            },
+            fullText: {
+              type: Type.OBJECT,
+              properties: {
+                en: { type: Type.STRING },
+                it: { type: Type.STRING },
+                ja: { type: Type.STRING },
+              },
+              required: ['en', 'it', 'ja'],
+            },
+            toolCalls: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  frontPhrase: { type: Type.STRING },
+                  backTranslation: { type: Type.STRING },
+                  targetVoice: { type: Type.STRING },
+                  language: { type: Type.STRING },
+                },
+                required: ['name'],
+              },
+            },
+          },
+          required: ['userTranscript', 'agentReplyPtBr', 'chunks', 'fullText'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    const resolvedTranscript = parsed.userTranscript || text || 'Áudio recebido';
+    const resolvedChunks = parsed.chunks || [];
+    const toolCallsExecuted = resolveLiveToolCalls(
+      parsed.toolCalls,
+      resolvedTranscript,
+      resolvedChunks
+    );
+
+    return res.json({
+      success: true,
+      persona,
+      userTranscript: resolvedTranscript,
+      agentReplyPtBr: parsed.agentReplyPtBr || '',
+      chunks: resolvedChunks,
+      fullText: parsed.fullText || { en: '', it: '', ja: '' },
+      toolCallsExecuted,
+    });
+  } catch (error: unknown) {
+    console.warn('[WARN] /api/live-agent-turn fallback ativado:', formatGeminiError(error, 'Erro Live Agent'));
+    const fallback = buildFallbackPolyglotReply(text || 'Conversa por Voz Live', persona);
+    const toolCallsExecuted = resolveLiveToolCalls(
+      [],
+      fallback.userTranscript,
+      fallback.chunks
+    );
+    return res.json({
+      success: true,
+      persona,
+      fallback: true,
+      warning: formatGeminiError(error, 'Operando em modo de contingência local.'),
+      ...fallback,
+      toolCallsExecuted,
+    });
+  }
+});
+
+// ==========================================
+// Agente Gemini com Busca Web (Google Search) & Vídeo do YouTube
+// ==========================================
+
+function extractYoutubeUrl(input: string): string | null {
+  const match = input.match(
+    /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)[A-Za-z0-9_-]{6,}(?:[^\s"']*)?/i
+  );
+  return match ? match[0] : null;
+}
+
+app.post('/api/agent-explore', async (req, res) => {
+  const {
+    prompt = '',
+    youtubeUrl: explicitYoutubeUrl,
+    enableSearch = true,
+  } = req.body as {
+    prompt?: string;
+    youtubeUrl?: string;
+    enableSearch?: boolean;
+  };
+
+  const detectedYt = explicitYoutubeUrl?.trim() || extractYoutubeUrl(prompt) || undefined;
+  const cleanPrompt = capText(
+    prompt.trim() || (detectedYt ? 'Analise este vídeo do YouTube e gere uma conversa de estudo.' : ''),
+    3000
+  );
+
+  if (!cleanPrompt && !detectedYt) {
+    return res.status(400).json({
+      error: 'Informe uma pergunta, tema de busca ou cole um link do YouTube.',
+    });
+  }
+
+  try {
+    const parts: Array<
+      | { text: string }
+      | { fileData: { fileUri: string; mimeType: string } }
+    > = [];
+
+    if (detectedYt) {
+      parts.push({
+        fileData: {
+          fileUri: detectedYt,
+          mimeType: 'video/mp4',
+        },
+      });
+    }
+
+    parts.push({
+      text: `Solicitação do usuário: "${cleanPrompt}"
+${detectedYt ? `Vídeo do YouTube anexado: ${detectedYt}` : ''}
+
+Sua tarefa como Agente Pesquisador e Linguista Poliglota:
+1. Analise profundamente o vídeo do YouTube (se fornecido) e/ou pesquise informações atualizadas e confiáveis na Web.
+2. Responda ou resuma de forma clara, útil e amigável em Português do Brasil (pt-BR) no campo "agentReplyPtBr".
+3. Crie uma conversa ou sequência de frases práticas sobre esse exato conteúdo dividida em 3 a 5 chunks alinhados em Inglês ("en"), Italiano ("it") e Japonês ("ja" + "jaPronunciation" em Romaji).
+4. Retorne ESTRITAMENTE um objeto JSON válido com as chaves:
+{
+  "agentReplyPtBr": "Resumo/resposta completa em português sobre o vídeo ou pesquisa...",
+  "chunks": [
+    { "id": 0, "en": "...", "it": "...", "ja": "...", "jaPronunciation": "..." }
+  ],
+  "fullText": { "en": "...", "it": "...", "ja": "..." }
+}`,
+    });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [{ role: 'user', parts }],
+      config: {
+        temperature: 0.4,
+        tools: enableSearch ? [{ googleSearch: {} }, { urlContext: {} }] : undefined,
+      },
+    });
+
+    const rawText = (response.text || '').trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+    if (!parsed || !Array.isArray(parsed.chunks) || !parsed.fullText) {
+      throw new Error('O Agente não retornou o bloco JSON estruturado esperado.');
+    }
+
+    const sources: AgentExploreSource[] = [];
+    const candidate = response.candidates?.[0] as
+      | {
+          groundingMetadata?: {
+            groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>;
+          };
+        }
+      | undefined;
+
+    const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
+    for (const gc of groundingChunks) {
+      if (gc.web?.uri) {
+        sources.push({
+          title: gc.web.title || gc.web.uri,
+          uri: gc.web.uri,
+        });
+      }
+    }
+
+    if (detectedYt && !sources.some((s) => s.uri === detectedYt)) {
+      sources.unshift({
+        title: 'Vídeo do YouTube Analisado',
+        uri: detectedYt,
+      });
+    }
+
+    return res.json({
+      success: true,
+      originMode: detectedYt ? 'youtube' : 'web_search',
+      youtubeUrl: detectedYt,
+      agentReplyPtBr: parsed.agentReplyPtBr || '',
+      sources: sources.slice(0, 6),
+      chunks: parsed.chunks,
+      fullText: parsed.fullText,
+    });
+  } catch (error: unknown) {
+    console.warn('[WARN] /api/agent-explore fallback ativado:', formatGeminiError(error, 'Erro Agent Explore'));
+    const fallback = buildFallbackPolyglotReply(cleanPrompt, 'tutor_conversational', detectedYt);
+    const fallbackSources: AgentExploreSource[] = detectedYt
+      ? [{ title: 'Vídeo do YouTube Informado', uri: detectedYt }]
+      : [];
+
+    return res.json({
+      success: true,
+      fallback: true,
+      warning: formatGeminiError(error, 'Operando em modo de contingência local.'),
+      originMode: detectedYt ? 'youtube' : 'web_search',
+      youtubeUrl: detectedYt,
+      agentReplyPtBr: fallback.agentReplyPtBr,
+      sources: fallbackSources,
+      chunks: fallback.chunks,
+      fullText: fallback.fullText,
     });
   }
 });
@@ -1282,12 +2033,20 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'online',
     service: 'DialecticPod & FastChunks API',
-    modelTts: 'gemini-3.1-flash-tts-preview',
+    modelTts: 'gemini-3.8-flash-tts',
     modelGen: 'gemini-3.8-flash',
     geminiKeyConfigured: true,
     storage,
     uptimeSec: Math.round(process.uptime()),
   });
+});
+
+// Favicon SVG leve para evitar 404 no console do navegador
+app.get('/favicon.ico', (_req, res) => {
+  const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0f172a"/><path d="M9 16v-4m4 8V12m4 10V10m4 8v-4m4 2v-1" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.status(200).send(svgIcon);
 });
 
 // Rotas de API desconhecidas: 404 JSON estruturado (nunca o HTML do SPA)
@@ -1311,12 +2070,6 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Rota direta para o mockup de referência tátil
-    app.get('/mockup', (_req, res) => {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.sendFile(path.resolve(__dirname, 'mockup_tatil_referencia.html'));
-    });
-
     // Servir assets compilados com controle estrito de cache
     app.use(
       express.static(path.resolve(__dirname, 'dist'), {

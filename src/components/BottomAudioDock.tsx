@@ -123,6 +123,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   language = 'pt-BR',
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isCompactPill, setIsCompactPill] = useState(true);
   const [activeDrawerTab, setActiveDrawerTab] = useState<'voice' | 'soundtrack'>('voice');
   const [isMuted, setIsMuted] = useState(false);
 
@@ -469,6 +470,75 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   };
 
   const currentPresetMeta = SOUNDTRACK_PRESETS.find((p) => p.id === soundtrackConfig.preset) || SOUNDTRACK_PRESETS[0];
+
+  if (isCompactPill && !isExpanded) {
+    return (
+      <aside
+        id="BottomAudioDock"
+        aria-label="Pílula de Produtor e Linha Animada"
+        className="fixed bottom-3 left-0 lg:left-72 right-0 z-30 px-4 pointer-events-none"
+      >
+        <div className="max-w-3xl mx-auto card-matte rounded-full px-3.5 py-2 shadow-2xl border border-amber-400/30 flex items-center justify-between gap-3 pointer-events-auto">
+          <button
+            type="button"
+            onClick={onTogglePlay}
+            className="btn-matte-amber h-9 px-3.5 rounded-full text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
+          >
+            {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+            <span>{isPlaying ? 'Pausar' : currentSpeaker?.name || 'Ouvir'}</span>
+          </button>
+
+          {/* Linha Animada de Progresso / Onda */}
+          <button
+            type="button"
+            onClick={() => setIsCompactPill(false)}
+            className="flex-1 flex items-center gap-2.5 min-w-0 cursor-pointer text-left"
+            title="Expandir Pílula de Produtor (Trilha Sonora, Auto-Ducking e Vozes)"
+          >
+            <div className="flex-1 h-2 rounded-full surface-inset overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  isPlaying
+                    ? 'bg-gradient-to-r from-amber-500 via-emerald-400 to-amber-300 animate-pulse'
+                    : 'bg-amber-500/70'
+                }`}
+                style={{ width: `${Math.max(12, progressPercentage)}%` }}
+              />
+            </div>
+            <span className="text-[11px] font-mono tabular-nums text-secondary shrink-0">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          </button>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setIsCompactPill(false);
+                setActiveDrawerTab('soundtrack');
+                setIsExpanded(true);
+              }}
+              className="btn-compact-touch h-8 px-2.5 rounded-full btn-matte-dark text-[11px] font-semibold text-amber-300 hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+              title="Abrir Mixer de Trilha Sonora & Auto-Ducking"
+            >
+              <Music className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">+ Trilha</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCompactPill(false)}
+              className="btn-compact-touch h-8 px-2.5 rounded-full btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+              title="Expandir Pílula de Produtor"
+            >
+              <Sliders className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Produtor</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside 
@@ -1139,6 +1209,19 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-all cursor-pointer"
             >
               {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+
+            {/* Recolher para Linha Animada / Pílula Compacta */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsExpanded(false);
+                setIsCompactPill(true);
+              }}
+              title="Recolher para Pílula de Produtor (Linha Animada)"
+              className="flex h-10 px-2.5 items-center justify-center rounded-xl btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary cursor-pointer"
+            >
+              <span>Linha</span>
             </button>
           </div>
 

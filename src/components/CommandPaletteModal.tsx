@@ -293,13 +293,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
             filteredCommands.map((cmd, idx) => {
               const isSelected = idx === selectedIndex;
               return (
-                <div
+                <button
+                  type="button"
                   key={cmd.id}
                   data-selected={isSelected}
                   onClick={() => cmd.action()}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={
-                    'px-4 py-3 rounded-xl flex items-center justify-between cursor-pointer transition-all ' +
+                    'w-full text-left px-4 py-3 rounded-xl flex items-center justify-between cursor-pointer transition-all ' +
                     (isSelected
                       ? 'card-matte-active text-primary shadow-md'
                       : 'hover:bg-slate-800/40 text-secondary border border-transparent')
@@ -342,7 +343,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
                       <GoogleIcon name="keyboard_return" size={16} className="text-amber-400" />
                     )}
                   </div>
-                </div>
+                </button>
               );
             })
           )}

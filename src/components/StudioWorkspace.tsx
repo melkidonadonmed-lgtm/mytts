@@ -1,5 +1,6 @@
 /**
- * Bancada principal do estúdio de áudio (Solo + Debate Dialético).
+ * Bancada principal do Estúdio de Criação de Áudio —
+ * unifica Leitura Solo, Debate Dialético, Podcast de Estúdio, Conversa de Bar e Mesa de Jantar.
  */
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -11,22 +12,29 @@ import {
   Loader2,
   AlertCircle,
   Headphones,
-  Users,
   Zap,
   RotateCw,
 } from 'lucide-react';
-import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
-import { DebateScript, SpeakerProfile } from '../types/debate';
+import { VoiceProfile } from '../types/voices';
+import {
+  ConversationFormat,
+  DebateConfig,
+  DebateScript,
+  LanguageCode,
+  SpeakerProfile,
+  StudioRenderMode,
+} from '../types/debate';
 import { GaplessAudioPlayer } from '../utils/audioEngine';
-import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
+import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback, stopBrowserSpeech } from '../utils/audio';
 import { VoiceCardGrid } from './VoiceCardGrid';
 import { StudioTextEditor } from './StudioTextEditor';
 import { ScriptViewer } from './ScriptViewer';
+import { DebateConfigPanel, FORMAT_RENDER_OPTIONS } from './DebateConfigPanel';
 import { requestSynthesizeSpeech } from '../services/apiClient';
 import { generateAudioCacheKey, synthesizeWithCache, setCachedAudio } from '../utils/audioCache';
 import { AUDIO_CONSTANTS } from '../config/constants';
+import { GoogleIcon } from './GoogleIcon';
 
-export type StudioMode = 'solo' | 'debate';
 export type CalibrationPreset = 'natural' | 'storytelling' | 'technical' | 'spontaneous';
 
 interface StudioWorkspaceProps {
@@ -39,12 +47,20 @@ interface StudioWorkspaceProps {
   playerCurrentTurn: number;
   script: DebateScript;
   setScript: React.Dispatch<React.SetStateAction<DebateScript>>;
-  onGenerateDebate: (speakers: [SpeakerProfile, SpeakerProfile], tension: 'friendly' | 'balanced' | 'provocative') => Promise<void>;
+  onGenerateDebate: (
+    speakers: [SpeakerProfile, SpeakerProfile],
+    tension: 'friendly' | 'balanced' | 'provocative',
+    format?: ConversationFormat,
+    language?: LanguageCode
+  ) => Promise<void>;
   isGeneratingDebate: boolean;
   isSynthesizingDebate: boolean;
   onSynthesizeSingleTurn: (turnIndex: number) => Promise<void>;
+  onPlayTurn?: (turnIndex: number) => void;
   onUpdateTurnText: (turnIndex: number, newText: string) => void;
   onUpdateTurnVoice?: (turnIndex: number, newVoiceId: string) => void;
+  studioRenderMode?: StudioRenderMode;
+  onChangeStudioRenderMode?: (mode: StudioRenderMode) => void;
 }
 
 export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
@@ -56,29 +72,73 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   isPlaying,
   playerCurrentTurn,
   script,
+  setScript,
   onGenerateDebate,
   isGeneratingDebate,
   isSynthesizingDebate,
   onSynthesizeSingleTurn,
+  onPlayTurn,
   onUpdateTurnText,
   onUpdateTurnVoice,
+  studioRenderMode: externalRenderMode,
+  onChangeStudioRenderMode,
 }) => {
-  const [mode, setMode] = useState<StudioMode>('solo');
+  const [internalRenderMode, setInternalRenderMode] = useState<StudioRenderMode>('solo');
+  const activeRenderMode = externalRenderMode ?? internalRenderMode;
+
+  const setRenderMode = (nextMode: StudioRenderMode) => {
+    setInternalRenderMode(nextMode);
+    onChangeStudioRenderMode?.(nextMode);
+    if (nextMode !== 'solo') {
+      setConversationConfig((prev) => ({
+        ...prev,
+        format: nextMode,
+      }));
+    }
+  };
 
   // Calibrações Solo
   const [calibration, setCalibration] = useState<CalibrationPreset>('natural');
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
   const [autoProsody, setAutoProsody] = useState<boolean>(true);
 
-  // Calibrações Debate
-  const [speaker1, setSpeaker1] = useState<VoiceProfile>(
-    GEMINI_VOICES.find((v) => v.id === 'Kore') || GEMINI_VOICES[1]
-  );
-  const [speaker2, setSpeaker2] = useState<VoiceProfile>(
-    GEMINI_VOICES.find((v) => v.id === 'Puck') || GEMINI_VOICES[0]
-  );
-  const [activeSpeakerSlot, setActiveSpeakerSlot] = useState<1 | 2>(1);
-  const [debateTension, setDebateTension] = useState<'friendly' | 'balanced' | 'provocative'>('provocative');
+  // Configuração unificada dos 2 Cards Selecionáveis para modos de Conversa (Debate / Podcast / Bar / Jantar)
+  const [conversationConfig, setConversationConfig] = useState<DebateConfig>({
+    language: 'pt-BR',
+    audienceLevel: 'intermediate',
+    tensionIntensity: 'provocative',
+    format: activeRenderMode === 'solo' ? 'debate' : activeRenderMode,
+    maxTurns: 6,
+    speakers: [
+      {
+        id: 'speaker1',
+        name: 'Kore',
+        roleTitle: 'Analista Teórico & Fundamentado',
+        archetype: 'analytical',
+        voiceId: 'Kore',
+        bio: 'Analítica e clara',
+        color: 'from-sky-500 to-indigo-600',
+      },
+      {
+        id: 'speaker2',
+        name: 'Puck',
+        roleTitle: 'Provocador Pragmático & Cético',
+        archetype: 'provocateur',
+        voiceId: 'Puck',
+        bio: 'Enérgico e provocador',
+        color: 'from-amber-500 to-orange-600',
+      },
+    ],
+  });
+
+  useEffect(() => {
+    if (externalRenderMode && externalRenderMode !== 'solo') {
+      setConversationConfig((prev) => ({
+        ...prev,
+        format: externalRenderMode,
+      }));
+    }
+  }, [externalRenderMode]);
 
   // Estado de Reprodução Solo
   const [isSoloSynthesizing, setIsSoloSynthesizing] = useState<boolean>(false);
@@ -92,40 +152,39 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   const soloAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
 
-  // 4 Modos Práticos de Calibração Fonética em PT-BR
   const calibrationPresets: { id: CalibrationPreset; label: string; icon: string; desc: string }[] = [
     {
       id: 'natural',
       label: 'Natural & Fluido',
       icon: '01',
-      desc: 'Ritmo equilibrado de fala humana com respirações orgânicas nos pontos e vírgulas.',
+      desc: 'Ritmo equilibrado de fala humana com respirações orgânicas.',
     },
     {
       id: 'storytelling',
       label: 'Narrativo & Envolvente',
       icon: '02',
-      desc: 'Cadência rica de audiolivro, com modulação acolhedora e pausas para reflexão.',
+      desc: 'Cadência de audiolivro com modulação acolhedora.',
     },
     {
       id: 'technical',
       label: 'Técnico & Notícia',
       icon: '03',
-      desc: 'Dicção cristalina, ritmo firme e profissional para relatórios e análises.',
+      desc: 'Dicção cristalina e ritmo firme para relatórios e estudos.',
     },
     {
       id: 'spontaneous',
       label: 'Espontâneo & Conversa',
       icon: '04',
-      desc: 'Inflexão descontraída e ágil, como em um podcast ou diálogo informal.',
+      desc: 'Inflexão descontraída e ágil, como em um diálogo informal.',
     },
   ];
 
-  // Invalidação e limpeza atômica do áudio solo anterior
   const invalidateSoloAudio = (): void => {
     if (soloAudioRef.current) {
       soloAudioRef.current.pause();
       soloAudioRef.current = null;
     }
+    stopBrowserSpeech();
     revokeAudioUrl(currentBlobUrlRef.current);
     currentBlobUrlRef.current = null;
     setSoloAudioUrl(null);
@@ -134,12 +193,10 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     setSoloErrorMessage(null);
   };
 
-  // Reação atômica: quando a voz selecionada ou calibração mudarem, invalida o áudio antigo imediatamente
   useEffect(() => {
     invalidateSoloAudio();
   }, [selectedVoice.id, calibration, autoProsody]);
 
-  // Limpeza de áudio ao desmontar o componente
   useEffect(() => {
     return () => {
       invalidateSoloAudio();
@@ -157,17 +214,16 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     setSoloCurrentTime(0);
   };
 
-  // 1. Síntese Solo (Gemini 3.1 Flash TTS com Director's Chair e Auto-Prosódia em PT-BR)
   const handleSoloSynthesizeAndPlay = async (forceRegenerate = false): Promise<void> => {
     if (!text.trim()) return;
 
     if (isSoloPlaying && !forceRegenerate) {
       if (soloAudioRef.current) soloAudioRef.current.pause();
+      stopBrowserSpeech();
       setIsSoloPlaying(false);
       return;
     }
 
-    // Se já temos o áudio pronto para este texto e NÃO é regeração forçada, tocar direto
     if (!forceRegenerate && soloAudioUrl && soloAudioRef.current) {
       soloAudioRef.current.playbackRate = playbackSpeed;
       soloAudioRef.current.play();
@@ -244,7 +300,6 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         durationSecResult = cachedOrFresh.durationSec;
       }
 
-      // Descarte atômico da URL anterior
       revokeAudioUrl(currentBlobUrlRef.current);
       const audioUrl = base64ToBlobUrl(audioBase64Result, 'audio/wav');
       currentBlobUrlRef.current = audioUrl;
@@ -252,6 +307,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
       setSoloAudioDuration(durationSecResult || AUDIO_CONSTANTS.DEFAULT_DURATION_SEC);
 
       const audio = new Audio(audioUrl);
+      audio.preservesPitch = true;
       audio.playbackRate = playbackSpeed;
       soloAudioRef.current = audio;
 
@@ -265,30 +321,36 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
       await audio.play();
       setIsSoloPlaying(true);
     } catch (err: unknown) {
-      console.warn('Erro na síntese neural:', err);
+      console.warn('Erro na síntese neural (acionando fallback Web Speech):', err);
       setSoloErrorMessage(err instanceof Error ? err.message : 'Erro ao conectar à API do Gemini.');
+      speakBrowserFallback(text, {
+        lang: 'pt-BR',
+        rate: playbackSpeed,
+        voiceId: selectedVoice.id,
+        onStart: () => setIsSoloPlaying(true),
+        onEnd: () => setIsSoloPlaying(false),
+        onError: () => setIsSoloPlaying(false),
+      });
     } finally {
       setIsSoloSynthesizing(false);
       setSoloStatusMessage(null);
     }
   };
 
-  // Fallback opcional para Web Speech API se a rede ou a chave falharem
   const handleFallbackWebSpeech = (): void => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const clean = text.replace(/\[.*?\]/g, '').replace(/<.*?>/g, '').trim();
-      const utter = new SpeechSynthesisUtterance(clean);
-      utter.lang = 'pt-BR';
-      utter.rate = playbackSpeed;
-      utter.onend = () => setIsSoloPlaying(false);
-      window.speechSynthesis.speak(utter);
+    const started = speakBrowserFallback(text, {
+      lang: 'pt-BR',
+      rate: playbackSpeed,
+      voiceId: selectedVoice.id,
+      onStart: () => setIsSoloPlaying(true),
+      onEnd: () => setIsSoloPlaying(false),
+      onError: () => setIsSoloPlaying(false),
+    });
+    if (started) {
       setIsSoloPlaying(true);
-      setSoloErrorMessage(null);
     }
   };
 
-  // Baixar WAV Solo
   const handleDownloadSoloWav = (): void => {
     if (!soloAudioUrl) return;
     const a = document.createElement('a');
@@ -297,28 +359,21 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     a.click();
   };
 
-  // 2. Disparar Geração de Debate (2 Vozes)
-  const handleTriggerDebate = async (): Promise<void> => {
+  const handleTriggerConversation = async (): Promise<void> => {
     if (!text.trim()) return;
-    const spk1: SpeakerProfile = {
-      id: 'speaker1',
-      name: speaker1.name,
-      roleTitle: `${speaker1.archetype} (Interlocutor 1)`,
-      archetype: 'analytical',
-      voiceId: speaker1.id,
-      bio: speaker1.styleDescription,
-      color: speaker1.avatarColor,
+    const tensionMap: Record<string, 'friendly' | 'balanced' | 'provocative'> = {
+      reflective: 'friendly',
+      balanced: 'balanced',
+      provocative: 'provocative',
     };
-    const spk2: SpeakerProfile = {
-      id: 'speaker2',
-      name: speaker2.name,
-      roleTitle: `${speaker2.archetype} (Interlocutor 2)`,
-      archetype: 'provocateur',
-      voiceId: speaker2.id,
-      bio: speaker2.styleDescription,
-      color: speaker2.avatarColor,
-    };
-    await onGenerateDebate([spk1, spk2], debateTension);
+    const mappedTension = tensionMap[conversationConfig.tensionIntensity] || 'provocative';
+    const fmt = conversationConfig.format || 'debate';
+    await onGenerateDebate(
+      conversationConfig.speakers,
+      mappedTension,
+      fmt,
+      conversationConfig.language
+    );
   };
 
   const formatTime = (secs: number): string => {
@@ -327,50 +382,84 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     return `${mins}:${remainder.toString().padStart(2, '0')}`;
   };
 
+  const activeFormatMeta = FORMAT_RENDER_OPTIONS.find(
+    (f) => f.id === (conversationConfig.format || 'debate')
+  );
+
   return (
-    <div data-state="idle" aria-busy={isSoloSynthesizing || isGeneratingDebate} className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 py-6 pb-36 gap-6">
-      
-      {/* 1. Header do Estúdio e Seletor de Modo Hero */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800/80">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-            <span>Estúdio de Criação de Áudio</span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-bold">
-              Gemini 3.1 Flash TTS
-            </span>
-          </h1>
-          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-            Cole um texto ou suba um arquivo. Escolha entre leitura solo de estúdio ou debate com 2 vozes.
-          </p>
+    <div
+      data-state="idle"
+      aria-busy={isSoloSynthesizing || isGeneratingDebate}
+      className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-4 py-6 pb-36 gap-5"
+    >
+      {/* 1. Header do Estúdio de Criação + Seletor Direto de Serviço/Formato de Renderização */}
+      <div className="flex flex-col gap-3 pb-4 border-b border-slate-800/60">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h1 className="text-lg sm:text-xl font-extrabold text-primary font-display tracking-tight flex items-center gap-2.5">
+              <span>Estúdio de Criação & Renderização</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
+                Gemini 3.8 Flash TTS
+              </span>
+            </h1>
+            <p className="text-xs text-secondary mt-0.5">
+              Escolha o formato de renderização: Leitura Solo, Debate, Podcast, Conversa de Bar ou Mesa de Jantar.
+            </p>
+          </div>
         </div>
 
-        {/* Alternador de Modo em 1 Toque (Solo vs Debate) */}
-        <div className="grid grid-cols-2 gap-1 rounded-2xl card-matte p-1">
+        {/* Barra Unificada de Formatos de Renderização */}
+        <div
+          role="radiogroup"
+          aria-label="Formato de renderização no Estúdio de Criação"
+          className="grid grid-cols-2 sm:grid-cols-5 gap-2"
+        >
           <button
             type="button"
-            onClick={() => setMode('solo')}
-            className={`min-h-[44px] px-4 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
-              mode === 'solo'
-                ? 'btn-matte-primary text-white shadow-md ring-1 ring-sky-400/40'
-                : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+            role="radio"
+            aria-checked={activeRenderMode === 'solo'}
+            onClick={() => setRenderMode('solo')}
+            className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+              activeRenderMode === 'solo'
+                ? 'btn-matte-amber text-white shadow-md'
+                : 'btn-matte-dark text-secondary hover:text-primary'
             }`}
           >
-            <Headphones className="w-4 h-4" />
-            <span>Apenas Ler (Solo)</span>
+            <Headphones className="w-4 h-4 shrink-0" />
+            <span>Leitura Solo</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setMode('debate')}
-            className={`min-h-[44px] px-4 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px ${
-              mode === 'debate'
-                ? 'btn-matte-primary text-white shadow-md ring-1 ring-sky-400/40'
-                : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Transformar em Conversa (2)</span>
-          </button>
+          {FORMAT_RENDER_OPTIONS.map((fmt) => {
+            const isSelected = activeRenderMode === fmt.id;
+            return (
+              <button
+                key={fmt.id}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                onClick={() => {
+                  setRenderMode(fmt.id);
+                  setConversationConfig((prev) => ({
+                    ...prev,
+                    format: fmt.id,
+                    tensionIntensity: fmt.defaultTension,
+                  }));
+                }}
+                className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                  isSelected
+                    ? 'btn-matte-amber text-white shadow-md'
+                    : 'btn-matte-dark text-secondary hover:text-primary'
+                }`}
+              >
+                <GoogleIcon
+                  name={fmt.icon}
+                  size={16}
+                  className={isSelected ? 'text-white' : 'text-amber-400'}
+                />
+                <span className="truncate">{fmt.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -380,7 +469,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           text={text}
           onChangeText={(newText) => {
             onChangeText(newText);
-            setSoloAudioUrl(null); // Invalida áudio solo anterior se o texto mudar
+            setSoloAudioUrl(null);
           }}
           isProcessing={isSoloSynthesizing || isGeneratingDebate}
           statusMessage={soloStatusMessage}
@@ -388,9 +477,8 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
       </section>
 
       {/* 3. Painel de Configuração Específico por Modo */}
-      {mode === 'solo' ? (
+      {activeRenderMode === 'solo' ? (
         <section aria-label="Configuração de Voz e Calibração Solo" className="flex flex-col gap-4">
-          
           {/* Etapa 1: Seleção de Voz Tátil */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl card-matte">
             <div className="flex items-center gap-2.5">
@@ -400,19 +488,19 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 {selectedVoice.name[0]}
               </div>
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5 font-sans">
-                  <Volume2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-secondary flex items-center gap-1.5 font-sans">
+                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
                   <span>Voz Ativa no Leitor:</span>
-                  <span className="text-sky-700 dark:text-sky-300 font-extrabold normal-case text-sm tracking-normal">
+                  <span className="text-amber-300 font-extrabold normal-case text-sm tracking-normal">
                     {selectedVoice.name}
                   </span>
-                  <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">
+                  <span className="text-[11px] text-secondary font-normal">
                     · {selectedVoice.archetype}
                   </span>
                 </h2>
               </div>
             </div>
-            <span className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
+            <span className="text-[11px] text-secondary font-mono">
               Clique em qualquer card abaixo para trocar de voz instantaneamente
             </span>
           </div>
@@ -427,10 +515,8 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
 
           {/* Etapa 2: Calibração de Intenção e Velocidade */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-4 rounded-2xl card-matte">
-            
-            {/* 4 Presets de Calibração */}
             <div className="lg:col-span-8 flex flex-col gap-2">
-              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider font-sans">
+              <span className="text-[11px] font-semibold text-secondary uppercase tracking-wider font-mono">
                 Intenção Vocal em Português:
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -444,19 +530,19 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                         setCalibration(preset.id);
                         setSoloAudioUrl(null);
                       }}
-                      className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer active:translate-y-px font-sans ${
+                      className={`p-2.5 rounded-xl text-left flex flex-col gap-1 transition-all cursor-pointer active:translate-y-px font-sans ${
                         isActive
-                          ? 'bg-sky-100 dark:bg-sky-500/20 border-sky-400/50 text-sky-900 dark:text-sky-200 shadow-sm ring-1 ring-sky-400/30'
-                          : 'bg-slate-100 dark:bg-slate-900/60 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-900'
+                          ? 'card-matte-active ring-1 ring-amber-400/50 text-primary'
+                          : 'btn-matte-dark text-secondary hover:text-primary'
                       }`}
                     >
-                      <span className="text-xs font-bold flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-black/20 text-amber-300 border border-white/10">
+                      <span className="text-xs font-bold flex items-center gap-1.5 text-primary">
+                        <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                           {preset.icon}
                         </span>
                         <span>{preset.label}</span>
                       </span>
-                      <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">
+                      <span className="text-[10px] text-secondary leading-tight">
                         {preset.desc}
                       </span>
                     </button>
@@ -466,13 +552,12 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             </div>
 
             {/* Velocidade e Toggle de Auto-Prosódia */}
-            <div className="lg:col-span-4 flex flex-col justify-between gap-3 border-t lg:border-t-0 lg:border-l border-slate-800/80 pt-3 lg:pt-0 lg:pl-4">
-              {/* Velocidade */}
+            <div className="lg:col-span-4 flex flex-col justify-between gap-3 border-t lg:border-t-0 lg:border-l border-slate-800/60 pt-3 lg:pt-0 lg:pl-4">
               <div>
-                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1.5 font-sans">
+                <span className="text-[11px] font-semibold text-secondary uppercase tracking-wider block mb-1.5 font-mono">
                   Velocidade:
                 </span>
-                <div className="flex bg-slate-100 dark:bg-slate-950 rounded-xl p-1 border border-slate-300 dark:border-slate-800">
+                <div className="flex surface-inset rounded-xl p-1">
                   {[0.8, 1.0, 1.2, 1.5].map((s) => (
                     <button
                       key={s}
@@ -481,10 +566,10 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                         setPlaybackSpeed(s);
                         if (soloAudioRef.current) soloAudioRef.current.playbackRate = s;
                       }}
-                      className={`flex-1 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer active:translate-y-px ${
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                         playbackSpeed === s
-                          ? 'btn-matte-primary text-white shadow-sm'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                          ? 'btn-matte-amber text-white shadow-sm'
+                          : 'text-secondary hover:text-primary'
                       }`}
                     >
                       {s}x
@@ -493,16 +578,15 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 </div>
               </div>
 
-              {/* Interruptor de Auto-Respiração e Pausas */}
-              <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 cursor-pointer hover:border-slate-400 dark:hover:border-slate-700 transition-colors">
+              <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl surface-inset cursor-pointer hover:border-amber-400/40 transition-colors">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
                   <div className="text-left">
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block font-sans">
+                    <span className="text-xs font-bold text-primary block font-sans">
                       Auto-Respiração & Pausas
                     </span>
-                    <span className="text-[10px] text-slate-600 dark:text-slate-400 font-sans">
-                      Calcula fôlego biológico sem ler tags
+                    <span className="text-[10px] text-secondary font-sans">
+                      Calcula fôlego biológico natural
                     </span>
                   </div>
                 </div>
@@ -513,17 +597,16 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                     setAutoProsody(e.target.checked);
                     setSoloAudioUrl(null);
                   }}
-                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 focus:ring-offset-0 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 accent-sky-600 cursor-pointer"
+                  className="w-4 h-4 rounded accent-amber-500 cursor-pointer"
                 />
               </label>
             </div>
           </div>
 
-          {/* Banner de Erro com Fallback */}
           {soloErrorMessage && (
-            <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+            <div className="p-3 rounded-2xl card-matte border border-rose-500/40 text-xs text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{soloErrorMessage}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -551,7 +634,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               type="button"
               onClick={() => handleSoloSynthesizeAndPlay(false)}
               disabled={isSoloSynthesizing || !text.trim()}
-              className="btn-matte-primary w-full sm:flex-1 min-h-[56px] rounded-2xl text-white font-bold text-sm tracking-normal flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
+              className="btn-matte-amber w-full sm:flex-1 min-h-[52px] rounded-2xl text-white font-bold text-sm tracking-normal flex items-center justify-center gap-2.5 shadow-xl active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
             >
               {isSoloSynthesizing ? (
                 <>
@@ -569,7 +652,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   <span>
                     {soloAudioUrl
                       ? `Ouvir Leitura (${selectedVoice.name})`
-                      : `Ler Texto com ${selectedVoice.name}`}
+                      : `Renderizar Leitura Solo (${selectedVoice.name})`}
                   </span>
                 </>
               )}
@@ -581,17 +664,17 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   type="button"
                   onClick={() => handleSoloSynthesizeAndPlay(true)}
                   disabled={isSoloSynthesizing || !text.trim()}
-                  className="w-full sm:w-auto min-h-[56px] px-4 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px disabled:opacity-50"
+                  className="w-full sm:w-auto min-h-[52px] px-4 rounded-2xl btn-matte-dark text-primary text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px disabled:opacity-50"
                   title="Gerar nova síntese forçada com a voz ativa atual"
                 >
-                  <RotateCw className="w-4 h-4 text-sky-400" />
+                  <RotateCw className="w-4 h-4 text-amber-400" />
                   <span>Regerar Áudio</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleDownloadSoloWav}
-                  className="w-full sm:w-auto min-h-[56px] px-5 rounded-2xl btn-matte-dark text-slate-200 border border-slate-800 text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px"
+                  className="w-full sm:w-auto min-h-[52px] px-5 rounded-2xl btn-matte-dark text-primary text-xs font-bold font-sans flex items-center justify-center gap-2 cursor-pointer transition-all active:translate-y-px"
                   title="Baixar arquivo WAV canônico (24kHz)"
                 >
                   <Download className="w-4 h-4 text-emerald-400" />
@@ -601,12 +684,11 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
             )}
           </div>
 
-          {/* Etapa 4: Player Visual em Linha (Solo) */}
           {soloAudioUrl && (
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-2 animate-in fade-in">
-              <div className="flex items-center justify-between text-xs text-slate-400 font-mono tabular-nums">
-                <span className="text-sky-300 font-bold flex items-center gap-1.5 font-sans">
-                  <Volume2 className="w-3.5 h-3.5 text-sky-400" />
+            <div className="p-4 rounded-2xl card-matte flex flex-col gap-2 animate-in fade-in">
+              <div className="flex items-center justify-between text-xs text-secondary font-mono tabular-nums">
+                <span className="text-amber-300 font-bold flex items-center gap-1.5 font-sans">
+                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
                   Áudio Pronto ({selectedVoice.name} · {calibration})
                 </span>
                 <span>
@@ -624,133 +706,100 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                   setSoloCurrentTime(val);
                   if (soloAudioRef.current) soloAudioRef.current.currentTime = val;
                 }}
-                className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-sky-400"
+                className="w-full h-1.5 surface-inset rounded-lg appearance-none cursor-pointer accent-amber-400"
               />
             </div>
           )}
         </section>
       ) : (
-        /* MODO CONVERSA / DEBATE DIALÉTICO */
-        <section aria-label="Configuração do Debate com 2 Vozes" className="flex flex-col gap-5">
-          
-          {/* Seletor dos 2 Debatedores */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5 font-sans">
-                <Users className="w-4 h-4 text-sky-400" />
-                <span>Escolha os 2 Interlocutores do Debate:</span>
-              </h2>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveSpeakerSlot(1)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold font-sans transition-all cursor-pointer active:translate-y-px ${
-                    activeSpeakerSlot === 1
-                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/40'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800'
-                  }`}
-                >
-                  Slot 1: {speaker1.name}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveSpeakerSlot(2)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold font-sans transition-all cursor-pointer active:translate-y-px ${
-                    activeSpeakerSlot === 2
-                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-emerald-400/40'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800'
-                  }`}
-                >
-                  Slot 2: {speaker2.name}
-                </button>
-              </div>
-            </div>
+        /* MODO CONVERSA DE 2 VOZES (DEBATE / PODCAST / CONVERSA DE BAR / MESA DE JANTAR) — 2 CARDS SELECIONÁVEIS */
+        <section aria-label="Configuração de Conversa em 2 Cards" className="flex flex-col gap-4">
+          <DebateConfigPanel
+            config={conversationConfig}
+            hideFormatSelector={true}
+            onChangeConfig={(next) => {
+              setConversationConfig(next);
+              if (next.format && next.format !== activeRenderMode) {
+                setInternalRenderMode(next.format);
+                onChangeStudioRenderMode?.(next.format);
+              }
+              setScript((prev) => {
+                if (!prev || !prev.turns) return prev;
+                const oldSpk0Name = prev.speakers[0]?.name;
+                const oldSpk1Name = prev.speakers[1]?.name;
+                const nextSpeakers: [SpeakerProfile, SpeakerProfile] = [
+                  {
+                    ...(prev.speakers[0] || next.speakers[0]),
+                    name: next.speakers[0].name,
+                    voiceId: next.speakers[0].voiceId,
+                    roleTitle: next.speakers[0].roleTitle,
+                  },
+                  {
+                    ...(prev.speakers[1] || next.speakers[1]),
+                    name: next.speakers[1].name,
+                    voiceId: next.speakers[1].voiceId,
+                    roleTitle: next.speakers[1].roleTitle,
+                  },
+                ];
+                const updatedTurns = prev.turns.map((t, idx) => {
+                  const isSpeaker0 =
+                    t.speaker === oldSpk0Name || (t.speaker !== oldSpk1Name && idx % 2 === 0);
+                  const targetSpk = isSpeaker0 ? nextSpeakers[0] : nextSpeakers[1];
+                  const voiceChanged = t.voice_id !== targetSpk.voiceId;
+                  return {
+                    ...t,
+                    speaker: targetSpk.name,
+                    voice_id: targetSpk.voiceId,
+                    audioBase64: voiceChanged ? undefined : t.audioBase64,
+                    audioStatus: voiceChanged ? ('idle' as const) : t.audioStatus,
+                  };
+                });
+                return {
+                  ...prev,
+                  language: next.language,
+                  speakers: nextSpeakers,
+                  turns: updatedTurns,
+                };
+              });
+            }}
+          />
 
-            <VoiceCardGrid
-              selectedVoice={selectedVoice}
-              onSelectVoice={() => {}}
-              multiSpeakerMode={true}
-              speaker1={speaker1}
-              speaker2={speaker2}
-              activeSlot={activeSpeakerSlot}
-              onSelectSpeakerSlot={(slot, voice) => {
-                if (slot === 1) {
-                  setSpeaker1(voice);
-                  setActiveSpeakerSlot(2);
-                } else {
-                  setSpeaker2(voice);
-                  setActiveSpeakerSlot(1);
-                }
-              }}
-            />
-          </div>
-
-          {/* Intensidade de Tensão Dialética */}
-          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-xs font-bold text-slate-200 block font-sans">
-                Nível de Tensão Dialética:
-              </span>
-              <span className="text-[11px] text-slate-400 font-sans">
-                Define a energia dos argumentos e a firmeza dos contra-pontos.
-              </span>
-            </div>
-
-            <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800">
-              {([
-                { id: 'friendly', label: 'Amigável' },
-                { id: 'balanced', label: 'Equilibrado' },
-                { id: 'provocative', label: 'Provocativo' },
-              ] as const).map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setDebateTension(t.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer active:translate-y-px ${
-                    debateTension === t.id
-                      ? 'btn-matte-primary text-white shadow-sm ring-1 ring-sky-400/30'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Botão de Disparo do Debate */}
           <button
             type="button"
-            onClick={handleTriggerDebate}
+            onClick={handleTriggerConversation}
             disabled={isGeneratingDebate || isSynthesizingDebate || !text.trim()}
-            className="min-h-[56px] w-full rounded-2xl btn-matte-primary text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl ring-1 ring-sky-400/40 active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
+            className="min-h-[52px] w-full rounded-2xl btn-matte-amber text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
           >
             {isGeneratingDebate ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin text-white" />
-                <span>Roteirizando Discussão com Gemini 3.8 Flash...</span>
+                <span>
+                  Roteirizando {activeFormatMeta?.label || 'Conversa'} com Gemini 3.8 Flash...
+                </span>
               </>
             ) : isSynthesizingDebate ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin text-white" />
-                <span>Sintetizando Vozes Neurais do Debate...</span>
+                <span>Sintetizando Vozes Neurais da Conversa...</span>
               </>
             ) : (
               <>
                 <Zap className="w-5 h-5 fill-current text-white" />
-                <span>Gerar Debate em Áudio ({speaker1.name} vs {speaker2.name})</span>
+                <span>
+                  Renderizar {activeFormatMeta?.label || 'Conversa'} (
+                  {conversationConfig.speakers[0].name} & {conversationConfig.speakers[1].name})
+                </span>
               </>
             )}
           </button>
 
-          {/* Roteiro e Turnos do Debate Gerado */}
           {script && script.turns && script.turns.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-slate-800/80">
+            <div className="mt-2 pt-4 border-t border-slate-800/60">
               <ScriptViewer
                 script={script}
                 currentTurnIndex={playerCurrentTurn}
                 isPlaying={isPlaying}
-                onPlayTurn={(index) => player.play(index)}
+                onPlayTurn={(index) => (onPlayTurn ? onPlayTurn(index) : player.play(index))}
                 onSynthesizeTurn={onSynthesizeSingleTurn}
                 onUpdateTurnText={onUpdateTurnText}
                 onUpdateTurnVoice={onUpdateTurnVoice}

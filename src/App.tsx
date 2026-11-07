@@ -10,9 +10,17 @@ import { ScriptViewer } from './components/ScriptViewer';
 import { FastChunkAudioApp } from './components/FastChunkAudioApp';
 import { BottomAudioDock } from './components/BottomAudioDock';
 import { ArchitectureModal } from './components/ArchitectureModal';
-import { DebateConfig, DebateScript, SpeakerProfile } from './types/debate';
+import {
+  ConversationFormat,
+  DebateConfig,
+  DebateScript,
+  LanguageCode,
+  SpeakerProfile,
+  StudioRenderMode,
+} from './types/debate';
 import { LANGUAGE_OPTIONS, SAMPLE_DOCUMENTS, INITIAL_PRESET_SCRIPTS } from './data/sampleDebates';
 import { GaplessAudioPlayer } from './utils/audioEngine';
+import { speakBrowserFallback, stopBrowserSpeech } from './utils/audio';
 import { VoiceProfile, GEMINI_VOICES } from './types/voices';
 import { requestDebateScript } from './services/apiClient';
 import { generateAudioCacheKey, synthesizeWithCache } from './utils/audioCache';
@@ -33,6 +41,7 @@ const TAB_BREADCRUMB_LABELS: Record<AppTab, string> = {
 // Orquestrador principal do MyTTS Studio (Chat Poliglota como página principal e sincronização global de voz por Card)
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('polyglot');
+  const [studioRenderMode, setStudioRenderMode] = useState<StudioRenderMode>('solo');
   const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(GEMINI_VOICES[0]); // Puck default
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
@@ -191,7 +200,7 @@ export default function App() {
           try {
             const cacheKey = generateAudioCacheKey({
               type: 'turn',
-              text: turn.clean_text || turn.text,
+              text: turn.text || turn.clean_text || '',
               language: targetScript.language,
               voiceId: turn.voice_id,
               speed: turn.prosody?.speech_rate || 1.0,
@@ -240,19 +249,22 @@ export default function App() {
     setIsSynthesizing(false);
   };
 
-  // Geração de Debate Dialético (Unificada para Custom Speakers ou Config Padrão)
+  // Geração de Conversa / Debate (Unificada para Debate, Podcast, Conversa de Bar e Mesa de Jantar)
   const handleGenerateDebateWithCustomSpeakers = async (
     customSpeakers: [SpeakerProfile, SpeakerProfile] = config.speakers,
-    tensionIntensity: 'friendly' | 'balanced' | 'provocative' | 'reflective' = config.tensionIntensity
+    tensionIntensity: 'friendly' | 'balanced' | 'provocative' | 'reflective' = config.tensionIntensity,
+    format: ConversationFormat = config.format || 'debate',
+    language: LanguageCode = config.language
   ): Promise<void> => {
     setIsGenerating(true);
     setGlobalError(null);
     try {
       const data = await requestDebateScript({
         documentText,
-        language: config.language,
+        language,
         audienceLevel: config.audienceLevel,
         tensionIntensity,
+        format,
         speakers: customSpeakers,
         maxTurns: config.maxTurns,
       });
@@ -276,7 +288,74 @@ export default function App() {
     try {
       const cacheKey = generateAudioCacheKey({
         type: 'turn',
-        text: turn.clean_text || turn.text,
+        text: turn.text || turn.clean_text || '',
+        language: script.language,
+        voiceId: turn.voice_id,
+        speed: turn.prosody?.speech_rate || 1.0,
+        emotion: turn.emotion || 'thoughtful',
+      });
+
+      const cachedOrFresh = await synthesizeWithCache({
+        endpoint: '/api/synthesize-turn',
+        body: {
+          turn,
+          speakerName: turn.speaker,
+          voiceId: turn.voice_id,
+          language: script.language,
+        },
+        cacheKey,
+        bypassCache: true,
+        metadata: {
+          language: script.language,
+          voiceId: turn.voice_id,
+          speed: turn.prosody?.speech_rate || 1.0,
+          emotion: turn.emotion || 'thoughtful',
+        },
+      });
+
+      const updatedTurns = [...script.turns];
+      updatedTurns[turnIndex] = {
+        ...turn,
+        audioBase64: cachedOrFresh.audioBase64,
+        audioDurationSec: cachedOrFresh.durationSec,
+        audioStatus: 'ready',
+      };
+      const updatedScript = { ...script, turns: updatedTurns };
+      setScript(updatedScript);
+      syncTurnsToPlayer(updatedScript);
+    } catch (e: unknown) {
+      setGlobalError(e instanceof Error ? e.message : 'Erro ao sintetizar áudio do turno.');
+      speakBrowserFallback(turn.clean_text || turn.text, {
+        lang: script.language || 'pt-BR',
+        rate: turn.prosody?.speech_rate || 1.0,
+        voiceId: turn.voice_id,
+      });
+    }
+  };
+
+  const handlePlayDebateTurn = async (
+    turnIndex: number,
+    overrideVoiceId?: string
+  ): Promise<void> => {
+    const rawTurn = script.turns[turnIndex];
+    if (!rawTurn) return;
+    const turn = overrideVoiceId
+      ? { ...rawTurn, voice_id: overrideVoiceId, audioBase64: undefined }
+      : rawTurn;
+    stopBrowserSpeech();
+    setPlayerCurrentTurn(turnIndex);
+
+    if (turn.audioBase64) {
+      const readyTurns = script.turns.filter((t) => Boolean(t.audioBase64));
+      const readyIdx = readyTurns.findIndex((t) => t.turn === turn.turn);
+      await player.play(readyIdx >= 0 ? readyIdx : 0);
+      return;
+    }
+
+    try {
+      const cacheKey = generateAudioCacheKey({
+        type: 'turn',
+        text: turn.text || turn.clean_text || '',
         language: script.language,
         voiceId: turn.voice_id,
         speed: turn.prosody?.speech_rate || 1.0,
@@ -310,8 +389,17 @@ export default function App() {
       const updatedScript = { ...script, turns: updatedTurns };
       setScript(updatedScript);
       syncTurnsToPlayer(updatedScript);
+
+      const readyTurns = updatedTurns.filter((t) => Boolean(t.audioBase64));
+      const readyIdx = readyTurns.findIndex((t) => t.turn === turn.turn);
+      await player.play(readyIdx >= 0 ? readyIdx : 0);
     } catch (e: unknown) {
-      setGlobalError(e instanceof Error ? e.message : 'Erro ao sintetizar áudio do turno.');
+      setGlobalError(e instanceof Error ? e.message : 'Erro ao sintetizar turno (usando voz local do navegador).');
+      speakBrowserFallback(turn.clean_text || turn.text, {
+        lang: script.language || 'pt-BR',
+        rate: turn.prosody?.speech_rate || 1.0,
+        voiceId: turn.voice_id,
+      });
     }
   };
 
@@ -321,6 +409,8 @@ export default function App() {
       ...updatedTurns[turnIndex],
       text: newText,
       clean_text: newText.replace(/<[^>]+>/g, '').replace(/\|[^|]+\|/g, '').trim(),
+      audioBase64: undefined,
+      audioStatus: 'idle',
     };
     setScript({ ...script, turns: updatedTurns });
   };
@@ -339,6 +429,49 @@ export default function App() {
     if (matchedVoice) {
       setSelectedVoice(matchedVoice);
     }
+    void handlePlayDebateTurn(turnIndex, newVoiceId);
+  };
+
+  const handleUpdateDebateConfig = (nextConfig: DebateConfig): void => {
+    setConfig(nextConfig);
+    setScript((prev) => {
+      if (!prev || !prev.turns) return prev;
+      const oldSpk0Name = prev.speakers[0]?.name;
+      const oldSpk1Name = prev.speakers[1]?.name;
+      const nextSpeakers: [SpeakerProfile, SpeakerProfile] = [
+        {
+          ...(prev.speakers[0] || nextConfig.speakers[0]),
+          name: nextConfig.speakers[0].name,
+          voiceId: nextConfig.speakers[0].voiceId,
+          roleTitle: nextConfig.speakers[0].roleTitle,
+        },
+        {
+          ...(prev.speakers[1] || nextConfig.speakers[1]),
+          name: nextConfig.speakers[1].name,
+          voiceId: nextConfig.speakers[1].voiceId,
+          roleTitle: nextConfig.speakers[1].roleTitle,
+        },
+      ];
+      const updatedTurns = prev.turns.map((t, idx) => {
+        const isSpeaker0 =
+          t.speaker === oldSpk0Name || (t.speaker !== oldSpk1Name && idx % 2 === 0);
+        const targetSpk = isSpeaker0 ? nextSpeakers[0] : nextSpeakers[1];
+        const voiceChanged = t.voice_id !== targetSpk.voiceId;
+        return {
+          ...t,
+          speaker: targetSpk.name,
+          voice_id: targetSpk.voiceId,
+          audioBase64: voiceChanged ? undefined : t.audioBase64,
+          audioStatus: voiceChanged ? ('idle' as const) : t.audioStatus,
+        };
+      });
+      return {
+        ...prev,
+        language: nextConfig.language,
+        speakers: nextSpeakers,
+        turns: updatedTurns,
+      };
+    });
   };
 
   const mainCanvasRef = useRef<HTMLElement | null>(null);
@@ -403,33 +536,35 @@ export default function App() {
       <div className="flex-1 flex flex-col lg:pl-72 min-h-screen min-w-0 max-w-full overflow-x-clip">
         
         {/* Header Mobile com Hamburger e Atalho Rápido de Abas */}
-        <header className="px-3 sm:px-4 py-2 border-b border-slate-800/80 dock-matte !rounded-t-none !rounded-b-2xl flex flex-col gap-2 lg:hidden sticky top-0 z-30">
+        <header className="px-2.5 sm:px-4 py-1.5 border-b border-slate-800/80 dock-matte !rounded-t-none !rounded-b-2xl flex flex-col gap-1.5 lg:hidden sticky top-0 z-30">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <button
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer shrink-0"
+                className="btn-compact-touch p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer shrink-0"
                 aria-label="Abrir menu de navegação"
               >
-                <GoogleIcon name="menu" size={20} />
+                <GoogleIcon name="menu" size={19} />
               </button>
               <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5 truncate">
                 <span>MyTTS</span>
-                <span className="text-xs font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
                   Studio
                 </span>
               </span>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setIsCommandPaletteOpen(true)}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300 hover:text-white cursor-pointer"
+                aria-label="Abrir busca rápida e paleta de comandos"
+                className="btn-compact-touch p-2 sm:px-2.5 sm:py-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300 hover:text-white inline-flex items-center gap-1 cursor-pointer"
                 title="Abrir Paleta de Comandos (Ctrl+K)"
               >
-                Ctrl+K
+                <GoogleIcon name="search" size={16} className="text-amber-400" />
+                <span className="hidden sm:inline">Ctrl+K</span>
               </button>
               <div
                 className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-bold shrink-0`}
@@ -462,7 +597,7 @@ export default function App() {
                 data-active={activeTab === item.id}
                 aria-current={activeTab === item.id ? 'page' : undefined}
                 onClick={() => handleNavigateTab(item.id)}
-                className="pill-nav-item min-h-10 px-1 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold whitespace-nowrap cursor-pointer flex items-center justify-center text-center min-w-0"
+                className="pill-nav-item min-h-9 px-1 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold whitespace-nowrap cursor-pointer flex items-center justify-center text-center min-w-0"
               >
                 <span className="sm:hidden truncate">{item.shortLabel}</span>
                 <span className="hidden sm:inline">{item.label}</span>
@@ -489,11 +624,11 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. Canvas de Conteúdo por Módulo (com Camada 3: Breadcrumbs Estrutural) */}
+        {/* 3. Canvas de Conteúdo por Módulo (com Camada 3: Breadcrumbs Estrutural a partir de sm:) */}
         <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none bfc-flow-root">
           <nav
             aria-label="Caminho de navegação"
-            className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-3 pb-1 flex items-center justify-between text-xs text-secondary"
+            className="hidden sm:flex max-w-7xl w-full mx-auto px-4 sm:px-6 pt-3 pb-1 items-center justify-between text-xs text-secondary"
           >
             <ol role="list" className="breadcrumb-list">
               <li>
@@ -518,10 +653,20 @@ export default function App() {
             <PolyglotChatStudio
               globalVoice={selectedVoice}
               onSyncGlobalVoice={setSelectedVoice}
+              onSendToCreationStudio={(textToRender, renderMode) => {
+                if (textToRender) {
+                  setDocumentText(textToRender);
+                }
+                setStudioRenderMode(renderMode);
+                if (renderMode !== 'solo') {
+                  setConfig((prev) => ({ ...prev, format: renderMode }));
+                }
+                handleNavigateTab('reader');
+              }}
             />
           )}
 
-          {/* Módulo 2: Central de Criação Unificada (Solo + Debate) */}
+          {/* Módulo 2: Central de Criação Unificada (Solo + Debate + Podcast + Bar + Jantar) */}
           {activeTab === 'reader' && (
             <StudioWorkspace
               text={documentText}
@@ -537,8 +682,11 @@ export default function App() {
               isGeneratingDebate={isGenerating}
               isSynthesizingDebate={isSynthesizing}
               onSynthesizeSingleTurn={handleSynthesizeSingleTurn}
+              onPlayTurn={handlePlayDebateTurn}
               onUpdateTurnText={handleUpdateTurnText}
               onUpdateTurnVoice={handleUpdateTurnVoice}
+              studioRenderMode={studioRenderMode}
+              onChangeStudioRenderMode={setStudioRenderMode}
             />
           )}
 
@@ -569,7 +717,7 @@ export default function App() {
                     onGenerateDebate={() => handleGenerateDebateWithCustomSpeakers()}
                     isGenerating={isGenerating}
                   />
-                  <DebateConfigPanel config={config} onChangeConfig={setConfig} />
+                  <DebateConfigPanel config={config} onChangeConfig={handleUpdateDebateConfig} />
                 </div>
 
                 <div className="lg:col-span-7 flex flex-col gap-4">
@@ -577,7 +725,7 @@ export default function App() {
                     script={script}
                     currentTurnIndex={playerCurrentTurn}
                     isPlaying={isPlaying}
-                    onPlayTurn={(idx) => player.play(idx)}
+                    onPlayTurn={handlePlayDebateTurn}
                     onSynthesizeTurn={handleSynthesizeSingleTurn}
                     onUpdateTurnText={handleUpdateTurnText}
                     onUpdateTurnVoice={handleUpdateTurnVoice}
@@ -615,7 +763,7 @@ export default function App() {
             onTogglePlay={() => {
               const ready = script?.turns.filter((t) => Boolean(t.audioBase64)).length || 0;
               if (ready === 0 && script) {
-                synthesizeTurns(script);
+                handlePlayDebateTurn(playerCurrentTurn);
               } else {
                 player.togglePlay();
               }

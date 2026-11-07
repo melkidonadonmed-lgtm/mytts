@@ -1,9 +1,39 @@
 # Log de Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-10-28T09:35:00-04:00 (Local)
+- **Data/Hora**: 2026-11-07T15:25:00-04:00 (Local)
 
-## Arquivos Tocados neste Turno (Correção de Navegação e Responsividade Mobile)
+## Evolução de Governança (`gemini-3.8-flash-tts` + `speechMetadata` camelCase) e Deploy em Produção (`07/11/2026`)
+- `.agents/skills/gemini-tts-expressive-audio/SKILL.md`, `.agents/skills.json`, `AGENTS.md`, `SPEC.md`, `CONTEXT.md`: Consolidação das regras aprendidas sobre `speechMetadata: { speaker, style }` em camelCase no `@google/genai`, separação estrita entre `speechMetadata.style` (12 emoções, 5 personas) e as 42 tags vocais canônicas inline (`buildExpressiveTtsTranscript`), failover automático para Vertex AI ADC (`global`), invalidação/bypass de cache por `turn.text` e `audio.preservesPitch = true`.
+- `scripts/deploy-sp.ps1`: Inclusão explícita de `GOOGLE_CLOUD_LOCATION=global` e `--quiet` no deploy do Cloud Run (`southamerica-east1`).
+- **Deploy e Verificação Live**:
+  - Cloud Run (`southamerica-east1`): revisão `mytts-00002-b8b` ativa com 100% do tráfego em `https://mytts-1044179901556.southamerica-east1.run.app`.
+  - Firebase Hosting: release publicado em `https://mytts.web.app`.
+  - Smoke Test Live (`https://mytts.web.app/api/health` e `https://mytts.web.app/api/synthesize-speech`): `modelTts: "gemini-3.8-flash-tts"`, `storage: "firestore"` e síntese WAV RIFF 24kHz real (`durationSec: 4.68`, `299.560` chars base64).
+
+## Refinamento Mobile UI/UX, Espaçamentos e Flex Bar (`07/11/2026`)
+- `src/components/AgentInputDock.tsx`: Flex Bar em 2 níveis com `<textarea>` ocupando 100% da largura na linha 1 (`315px` em tela de `375px`) sem outline retangular interno, e barra flexível de controles na linha 2 (`+` + chip `3 Idiomas` à esquerda; `Mic`, `Gemini Live`, `Enviar` e `Recolher` à direita).
+- `src/components/Sidebar.tsx`: Drawer com `h-dvh max-h-dvh` e corpo rolável unificado (`overscroll-contain`) colocando os 5 itens de navegação principal no topo sem qualquer corte ou sobreposição.
+- `src/components/FloatingCardAudioController.tsx`: Cápsula `rounded-2xl md:rounded-full` no mobile com barra de progresso em largura total e pílulas `EN / IT / JA` com `.btn-compact-touch`.
+- `src/App.tsx`, `src/components/PolyglotChatStudio.tsx`, `src/components/ConversationHistoryDrawer.tsx`, `src/components/ParallelMessageBlock.tsx`, `src/components/LanguageColumnCard.tsx`, `src/styles/globals.css`, `src/index.css`: Compactação do header mobile (ícone de busca no lugar de `Ctrl+K`, ocultação do breadcrumb redundante em `< 640px`), ajuste de `.btn-compact-touch` em `@media (pointer: coarse)` e redução de espaçamentos verticais no topo para exibir o primeiro card de idioma completo na primeira dobra.
+
+## Aprendizados Consolidados e Entregas de 07/11/2026
+- `server.ts`, `src/server/audioContainer.ts`: Detecção automática de chaves Vertex AI Express Mode (`AQ.` -> `vertexai: true`) vs. Google AI Studio (`AIza` -> `vertexai: false`), hot-reload de `.env` em cada requisição (`resolveActiveApiKey()`), cascata de modelos (`gemini-3.1-flash-tts-preview` -> `gemini-2.5-flash-preview-tts`, `gemini-3.8-flash` -> `gemini-2.5-flash`), e endpoints `/api/live-agent-turn` (Function Calling `NON_BLOCKING`), `/api/agent-explore` (Google Search Grounding + YouTube `fileData`), `/api/conversations` e `/api/auth/google`.
+- `src/utils/audio.ts`, `src/components/LanguageColumnCard.tsx`, `src/components/ParallelMessageBlock.tsx`, `src/components/PolyglotChatStudio.tsx`: Eliminação da condição de corrida em `<select>` de voz por card (`cardVoicesByMsgRef` síncrono), passagem de `voiceId` para chunks e diferenciação acústica real (gênero, `pitch` e ritmo) entre `Puck`, `Kore`, `Aoede`, `Fenrir` e `Enceladus` no `speakBrowserFallback`.
+- `src/components/DebateConfigPanel.tsx`, `src/components/StudioWorkspace.tsx`, `src/App.tsx`: Simplificação da configuração de conversa em 2 cards selecionáveis (`Voz`, `Idioma`, `Estilo`) com formatos de renderização (`Leitura Solo`, `Debate Dialético`, `Podcast de Estúdio`, `Conversa de Bar`, `Mesa de Jantar`) e sincronização imediata das vozes dos cards com `script.turns`.
+- `src/components/FloatingCardAudioController.tsx`, `src/components/BottomAudioDock.tsx`, `src/components/AgentInputDock.tsx`: Refatoração em **Pílula de Produtor** colapsável em Linha Animada e **Pílula de Chat Fixa** com menu `+` estilo Chat LLM e símbolo vetorial do Gemini Live.
+- `firebase.json`, `.firebaserc`, `scripts/deploy-sp.ps1`: Configuração da região `southamerica-east1` (São Paulo) e URL curta via Firebase Hosting (`agent-md-506215.web.app`).
+
+## Arquivos Tocados em Turno Anterior (`plan-uiux` v1.1.0 + `design-md` v8.0.0)
+- `DESIGN.md` (Atualização para o contrato canônico `v8.0.0` com as 9 Seções Canônicas e Adendos A–I, tokens OKLCH em 3 camadas, regra 60-30-10, Cinza Studio Monolítico `#57545d`, Ad Lucem `#F3F3F5`/`#FFFFFF` e Terminal IBM `#070709`).
+- `design/design.md` (Sincronização do diagrama Mermaid de navegabilidade, tabela de módulos com Chat Poliglota #1 + Live Mic integrado e seção de Design System `v8.0.0`).
+- `src/styles/globals.css` (Adição dos tokens `v8.0.0`, regra LVHA, `@property --gradient-angle`, `.bentoGrid` RAM, `.bentoCardSubgrid`, `.sliderGrid`, `.tabsOverflowContainer`, `.modalOverlay` com `@starting-style` + `allow-discrete`, `.nodeFlashing` e `@media (any-pointer: coarse)` com preservação de `.chunk-inline-btn`).
+- `src/components/PolyglotChatStudio.tsx` (Substituição de emojis de bandeira em `stepNames` por rótulos tipográficos `'EN · Inglês'`, `'IT · Italiano'`, `'JA · Japonês'`).
+- `src/components/AgentInputDock.tsx` (Remoção de classes Flexbox `order-1`/`order-2`/`order-3` para garantir Ordem do DOM === Ordem Visual em mobile e desktop).
+- `src/components/CommandPaletteModal.tsx` (Conversão de `<div onClick>` dos itens de comando para `<button type="button">` semântico).
+- `src/components/LanguageColumnCard.tsx` (Conversão do seletor de cabeçalho de card e dos blocos lexicais `<span onClick>` para `<button type="button">` semânticos com foco por teclado).
+
+## Arquivos Tocados em Turno Anterior (Correção de Navegação e Responsividade Mobile)
 - `src/components/GoogleIcon.tsx` (Mapeamento do ícone `menu: Menu` do `lucide-react` para o botão hamburger mobile).
 - `src/index.css` (Resolução de especificidade `.btn-matte.hidden` e breakpoints responsivos + utilitários `.no-scrollbar` / `.scrollbar-none`).
 - `src/App.tsx` (Contenção horizontal `min-w-0 max-w-full overflow-x-clip`, navegação rápida mobile em `grid-cols-5` sem corte/scrollbar e restauração de scroll ao topo na troca de abas).

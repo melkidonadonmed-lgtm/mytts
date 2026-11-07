@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "path": "C:/Users/melki/dev/repos/franklin-quebragalho/skills",
+      "include_only": [
+        "design-md",
+        "frontend-code-architect",
+        "frontend-testing-auditor",
+        "frontend-ui-ux-auditor",
+        "plan-uiux",
+        "complex-zero"
+      ]
+    },
+    {
+      "path": "C:/Users/melki/.agents/skills",
+      "include_only": [
+        "vercel-react-best-practices",
+        "web-design-guidelines",
+        "ai-sdk",
+        "live-api-function-auditor"
+      ]
+    },
+    {
+      "path": ".agents/skills",
+      "include_only": [
+        "gemini-tts-expressive-audio"
+      ]
+    }
+  ]
+}

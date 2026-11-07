@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { PolyglotMessage, FlashcardItem } from '../types/polyglot';
+import { PolyglotMessage, FlashcardItem, SavedConversation, GoogleUserSession } from '../types/polyglot';
+import type { StudioRenderMode } from '../types/debate';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { ParallelMessageBlock } from './ParallelMessageBlock';
-import { AgentInputDock } from './AgentInputDock';
+import { AgentInputDock, AgentInputDockSubmitPayload } from './AgentInputDock';
 import { FlashcardDeckDrawer } from './FlashcardDeckDrawer';
 import { ExportInteractionModal } from './ExportInteractionModal';
+import { ConversationHistoryDrawer } from './ConversationHistoryDrawer';
 import { GoogleIcon } from './GoogleIcon';
-import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
+import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback, stopBrowserSpeech } from '../utils/audio';
 import { concatenateWavBuffers } from '../utils/audioEngine';
 import {
   generateAudioCacheKey,
@@ -16,12 +18,18 @@ import {
 } from '../utils/audioCache';
 import {
   requestTranslateParallelChunks,
+  requestLiveAgentTurn,
+  requestAgentExplore,
+  requestListUserConversations,
+  requestSaveUserConversation,
+  requestDeleteUserConversation,
   requestGenerateFlashcard,
   persistBrowserState,
   readBrowserState,
   readFavoriteVoicesByLanguage,
   saveFavoriteVoicesByLanguage,
 } from '../services/polyglotClient';
+import { getActiveSession, subscribeAuthChanges } from '../services/authService';
 
 const INITIAL_DEMO_MESSAGE: PolyglotMessage = {
   id: 'msg-demo-1',
@@ -59,12 +67,19 @@ const INITIAL_DEMO_MESSAGE: PolyglotMessage = {
 export interface PolyglotChatStudioProps {
   globalVoice?: VoiceProfile;
   onSyncGlobalVoice?: (voice: VoiceProfile) => void;
+  onSendToCreationStudio?: (text: string, mode: StudioRenderMode) => void;
 }
 
 export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   globalVoice,
   onSyncGlobalVoice,
+  onSendToCreationStudio,
 }) => {
+  const [userSession, setUserSession] = useState<GoogleUserSession>(() => getActiveSession());
+  const [activeConversationId, setActiveConversationId] = useState<string>(() => `conv_${Date.now()}`);
+  const [conversations, setConversations] = useState<SavedConversation[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+
   const [messages, setMessages] = useState<PolyglotMessage[]>([INITIAL_DEMO_MESSAGE]);
   const [isLoading, setIsLoading] = useState(false);
   const [deck, setDeck] = useState<FlashcardItem[]>(() => {
@@ -124,6 +139,10 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const lastSyncedVoiceIdRef = useRef<string>(globalVoice?.id || 'Puck');
+  const cardVoicesByMsgRef = useRef<Record<string, Record<'en' | 'it' | 'ja', string>>>(
+    cardVoicesByMsg
+  );
+  cardVoicesByMsgRef.current = cardVoicesByMsg;
 
   const syncVoiceToGlobal = useCallback(
     (voiceId: string) => {
@@ -138,20 +157,29 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     [onSyncGlobalVoice]
   );
 
-  // Se a voz global mudar externamente (ex: Ctrl+K ou Biblioteca de Vozes), atualiza o card focado atual
+  // Se a voz global mudar externamente (ex: Sidebar, Ctrl+K ou Biblioteca de Vozes), atualiza o card focado atual
   useEffect(() => {
     if (!globalVoice || globalVoice.id === lastSyncedVoiceIdRef.current) return;
     lastSyncedVoiceIdRef.current = globalVoice.id;
     const activeLang = selectedLanguageByMsg[focusedMessageId] || 'en';
+    const nextForMsg = {
+      ...(cardVoicesByMsgRef.current[focusedMessageId] || defaultVoiceByLang),
+      [activeLang]: globalVoice.id,
+    };
+    cardVoicesByMsgRef.current = {
+      ...cardVoicesByMsgRef.current,
+      [focusedMessageId]: nextForMsg,
+    };
     setCardVoicesByMsg((prev) => ({
       ...prev,
-      [focusedMessageId]: {
-        ...(prev[focusedMessageId] || defaultVoiceByLang),
-        [activeLang]: globalVoice.id,
-      },
+      [focusedMessageId]: nextForMsg,
     }));
+    setMessages((prev) =>
+      prev.map((m) => (m.id === focusedMessageId ? { ...m, cardVoices: nextForMsg } : m))
+    );
     setDefaultVoiceByLang((prev) => ({ ...prev, [activeLang]: globalVoice.id }));
-  }, [globalVoice, focusedMessageId, selectedLanguageByMsg, defaultVoiceByLang]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalVoice?.id]);
 
   useEffect(() => {
     persistBrowserState('mytts_polyglot_deck', JSON.stringify(deck));
@@ -170,7 +198,11 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
   const getCardVoicesForMessage = useCallback(
     (messageId: string): Record<'en' | 'it' | 'ja', string> => {
-      return cardVoicesByMsg[messageId] || defaultVoiceByLang;
+      return (
+        cardVoicesByMsgRef.current[messageId] ||
+        cardVoicesByMsg[messageId] ||
+        defaultVoiceByLang
+      );
     },
     [cardVoicesByMsg, defaultVoiceByLang]
   );
@@ -255,6 +287,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
       revokeAudioUrl(activeAudioRef.current.blobUrl);
       activeAudioRef.current = null;
     }
+    stopBrowserSpeech();
     setIsPlayingAudio(false);
     setIsLoadingAudio(false);
     setPlayingBlockInfo(null);
@@ -283,25 +316,34 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     lang: 'en' | 'it' | 'ja',
     voiceId: string
   ): void => {
+    const currentForMsg =
+      cardVoicesByMsgRef.current[messageId] ||
+      cardVoicesByMsg[messageId] ||
+      defaultVoiceByLang;
+    const updatedVoices = {
+      ...currentForMsg,
+      [lang]: voiceId,
+    };
+
+    cardVoicesByMsgRef.current = {
+      ...cardVoicesByMsgRef.current,
+      [messageId]: updatedVoices,
+    };
+
     setFocusedMessageId(messageId);
     setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
     setCardVoicesByMsg((prev) => ({
       ...prev,
-      [messageId]: {
-        ...(prev[messageId] || defaultVoiceByLang),
-        [lang]: voiceId,
-      },
+      [messageId]: updatedVoices,
     }));
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, cardVoices: updatedVoices } : m))
+    );
     setDefaultVoiceByLang((prev) => ({ ...prev, [lang]: voiceId }));
     syncVoiceToGlobal(voiceId);
 
-    if (
-      activeAudioRef.current &&
-      activeAudioRef.current.messageId === messageId &&
-      activeAudioRef.current.lang === lang
-    ) {
-      stopCurrentAudio();
-    }
+    stopCurrentAudio();
+    void handleTogglePlay(messageId, lang, undefined, voiceId);
   };
 
   // Alteração do perfil favorito de voz para um idioma na barra superior
@@ -309,14 +351,27 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     lang: 'en' | 'it' | 'ja',
     voiceId: string
   ): void => {
+    const currentForMsg =
+      cardVoicesByMsgRef.current[focusedMessageId] ||
+      cardVoicesByMsg[focusedMessageId] ||
+      defaultVoiceByLang;
+    const updatedVoices = {
+      ...currentForMsg,
+      [lang]: voiceId,
+    };
+    cardVoicesByMsgRef.current = {
+      ...cardVoicesByMsgRef.current,
+      [focusedMessageId]: updatedVoices,
+    };
+
     setDefaultVoiceByLang((prev) => ({ ...prev, [lang]: voiceId }));
     setCardVoicesByMsg((prev) => ({
       ...prev,
-      [focusedMessageId]: {
-        ...(prev[focusedMessageId] || defaultVoiceByLang),
-        [lang]: voiceId,
-      },
+      [focusedMessageId]: updatedVoices,
     }));
+    setMessages((prev) =>
+      prev.map((m) => (m.id === focusedMessageId ? { ...m, cardVoices: updatedVoices } : m))
+    );
     setSelectedLanguageByMsg((prev) => ({ ...prev, [focusedMessageId]: lang }));
     syncVoiceToGlobal(voiceId);
     const langLabels: Record<'en' | 'it' | 'ja', string> = {
@@ -329,13 +384,13 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
   // Aplica o perfil favorito de vozes (EN, IT, JA) a todos os cards do chat atual
   const handleApplyFavoritesToAllCards = (): void => {
-    setCardVoicesByMsg(() => {
-      const next: Record<string, Record<'en' | 'it' | 'ja', string>> = {};
-      messages.forEach((m) => {
-        next[m.id] = { ...defaultVoiceByLang };
-      });
-      return next;
+    const next: Record<string, Record<'en' | 'it' | 'ja', string>> = {};
+    messages.forEach((m) => {
+      next[m.id] = { ...defaultVoiceByLang };
     });
+    cardVoicesByMsgRef.current = next;
+    setCardVoicesByMsg(next);
+    setMessages((prev) => prev.map((m) => ({ ...m, cardVoices: { ...defaultVoiceByLang } })));
     const currentLang = selectedLanguageByMsg[focusedMessageId] || 'en';
     syncVoiceToGlobal(defaultVoiceByLang[currentLang]);
     showToast(
@@ -347,15 +402,17 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   const handleTogglePlay = async (
     messageId: string,
     lang: 'en' | 'it' | 'ja',
-    overrideMsg?: PolyglotMessage
+    overrideMsg?: PolyglotMessage,
+    overrideVoiceId?: string
   ): Promise<void> => {
     setFocusedMessageId(messageId);
     setSelectedLanguageByMsg((prev) => ({ ...prev, [messageId]: lang }));
     const voices = getCardVoicesForMessage(messageId);
-    const cardVoiceId = voices[lang];
+    const cardVoiceId = overrideVoiceId || voices[lang];
     syncVoiceToGlobal(cardVoiceId);
 
     if (
+      !overrideVoiceId &&
       activeAudioRef.current &&
       activeAudioRef.current.messageId === messageId &&
       activeAudioRef.current.lang === lang
@@ -367,6 +424,16 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         await activeAudioRef.current.audio.play();
         setIsPlayingAudio(true);
       }
+      return;
+    }
+
+    if (
+      !overrideVoiceId &&
+      isPlayingAudio &&
+      playingBlockInfo?.messageId === messageId &&
+      playingBlockInfo?.lang === lang
+    ) {
+      stopCurrentAudio();
       return;
     }
 
@@ -417,6 +484,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
       }
 
       const audio = new Audio(blobUrl);
+      audio.preservesPitch = true;
       audio.playbackRate = playbackSpeed;
 
       audio.onloadedmetadata = () => {
@@ -440,8 +508,28 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
       await audio.play();
       setIsPlayingAudio(true);
     } catch (e: unknown) {
-      console.warn('Erro na síntese neural do card:', e);
-      stopCurrentAudio();
+      console.warn('Erro na síntese neural do card (acionando fallback Web Speech):', e);
+      const fallbackStarted = speakBrowserFallback(targetMsg.fullText[lang], {
+        lang: getLanguageTag(lang),
+        rate: playbackSpeed,
+        voiceId: cardVoiceId,
+        onStart: () => setIsPlayingAudio(true),
+        onEnd: () => {
+          setIsPlayingAudio(false);
+          setPlayingBlockInfo(null);
+          setCurrentTime(0);
+        },
+        onError: () => stopCurrentAudio(),
+      });
+      if (fallbackStarted) {
+        setIsPlayingAudio(true);
+        showToast(
+          `Reproduzindo com a voz ${cardVoiceId} (${lang.toUpperCase()}).`
+        );
+      } else {
+        stopCurrentAudio();
+        showToast(e instanceof Error ? e.message : 'Falha ao sintetizar áudio do card.');
+      }
     } finally {
       setIsLoadingAudio(false);
     }
@@ -607,11 +695,23 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
       pollId = setInterval(() => {
         try {
-          if (isStopped() || !activeAudioRef.current) {
+          if (isStopped()) {
             settle();
             return;
           }
-          if (activeAudioRef.current.audio.ended) {
+          const isBrowserSpeaking =
+            typeof window !== 'undefined' &&
+            'speechSynthesis' in window &&
+            window.speechSynthesis.speaking;
+          if (!activeAudioRef.current && !isBrowserSpeaking) {
+            cleanup();
+            gapTimeoutId = setTimeout(() => {
+              gapTimeoutId = null;
+              settle();
+            }, 600);
+            return;
+          }
+          if (activeAudioRef.current && activeAudioRef.current.audio.ended) {
             cleanup();
             gapTimeoutId = setTimeout(() => {
               gapTimeoutId = null;
@@ -642,9 +742,9 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
     const languages: Array<'en' | 'it' | 'ja'> = ['en', 'it', 'ja'];
     const stepNames: Record<string, string> = {
-      en: '🇺🇸 Inglês',
-      it: '🇮🇹 Italiano',
-      ja: '🇯🇵 Japonês',
+      en: 'EN · Inglês',
+      it: 'IT · Italiano',
+      ja: 'JA · Japonês',
     };
     const isStopped = (): boolean => sequenceAbortRef.current || !isMountedRef.current;
 
@@ -670,9 +770,139 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     }
   };
 
-  const handleSendMessage = async (text: string, autoPlayAfter = false): Promise<void> => {
+  // Sincronização de Sessão Google e Carregamento do Histórico de Conversas
+  const loadConversationsForActiveUser = useCallback(async () => {
+    const list = await requestListUserConversations();
+    setConversations(list);
+    if (list.length > 0 && messages.length === 1 && messages[0].id === 'msg-demo-1') {
+      const mostRecent = list[0];
+      setActiveConversationId(mostRecent.id);
+      setMessages(mostRecent.messages.length > 0 ? mostRecent.messages : [INITIAL_DEMO_MESSAGE]);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    loadConversationsForActiveUser();
+    const unsub = subscribeAuthChanges((nextSession) => {
+      setUserSession(nextSession);
+      requestListUserConversations().then((list) => {
+        setConversations(list);
+        if (list.length > 0) {
+          setActiveConversationId(list[0].id);
+          setMessages(list[0].messages);
+        } else {
+          setActiveConversationId(`conv_${Date.now()}`);
+          setMessages([INITIAL_DEMO_MESSAGE]);
+        }
+      });
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const persistConversationSnapshot = useCallback(
+    async (updatedMessages: PolyglotMessage[], convId = activeConversationId) => {
+      const readyOnly = updatedMessages.filter((m) => m.status === 'ready');
+      if (readyOnly.length === 0) return;
+
+      const userTurns = readyOnly.filter((m) => m.id !== 'msg-demo-1');
+      if (userTurns.length === 0) return;
+
+      const lastTurn = userTurns[userTurns.length - 1];
+      const existing = conversations.find((c) => c.id === convId);
+      const titleSource = userTurns[0].userPrompt || 'Conversa Poliglota';
+      const cleanTitle =
+        titleSource.length > 62 ? `${titleSource.slice(0, 62)}...` : titleSource;
+
+      const payload: SavedConversation = {
+        id: convId,
+        userId: userSession.uid,
+        userName: userSession.name,
+        userEmail: userSession.email || undefined,
+        title: existing?.title || cleanTitle,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        pinned: existing?.pinned || false,
+        originMode: lastTurn.originMode || existing?.originMode || 'polyglot',
+        messages: readyOnly,
+      };
+
+      const saved = await requestSaveUserConversation(payload);
+      if (saved) {
+        setConversations((prev) => {
+          const rest = prev.filter((c) => c.id !== saved.id);
+          return [saved, ...rest].sort((a, b) => {
+            if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+            return b.updatedAt.localeCompare(a.updatedAt);
+          });
+        });
+      }
+    },
+    [activeConversationId, conversations, userSession]
+  );
+
+  const handleNewConversation = (): void => {
+    stopCurrentAudio();
+    const nextId = `conv_${Date.now()}`;
+    setActiveConversationId(nextId);
+    setMessages([INITIAL_DEMO_MESSAGE]);
+    setFocusedMessageId('msg-demo-1');
+    showToast('Nova conversa iniciada! Suas conversas anteriores estão salvas no histórico.');
+  };
+
+  const handleSelectConversation = (conv: SavedConversation): void => {
+    stopCurrentAudio();
+    setActiveConversationId(conv.id);
+    const nextMsgs = conv.messages.length > 0 ? conv.messages : [INITIAL_DEMO_MESSAGE];
+    setMessages(nextMsgs);
+    const lastId = nextMsgs[nextMsgs.length - 1].id;
+    setFocusedMessageId(lastId);
+    setIsHistoryOpen(false);
+    showToast(`Conversa "${conv.title}" restaurada.`);
+  };
+
+  const handleTogglePinConversation = async (conv: SavedConversation): Promise<void> => {
+    const updated: SavedConversation = { ...conv, pinned: !conv.pinned };
+    const saved = await requestSaveUserConversation(updated);
+    if (saved) {
+      setConversations((prev) =>
+        prev
+          .map((c) => (c.id === saved.id ? saved : c))
+          .sort((a, b) => {
+            if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+            return b.updatedAt.localeCompare(a.updatedAt);
+          })
+      );
+    }
+  };
+
+  const handleDeleteConversation = async (convId: string): Promise<void> => {
+    const ok = await requestDeleteUserConversation(convId);
+    if (ok) {
+      setConversations((prev) => prev.filter((c) => c.id !== convId));
+      if (convId === activeConversationId) {
+        setActiveConversationId(`conv_${Date.now()}`);
+        setMessages([INITIAL_DEMO_MESSAGE]);
+      }
+      showToast('Conversa removida do histórico.');
+    }
+  };
+
+  const handleSendMessage = async (
+    text: string,
+    autoPlayAfter = false,
+    payload?: AgentInputDockSubmitPayload
+  ): Promise<void> => {
     const newMessageId = `msg-${Date.now()}`;
     const initialCardVoices = { ...defaultVoiceByLang };
+    const originMode = payload?.youtubeUrl
+      ? 'youtube'
+      : payload?.dockMode === 'search_youtube' || payload?.enableSearch
+      ? 'web_search'
+      : payload?.dockMode === 'live_tutor' || payload?.dockMode === 'practice' || payload?.audioBase64
+      ? 'live_agent'
+      : 'polyglot';
+
     const placeholderMessage: PolyglotMessage = {
       id: newMessageId,
       userPrompt: text,
@@ -681,6 +911,8 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
       fullText: { en: '', it: '', ja: '' },
       cardVoices: initialCardVoices,
       status: 'loading',
+      originMode,
+      youtubeUrl: payload?.youtubeUrl,
     };
 
     setMessages((prev) => [...prev, placeholderMessage]);
@@ -691,21 +923,114 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     setIsLoading(true);
 
     try {
-      const data = await requestTranslateParallelChunks(text);
-      if (!data.ok || !data.success || !data.chunks || !data.fullText) {
-        throw new Error(data.error || 'Falha ao processar os chunks paralelos.');
+      let readyMessage: PolyglotMessage;
+
+      if (originMode === 'youtube' || originMode === 'web_search') {
+        const exploreData = await requestAgentExplore({
+          prompt: text,
+          youtubeUrl: payload?.youtubeUrl,
+          enableSearch: true,
+        });
+        if (!exploreData.ok || !exploreData.success || !exploreData.chunks || !exploreData.fullText) {
+          throw new Error(exploreData.error || 'Falha ao consultar Agente com Busca/YouTube.');
+        }
+
+        readyMessage = {
+          ...placeholderMessage,
+          originMode: exploreData.originMode || originMode,
+          youtubeUrl: exploreData.youtubeUrl || payload?.youtubeUrl,
+          agentReplyPtBr: exploreData.agentReplyPtBr,
+          sources: exploreData.sources,
+          chunks: exploreData.chunks,
+          fullText: exploreData.fullText,
+          status: 'ready',
+        };
+      } else if (originMode === 'live_agent') {
+        const recentHistory = messages
+          .filter((m) => m.status === 'ready')
+          .slice(-4)
+          .map((m) => ({
+            role: 'user',
+            text: `${m.userPrompt} -> ${m.fullText.en}`,
+          }));
+
+        const liveData = await requestLiveAgentTurn({
+          text: payload?.text ?? text,
+          audioBase64: payload?.audioBase64,
+          mimeType: payload?.mimeType,
+          persona: payload?.persona || 'tutor_conversational',
+          history: recentHistory,
+        });
+
+        if (!liveData.ok || !liveData.success || !liveData.chunks || !liveData.fullText) {
+          throw new Error(liveData.error || 'Falha ao processar turno do Agente Live.');
+        }
+
+        readyMessage = {
+          ...placeholderMessage,
+          userPrompt: liveData.userTranscript || text,
+          originMode: 'live_agent',
+          agentPersona: liveData.persona,
+          agentReplyPtBr: liveData.agentReplyPtBr,
+          chunks: liveData.chunks,
+          fullText: liveData.fullText,
+          status: 'ready',
+        };
+
+        if (liveData.toolCallsExecuted && liveData.toolCallsExecuted.length > 0) {
+          for (const tool of liveData.toolCallsExecuted) {
+            if (tool.name === 'create_study_flashcard') {
+              const firstChunk = liveData.chunks[0];
+              const newCard: FlashcardItem = {
+                id: tool.id,
+                chunkText: tool.args.frontPhrase || firstChunk?.en || text,
+                language: 'en-US',
+                front: tool.args.frontPhrase || firstChunk?.en || text,
+                back: tool.args.backTranslation || firstChunk?.it || '',
+                nuance: 'Gerado automaticamente via Function Calling do Agente Live.',
+                pronunciation: firstChunk?.jaPronunciation,
+                example: firstChunk?.en || '',
+                exampleTranslation: firstChunk?.ja || '',
+                createdAt: Date.now(),
+              };
+              setDeck((prev) => [newCard, ...prev]);
+              showToast(tool.summaryPtBr);
+            } else if (tool.name === 'switch_studio_voice' && tool.args.targetVoice) {
+              const vId = tool.args.targetVoice;
+              const targetLang = tool.args.language || 'all';
+              if (targetLang === 'all') {
+                const updated = { en: vId, it: vId, ja: vId };
+                readyMessage.cardVoices = updated;
+                setCardVoicesByMsg((prev) => ({ ...prev, [newMessageId]: updated }));
+              } else {
+                handleChangeFavoriteLanguageVoice(targetLang, vId);
+              }
+              syncVoiceToGlobal(vId);
+              showToast(tool.summaryPtBr);
+            }
+          }
+        }
+      } else {
+        const data = await requestTranslateParallelChunks(text);
+        if (!data.ok || !data.success || !data.chunks || !data.fullText) {
+          throw new Error(data.error || 'Falha ao processar os chunks paralelos.');
+        }
+
+        readyMessage = {
+          ...placeholderMessage,
+          chunks: data.chunks,
+          fullText: data.fullText,
+          status: 'ready',
+        };
       }
 
-      const readyMessage: PolyglotMessage = {
-        ...placeholderMessage,
-        chunks: data.chunks,
-        fullText: data.fullText,
-        status: 'ready',
-      };
+      setMessages((prev) => {
+        const nextList = prev.map((msg) => (msg.id === newMessageId ? readyMessage : msg));
+        void persistConversationSnapshot(nextList);
+        return nextList;
+      });
 
-      setMessages((prev) => prev.map((msg) => (msg.id === newMessageId ? readyMessage : msg)));
-
-      if (autoPlayAfter) {
+      if (autoPlayAfter || payload?.autoSpeakReply) {
         await handleTogglePlay(newMessageId, 'en', readyMessage);
       }
     } catch (err: unknown) {
@@ -726,28 +1051,43 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     }
   };
 
-  const handlePlayChunkAudio = async (text: string, language: string): Promise<void> => {
+  const handlePlayChunkAudio = async (
+    text: string,
+    language: string,
+    voiceId?: string
+  ): Promise<void> => {
     stopCurrentAudio();
     setPlayingAudioKey(text);
+
+    const langKey: 'en' | 'it' | 'ja' = language.startsWith('it')
+      ? 'it'
+      : language.startsWith('ja')
+      ? 'ja'
+      : 'en';
+    const resolvedVoiceId =
+      voiceId || getCardVoicesForMessage(focusedMessageId)[langKey] || globalVoice?.id || 'Puck';
 
     const cacheKey = generateAudioCacheKey({
       type: 'chunk',
       text,
       language,
+      voiceId: resolvedVoiceId,
     });
 
     try {
       const data = await synthesizeWithCache({
         endpoint: '/api/synthesize-chunk',
-        body: { text, language },
+        body: { text, language, voiceId: resolvedVoiceId },
         cacheKey,
-        metadata: { language },
+        metadata: { language, voiceId: resolvedVoiceId },
       });
 
       if (data.audioBase64) {
         const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
         const audio = new Audio(blobUrl);
-        activeAudioRef.current = { audio, blobUrl, messageId: 'chunk', lang: 'en' };
+        audio.preservesPitch = true;
+        audio.playbackRate = playbackSpeed;
+        activeAudioRef.current = { audio, blobUrl, messageId: 'chunk', lang: langKey };
 
         audio.onended = () => stopCurrentAudio();
         audio.onerror = () => stopCurrentAudio();
@@ -756,8 +1096,18 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         throw new Error('Falha ao reproduzir áudio do chunk.');
       }
     } catch (e: unknown) {
-      console.warn('Erro ao tocar áudio do chunk:', e);
-      stopCurrentAudio();
+      console.warn('Erro ao tocar áudio do chunk (acionando fallback Web Speech):', e);
+      const fallbackStarted = speakBrowserFallback(text, {
+        lang: language,
+        rate: playbackSpeed,
+        voiceId: resolvedVoiceId,
+        onEnd: () => stopCurrentAudio(),
+        onError: () => stopCurrentAudio(),
+      });
+      if (!fallbackStarted) {
+        stopCurrentAudio();
+        showToast(e instanceof Error ? e.message : 'Falha ao reproduzir pronúncia do chunk.');
+      }
     }
   };
 
@@ -787,23 +1137,23 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     <div className="flex-1 flex flex-col min-h-screen font-sans">
       
       {/* 1. Header Minimalista do Estúdio Poliglota + Perfis Favoritos de Voz por Idioma */}
-      <header className="lg:sticky lg:top-0 z-20 dock-matte mx-3 sm:mx-6 lg:mx-0 mt-1 lg:mt-0 px-3.5 sm:px-6 py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-2.5">
-        <div className="flex items-start sm:items-center justify-between gap-2.5">
-          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5 sm:mt-0">
-              <GoogleIcon name="translate" size={20} />
+      <header className="lg:sticky lg:top-0 z-20 dock-matte mx-2.5 sm:mx-6 lg:mx-0 mt-1.5 lg:mt-0 px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
+              <GoogleIcon name="translate" size={18} />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
-                <h1 className="text-sm sm:text-base font-bold text-primary font-display">
+                <h1 className="text-sm sm:text-base font-bold text-primary font-display truncate">
                   Chat Poliglota Multimodal
                 </h1>
-                <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold shrink-0">
+                <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">
                   EN • IT • JA
                 </span>
               </div>
-              <p className="text-[11px] text-secondary leading-snug mt-0.5">
-                Escolha a voz diretamente em cada card · A voz global acompanha o card focado ({currentFocusedVoice})
+              <p className="text-[11px] text-secondary leading-snug mt-0.5 line-clamp-1 sm:line-clamp-none">
+                Voz por card · Sincronizado com o card focado ({currentFocusedVoice})
               </p>
             </div>
           </div>
@@ -812,10 +1162,10 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
           <button
             type="button"
             onClick={() => setIsDeckDrawerOpen(true)}
-            className="xl:hidden btn-matte btn-matte-dark px-2.5 py-1.5 text-xs text-primary font-medium cursor-pointer shrink-0"
+            className="xl:hidden btn-matte btn-matte-dark btn-compact-touch h-8 px-2.5 py-1 text-xs text-primary font-medium cursor-pointer shrink-0"
             title="Ver Flashcards salvos"
           >
-            <GoogleIcon name="style" size={16} className="text-amber-400" />
+            <GoogleIcon name="style" size={15} className="text-amber-400" />
             <span>Deck</span>
             <span className="bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums">
               {deck.length}
@@ -826,19 +1176,19 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         {/* Barra de Perfis Favoritos de Vozes por Idioma (Salvos no Navegador) + Botão de Deck */}
         <div className="flex flex-wrap items-center justify-between xl:justify-end gap-2 w-full xl:w-auto">
           <div
-            className="pill-nav-shell !rounded-2xl sm:!rounded-full flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 w-full sm:w-auto"
+            className="card-matte rounded-xl sm:rounded-full flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 w-full sm:w-auto"
             aria-label="Perfis favoritos de vozes por idioma"
           >
             <div className="flex items-center justify-between sm:justify-start gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 opacity-85 shrink-0">
-                <GoogleIcon name="bookmark" size={13} />
+              <span className="text-[10px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 text-secondary shrink-0">
+                <GoogleIcon name="bookmark" size={13} className="text-amber-400" />
                 <span>Vozes Favoritas:</span>
               </span>
 
               <button
                 type="button"
                 onClick={handleApplyFavoritesToAllCards}
-                className="sm:hidden px-2.5 py-1 rounded-full bg-amber-400 text-slate-950 hover:bg-amber-300 text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm shrink-0"
+                className="sm:hidden btn-compact-touch h-7 px-2.5 py-0.5 rounded-full btn-matte-amber text-white text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm shrink-0"
                 title="Aplicar estas vozes favoritas a todos os cards da conversa atual"
               >
                 <GoogleIcon name="sync" size={12} />
@@ -856,15 +1206,17 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
               ).map((item) => (
                 <label
                   key={item.code}
-                  className="inline-flex items-center justify-center sm:justify-start gap-1 px-2 py-1 rounded-xl sm:rounded-full bg-black/15 hover:bg-black/25 text-[11px] font-bold cursor-pointer transition-colors min-w-0"
+                  className="inline-flex items-center justify-center sm:justify-start gap-1 px-2 py-1 rounded-lg sm:rounded-full surface-inset text-[11px] font-bold cursor-pointer transition-colors min-w-0"
                   title={`Voz favorita padrão para novos cards em ${item.label}`}
                 >
-                  <span className="font-mono text-[10px] opacity-80 shrink-0">{item.label}:</span>
+                  <span className="font-mono text-[10px] text-amber-400 shrink-0">{item.label}:</span>
                   <select
+                    id={`fav-voice-${item.code}`}
+                    name={`favVoice_${item.code}`}
                     aria-label={`Voz favorita para ${item.label}`}
                     value={defaultVoiceByLang[item.code]}
                     onChange={(e) => handleChangeFavoriteLanguageVoice(item.code, e.target.value)}
-                    className="bg-transparent font-mono font-bold text-[11px] focus:outline-none cursor-pointer min-w-0 truncate"
+                    className="bg-transparent font-mono font-bold text-[11px] text-primary focus:outline-none cursor-pointer min-w-0 truncate"
                   >
                     {GEMINI_VOICES.map((v) => (
                       <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">
@@ -879,7 +1231,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
             <button
               type="button"
               onClick={handleApplyFavoritesToAllCards}
-              className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-amber-400 text-slate-950 hover:bg-amber-300 text-[10px] font-extrabold transition-all cursor-pointer items-center gap-1 shadow-sm shrink-0"
+              className="hidden sm:inline-flex btn-compact-touch h-7 px-2.5 py-0.5 rounded-full btn-matte-amber text-white text-[10px] font-extrabold transition-all cursor-pointer items-center gap-1 shadow-sm shrink-0"
               title="Aplicar estas vozes favoritas a todos os cards da conversa atual"
             >
               <GoogleIcon name="sync" size={12} />
@@ -911,8 +1263,24 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         </div>
       )}
 
-      {/* 3. Feed de Mensagens do Chat (Canvas Multi-Pane com espaçamento seguro para o Dock) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-6 pb-6 sm:pb-10 flex flex-col gap-5">
+      {/* 3. Feed de Mensagens do Chat (Canvas Multi-Pane com Histórico Colapsável e Enquadramento Amplo) */}
+      <div
+        role="region"
+        aria-label="Feed de conversas poliglotas"
+        className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-6 sm:pb-12 flex flex-col gap-4 sm:gap-6"
+      >
+        <ConversationHistoryDrawer
+          conversations={conversations}
+          activeConversationId={activeConversationId}
+          isOpen={isHistoryOpen}
+          onToggleOpen={() => setIsHistoryOpen((prev) => !prev)}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+          onTogglePin={handleTogglePinConversation}
+          onDeleteConversation={handleDeleteConversation}
+          userEmail={userSession.email}
+        />
+
         {messages.map((message) => {
           const selectedLang = selectedLanguageByMsg[message.id] || 'en';
           const cardVoices = getCardVoicesForMessage(message.id);
@@ -957,15 +1325,30 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
               isPlayingSequence={isPlayingSequence}
               sequenceStep={sequenceStep}
               onOpenExport={(msg) => setExportingMessage({ ...msg, cardVoices })}
+              onSendToCreationStudio={onSendToCreationStudio}
             />
           );
         })}
         <div ref={messagesEndRef} />
-      </main>
+      </div>
 
-      {/* 4. Dock Inferior Multimodal com Atalho de Mic e Live API */}
+      {/* 4. Pílula de Chat Fixa Multimodal (Botão +, Serviços, Gemini Live e Linha Animada) */}
       <AgentInputDock
         onSendMessage={handleSendMessage}
+        onSendToCreationStudio={(typedText, renderMode) => {
+          if (!onSendToCreationStudio) return;
+          if (typedText) {
+            onSendToCreationStudio(typedText, renderMode);
+            return;
+          }
+          const focusedMsg = messages.find((m) => m.id === focusedMessageId) || messages[messages.length - 1];
+          const fallbackText = focusedMsg
+            ? [focusedMsg.userPrompt, focusedMsg.agentReplyPtBr, focusedMsg.fullText.en]
+                .filter(Boolean)
+                .join('\n\n')
+            : '';
+          onSendToCreationStudio(fallbackText, renderMode);
+        }}
         isLoading={isLoading}
         activeVoiceName={currentFocusedVoice}
       />

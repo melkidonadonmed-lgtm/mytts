@@ -45,6 +45,13 @@ import {
   Globe,
   Menu,
   CircleDot,
+  MessageSquare,
+  Coffee,
+  Utensils,
+  Minimize2,
+  ChevronUp,
+  ArrowUp,
+  Square,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -105,6 +112,14 @@ const ICON_MAP: Record<string, LucideIcon> = {
   tune: Sliders,
   language: Globe,
   menu: Menu,
+  forum: MessageSquare,
+  local_cafe: Coffee,
+  restaurant: Utensils,
+  minimize: Minimize2,
+  expand_less: ChevronUp,
+  arrow_upward: ArrowUp,
+  stop: Square,
+  stop_circle: Square,
 };
 
 /**

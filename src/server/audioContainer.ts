@@ -75,3 +75,23 @@ export function ensureWavContainer(base64Audio: string, sampleRate: number = 240
   }
   return pcmToWav(rawPcm, sampleRate).toString('base64');
 }
+
+/**
+ * Formata erros da API Gemini em mensagens diagnósticas claras em pt-BR.
+ */
+export function formatGeminiError(error: unknown, fallbackMessage: string): string {
+  const raw = error instanceof Error ? error.message : String(error ?? '');
+  if (
+    raw.includes('ACCOUNT_STATE_INVALID') ||
+    raw.includes('bound service account is deleted or disabled')
+  ) {
+    return 'Chave GEMINI_API_KEY inválida: a Service Account vinculada a esta chave está desativada ou foi excluída no GCP (401). Defina uma chave ativa no arquivo .env.';
+  }
+  if (raw.includes('API_KEY_INVALID') || raw.includes('API key not valid')) {
+    return 'Chave GEMINI_API_KEY inválida (400/401). Verifique o arquivo .env na raiz do projeto.';
+  }
+  if (raw.includes('RESOURCE_EXHAUSTED') || raw.includes('429')) {
+    return 'Cota da API Gemini excedida (429). Aguarde alguns instantes ou verifique o faturamento da chave.';
+  }
+  return raw || fallbackMessage;
+}

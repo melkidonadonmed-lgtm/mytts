@@ -1,9 +1,17 @@
 /* ==========================================================================
-   DESIGN TOKENS & FÍSICA TÁTIL 135° (DESIGN.md v4.5-soft — Minimalist Impact)
+   DESIGN TOKENS & FÍSICA TÁTIL 135° (DESIGN.md v8.0.0 — Minimalist Impact)
    Zero Glassmorphism (sem backdrop-filter: blur) | Zero Azul Cobalto
    ========================================================================== */
 
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 135deg;
+  inherits: false;
+}
+
 :root {
+  color-scheme: light dark;
+
   /* Camada 1: Tokens Primitivos Perceptuais (OKLCH & Escala Modular Base-4 / Base-8) */
   --primitive-gray-500: oklch(0.45 0.015 295);
   --primitive-gray-600: oklch(0.40 0.015 295);
@@ -27,14 +35,21 @@
   --surface-raised: #635f6a;
   --surface-contrast: #232127;
 
-  /* Camada 2: Tokens Semânticos Adaptativos (OKLCH + light-dark + color-mix) */
+  /* Camada 2: Tokens Semânticos Adaptativos (OKLCH + light-dark + color-mix + 60-30-10) */
+  --bg-app: var(--surface-canvas);
+  --bg-surface: var(--surface-flat);
+  --bg-card: var(--surface-raised);
+  --surface-sunken: var(--surface-inset);
+
   --ink-primary: light-dark(oklch(0.18 0.01 285), oklch(0.97 0.005 285));
   --ink-secondary: light-dark(oklch(0.36 0.01 285), oklch(0.90 0.01 285));
   --border-semantic: color-mix(in oklab, var(--ink-primary) 16%, transparent);
+  --border-subtle: var(--border-semantic);
 
   --text-primary: #F7F6F9;
   --text-secondary: #DFDDE4;
   --text-muted: #BDB9C6;
+  --text-main: var(--text-primary);
 
   /* Barra de Menu em Pílula (#8e8999 com tinta escura #16151A) */
   --nav-shell-bg: #8e8999;
@@ -42,10 +57,20 @@
   --nav-active-bg: #18181C;
   --nav-active-ink: #F5F4F8;
 
-  /* Destaque Focal Único — 98/2 Rule */
+  /* Destaque Focal Único — 60-30-10 & 98/2 Rule */
   --accent-point: #35acd8;
   --accent-sapphire: #0284C7;
   --accent-soft-bg: rgba(53, 172, 216, 0.14);
+  --brand-primary: var(--accent-point);
+  --brand-accent: var(--primitive-amber-500);
+  --border-focus: var(--accent-point);
+
+  /* Camada 3: Tokens de Componentes */
+  --btn-primary-bg: var(--accent-point);
+  --btn-primary-hover: color-mix(in oklab, var(--accent-point) 88%, black);
+  --btn-primary-active: color-mix(in oklab, var(--accent-point) 78%, black);
+  --card-radius: var(--radius-lg);
+  --card-padding: var(--space-6);
 
   /* Sombra Esculpida 3 Camadas + 1px Rim Light (3 Níveis de Elevação Canônicos) */
   --rim-light: rgba(255, 255, 255, 0.14);
@@ -64,6 +89,9 @@
     0 4px 8px rgba(15, 14, 18, 0.34),
     0 16px 32px -4px rgba(15, 14, 18, 0.45),
     var(--specular-rim);
+  --elevation-low: var(--shadow-elevation-1);
+  --elevation-medium: var(--shadow-elevation-2);
+  --elevation-high: var(--shadow-elevation-3);
   --shadow-card: var(--shadow-elevation-2);
   --shadow-float: var(--shadow-elevation-3);
   --shadow-inset:
@@ -132,6 +160,31 @@
   margin-block-start: 1rem;
 }
 
+/* Ordem Canônica de Estados de Links (LVHA — Seção 6.2 DESIGN.md v8.0.0) */
+a:link {
+  color: var(--accent-point);
+  text-decoration: none;
+}
+
+a:visited {
+  color: color-mix(in oklab, var(--accent-point) 80%, var(--text-secondary));
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+a:active {
+  color: var(--btn-primary-active);
+}
+
 /* Camadas de Superfície (4+1 Tonal Stack) */
 .surface-canvas {
   background-color: var(--surface-canvas);
@@ -165,7 +218,7 @@
   clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 0 100%);
 }
 
-/* Card Bento Tátil sem Bordas Duras (Iluminação 135° + Isolation) */
+/* Card Bento Tátil sem Bordas Duras (Iluminação 135° + Isolation + @container) */
 .ui-card-soft,
 .bento-card-soft {
   background-color: var(--surface-raised);
@@ -178,6 +231,7 @@
   position: relative;
   isolation: isolate;
   container-type: inline-size;
+  container-name: cardComponent;
 }
 
 .ui-card-soft:hover,
@@ -241,7 +295,8 @@
 }
 
 /* Botão Tátil Pressionável (Alvo mínimo 44x44px + Anti-Squish) */
-.ui-btn-tactile {
+.ui-btn-tactile,
+.btnBase {
   background-color: var(--surface-raised);
   color: var(--text-primary);
   font-weight: 600;
@@ -260,13 +315,15 @@
   transition: transform 0.15s var(--ease-spring), box-shadow 0.15s var(--ease-spring), color 0.15s ease;
 }
 
-.ui-btn-tactile:hover {
+.ui-btn-tactile:hover,
+.btnBase:hover {
   color: var(--accent-point);
   transform: translateY(-2px);
 }
 
 .ui-btn-tactile:active,
-.ui-btn-tactile[aria-pressed="true"] {
+.ui-btn-tactile[aria-pressed="true"],
+.btnBase:active {
   background-color: var(--surface-inset);
   transform: translateY(1px);
   box-shadow: var(--shadow-inset);
@@ -338,7 +395,8 @@
 }
 
 /* Navegação Estrutural Camada 3: Breadcrumbs (<nav aria-label="Caminho de navegação"><ol role="list">) */
-.breadcrumb-list {
+.breadcrumb-list,
+.breadcrumbsList {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -348,7 +406,8 @@
   padding: 0;
 }
 
-.breadcrumb-list li + li::before {
+.breadcrumb-list li + li::before,
+.breadcrumbsList li + li::before {
   content: "/";
   margin-inline-end: 8px;
   opacity: 0.45;
@@ -361,6 +420,93 @@
 }
 
 /* ==========================================================================
+   ADENDOS TÉCNICOS DESIGN.md v8.0.0 (Microlayouts RAM, Subgrid, Scroll Snap,
+   @starting-style e .nodeFlashing)
+   ========================================================================== */
+
+/* Adendo A: Bento Grid RAM + Subgrid + Scroll Snap + Tabs Overflow */
+.bentoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--space-6);
+  align-items: stretch;
+}
+
+.bentoCardSubgrid {
+  grid-row: span 3;
+  display: grid;
+  grid-template-rows: subgrid;
+  gap: var(--space-3);
+}
+
+.sliderGrid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 80%);
+  gap: var(--space-4);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding-block-end: var(--space-3);
+  scrollbar-width: none;
+}
+
+.sliderGrid > * {
+  scroll-snap-align: start;
+}
+
+.tabsOverflowContainer {
+  display: flex;
+  overflow-x: auto;
+  white-space: nowrap;
+  gap: var(--space-2);
+  border-block-end: 1px solid var(--border-subtle);
+  scrollbar-width: none;
+}
+
+/* Adendo B: Animação Nativa de Entrada/Saída (@starting-style & allow-discrete) */
+.modalOverlay {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.25s var(--ease-spring),
+    transform 0.25s var(--ease-spring),
+    display 0.25s allow-discrete,
+    overlay 0.25s allow-discrete;
+}
+
+.modalOverlay[open],
+.modalOverlay[data-state="open"] {
+  opacity: 1;
+  transform: translateY(0px);
+}
+
+@starting-style {
+  .modalOverlay[open],
+  .modalOverlay[data-state="open"] {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Adendo D: Feedback de Atualização de Estado (.nodeFlashing) */
+@keyframes nodeFlashPulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-soft-bg), var(--shadow-card);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--accent-soft-bg), var(--shadow-float);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent, var(--shadow-card);
+  }
+}
+
+.nodeFlashing {
+  animation: nodeFlashPulse 1.2s var(--ease-spring);
+}
+
+/* ==========================================================================
    MODERN WEB GUIDANCE (Container Queries, Fluid Scaling cqi, Browser UI Theming)
    ========================================================================== */
 
@@ -370,6 +516,7 @@ html {
   scrollbar-width: thin;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-synthesis: none;
 }
 
 ::selection {
@@ -384,8 +531,10 @@ select:user-invalid {
   outline-offset: 2px;
 }
 
-.island-container {
+.island-container,
+.cardContainer {
   container-type: inline-size;
+  container-name: cardComponent;
 }
 
 .fluid-island-title {
@@ -402,14 +551,30 @@ select:user-invalid {
   }
 }
 
-/* Acessibilidade Motora para Dispositivos Touch (Eixo 9: >= 44x44px) */
-@media (pointer: coarse) {
-  button,
-  [role="button"],
-  [role="radio"],
+/* Acessibilidade Motora para Dispositivos Touch (Eixo 9 & Seção 7: >= 44x44px / 48x48px) */
+@media (pointer: coarse), (any-pointer: coarse) {
+  button:not(.chunk-inline-btn):not(.btn-compact-touch),
+  [role="button"]:not(.chunk-inline-btn):not(.btn-compact-touch),
+  [role="radio"]:not(.btn-compact-touch) {
+    min-block-size: 40px;
+    min-inline-size: 40px;
+  }
+
   .pill-nav-item {
-    min-block-size: 44px;
-    min-inline-size: 44px;
+    min-block-size: 36px;
+    min-inline-size: 0;
+  }
+
+  .btn-compact-touch {
+    min-block-size: 32px;
+    min-inline-size: 32px;
+  }
+
+  .ui-btn-tactile,
+  .ui-btn-primary,
+  .btnBase {
+    min-block-size: 48px;
+    min-inline-size: 48px;
   }
 }
 
@@ -432,4 +597,3 @@ select:user-invalid {
     animation: none !important;
   }
 }
-

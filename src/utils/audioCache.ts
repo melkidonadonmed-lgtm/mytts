@@ -45,6 +45,7 @@ export interface SynthesizeWithCacheParams {
     emotion?: string;
   };
   signal?: AbortSignal;
+  bypassCache?: boolean;
 }
 
 export interface SynthesizeCacheResult {
@@ -54,7 +55,7 @@ export interface SynthesizeCacheResult {
   key: string;
 }
 
-const DB_NAME = 'mytts_audio_cache';
+const DB_NAME = 'mytts_audio_cache_v2';
 const DB_VERSION = 1;
 const STORE_NAME = 'audio_records';
 const MAX_CACHE_ENTRIES = 300;
@@ -361,17 +362,19 @@ export async function getCachedKeySet(keys: string[]): Promise<Set<string>> {
 export async function synthesizeWithCache(
   params: SynthesizeWithCacheParams
 ): Promise<SynthesizeCacheResult> {
-  const { endpoint, body, cacheKey, metadata, signal } = params;
+  const { endpoint, body, cacheKey, metadata, signal, bypassCache = false } = params;
 
-  // 1. Tentar Cache
-  const cached = await getCachedAudio(cacheKey);
-  if (cached && cached.audioBase64) {
-    return {
-      audioBase64: cached.audioBase64,
-      durationSec: cached.durationSec,
-      fromCache: true,
-      key: cacheKey,
-    };
+  // 1. Tentar Cache (exceto quando re-síntese explícita for solicitada)
+  if (!bypassCache) {
+    const cached = await getCachedAudio(cacheKey);
+    if (cached && cached.audioBase64) {
+      return {
+        audioBase64: cached.audioBase64,
+        durationSec: cached.durationSec,
+        fromCache: true,
+        key: cacheKey,
+      };
+    }
   }
 
   // 2. Fetch de Rede

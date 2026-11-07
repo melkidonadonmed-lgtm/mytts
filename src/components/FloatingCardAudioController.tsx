@@ -1,7 +1,8 @@
 /**
- * Controlador flutuante de áudio por card — sincronizado com a voz exclusiva do card focado.
+ * Pílula de Produtor (Producer Pill) — controlador de áudio colapsável
+ * com modo Linha Animada (compacto) e modo Estúdio Expandido (scrubber, velocidade e exportação).
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { GoogleIcon } from './GoogleIcon';
 
 export interface FloatingCardAudioControllerProps {
@@ -49,6 +50,9 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
   onOpenExport,
   onDownloadFocusedWav,
 }) => {
+  // Inicia em modo Pílula Compacta (Linha Animada) para fluidez visual máxima, expandindo sob demanda
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const formatTime = (secs: number) => {
     if (!secs || isNaN(secs) || secs < 0) return '0:00';
     const m = Math.floor(secs / 60);
@@ -56,23 +60,57 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const languageLabels: Record<'en' | 'it' | 'ja', { title: string; flag: string; badge: string }> = {
-    en: { title: 'Inglês', flag: 'EN', badge: 'US Native' },
-    it: { title: 'Italiano', flag: 'IT', badge: 'Coloquial' },
-    ja: { title: 'Japonês', flag: 'JA', badge: 'Tokyo Std' },
+  const languageLabels: Record<'en' | 'it' | 'ja', { title: string; flag: string }> = {
+    en: { title: 'Inglês', flag: 'EN' },
+    it: { title: 'Italiano', flag: 'IT' },
+    ja: { title: 'Japonês', flag: 'JA' },
   };
 
   const progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   return (
-    <div data-state="idle" aria-busy={isLoading} className="w-full dock-matte rounded-2xl p-3 sm:p-4 my-2 transition-all">
-      <div className="flex flex-col gap-3">
-        
-        {/* Linha Superior: Seletor de Card em Pílula (#8e8999) + Status Sincronizado da Voz do Card */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800/80">
-          
-          {/* Seletor Tátil dos 3 Cards mostrando a voz atribuída a cada card */}
-          <div className="pill-nav-shell !rounded-2xl sm:!rounded-full grid grid-cols-3 sm:inline-flex items-center gap-1 w-full sm:w-auto p-1">
+    <div
+      data-state={isLoading ? 'loading' : isPlaying ? 'pressed' : 'idle'}
+      aria-busy={isLoading}
+      className="w-full my-1 transition-all"
+    >
+      {/* 1. PÍLULA DE PRODUTOR COMPACTA + LINHA ANIMADA (Sempre visível e limpa) */}
+      <div
+        className={`card-matte px-3 py-2.5 md:py-2 flex flex-col md:flex-row md:items-center justify-between gap-2 transition-all ${
+          isExpanded ? 'rounded-t-2xl border-b-0' : 'rounded-2xl md:rounded-full shadow-md'
+        }`}
+      >
+        {/* Linha 1 Mobile / Esquerda Desktop: Botão Play/Pause + Pílulas Rápidas de Idioma */}
+        <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2 min-w-0">
+          <button
+            type="button"
+            onClick={onTogglePlay}
+            disabled={isLoading}
+            className="btn-matte-amber h-9 px-3.5 rounded-full text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
+            title={
+              isPlaying
+                ? 'Pausar reprodução'
+                : `Ouvir ${languageLabels[selectedLanguage].title} (${selectedVoice})`
+            }
+          >
+            {isLoading ? (
+              <GoogleIcon name="progress_activity" size={16} className="animate-spin text-white" />
+            ) : isPlaying ? (
+              <GoogleIcon name="pause" size={16} filled className="text-white" />
+            ) : (
+              <GoogleIcon name="play_arrow" size={16} filled className="text-white" />
+            )}
+            <span className="truncate">
+              {isLoading
+                ? 'Gerando...'
+                : isPlaying
+                ? 'Pausar'
+                : `${languageLabels[selectedLanguage].flag} · ${selectedVoice}`}
+            </span>
+          </button>
+
+          {/* Seletor Rápido dos 3 Idiomas dentro da Pílula */}
+          <div className="inline-flex items-center gap-1 surface-inset p-1 rounded-full shrink-0">
             {(['en', 'it', 'ja'] as const).map((lang) => {
               const isActive = selectedLanguage === lang;
               const meta = languageLabels[lang];
@@ -81,68 +119,101 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 <button
                   key={lang}
                   type="button"
-                  data-active={isActive}
+                  aria-pressed={isActive}
                   onClick={() => onSelectLanguage(lang)}
-                  className="pill-nav-item min-h-[38px] px-1.5 sm:px-3 py-1.5 text-[11px] sm:text-xs inline-flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer min-w-0"
-                  title={`Focar card ${meta.title} (Voz: ${vName})`}
+                  className={`btn-compact-touch h-7 px-2.5 rounded-full text-[11px] font-bold inline-flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                    isActive
+                      ? 'btn-matte-amber text-white shadow-xs'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                  title={`Selecionar ${meta.title} (${vName})`}
                 >
-                  <span className="text-[10px] font-mono font-bold px-1 py-0.5 rounded bg-black/20 shrink-0">{meta.flag}</span>
-                  <span className="truncate">{meta.title}</span>
-                  <span className="text-[10px] font-mono opacity-80 hidden md:inline shrink-0">· {vName}</span>
+                  <span className="font-mono text-[10px]">{meta.flag}</span>
+                  <span className="hidden lg:inline truncate">{vName}</span>
                   {isCachedByLang?.[lang] && (
-                    <span className="text-[9px] font-mono tabular-nums font-bold leading-none text-emerald-300 hidden sm:inline shrink-0" title="Áudio pronto no cache local (0ms)">
-                      0ms
-                    </span>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isActive ? 'bg-white' : 'bg-emerald-400'
+                      }`}
+                      title="Cache 0ms pronto"
+                    />
                   )}
                 </button>
               );
             })}
           </div>
+        </div>
 
-          {/* Indicador Único Sincronizado + Modo Trilogia Sequencial */}
-          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-            <div
-              className="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1.5 rounded-xl text-xs min-w-0"
-              title="A voz exibida aqui acompanha automaticamente o card selecionado acima"
-            >
-              <GoogleIcon name="record_voice_over" size={15} className="text-amber-400 shrink-0" />
-              <span className="text-secondary text-[11px] truncate">Voz sincronizada do card:</span>
-              <strong className="text-primary font-mono text-xs shrink-0">{selectedVoice}</strong>
+        {/* Linha 2 Mobile / Centro+Direita Desktop: LINHA ANIMADA DE PROGRESSO + AÇÕES */}
+        <div className="w-full md:flex-1 flex items-center justify-between gap-2 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-2 px-1">
+            <div className="relative flex-1 h-2 rounded-full surface-inset overflow-hidden flex items-center">
+              <div
+                className={`h-full rounded-full transition-all duration-150 ${
+                  isPlaying || isLoading
+                    ? 'bg-gradient-to-r from-amber-500 via-emerald-400 to-amber-300 animate-pulse'
+                    : 'bg-amber-500/70'
+                }`}
+                style={{
+                  width: `${
+                    isPlaying || currentTime > 0 ? Math.max(8, progressPercent) : isCached ? 100 : 22
+                  }%`,
+                }}
+              />
             </div>
+            <span className="text-[10px] font-mono tabular-nums text-secondary shrink-0">
+              {duration > 0 ? `${formatTime(currentTime)} / ${formatTime(duration)}` : '0:00'}
+            </span>
+          </div>
 
+          {/* Direita: Trilogia + Botão Expandir/Recolher Pílula */}
+          <div className="flex items-center gap-1.5 shrink-0">
             {onPlaySequence && (
               <button
                 type="button"
                 onClick={onPlaySequence}
                 disabled={isLoading}
-                title="Tocar os 3 cards em sequência respeitando a voz individual de cada card"
-                className={`btn-matte px-2.5 py-1.5 text-xs rounded-xl border transition-all shrink-0 ${
+                title="Tocar os 3 idiomas em sequência (EN → IT → JA)"
+                className={`btn-compact-touch h-8 px-2.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition-all ${
                   isPlayingSequence
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse font-bold'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 animate-pulse font-bold'
                     : 'btn-matte-dark text-secondary hover:text-primary'
                 }`}
               >
-                <GoogleIcon name="queue_music" size={16} className="text-amber-400" />
-                <span className="hidden md:inline font-medium">Trilogia (EN→IT→JA)</span>
-                <span className="md:hidden font-medium text-[11px]">Trilogia</span>
+                <GoogleIcon name="queue_music" size={15} className="text-amber-400" />
+                <span className="hidden sm:inline">Trilogia</span>
                 {isPlayingSequence && sequenceStep && (
-                  <span className="text-[10px] font-mono bg-amber-500 text-white px-1.5 py-0.2 rounded font-bold">
+                  <span className="text-[10px] font-mono bg-amber-500 text-white px-1 rounded">
                     {sequenceStep}
                   </span>
                 )}
               </button>
             )}
+
+            <button
+              type="button"
+              aria-expanded={isExpanded}
+              onClick={() => setIsExpanded((prev) => !prev)}
+              className="btn-compact-touch h-8 px-2.5 rounded-full btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+              title={isExpanded ? 'Recolher para Linha Animada' : 'Expandir controles de Produtor'}
+            >
+              <GoogleIcon name={isExpanded ? 'expand_less' : 'tune'} size={15} className="text-amber-400" />
+              <span className="hidden sm:inline">{isExpanded ? 'Linha' : 'Produtor'}</span>
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Linha Central: Barra de Progresso (Scrubber) Tátil com Tabular-Nums */}
-        <div className="flex items-center gap-3 w-full">
-          <span className="text-[11px] font-mono tabular-nums text-secondary w-9 text-right shrink-0">
-            {formatTime(currentTime)}
-          </span>
-
-          <div className="relative flex-1 flex items-center">
+      {/* 2. GAVETA EXPANDIDA DO PRODUTOR (Scrubber fino, Ritmo, Download WAV e Exportação) */}
+      {isExpanded && (
+        <div className="card-matte rounded-b-2xl p-3.5 border-t border-slate-800/60 flex flex-col gap-3 animate-in fade-in">
+          {/* Scrubber de Precisão */}
+          <div className="flex items-center gap-3 w-full">
+            <span className="text-[11px] font-mono tabular-nums text-secondary w-9 text-right shrink-0">
+              {formatTime(currentTime)}
+            </span>
             <input
+              aria-label="Posição de reprodução do áudio"
               type="range"
               min={0}
               max={duration > 0 ? duration : 100}
@@ -150,77 +221,38 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               value={currentTime}
               disabled={duration <= 0}
               onChange={(e) => onSeek(parseFloat(e.target.value))}
-              className="slider-matte w-full"
+              className="slider-matte flex-1"
               style={{
                 background: `linear-gradient(to right, #f59e0b ${progressPercent}%, #1e293b ${progressPercent}%)`,
               }}
-              title="Arrastar para buscar posição no áudio"
             />
+            <span className="text-[11px] font-mono tabular-nums text-secondary w-9 shrink-0">
+              {formatTime(duration)}
+            </span>
           </div>
 
-          <span className="text-[11px] font-mono tabular-nums text-secondary w-9 shrink-0">
-            {formatTime(duration)}
-          </span>
-        </div>
+          {/* Controles de Produtor: Replay, WAV, Exportar e Ritmo */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={onReplay}
+                disabled={duration <= 0}
+                className="btn-matte-dark h-8 px-2.5 rounded-xl text-xs text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+                title="Reiniciar áudio"
+              >
+                <GoogleIcon name="replay" size={15} />
+                <span>Reiniciar</span>
+              </button>
 
-        {/* Linha Inferior: Controles Principais de Áudio (Play/Pause, Replay, Download WAV, Exportar, Velocidade) */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2.5 pt-1">
-          
-          {/* Lado Esquerdo: Botão Play/Pause Principal + Replay */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              disabled={isLoading}
-              className="btn-matte btn-matte-amber h-11 px-4 sm:px-5 text-xs sm:text-sm rounded-xl font-bold flex-1 sm:flex-initial flex items-center justify-center gap-2 text-white min-w-0"
-              title={isPlaying ? 'Pausar áudio' : `Ouvir ${languageLabels[selectedLanguage].title} (${selectedVoice})`}
-            >
-              {isLoading ? (
-                <>
-                  <GoogleIcon name="progress_activity" size={20} className="animate-spin text-white" />
-                  <span className="truncate">Sintetizando ({selectedVoice})...</span>
-                </>
-              ) : isPlaying ? (
-                <>
-                  <GoogleIcon name="pause" size={20} filled className="text-white" />
-                  <span className="truncate">Pausar ({selectedVoice})</span>
-                </>
-              ) : (
-                <>
-                  <GoogleIcon name="play_arrow" size={20} filled className="text-white" />
-                  <span className="truncate">Ouvir {languageLabels[selectedLanguage].title} · {selectedVoice}</span>
-                  {isCached && (
-                    <span className="text-[10px] font-mono tabular-nums bg-white/20 text-white px-1.5 py-0.5 rounded font-bold shrink-0">
-                      0ms
-                    </span>
-                  )}
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={onReplay}
-              disabled={duration <= 0}
-              className="btn-matte btn-matte-dark h-11 w-11 rounded-xl text-secondary hover:text-primary shrink-0"
-              title="Reiniciar áudio do início"
-            >
-              <GoogleIcon name="replay" size={20} />
-            </button>
-          </div>
-
-          {/* Lado Direito: Download WAV, Exportação Multi-Formato e Velocidade */}
-          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto">
-            <div className="flex items-center gap-1 sm:gap-1.5">
               {onDownloadFocusedWav && (
                 <button
                   type="button"
                   onClick={onDownloadFocusedWav}
-                  className="btn-matte btn-matte-dark h-9 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs text-secondary hover:text-primary flex items-center gap-1 cursor-pointer font-medium"
-                  title={`Baixar WAV 24kHz do card ${languageLabels[selectedLanguage].title} (${selectedVoice})`}
+                  className="btn-matte-dark h-8 px-2.5 rounded-xl text-xs text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
                 >
-                  <GoogleIcon name="graphic_eq" size={16} className="text-sky-400" />
-                  <span>WAV</span>
+                  <GoogleIcon name="graphic_eq" size={15} className="text-sky-400" />
+                  <span>Baixar WAV</span>
                 </button>
               )}
 
@@ -228,27 +260,23 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 <button
                   type="button"
                   onClick={onOpenExport}
-                  className="btn-matte btn-matte-dark h-9 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs text-amber-300 hover:text-white flex items-center gap-1 border border-amber-500/30 hover:border-amber-500/50 transition-all cursor-pointer font-medium"
-                  title="Exportar Chunks e Áudio desta interação (Anki CSV, Markdown, JSON, WAV ou Deck)"
+                  className="btn-matte-dark h-8 px-3 rounded-xl text-xs text-amber-300 hover:text-primary inline-flex items-center gap-1 cursor-pointer"
                 >
-                  <GoogleIcon name="download" size={16} className="text-amber-400" />
-                  <span className="hidden sm:inline">Exportar (CSV / MD / WAV)</span>
-                  <span className="sm:hidden">Exportar</span>
+                  <GoogleIcon name="download" size={15} className="text-amber-400" />
+                  <span>Exportar (CSV / MD / WAV)</span>
                 </button>
               )}
             </div>
 
-            {/* Seletor Tátil de Velocidade */}
-            <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
-              <span className="text-[10px] font-mono uppercase text-secondary px-1 hidden sm:inline">
-                Ritmo:
-              </span>
+            <div className="flex items-center gap-1 surface-inset p-1 rounded-xl">
+              <span className="text-[10px] font-mono uppercase text-secondary px-1.5">Ritmo:</span>
               {[0.8, 1.0, 1.25, 1.5].map((s) => (
                 <button
                   key={s}
                   type="button"
+                  aria-pressed={speed === s}
                   onClick={() => onChangeSpeed(s)}
-                  className={`btn-matte px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs rounded-lg font-mono tabular-nums transition-all ${
+                  className={`btn-compact-touch px-2 py-0.5 text-[11px] rounded-lg font-mono tabular-nums cursor-pointer transition-all ${
                     speed === s
                       ? 'btn-matte-amber text-white font-bold'
                       : 'text-secondary hover:text-primary'
@@ -260,8 +288,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
             </div>
           </div>
         </div>
-
-      </div>
+      )}
     </div>
   );
 };

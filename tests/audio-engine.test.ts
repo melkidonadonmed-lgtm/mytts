@@ -142,9 +142,12 @@ import {
   sanitizeUserId,
   capText,
   formatForTts,
+  formatGeminiError,
   ALLOWED_PREVIEW_VOICES,
   ALLOWED_PREVIEW_LANGS,
 } from '../src/server/audioContainer';
+import { getConversationStorage } from '../src/services/conversationStorage';
+import { detectYoutubeUrl } from '../src/services/polyglotClient';
 
 test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Sanitização de Fronteira', () => {
   // 1. ARRANGE
@@ -160,6 +163,10 @@ test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Saniti
   const invalidUser = sanitizeUserId('bad/user;drop');
   const capped = capText('abcdef', 4);
   const formattedTts = formatForTts('Olá <breath> mundo |mhm| <b>enfase</b>');
+  const formatted401Err = formatGeminiError(
+    new Error('{"error":{"code":401,"message":"The bound service account is deleted or disabled.","reason":"ACCOUNT_STATE_INVALID"}}'),
+    'Falha genérica'
+  );
 
   // 3. ASSERT
   assert.strictEqual(wavBuffer.byteLength, 44 + 4800);
@@ -175,6 +182,164 @@ test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Saniti
   assert.strictEqual(formattedTts, 'Olá [deep breath] mundo mhm... enfase');
   assert.strictEqual(ALLOWED_PREVIEW_VOICES.has('Puck'), true);
   assert.strictEqual(ALLOWED_PREVIEW_LANGS.has('it-IT'), true);
+  assert.ok(formatted401Err.includes('Service Account vinculada a esta chave está desativada'));
+});
+
+test('Suite 15: Persistência de Histórico de Conversas por Conta Google e Detecção de YouTube', async () => {
+  const storage = getConversationStorage();
+  const testUserId = 'google_test_suite_15';
+  const testConvId = `conv_test_${Date.now()}`;
+
+  const saved = await storage.upsert(testUserId, {
+    id: testConvId,
+    userId: testUserId,
+    userName: 'Melki Teste',
+    userEmail: 'melki@gmail.com',
+    title: 'Estudo de Vídeo do YouTube',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    pinned: true,
+    originMode: 'youtube',
+    messages: [],
+  });
+
+  const listed = await storage.listByUser(testUserId);
+  const removed = await storage.remove(testUserId, testConvId);
+  const detectedYt = detectYoutubeUrl('Veja este vídeo https://www.youtube.com/watch?v=dQw4w9WgXcQ agora');
+
+  assert.strictEqual(saved.id, testConvId);
+  assert.ok(listed.some((c) => c.id === testConvId));
+  assert.strictEqual(removed, true);
+  assert.strictEqual(detectedYt, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+});
+
+import {
+  getVoiceAcousticStyle,
+  buildExpressiveTtsTranscript,
+} from '../src/utils/prosodyEngine';
+
+test('Suite 16: Gemini 3.8 Flash TTS — 12 Emoções, 5 Personas Acústicas e Tags Vocais Canônicas (<breath>, <short pause>, <chuckle>)', () => {
+  // 1. ARRANGE: Todas as 6 emoções de debate + 4 solo + expressive/calm devem produzir estilos únicos (nunca cair em natural por engano)
+  const allEmotions = [
+    'natural',
+    'storytelling',
+    'technical',
+    'spontaneous',
+    'thoughtful',
+    'inquisitive',
+    'skeptical',
+    'ironic',
+    'passionate',
+    'resolute',
+    'expressive',
+    'calm',
+  ];
+  const allVoices = ['Puck', 'Kore', 'Aoede', 'Fenrir', 'Enceladus'];
+
+  // 2. ACT
+  const emotionStyles = allEmotions.map((emo) => getEmotionStyle(emo, 1.0, 'pt-BR'));
+  const uniqueEmotionStyles = new Set(emotionStyles);
+
+  const voiceStyles = allVoices.map((voice) =>
+    getVoiceAcousticStyle(voice, 'passionate', 1.0, 'pt-BR')
+  );
+  const uniqueVoiceStyles = new Set(voiceStyles);
+
+  const bracketInput =
+    '[deep breath] Olha... [sighs] isso muda tudo! [laughs] <script>evil()</script> <b>Mesmo</b> assim [pause] seguimos |mhm|.';
+  const normalizedTranscript = buildExpressiveTtsTranscript(bracketInput, {
+    enabled: false,
+    language: 'pt-BR',
+  });
+
+  const longParagraphs =
+    'A arquitetura de síntese neural moderna exige controle fino sobre a cadência respiratória, pois ouvintes humanos percebem imediatamente quando uma frase longa carece de pausas orgânicas e inflexão emocional genuína.\n\nNo segundo parágrafo continuamos a reflexão com serenidade.';
+  const autoProsodyTranscript = buildExpressiveTtsTranscript(longParagraphs, {
+    enabled: true,
+    language: 'pt-BR',
+    emotion: 'storytelling',
+    injectNaturalBreaths: true,
+  });
+
+  const japaneseTranscript = buildExpressiveTtsTranscript(
+    '[breath] こんにちは、これは自然な日本語のテストです。',
+    { enabled: true, language: 'ja-JP' }
+  );
+
+  // Casos de borda adicionais: tags estendidas do Gemini 3.8, oração longa iniciada por <breath> com travessão e parágrafos curtos consecutivos
+  const extendedVocalInput =
+    '[throat clear] <exhales> Olha... <snicker> <groan> isso é sério.';
+  const extendedNormalized = buildExpressiveTtsTranscript(extendedVocalInput, {
+    enabled: false,
+    language: 'pt-BR',
+  });
+
+  const leadingBreathLongSentence =
+    '<breath> Olha, quando analisamos a estrutura profunda dessa arquitetura neural em tempo real — percebemos imediatamente que cada pausa respiratória altera a percepção humana de naturalidade e presença acústica no estúdio.';
+  const leadingBreathOutput = buildExpressiveTtsTranscript(leadingBreathLongSentence, {
+    enabled: true,
+    language: 'pt-BR',
+    injectNaturalBreaths: true,
+  });
+
+  const shortDialogParagraphs = 'Sim, claro.\n\nCom certeza!\n\nConcordo plenamente.';
+  const shortDialogOutput = buildExpressiveTtsTranscript(shortDialogParagraphs, {
+    enabled: true,
+    language: 'pt-BR',
+    injectNaturalBreaths: true,
+  });
+
+  // 3. ASSERT
+  assert.strictEqual(
+    uniqueEmotionStyles.size,
+    allEmotions.length,
+    'Cada uma das 12 emoções deve produzir uma diretriz acústica única'
+  );
+  assert.strictEqual(
+    uniqueVoiceStyles.size,
+    allVoices.length,
+    'Cada uma das 5 vozes deve ter um perfil acústico exclusivo em getVoiceAcousticStyle'
+  );
+  assert.ok(voiceStyles[0].includes('Voice Persona (Puck)'));
+  assert.ok(voiceStyles[4].includes('Voice Persona (Enceladus)'));
+  for (const style of voiceStyles) {
+    assert.ok(
+      !/<[^>]+>/.test(style),
+      'speechMetadata.style nunca deve conter tags angulares literais (<breath>, etc.) para evitar conflito com o texto falado'
+    );
+  }
+
+  assert.ok(normalizedTranscript.includes('<heavy breath>'));
+  assert.ok(normalizedTranscript.includes('<sigh>'));
+  assert.ok(normalizedTranscript.includes('<laugh>'));
+  assert.ok(normalizedTranscript.includes('<short pause>'));
+  assert.ok(normalizedTranscript.includes('|mhm|'));
+  assert.ok(!normalizedTranscript.includes('<script>'));
+  assert.ok(!normalizedTranscript.includes('<b>'));
+
+  assert.ok(extendedNormalized.includes('<throat-clearing>'));
+  assert.ok(extendedNormalized.includes('<exhales>'));
+  assert.ok(extendedNormalized.includes('<snicker>'));
+  assert.ok(extendedNormalized.includes('<groan>'));
+
+  assert.ok(
+    autoProsodyTranscript.includes('<short pause> <breath>'),
+    'Orações longas e quebras de parágrafo devem receber marcadores orgânicos <short pause> <breath>'
+  );
+  const breathCountInLeadingSentence = (leadingBreathOutput.match(/<breath>/g) || []).length;
+  assert.ok(
+    breathCountInLeadingSentence >= 2,
+    'Oração longa (>20 palavras) iniciada por <breath> ainda deve receber respiração orgânica no meio da frase'
+  );
+  assert.ok(
+    !shortDialogOutput.includes('<breath>'),
+    'Parágrafos curtos consecutivos (< 6 palavras) não devem receber spam de <short pause> <breath>'
+  );
+  assert.strictEqual(
+    japaneseTranscript,
+    '<breath> こんにちは、これは自然な日本語のテストです。'
+  );
+  assert.strictEqual(buildExpressiveTtsTranscript(''), '');
 });
 
 export async function runContractTests(): Promise<number> {

@@ -1,11 +1,20 @@
 import type { ChunkItem, TargetLang } from '../types/chunks';
-import type { FlashcardItem, AlignedChunk } from '../types/polyglot';
+import type {
+  FlashcardItem,
+  AlignedChunk,
+  AgentPersona,
+  AgentExploreSource,
+  LiveAgentToolCallResult,
+  SavedConversation,
+  MessageOriginMode,
+} from '../types/polyglot';
 import {
   FAVORITE_VOICES_STORAGE_KEY,
   DEFAULT_FAVORITE_VOICES_BY_LANG,
   sanitizeFavoriteVoices,
 } from '../types/voices';
 import { parseApiJson } from './apiClient';
+import { getAuthHeaders } from './authService';
 
 export { FAVORITE_VOICES_STORAGE_KEY, DEFAULT_FAVORITE_VOICES_BY_LANG, sanitizeFavoriteVoices };
 
@@ -27,6 +36,13 @@ export const saveFavoriteVoicesByLanguage = (
   return clean;
 };
 
+export function detectYoutubeUrl(text: string): string | null {
+  const match = text.match(
+    /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)[A-Za-z0-9_-]{6,}(?:[^\s"']*)?/i
+  );
+  return match ? match[0] : null;
+}
+
 export async function requestTranslateParallelChunks(text: string): Promise<{
   ok: boolean;
   success?: boolean;
@@ -36,10 +52,105 @@ export async function requestTranslateParallelChunks(text: string): Promise<{
 }> {
   const resp = await fetch('/api/translate-parallel-chunks', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ text }),
   });
   return parseApiJson(resp);
+}
+
+export async function requestLiveAgentTurn(params: {
+  text?: string;
+  audioBase64?: string;
+  mimeType?: string;
+  persona: AgentPersona;
+  history?: Array<{ role: string; text: string }>;
+}): Promise<{
+  ok: boolean;
+  success?: boolean;
+  persona?: AgentPersona;
+  userTranscript?: string;
+  agentReplyPtBr?: string;
+  chunks?: AlignedChunk[];
+  fullText?: { en: string; it: string; ja: string };
+  toolCallsExecuted?: LiveAgentToolCallResult[];
+  fallback?: boolean;
+  warning?: string;
+  error?: string;
+}> {
+  const resp = await fetch('/api/live-agent-turn', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(params),
+  });
+  return parseApiJson(resp);
+}
+
+export async function requestAgentExplore(params: {
+  prompt: string;
+  youtubeUrl?: string;
+  enableSearch?: boolean;
+}): Promise<{
+  ok: boolean;
+  success?: boolean;
+  originMode?: MessageOriginMode;
+  youtubeUrl?: string;
+  agentReplyPtBr?: string;
+  sources?: AgentExploreSource[];
+  chunks?: AlignedChunk[];
+  fullText?: { en: string; it: string; ja: string };
+  toolCallsExecuted?: LiveAgentToolCallResult[];
+  fallback?: boolean;
+  warning?: string;
+  error?: string;
+}> {
+  const resp = await fetch('/api/agent-explore', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(params),
+  });
+  return parseApiJson(resp);
+}
+
+export async function requestListUserConversations(): Promise<SavedConversation[]> {
+  try {
+    const resp = await fetch('/api/conversations', {
+      headers: { ...getAuthHeaders() },
+    });
+    if (!resp.ok) return [];
+    const data = await parseApiJson<{ conversations?: SavedConversation[] }>(resp);
+    return Array.isArray(data.conversations) ? data.conversations : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function requestSaveUserConversation(
+  conversation: SavedConversation
+): Promise<SavedConversation | null> {
+  try {
+    const resp = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(conversation),
+    });
+    if (!resp.ok) return null;
+    const data = await parseApiJson<{ conversation?: SavedConversation }>(resp);
+    return data.conversation || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function requestDeleteUserConversation(conversationId: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function requestGenerateFlashcard(
@@ -48,7 +159,7 @@ export async function requestGenerateFlashcard(
 ): Promise<{ ok: boolean; success?: boolean; card?: FlashcardItem; error?: string }> {
   const resp = await fetch('/api/generate-flashcard', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ chunkText, language }),
   });
   return parseApiJson(resp);
@@ -59,7 +170,7 @@ export async function requestFetchUserChunks(
   userId: string
 ): Promise<ChunkItem[]> {
   const res = await fetch(`/api/chunks?lang=${lang}`, {
-    headers: { 'X-User-Id': userId },
+    headers: { ...getAuthHeaders(), 'X-User-Id': userId },
   });
   if (!res.ok) return [];
   const data = await parseApiJson<{ chunks?: ChunkItem[] }>(res);
@@ -69,7 +180,7 @@ export async function requestFetchUserChunks(
 export async function requestDeleteUserChunk(id: string, userId: string): Promise<boolean> {
   const res = await fetch(`/api/chunks/${id}`, {
     method: 'DELETE',
-    headers: { 'X-User-Id': userId },
+    headers: { ...getAuthHeaders(), 'X-User-Id': userId },
   });
   return res.ok;
 }
@@ -84,6 +195,7 @@ export async function requestGenerateChunks(payload: {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
       'X-User-Id': payload.userId,
     },
     body: JSON.stringify({

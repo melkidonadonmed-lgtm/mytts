@@ -7,7 +7,7 @@ import {
   Pause
 } from 'lucide-react';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
-import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
+import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback, stopBrowserSpeech } from '../utils/audio';
 import { requestPreviewVoice } from '../services/apiClient';
 
 interface VoiceLibraryProps {
@@ -27,6 +27,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
   React.useEffect(() => {
     return () => {
       if (audioRef.current) audioRef.current.pause();
+      stopBrowserSpeech();
       revokeAudioUrl(currentAudioUrlRef.current);
     };
   }, []);
@@ -34,6 +35,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
   const previewVoice = async (voice: VoiceProfile): Promise<void> => {
     if (playingVoiceId === voice.id) {
       if (audioRef.current) audioRef.current.pause();
+      stopBrowserSpeech();
       setPlayingVoiceId(null);
       return;
     }
@@ -47,6 +49,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
       });
       if (data.ok && data.success && data.audioBase64) {
         if (audioRef.current) audioRef.current.pause();
+        stopBrowserSpeech();
         revokeAudioUrl(currentAudioUrlRef.current);
         const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
         currentAudioUrlRef.current = blobUrl;
@@ -64,9 +67,25 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
           revokeAudioUrl(blobUrl);
         };
         await audio.play();
+      } else {
+        throw new Error(data.error || 'Falha ao obter amostra neural.');
       }
     } catch (err: unknown) {
-      console.error('Falha ao ouvir amostra de voz:', err);
+      console.warn('Falha ao ouvir amostra neural (acionando fallback Web Speech):', err);
+      const started = speakBrowserFallback(
+        `Olá, sou ${voice.name}. Esta é uma demonstração de síntese da minha voz no estúdio.`,
+        {
+          lang: 'pt-BR',
+          rate: 1.0,
+          voiceId: voice.id,
+          onStart: () => setPlayingVoiceId(voice.id),
+          onEnd: () => setPlayingVoiceId(null),
+          onError: () => setPlayingVoiceId(null),
+        }
+      );
+      if (started) {
+        setPlayingVoiceId(voice.id);
+      }
     } finally {
       setLoadingVoiceId(null);
     }
@@ -79,7 +98,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-800 dark:text-purple-300 text-xs font-semibold mb-3">
           <Volume2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-          <span>Catálogo Neural Gemini 3.1 Flash</span>
+          <span>Catálogo Neural Gemini 3.8 Flash TTS</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Biblioteca de Vozes Neurais
