@@ -95,3 +95,18 @@ export function formatGeminiError(error: unknown, fallbackMessage: string): stri
   }
   return raw || fallbackMessage;
 }
+
+/**
+ * Constrói o grafo `filter_complex` do FFmpeg para mixagem broadcast com sidechain ducking:
+ * - Normaliza ambas as entradas para 44.1 kHz (`aresample=44100`)
+ * - Divide o canal de voz via `asplit=2[voice_sc][voice_mix]` (impedindo erro `Invalid stream specifier: voice`)
+ * - Aplica `[bg][voice_sc]sidechaincompress` (comprimindo a trilha `[bg]` quando `[voice_sc]` fala)
+ * - Mixa `[voice_mix][ducked]amix=inputs=2:duration=first`
+ */
+export function buildFfmpegMixFilterComplex(
+  voiceVol: string,
+  bgVol: string,
+  ratio: number
+): string {
+  return `[0:a]aresample=44100,volume=${voiceVol},asplit=2[voice_sc][voice_mix];[1:a]aresample=44100,volume=${bgVol}[bg];[bg][voice_sc]sidechaincompress=threshold=0.08:ratio=${ratio}:attack=100:release=500[ducked];[voice_mix][ducked]amix=inputs=2:duration=first:dropout_transition=2[out]`;
+}

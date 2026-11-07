@@ -1,7 +1,7 @@
 /**
  * Motor de Auto-Prosódia, Direção Vocal e Calibração Fonética Multilíngue (pt-BR, en-US, it-IT, ja-JP)
  *
- * Responsável por calibrar o `speech_metadata.style` (Director's Chair) do Gemini 3.8 Flash TTS,
+ * Responsável por calibrar o `speechMetadata.style` (Director's Chair) do Gemini 3.8 Flash TTS,
  * diferenciar a acústica de cada persona vocal (Puck, Kore, Aoede, Fenrir, Enceladus)
  * e preservar/injetar marcadores vocais canônicos (`<breath>`, `<short pause>`, `<sigh>`, `<laugh>`, `<chuckle>`).
  */
@@ -33,7 +33,7 @@ export interface ExpressiveTranscriptOptions extends ProsodyOptions {
 
 /**
  * Perfis acústicos e respiratórios exclusivos de cada uma das 5 vozes oficiais do estúdio.
- * Usados em `speech_metadata.style` do Gemini 3.8 Flash TTS para garantir identidade timbrística real.
+ * Usados em `speechMetadata.style` do Gemini 3.8 Flash TTS para garantir identidade timbrística real.
  */
 const VOICE_ACOUSTIC_PERSONAS: Record<string, string> = {
   Puck:
@@ -48,7 +48,7 @@ const VOICE_ACOUSTIC_PERSONAS: Record<string, string> = {
     'Voice Persona (Enceladus): Intimate, breathy, close-mic atmospheric voice with soft velvet texture, audible gentle inhalations and exhalations, contemplative warmth, and deeply human micro-pauses.',
 };
 
-const CANONICAL_VOCAL_TAGS = new Set([
+export const CANONICAL_VOCAL_TAGS = new Set([
   'argh',
   'breath',
   'heavy breath',
@@ -85,12 +85,51 @@ const CANONICAL_VOCAL_TAGS = new Set([
   'throat clear',
   'tsk',
   'whimper',
+  'whisper',
   'whispers',
   'whispering',
   'yawn',
   'short pause',
   'long pause',
 ]);
+
+export interface TtsSpeechMetadataPart {
+  text: string;
+  speechMetadata?: {
+    speaker: string;
+    style: string;
+  };
+}
+
+/**
+ * Monta o `Part` de entrada para síntese neural de voz conforme o modelo alvo:
+ * - Modelos `gemini-3.8-*` recebem `speechMetadata: { speaker, style }` em camelCase.
+ * - Modelos legados na cascata (`gemini-3.1-*`, `gemini-2.5-*`) têm a direção acústica
+ *   convertida em prompt textual inline e `speechMetadata` removido para evitar rejeição 400 ou descarte silencioso.
+ */
+export function buildTtsModelPart(
+  spokenText: string,
+  speaker: string,
+  stylePrompt?: string,
+  model: string = 'gemini-3.8-flash-tts'
+): TtsSpeechMetadataPart {
+  const style = stylePrompt?.trim() || '';
+  if (!style) {
+    return { text: spokenText };
+  }
+  if (model.startsWith('gemini-3.8-')) {
+    return {
+      text: spokenText,
+      speechMetadata: {
+        speaker,
+        style,
+      },
+    };
+  }
+  return {
+    text: `Performance Direction (${speaker}): ${style}\n\n${spokenText}`,
+  };
+}
 
 export function getEmotionStyle(
   emotion: string = 'natural',

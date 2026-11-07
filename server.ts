@@ -23,12 +23,15 @@ import type {
 import {
   getVoiceAcousticStyle,
   buildExpressiveTtsTranscript,
+  buildTtsModelPart,
+  type TtsSpeechMetadataPart,
 } from './src/utils/prosodyEngine';
 import {
   sanitizeUserId,
   capText,
   ensureWavContainer,
   formatGeminiError,
+  buildFfmpegMixFilterComplex,
   ALLOWED_PREVIEW_VOICES,
   ALLOWED_PREVIEW_LANGS,
 } from './src/server/audioContainer';
@@ -186,6 +189,44 @@ const TTS_MODEL_CASCADE = [
   'gemini-2.5-flash-preview-tts',
 ];
 
+function adaptContentsForTtsModel(
+  contents: Parameters<GoogleGenAI['models']['generateContent']>[0]['contents'],
+  targetModel: string
+): Parameters<GoogleGenAI['models']['generateContent']>[0]['contents'] {
+  if (targetModel.startsWith('gemini-3.8-') || !Array.isArray(contents)) {
+    return contents;
+  }
+  const adapted = contents.map((item) => {
+    if (!item || typeof item !== 'object' || !('parts' in item) || !Array.isArray(item.parts)) {
+      return item;
+    }
+    return {
+      ...item,
+      parts: item.parts.map((part) => {
+        if (
+          part &&
+          typeof part === 'object' &&
+          'speechMetadata' in part &&
+          part.speechMetadata &&
+          typeof part.speechMetadata === 'object' &&
+          'text' in part &&
+          typeof part.text === 'string'
+        ) {
+          const meta = part.speechMetadata as { speaker?: string; style?: string };
+          return buildTtsModelPart(
+            part.text,
+            meta.speaker || 'Speaker',
+            meta.style || '',
+            targetModel
+          );
+        }
+        return part;
+      }),
+    };
+  });
+  return adapted as Parameters<GoogleGenAI['models']['generateContent']>[0]['contents'];
+}
+
 async function executeGenerateContentWithCascade(
   client: GoogleGenAI,
   params: Parameters<GoogleGenAI['models']['generateContent']>[0]
@@ -203,6 +244,7 @@ async function executeGenerateContentWithCascade(
             return await client.models.generateContent({
               ...params,
               model: fallbackModel,
+              contents: adaptContentsForTtsModel(params.contents, fallbackModel),
             });
           } catch (innerErr: unknown) {
             const innerMsg = innerErr instanceof Error ? innerErr.message : String(innerErr);
@@ -527,14 +569,6 @@ Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
   }
 });
 
-interface TtsSpeechMetadataPart {
-  text: string;
-  speechMetadata?: {
-    speaker: string;
-    style: string;
-  };
-}
-
 interface TtsSynthesisMetadataOptions {
   speakerName?: string;
   stylePrompt?: string;
@@ -549,15 +583,12 @@ async function synthesizeGeminiTtsWav(
   const speaker = options?.speakerName || voiceName;
   const style = options?.stylePrompt?.trim() || '';
 
-  const partPayload: TtsSpeechMetadataPart = style
-    ? {
-        text: spokenText,
-        speechMetadata: {
-          speaker,
-          style,
-        },
-      }
-    : { text: spokenText };
+  const partPayload: TtsSpeechMetadataPart = buildTtsModelPart(
+    spokenText,
+    speaker,
+    style,
+    'gemini-3.8-flash-tts'
+  );
 
   let response;
   try {
@@ -580,7 +611,7 @@ async function synthesizeGeminiTtsWav(
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    // Se um modelo legado na cascata rejeitar speechMetadata, reexecuta com prompt inline clássico
+    // Se um endpoint rejeitar speechMetadata por incompatibilidade de schema, reexecuta com prompt inline adaptado
     if (
       style &&
       (msg.includes('speechMetadata') ||
@@ -592,7 +623,7 @@ async function synthesizeGeminiTtsWav(
         contents: [
           {
             role: 'user',
-            parts: [{ text: `Performance Direction (${speaker}): ${style}\n\n${spokenText}` }],
+            parts: [buildTtsModelPart(spokenText, speaker, style, 'gemini-3.1-flash-tts-preview')],
           },
         ],
         config: {
@@ -726,6 +757,7 @@ app.post('/api/mix-audio', async (req, res) => {
     const voiceVol = Math.pow(10, safeVoiceBoostDb / 20).toFixed(2);
     const bgVol = Math.max(0.01, Math.min(1.0, musicVolume)).toFixed(2);
 
+    const filterComplex = buildFfmpegMixFilterComplex(voiceVol, bgVol, ratio);
     let ffmpegArgs: string[] = [];
 
     if (customMusicBase64) {
@@ -739,7 +771,7 @@ app.post('/api/mix-audio', async (req, res) => {
         '-stream_loop', '-1',
         '-i', tempMusicPath,
         '-filter_complex',
-        `[0:a]volume=${voiceVol}[voice];[1:a]volume=${bgVol}[bg];[voice][bg]sidechaincompress=threshold=0.08:ratio=${ratio}:attack=100:release=500[ducked];[voice][ducked]amix=inputs=2:duration=first:dropout_transition=2[out]`,
+        filterComplex,
         '-map', '[out]',
         '-c:a', 'pcm_s16le',
         '-ar', '44100',
@@ -759,7 +791,7 @@ app.post('/api/mix-audio', async (req, res) => {
         '-f', 'lavfi',
         '-i', synthTone,
         '-filter_complex',
-        `[0:a]volume=${voiceVol}[voice];[1:a]volume=${bgVol}[bg];[voice][bg]sidechaincompress=threshold=0.08:ratio=${ratio}:attack=100:release=500[ducked];[voice][ducked]amix=inputs=2:duration=first:dropout_transition=2[out]`,
+        filterComplex,
         '-map', '[out]',
         '-c:a', 'pcm_s16le',
         '-ar', '44100',

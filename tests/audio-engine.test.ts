@@ -143,6 +143,7 @@ import {
   capText,
   formatForTts,
   formatGeminiError,
+  buildFfmpegMixFilterComplex,
   ALLOWED_PREVIEW_VOICES,
   ALLOWED_PREVIEW_LANGS,
 } from '../src/server/audioContainer';
@@ -167,6 +168,7 @@ test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Saniti
     new Error('{"error":{"code":401,"message":"The bound service account is deleted or disabled.","reason":"ACCOUNT_STATE_INVALID"}}'),
     'Falha genérica'
   );
+  const filterGraph = buildFfmpegMixFilterComplex('1.41', '0.20', 6);
 
   // 3. ASSERT
   assert.strictEqual(wavBuffer.byteLength, 44 + 4800);
@@ -183,6 +185,9 @@ test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Saniti
   assert.strictEqual(ALLOWED_PREVIEW_VOICES.has('Puck'), true);
   assert.strictEqual(ALLOWED_PREVIEW_LANGS.has('it-IT'), true);
   assert.ok(formatted401Err.includes('Service Account vinculada a esta chave está desativada'));
+  assert.ok(filterGraph.includes('asplit=2[voice_sc][voice_mix]'));
+  assert.ok(filterGraph.includes('[bg][voice_sc]sidechaincompress=threshold=0.08:ratio=6'));
+  assert.ok(filterGraph.includes('[voice_mix][ducked]amix=inputs=2'));
 });
 
 test('Suite 15: Persistência de Histórico de Conversas por Conta Google e Detecção de YouTube', async () => {
@@ -216,6 +221,8 @@ test('Suite 15: Persistência de Histórico de Conversas por Conta Google e Dete
 import {
   getVoiceAcousticStyle,
   buildExpressiveTtsTranscript,
+  buildTtsModelPart,
+  CANONICAL_VOCAL_TAGS,
 } from '../src/utils/prosodyEngine';
 
 test('Suite 16: Gemini 3.8 Flash TTS — 12 Emoções, 5 Personas Acústicas e Tags Vocais Canônicas (<breath>, <short pause>, <chuckle>)', () => {
@@ -289,7 +296,31 @@ test('Suite 16: Gemini 3.8 Flash TTS — 12 Emoções, 5 Personas Acústicas e T
     injectNaturalBreaths: true,
   });
 
+  const part38 = buildTtsModelPart(
+    '<breath> Olá mundo.',
+    'Kore',
+    'Warm expressive delivery.',
+    'gemini-3.8-flash-tts'
+  );
+  const part38Lite = buildTtsModelPart(
+    '<breath> Olá mundo.',
+    'Puck',
+    'Energetic delivery.',
+    'gemini-3.8-flash-lite-tts'
+  );
+  const partLegacy31 = buildTtsModelPart(
+    '<breath> Olá mundo.',
+    'Kore',
+    'Warm expressive delivery.',
+    'gemini-3.1-flash-tts-preview'
+  );
+
   // 3. ASSERT
+  assert.strictEqual(
+    CANONICAL_VOCAL_TAGS.size,
+    42,
+    'O catálogo CANONICAL_VOCAL_TAGS deve conter exatamente as 42 entradas de tags vocais canônicas do Gemini 3.8 TTS'
+  );
   assert.strictEqual(
     uniqueEmotionStyles.size,
     allEmotions.length,
@@ -308,6 +339,26 @@ test('Suite 16: Gemini 3.8 Flash TTS — 12 Emoções, 5 Personas Acústicas e T
       'speechMetadata.style nunca deve conter tags angulares literais (<breath>, etc.) para evitar conflito com o texto falado'
     );
   }
+
+  assert.deepStrictEqual(part38, {
+    text: '<breath> Olá mundo.',
+    speechMetadata: {
+      speaker: 'Kore',
+      style: 'Warm expressive delivery.',
+    },
+  });
+  assert.deepStrictEqual(part38Lite, {
+    text: '<breath> Olá mundo.',
+    speechMetadata: {
+      speaker: 'Puck',
+      style: 'Energetic delivery.',
+    },
+  });
+  assert.strictEqual(partLegacy31.speechMetadata, undefined);
+  assert.ok(
+    partLegacy31.text.startsWith('Performance Direction (Kore): Warm expressive delivery.\n\n<breath> Olá mundo.'),
+    'Modelos legados na cascata (gemini-3.1/2.5) devem receber direção inline sem speechMetadata'
+  );
 
   assert.ok(normalizedTranscript.includes('<heavy breath>'));
   assert.ok(normalizedTranscript.includes('<sigh>'));

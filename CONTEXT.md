@@ -7,14 +7,14 @@ O **MyTTS Studio** é uma estação de trabalho de áudio neural (síntese TTS, 
 
 ## 2. Fronteiras do MVP Atual
 - Acesso **aberto**, sem onboarding: identidade por sessão de dispositivo via header `X-User-Id` (formato restrito a `[a-zA-Z0-9_-]{1,64}`, sanitizado no servidor).
-- Persistência de chunks: Firestore (`fastchunks_chunks`) com fallback local (`.data/chunks.json`) quando não há credenciais GCP.
-- 7 módulos de UI em SPA de abas: Estúdio de Criação, Chat Poliglota, Microfone & Ditado, Estúdio de Debate, FastChunks, Biblioteca de Vozes, Arquitetura.
+- Persistência de chunks e conversas: Firestore (`fastchunks_chunks` e `mytts_conversations`) com fallback local (`.data/chunks.json` e `.data/conversations.json`) quando não há credenciais GCP.
+- 5 abas principais em SPA (`Chat Poliglota` com Ditado/Live Mic integrados, `Estúdio de Criação`, `Estúdio de Debate`, `FastChunks`, `Biblioteca de Vozes`) + modais (`Arquitetura`, `Paleta de Comandos Ctrl+K`).
 
 ## 3. Restrições de Segurança (hard rules)
 - `GEMINI_API_KEY` via `.env` com failover automático para Vertex AI Application Default Credentials (`project: agent-md-506215, location: global`) quando a chave estiver ausente ou inativa (`401 ACCOUNT_STATE_INVALID`).
 - Rate limiting obrigatório em todos os endpoints de IA (120 req/15min/IP) e geral (300 req/15min/IP).
-- Payloads: máx. 2 MB por padrão; 25 MB em `/api/transcribe-audio`; 50 MB apenas em `/api/mix-audio`.
-- Textos para síntese truncados em 20.000 caracteres (chunks em 2.000, turnos em 5.000).
+- Payloads: máx. 2 MB por padrão; 25 MB em `/api/transcribe-audio`, `/api/extract-text` e `/api/live-agent-turn`; 50 MB apenas em `/api/mix-audio`.
+- Textos para síntese truncados em 20.000 caracteres (chunks/live em 2.000, agente explore em 3.000, turnos em 5.000).
 - Todo áudio retornado DEVE passar por `ensureWavContainer` (cabeçalho WAV RIFF canônico de 44 bytes).
 - FFmpeg somente via `execFile` (sem shell); parâmetros numéricos sempre clampados; arquivos temporários limpos em `finally`.
 

@@ -26,22 +26,23 @@ Use esta skill sempre que alterar rotas de síntese de voz (`server.ts`), motor 
 - **`speechMetadata.style` (`getVoiceAcousticStyle` + `getEmotionStyle`)**:
   - Deve conter apenas direção acústica, emocional e de persona (5 personas: `Puck`, `Kore`, `Aoede`, `Fenrir`, `Enceladus`; 12 emoções: `natural`, `storytelling`, `technical`, `spontaneous`, `thoughtful`, `inquisitive`, `skeptical`, `ironic`, `passionate`, `resolute`, `expressive`, `calm`).
   - **Nunca** inclua tags angulares literais (`<breath>`, `<sigh>`, etc.) nem meta-instruções negativas dentro de `style`.
-- **Tags Vocais Inline em `part.text` (`buildExpressiveTtsTranscript`)**:
-  - As **42 tags vocais canônicas** do Gemini 3.8 TTS pertencem exclusivamente ao `part.text`:
-    - *Respiração e fisiologia*: `<breath>`, `<heavy breath>`, `<pant>`, `<sigh>`, `<gasp>`, `<exhales>`, `<yawn>`, `<cough>`, `<throat-clearing>`, `<sniffle>`, `<snort>`, `<hiccup>`, `<gulps>`, `<swallows>`, `<groan>`, `<grunt>`, `<phew>`, `<uhm>`, `<tsk>`, `<clicks tongue>`, `<smacks lips>`
-    - *Riso e emoção*: `<laugh>`, `<chuckle>`, `<giggle>`, `<snicker>`, `<cackle>`, `<cry>`, `<sob>`, `<whimper>`
-    - *Dinâmica e prosódia*: `<whispering>`, `<soft>`, `<loud>`, `<screaming>`, `<shouting>`, `<fast>`, `<slow>`, `<high pitch>`, `<low pitch>`, `<singing>`
-    - *Pausas*: `<short pause>`, `<medium pause>`, `<long pause>`
+- **Tags Vocais Inline em `part.text` (`buildExpressiveTtsTranscript` / `CANONICAL_VOCAL_TAGS`)**:
+  - As **42 entradas de tags vocais canônicas** do Gemini 3.8 TTS (`speech-generation.md#vocal-bursts`) pertencem exclusivamente ao `part.text` (sempre em inglês, mesmo em transcrições `pt-BR`, `it-IT` ou `ja-JP`):
+    - *Respiração e fisiologia*: `<breath>`, `<heavy breath>`, `<exhales>`, `<pant>`, `<sigh>`, `<sighs>`, `<gasp>`, `<yawn>`, `<cough>`, `<sneeze>`, `<snort>`, `<throat-clearing>` (alias `throat clear` normalizado para `<throat-clearing>`), `<groan>`, `<grunt>`, `<growl>`, `<grr>`, `<argh>`, `<hiss>`, `<moan>`, `<pff>`, `<phew>`, `<tsk>`
+    - *Riso e emoção*: `<laugh>`, `<laughter>`, `<chuckle>`, `<chuckles>`, `<giggle>`, `<snicker>`, `<cackle>`, `<cheer>`, `<cry>`, `<sob>`, `<whimper>`, `<scream>`, `<shout>`, `<shriek>`
+    - *Sussurro pontual*: `<whisper>`, `<whispers>`, `<whispering>`
+    - *Pausas*: `<short pause>`, `<long pause>` (não existe `<medium pause>`; atributos contínuos de ritmo/tom como velocidade ou pitch pertencem a `speechMetadata.style`)
   - **Heurística de fôlego natural**:
-    - Entre parágrafos: injetar `\n\n<short pause> <breath> ` somente quando ambos os parágrafos adjacentes tiverem `>= 6` palavras (evitando excesso de respiração em diálogos curtos).
-    - No meio de orações longas (`> 20` palavras): injetar `<short pause> <breath>` no ponto de articulação sintática (`,`, `;` ou ` — `) próximo ao meio da frase, mesmo que a frase já inicie com `<breath>`, desde que o miolo da frase ainda não possua tag de respiração/pausa.
+    - Entre parágrafos: injetar `<short pause> <breath> ` quando o parágrafo atual tiver `>= 6` palavras ou o anterior tiver `>= 10` palavras (evitando excesso de respiração em diálogos curtos).
+    - No meio de orações longas (`> 20` palavras): injetar `<short pause> <breath>` (ou `<breath>` em `passionate`/`expressive`) no ponto de articulação sintática (`,`, `;` ou ` — `) após os primeiros 35% da frase, mesmo que a frase já inicie com `<breath>`, desde que o miolo da frase (`withoutLeadingTags`) ainda não possua tag de respiração/pausa.
 
-## 3. Autenticação Híbrida (`AQ.` vs `AIza`) e Failover Vertex AI ADC (`global`)
+## 3. Autenticação Híbrida (`AQ.` vs `AIza`), Failover Vertex AI ADC (`global`) e Adaptação de Cascata
 
 - Chaves prefixadas com `AQ.` (Vertex AI Express Mode) exigem `vertexai: true`, enquanto chaves `AIza` (Google AI Studio) exigem `vertexai: false`.
 - **Isolamento de `process.env` no ADC**: Ao instanciar `new GoogleGenAI({ vertexai: true, project, location: 'global' })` em `getVertexAdcClient()`, remova temporariamente `process.env.GEMINI_API_KEY` e `process.env.GOOGLE_API_KEY` no bloco `try` e restaure-os no `finally`. Caso contrário, o construtor do SDK lançará erro por coexistência de `apiKey` e `project`/`location`.
-- **Cascata de Modelos TTS**:
+- **Cascata de Modelos TTS e Adaptação de Payload (`buildTtsModelPart` / `adaptContentsForTtsModel`)**:
   `gemini-3.8-flash-tts` → `gemini-3.8-flash-lite-tts` → `gemini-3.1-flash-tts-preview` → `gemini-2.5-flash-preview-tts`.
+  Ao cair para modelos pré-3.8 (`gemini-3.1-*` ou `gemini-2.5-*`), `adaptContentsForTtsModel` converte `speechMetadata: { speaker, style }` em prompt inline `Performance Direction (${speaker}): ${style}\n\n${spokenText}` e remove `speechMetadata` antes do envio HTTP.
 
 ## 4. Cache de Turnos, Sincronia de Voz nos Cards e Players (`preservesPitch`)
 
@@ -50,7 +51,8 @@ Use esta skill sempre que alterar rotas de síntese de voz (`server.ts`), motor 
   - Editar o texto de um turno (`handleUpdateTurnText`) ou alterar a voz nos cards de configuração (`DebateConfigPanel`) deve limpar `audioBase64: undefined` nos turnos afetados.
   - Acionar "Re-sintetizar Voz" (`handleSynthesizeSingleTurn`) deve enviar `bypassCache: true`.
 - **Seletores `<select>` em Cards Selecionáveis (`LanguageColumnCard`)**: Nunca invoque `onSelectCard()` antes de `onChangeCardVoice()`, mantendo `cardVoicesByMsgRef` atualizado sincronamente.
-- **Fidelidade de Timbre e Duração WAV**:
+- **Fidelidade de Timbre, Duração WAV e Mixagem FFmpeg (`/api/mix-audio`)**:
   - Todos os players HTML5 (`new Audio(...)`) que aplicam `playbackRate` devem habilitar `audio.preservesPitch = true` (`mozPreservesPitch` / `webkitPreservesPitch`).
   - O cálculo de `durationSec` em WAV 24 kHz mono PCM 16-bit deve descontar os 44 bytes do cabeçalho RIFF: `Math.max(0, wavBuffer.length - 44) / (24000 * 2)`.
+  - No grafo FFmpeg (`buildFfmpegMixFilterComplex` em `src/server/audioContainer.ts`), nunca reutilize o pad `[voice]` duas vezes sem `asplit=2[voice_sc][voice_mix]`, mantenha `aresample=44100` em ambas as entradas e passe `[bg]` como primeiro input e `[voice_sc]` como segundo input (gatilho sidechain) em `[bg][voice_sc]sidechaincompress`.
   - No fallback local (`speakBrowserFallback`), sempre repasse `voiceId` para diferenciar gênero, `pitch` e cadência entre `Puck`, `Kore`, `Aoede`, `Fenrir` e `Enceladus`.

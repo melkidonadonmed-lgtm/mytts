@@ -1,15 +1,15 @@
 # Log de Sessão (mytts)
 
 ## Data e Hora
-- **Data/Hora**: 2026-11-07T15:25:00-04:00 (Local)
+- **Data/Hora**: 2026-11-07T15:50:00-04:00 (Local)
 
-## Evolução de Governança (`gemini-3.8-flash-tts` + `speechMetadata` camelCase) e Deploy em Produção (`07/11/2026`)
-- `.agents/skills/gemini-tts-expressive-audio/SKILL.md`, `.agents/skills.json`, `AGENTS.md`, `SPEC.md`, `CONTEXT.md`: Consolidação das regras aprendidas sobre `speechMetadata: { speaker, style }` em camelCase no `@google/genai`, separação estrita entre `speechMetadata.style` (12 emoções, 5 personas) e as 42 tags vocais canônicas inline (`buildExpressiveTtsTranscript`), failover automático para Vertex AI ADC (`global`), invalidação/bypass de cache por `turn.text` e `audio.preservesPitch = true`.
+## Evolução de Governança (`gemini-3.8-flash-tts` + `speechMetadata` camelCase), Correção FFmpeg `/api/mix-audio` e Deploy em Produção (`07/11/2026`)
+- `.agents/skills/gemini-tts-expressive-audio/SKILL.md`, `.agents/skills.json`, `AGENTS.md`, `SPEC.md`, `CONTEXT.md`: Consolidação das regras aprendidas sobre `speechMetadata: { speaker, style }` em camelCase no `@google/genai`, catálogo exato das 42 entradas de `CANONICAL_VOCAL_TAGS` (`speech-generation.md#vocal-bursts`), adaptação automática de payload na cascata (`buildTtsModelPart` / `adaptContentsForTtsModel`), failover automático para Vertex AI ADC (`global`), grafo FFmpeg (`buildFfmpegMixFilterComplex` com `asplit=2[voice_sc][voice_mix]` e `[bg][voice_sc]sidechaincompress`), invalidação/bypass de cache por `turn.text` e `audio.preservesPitch = true`.
 - `scripts/deploy-sp.ps1`: Inclusão explícita de `GOOGLE_CLOUD_LOCATION=global` e `--quiet` no deploy do Cloud Run (`southamerica-east1`).
 - **Deploy e Verificação Live**:
-  - Cloud Run (`southamerica-east1`): revisão `mytts-00002-b8b` ativa com 100% do tráfego em `https://mytts-1044179901556.southamerica-east1.run.app`.
+  - Cloud Run (`southamerica-east1`): revisão `mytts-00004-jnd` ativa com 100% do tráfego em `https://mytts-1044179901556.southamerica-east1.run.app`.
   - Firebase Hosting: release publicado em `https://mytts.web.app`.
-  - Smoke Test Live (`https://mytts.web.app/api/health` e `https://mytts.web.app/api/synthesize-speech`): `modelTts: "gemini-3.8-flash-tts"`, `storage: "firestore"` e síntese WAV RIFF 24kHz real (`durationSec: 4.68`, `299.560` chars base64).
+  - Smoke Test Live (`https://mytts.web.app/api/health`, `/api/synthesize-speech` e `/api/mix-audio`): `modelTts: "gemini-3.8-flash-tts"`, `storage: "firestore"`, síntese WAV RIFF 24kHz real (`durationSec: 4.2`, `268.840` chars base64) e mixagem broadcast FFmpeg 44.1kHz (`warning: null`, `sampleRate: 44100`, `475.208` chars base64).
 
 ## Refinamento Mobile UI/UX, Espaçamentos e Flex Bar (`07/11/2026`)
 - `src/components/AgentInputDock.tsx`: Flex Bar em 2 níveis com `<textarea>` ocupando 100% da largura na linha 1 (`315px` em tela de `375px`) sem outline retangular interno, e barra flexível de controles na linha 2 (`+` + chip `3 Idiomas` à esquerda; `Mic`, `Gemini Live`, `Enviar` e `Recolher` à direita).
@@ -54,8 +54,8 @@
 
 ## Comandos Validados no Terminal
 - `npm run lint` (`tsc --noEmit`): Exit code 0 comprovado.
-- `npm test` (`tsx test-audio-engine.ts`): Exit code 0 comprovado (14/14 suítes Nível 4 aprovadas).
-- `npm run build` (`vite build`): Exit code 0 comprovado (`dist/` compilado em 318ms sem warnings).
+- `npm test` (`tsx test-audio-engine.ts`): Exit code 0 comprovado (16/16 suítes Nível 4 aprovadas).
+- `npm run build` (`vite build`): Exit code 0 comprovado (`dist/` compilado em 302ms sem warnings).
 - `audit_tactile_ui.py`: Exit code 0 (`Readiness Score: 100.0/100.0`).
 - `ui_ux_frontend_auditor.py --target .` & `--target src`: Exit code 0 (`SCORE FINAL: 100.0 / 100 | NOTA: A+ (Produção de Elite) | [PASS]`).
 - `deterministic_scorer.py --scan src`: Exit code 0 (`SGA = 100.0`, `INE = 100.0`, `ICI = 100.0`, `IPC = 100.0`, `IRM = 100.0`, `ICTE = 100.0`).
