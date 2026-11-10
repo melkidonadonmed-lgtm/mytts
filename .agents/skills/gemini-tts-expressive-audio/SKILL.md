@@ -1,6 +1,9 @@
 ---
 name: gemini-tts-expressive-audio
 description: Arquitetura e regras canônicas de síntese neural Gemini 3.8 Flash TTS (@google/genai), speechMetadata em camelCase, 42 tags vocais inline, failover Vertex AI ADC (global), sincronia de vozes por card, cache de turnos e Web Audio / HTML5 preservesPitch no MyTTS Studio.
+version: "1.0.0"
+updated_at: "2026-11-09"
+allowed-tools: ["read_file", "run_command", "call_mcp_tool"]
 ---
 
 # Gemini 3.8 Flash TTS & Expressive Audio Architecture (`mytts`)

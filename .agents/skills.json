@@ -19,12 +19,6 @@
         "ai-sdk",
         "live-api-function-auditor"
       ]
-    },
-    {
-      "path": ".agents/skills",
-      "include_only": [
-        "gemini-tts-expressive-audio"
-      ]
     }
   ]
 }

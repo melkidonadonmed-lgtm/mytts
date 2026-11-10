@@ -186,7 +186,7 @@ const TTS_MODEL_CASCADE = [
   'gemini-3.8-flash-tts',
   'gemini-3.8-flash-lite-tts',
   'gemini-3.1-flash-tts-preview',
-  'gemini-2.5-flash-preview-tts',
+  'gemini-3.1-flash-lite-tts-preview',
 ];
 
 function adaptContentsForTtsModel(
@@ -257,7 +257,7 @@ async function executeGenerateContentWithCascade(
       if (params.model === 'gemini-3.8-flash') {
         return await client.models.generateContent({
           ...params,
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.8-flash-lite',
         });
       }
     }
