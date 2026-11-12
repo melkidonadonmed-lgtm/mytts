@@ -30,3 +30,5 @@ O **MyTTS Studio** é uma estação de trabalho de áudio neural (síntese TTS, 
 - Fontes: Outfit (display/títulos via utility `font-display`), Inter/Plus Jakarta Sans (corpo), JetBrains Mono (métricas).
 - Todo botão interativo deve ser `<button>` semântico com handler real; proibido `onClick` vazio.
 - Ao alterar o motor de áudio, executar `npm test` (conformidade matemática de ganhos dB e cabeçalho WAV).
+- `package.json` mantém `@google/genai: "^2.4.0"` sincronizado com `package-lock.json` (`2.25.0`) para garantir `npm ci` determinístico sem erro `EALLOWREMOTE`.
+

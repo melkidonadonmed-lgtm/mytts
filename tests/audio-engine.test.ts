@@ -148,7 +148,18 @@ import {
   ALLOWED_PREVIEW_LANGS,
 } from '../src/server/audioContainer';
 import { getConversationStorage } from '../src/services/conversationStorage';
-import { detectYoutubeUrl } from '../src/services/polyglotClient';
+import {
+  detectYoutubeUrl,
+  normalizeYoutubeVideo,
+  isBareYoutubeLinkOnly,
+  inferYoutubeActionFromPrompt,
+  hasYoutubeOrWebSearchIntent,
+} from '../src/services/polyglotClient';
+import {
+  parseStructuredJsonFromModel,
+  parseYoutubeSearchResultsHtml,
+} from '../src/utils/youtubeHelper';
+import { setActiveSession, signOutGoogle } from '../src/services/authService';
 
 test('Suite 14: Container WAV Server-Side (ensureWavContainer/pcmToWav) e Sanitização de Fronteira', () => {
   // 1. ARRANGE
@@ -211,11 +222,77 @@ test('Suite 15: Persistência de Histórico de Conversas por Conta Google e Dete
   const listed = await storage.listByUser(testUserId);
   const removed = await storage.remove(testUserId, testConvId);
   const detectedYt = detectYoutubeUrl('Veja este vídeo https://www.youtube.com/watch?v=dQw4w9WgXcQ agora');
+  const detectedShort = detectYoutubeUrl('Link curto: https://youtu.be/dQw4w9WgXcQ?si=abc123&t=42');
+  const detectedShortsPath = normalizeYoutubeVideo('https://youtube.com/shorts/dQw4w9WgXcQ?feature=share');
+
+  // Fluxo Pós-Link: link puro vs comando explícito de tradução/flashcards/resumo
+  assert.strictEqual(isBareYoutubeLinkOnly('  https://youtu.be/dQw4w9WgXcQ?si=xyz  '), true);
+  assert.strictEqual(
+    isBareYoutubeLinkOnly('https://youtu.be/dQw4w9WgXcQ traduza este vídeo'),
+    false
+  );
+  assert.strictEqual(
+    inferYoutubeActionFromPrompt('https://youtu.be/dQw4w9WgXcQ'),
+    'ask_intent'
+  );
+  assert.strictEqual(
+    inferYoutubeActionFromPrompt('https://youtu.be/dQw4w9WgXcQ traduza o vídeo inteiro'),
+    'translate_video'
+  );
+  assert.strictEqual(
+    inferYoutubeActionFromPrompt('https://youtu.be/dQw4w9WgXcQ extraia flashcards e expressões'),
+    'extract_expressions'
+  );
+  assert.strictEqual(
+    inferYoutubeActionFromPrompt('https://youtu.be/dQw4w9WgXcQ faça um resumo'),
+    'summary_dialogue'
+  );
+
+  // Detecção de intenção de busca no YouTube em modo padrão
+  assert.strictEqual(
+    hasYoutubeOrWebSearchIntent('busque no youtube vídeos sobre conversação em inglês'),
+    true
+  );
+  assert.strictEqual(
+    hasYoutubeOrWebSearchIntent('Gostaria de pedir um café expresso'),
+    false
+  );
+
+  // Extração resiliente de JSON com prosa/chaves extras ao redor e busca HTML YouTube
+  const messyModelOutput =
+    'Claro! Aqui está a análise {nota: 10}:\n```json\n{"agentReplyPtBr":"Resumo ok","chunks":[{"id":0,"en":"Hello","it":"Ciao","ja":"こんにちは"}]}\n```';
+  const parsedModel = parseStructuredJsonFromModel<{ agentReplyPtBr: string }>(messyModelOutput);
+  assert.strictEqual(parsedModel?.agentReplyPtBr, 'Resumo ok');
+
+  const sampleYtHtml =
+    'var ytInitialData = {"contents":{"videoRenderer":{"videoId":"dQw4w9WgXcQ","title":{"runs":[{"text":"Video Aula Ingles"}]},"ownerText":{"runs":[{"text":"English Channel"}]},"lengthText":{"simpleText":"10:25"}}}};';
+  const parsedSearch = parseYoutubeSearchResultsHtml(sampleYtHtml, 4);
+  assert.strictEqual(parsedSearch.length, 1);
+  assert.strictEqual(parsedSearch[0].videoId, 'dQw4w9WgXcQ');
+  assert.strictEqual(parsedSearch[0].title, 'Video Aula Ingles');
+  assert.strictEqual(parsedSearch[0].authorName, 'English Channel');
+  assert.strictEqual(parsedSearch[0].durationHint, '10:25');
+
+  // Isolamento de sessão Google no signOutGoogle() (nunca manter google_... após logout)
+  setActiveSession({
+    uid: 'google_melki_gmail_com',
+    name: 'Melki',
+    email: 'melki@gmail.com',
+    isGoogleAuthenticated: true,
+  });
+  const afterLogout = signOutGoogle();
+  assert.strictEqual(afterLogout.isGoogleAuthenticated, false);
+  assert.ok(
+    !afterLogout.uid.startsWith('google_'),
+    'signOutGoogle() deve gerar um novo uid de visitante e nunca manter o uid da conta Google anterior'
+  );
 
   assert.strictEqual(saved.id, testConvId);
   assert.ok(listed.some((c) => c.id === testConvId));
   assert.strictEqual(removed, true);
   assert.strictEqual(detectedYt, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  assert.strictEqual(detectedShort, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  assert.strictEqual(detectedShortsPath?.videoId, 'dQw4w9WgXcQ');
 });
 
 import {

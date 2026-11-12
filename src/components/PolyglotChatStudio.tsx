@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { PolyglotMessage, FlashcardItem, SavedConversation, GoogleUserSession } from '../types/polyglot';
+import {
+  PolyglotMessage,
+  FlashcardItem,
+  SavedConversation,
+  GoogleUserSession,
+  YoutubePostLinkAction,
+  YoutubeClipRange,
+} from '../types/polyglot';
 import type { StudioRenderMode } from '../types/debate';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { ParallelMessageBlock } from './ParallelMessageBlock';
@@ -781,20 +788,46 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     }
   }, [messages]);
 
+  const messagesRef = useRef<PolyglotMessage[]>(messages);
+  messagesRef.current = messages;
+  const activeConversationIdRef = useRef<string>(activeConversationId);
+  activeConversationIdRef.current = activeConversationId;
+
   useEffect(() => {
     loadConversationsForActiveUser();
-    const unsub = subscribeAuthChanges((nextSession) => {
+    const unsub = subscribeAuthChanges(async (nextSession) => {
       setUserSession(nextSession);
-      requestListUserConversations().then((list) => {
-        setConversations(list);
-        if (list.length > 0) {
-          setActiveConversationId(list[0].id);
-          setMessages(list[0].messages);
-        } else {
-          setActiveConversationId(`conv_${Date.now()}`);
-          setMessages([INITIAL_DEMO_MESSAGE]);
-        }
-      });
+
+      // Se o usuário acabou de conectar uma Conta Google e tinha turnos ativos na tela, migra para a conta logada
+      const currentReadyTurns = messagesRef.current.filter(
+        (m) => m.status === 'ready' && m.id !== 'msg-demo-1'
+      );
+      if (nextSession.isGoogleAuthenticated && currentReadyTurns.length > 0) {
+        const firstPrompt = currentReadyTurns[0].userPrompt || 'Conversa Poliglota';
+        const migratedConv: SavedConversation = {
+          id: activeConversationIdRef.current,
+          userId: nextSession.uid,
+          userName: nextSession.name,
+          userEmail: nextSession.email || undefined,
+          title: firstPrompt.length > 62 ? `${firstPrompt.slice(0, 62)}...` : firstPrompt,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          pinned: false,
+          originMode: currentReadyTurns[currentReadyTurns.length - 1].originMode || 'polyglot',
+          messages: messagesRef.current.filter((m) => m.status === 'ready'),
+        };
+        await requestSaveUserConversation(migratedConv);
+      }
+
+      const list = await requestListUserConversations();
+      setConversations(list);
+      if (list.length > 0) {
+        setActiveConversationId(list[0].id);
+        setMessages(list[0].messages);
+      } else {
+        setActiveConversationId(`conv_${Date.now()}`);
+        setMessages([INITIAL_DEMO_MESSAGE]);
+      }
     });
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -929,6 +962,8 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         const exploreData = await requestAgentExplore({
           prompt: text,
           youtubeUrl: payload?.youtubeUrl,
+          youtubeAction: payload?.youtubeAction,
+          clipRange: payload?.clipRange,
           enableSearch: true,
         });
         if (!exploreData.ok || !exploreData.success || !exploreData.chunks || !exploreData.fullText) {
@@ -939,12 +974,41 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
           ...placeholderMessage,
           originMode: exploreData.originMode || originMode,
           youtubeUrl: exploreData.youtubeUrl || payload?.youtubeUrl,
+          youtubeMeta: exploreData.youtubeMeta,
+          youtubeSearchResults: exploreData.youtubeSearchResults,
+          youtubeAction: exploreData.youtubeAction || payload?.youtubeAction,
+          youtubeClipRange: payload?.clipRange,
+          awaitingYoutubeIntent: Boolean(exploreData.awaitingYoutubeIntent),
           agentReplyPtBr: exploreData.agentReplyPtBr,
           sources: exploreData.sources,
           chunks: exploreData.chunks,
           fullText: exploreData.fullText,
           status: 'ready',
         };
+
+        if (exploreData.toolCallsExecuted && exploreData.toolCallsExecuted.length > 0) {
+          for (const tool of exploreData.toolCallsExecuted) {
+            if (tool.name === 'create_study_flashcard') {
+              const firstChunk = exploreData.chunks[0];
+              const newCard: FlashcardItem = {
+                id: tool.id,
+                chunkText: tool.args.frontPhrase || firstChunk?.en || text,
+                language: 'en-US',
+                front: tool.args.frontPhrase || firstChunk?.en || text,
+                back: tool.args.backTranslation || firstChunk?.it || '',
+                nuance: 'Expressão extraída do vídeo do YouTube.',
+                pronunciation: firstChunk?.jaPronunciation,
+                example: firstChunk?.en || '',
+                exampleTranslation: firstChunk?.ja || '',
+                createdAt: Date.now(),
+              };
+              setDeck((prev) => [newCard, ...prev]);
+            }
+          }
+          showToast(
+            `${exploreData.toolCallsExecuted.length} expressões do vídeo salvas no seu Deck!`
+          );
+        }
       } else if (originMode === 'live_agent') {
         const recentHistory = messages
           .filter((m) => m.status === 'ready')
@@ -1108,6 +1172,113 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         stopCurrentAudio();
         showToast(e instanceof Error ? e.message : 'Falha ao reproduzir pronúncia do chunk.');
       }
+    }
+  };
+
+  const handleExecuteYoutubePostLinkAction = async (
+    targetMessageId: string,
+    youtubeUrl: string,
+    action: YoutubePostLinkAction,
+    clipRange?: YoutubeClipRange
+  ): Promise<void> => {
+    const actionPromptMap: Record<YoutubePostLinkAction, string> = {
+      ask_intent: youtubeUrl,
+      translate_video: `Traduza e transcreva a fala do vídeo do YouTube ${youtubeUrl} nos 3 idiomas.`,
+      summary_dialogue: `Faça um resumo completo em português e crie um diálogo prático sobre o vídeo ${youtubeUrl}.`,
+      extract_expressions: `Extraia as melhores expressões nativas e flashcards do vídeo ${youtubeUrl}.`,
+      custom_prompt: `Analise o vídeo do YouTube ${youtubeUrl}.`,
+    };
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === targetMessageId
+          ? {
+              ...m,
+              status: 'loading',
+              youtubeUrl,
+              youtubeAction: action,
+              youtubeClipRange: clipRange,
+              awaitingYoutubeIntent: false,
+            }
+          : m
+      )
+    );
+    setFocusedMessageId(targetMessageId);
+    setIsLoading(true);
+
+    try {
+      const exploreData = await requestAgentExplore({
+        prompt: actionPromptMap[action] || youtubeUrl,
+        youtubeUrl,
+        youtubeAction: action,
+        clipRange,
+        enableSearch: true,
+      });
+
+      if (!exploreData.ok || !exploreData.success || !exploreData.chunks || !exploreData.fullText) {
+        throw new Error(exploreData.error || 'Falha ao processar o vídeo do YouTube.');
+      }
+
+      if (exploreData.toolCallsExecuted && exploreData.toolCallsExecuted.length > 0) {
+        const addedCards: FlashcardItem[] = exploreData.toolCallsExecuted
+          .filter((t) => t.name === 'create_study_flashcard')
+          .map((tool, idx) => {
+            const chunk = exploreData.chunks?.[idx] || exploreData.chunks?.[0];
+            return {
+              id: tool.id,
+              chunkText: tool.args.frontPhrase || chunk?.en || youtubeUrl,
+              language: 'en-US',
+              front: tool.args.frontPhrase || chunk?.en || youtubeUrl,
+              back: tool.args.backTranslation || chunk?.it || '',
+              nuance: 'Expressão extraída do vídeo do YouTube.',
+              pronunciation: chunk?.jaPronunciation,
+              example: chunk?.en || '',
+              exampleTranslation: chunk?.ja || '',
+              createdAt: Date.now(),
+            };
+          });
+        if (addedCards.length > 0) {
+          setDeck((prev) => [...addedCards, ...prev]);
+          showToast(`${addedCards.length} flashcards extraídos do vídeo e salvos no Deck!`);
+        }
+      }
+
+      setMessages((prev) => {
+        const nextList = prev.map((m) =>
+          m.id === targetMessageId
+            ? {
+                ...m,
+                originMode: 'youtube' as const,
+                youtubeUrl: exploreData.youtubeUrl || youtubeUrl,
+                youtubeMeta: exploreData.youtubeMeta || m.youtubeMeta,
+                youtubeAction: action,
+                youtubeClipRange: clipRange,
+                awaitingYoutubeIntent: false,
+                agentReplyPtBr: exploreData.agentReplyPtBr,
+                sources: exploreData.sources,
+                chunks: exploreData.chunks!,
+                fullText: exploreData.fullText!,
+                status: 'ready' as const,
+              }
+            : m
+        );
+        void persistConversationSnapshot(nextList);
+        return nextList;
+      });
+    } catch (err: unknown) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === targetMessageId
+            ? {
+                ...m,
+                status: 'error',
+                error: err instanceof Error ? err.message : 'Erro ao analisar vídeo do YouTube.',
+              }
+            : m
+        )
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1326,6 +1497,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
               sequenceStep={sequenceStep}
               onOpenExport={(msg) => setExportingMessage({ ...msg, cardVoices })}
               onSendToCreationStudio={onSendToCreationStudio}
+              onExecuteYoutubePostLinkAction={handleExecuteYoutubePostLinkAction}
             />
           );
         })}

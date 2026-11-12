@@ -2,9 +2,19 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { GoogleIcon } from './GoogleIcon';
 import { Globe, Video, Sparkles, Radio, Plus, Headphones } from 'lucide-react';
 import { requestExtractTextJson } from '../services/apiClient';
-import type { AgentPersona } from '../types/polyglot';
+import type {
+  AgentPersona,
+  YoutubePostLinkAction,
+  YoutubeClipRange,
+  YoutubeVideoMetadata,
+} from '../types/polyglot';
 import type { StudioRenderMode } from '../types/debate';
-import { detectYoutubeUrl } from '../services/polyglotClient';
+import {
+  detectYoutubeUrl,
+  hasYoutubeOrWebSearchIntent,
+  inferYoutubeActionFromPrompt,
+  requestYoutubeMetadata,
+} from '../services/polyglotClient';
 import { startLiveVoiceMonitor, LiveVoiceMonitorHandle } from '../utils/liveVoiceMonitor';
 
 export type DockMode = 'translate' | 'live_tutor' | 'practice' | 'search_youtube';
@@ -14,6 +24,8 @@ export interface AgentInputDockSubmitPayload {
   dockMode: DockMode;
   persona: AgentPersona;
   youtubeUrl?: string;
+  youtubeAction?: YoutubePostLinkAction;
+  clipRange?: YoutubeClipRange;
   enableSearch: boolean;
   audioBase64?: string;
   mimeType?: string;
@@ -89,6 +101,23 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   const voiceMonitorRef = useRef<LiveVoiceMonitorHandle | null>(null);
 
   const detectedYoutubeUrl = useMemo(() => detectYoutubeUrl(inputText), [inputText]);
+  const [previewYoutubeMeta, setPreviewYoutubeMeta] = useState<YoutubeVideoMetadata | null>(null);
+  const [clipStart, setClipStart] = useState('');
+  const [clipEnd, setClipEnd] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    if (!detectedYoutubeUrl) {
+      setPreviewYoutubeMeta(null);
+      return;
+    }
+    requestYoutubeMetadata(detectedYoutubeUrl).then((meta) => {
+      if (active) setPreviewYoutubeMeta(meta);
+    });
+    return () => {
+      active = false;
+    };
+  }, [detectedYoutubeUrl]);
 
   useEffect(() => {
     return () => {
@@ -126,20 +155,34 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
 
   const submitPromptWithPayload = async (
     overrideText?: string,
-    overrideMode?: DockMode
+    overrideMode?: DockMode,
+    overrideYoutubeAction?: YoutubePostLinkAction
   ): Promise<void> => {
     const textToSend = (overrideText ?? inputText).trim();
     if (!textToSend || isLoading || isTranscribing) return;
 
-    const effectiveMode: DockMode = detectedYoutubeUrl
-      ? 'search_youtube'
-      : overrideMode ?? (enableWebSearch ? 'search_youtube' : dockMode);
+    const autoSearchIntent = hasYoutubeOrWebSearchIntent(textToSend);
+    const effectiveMode: DockMode =
+      detectedYoutubeUrl || autoSearchIntent
+        ? 'search_youtube'
+        : overrideMode ?? (enableWebSearch ? 'search_youtube' : dockMode);
+
+    const resolvedYtAction: YoutubePostLinkAction | undefined = detectedYoutubeUrl
+      ? overrideYoutubeAction || inferYoutubeActionFromPrompt(textToSend)
+      : undefined;
+
+    const resolvedClipRange: YoutubeClipRange | undefined =
+      clipStart.trim() || clipEnd.trim()
+        ? { start: clipStart.trim() || undefined, end: clipEnd.trim() || undefined }
+        : undefined;
 
     const shouldAutoPlay =
       isLiveApiMode || effectiveMode === 'live_tutor' || effectiveMode === 'practice';
 
     setInputText('');
     setAttachedFileName(null);
+    setClipStart('');
+    setClipEnd('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -149,7 +192,9 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
       dockMode: effectiveMode,
       persona: getPersonaFromMode(effectiveMode),
       youtubeUrl: detectedYoutubeUrl || undefined,
-      enableSearch: effectiveMode === 'search_youtube' || enableWebSearch,
+      youtubeAction: resolvedYtAction,
+      clipRange: resolvedClipRange,
+      enableSearch: effectiveMode === 'search_youtube' || enableWebSearch || autoSearchIntent,
       autoSpeakReply: shouldAutoPlay,
     });
   };
@@ -521,40 +566,125 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
           </div>
         )}
 
-        {/* Banner Compacto de Link do YouTube ou Gravação Live Ativa */}
+        {/* Card Interativo Pós-Link do YouTube no Dock (Escolha o que fazer com o vídeo) */}
         {detectedYoutubeUrl && (
-          <div className="rounded-2xl card-matte border border-rose-500/40 px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 shadow-lg">
-            <div className="flex items-center gap-2 min-w-0">
-              <Video className="w-4 h-4 text-rose-400 shrink-0" />
-              <span className="text-xs font-bold text-primary truncate">
-                YouTube detectado:
-              </span>
-              <span className="text-[11px] font-mono text-rose-300 truncate max-w-[240px]">
-                {detectedYoutubeUrl}
-              </span>
+          <div className="rounded-2xl card-matte border border-rose-500/40 p-3 flex flex-col gap-2.5 shadow-lg">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {previewYoutubeMeta?.thumbnailUrl ? (
+                  <img
+                    src={previewYoutubeMeta.thumbnailUrl}
+                    alt={previewYoutubeMeta.title}
+                    className="w-12 h-8 rounded-lg object-cover border border-rose-500/30 shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-9 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
+                    <Video className="w-4 h-4 text-rose-400" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <span className="text-xs font-bold text-primary block truncate">
+                    {previewYoutubeMeta?.title || 'Vídeo do YouTube detectado'}
+                  </span>
+                  <span className="text-[10px] font-mono text-rose-300 block truncate">
+                    {previewYoutubeMeta?.authorName
+                      ? `${previewYoutubeMeta.authorName} · ${detectedYoutubeUrl}`
+                      : detectedYoutubeUrl}
+                  </span>
+                </div>
+              </div>
+
+              {/* Intervalo opcional de tempo (Vídeo Inteiro ou Início-Fim) */}
+              <div className="flex items-center gap-1 text-[10px] font-mono text-secondary">
+                <span>Trecho:</span>
+                <input
+                  id="yt-clip-start"
+                  name="clipStart"
+                  aria-label="Minuto inicial opcional"
+                  type="text"
+                  value={clipStart}
+                  onChange={(e) => setClipStart(e.target.value)}
+                  placeholder="00:00"
+                  className="w-12 px-1.5 py-0.5 rounded input-sunken text-[10px] text-primary text-center focus:outline-none"
+                />
+                <span>até</span>
+                <input
+                  id="yt-clip-end"
+                  name="clipEnd"
+                  aria-label="Minuto final opcional"
+                  type="text"
+                  value={clipEnd}
+                  onChange={(e) => setClipEnd(e.target.value)}
+                  placeholder="Fim"
+                  className="w-12 px-1.5 py-0.5 rounded input-sunken text-[10px] text-primary text-center focus:outline-none"
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() =>
-                  submitPromptWithPayload(
-                    `Analise o vídeo do YouTube ${detectedYoutubeUrl} e crie uma conversa prática nos 3 idiomas baseada nele.`,
-                    'search_youtube'
-                  )
-                }
-                className="px-2.5 py-1 rounded-full btn-matte-amber text-white text-[11px] font-bold cursor-pointer"
-              >
-                Gerar Conversa
-              </button>
-              {onSendToCreationStudio && (
+
+            <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-white/[0.08]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold">
+                O que fazer com o link:
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => onSendToCreationStudio(inputText.trim(), 'podcast')}
-                  className="px-2.5 py-1 rounded-full btn-matte-dark text-primary text-[11px] font-semibold cursor-pointer"
+                  onClick={() =>
+                    submitPromptWithPayload(
+                      `Traduza e transcreva a fala do vídeo do YouTube ${detectedYoutubeUrl} nos 3 idiomas.`,
+                      'search_youtube',
+                      'translate_video'
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-full btn-matte-amber text-white text-[11px] font-bold cursor-pointer"
+                  title="Transcrever e traduzir a fala real do vídeo nos 3 idiomas (EN, IT, JA)"
                 >
-                  + Podcast no Estúdio
+                  Traduzir Fala (3 Idiomas)
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    submitPromptWithPayload(
+                      `Faça um resumo completo em português e crie um diálogo prático sobre o vídeo ${detectedYoutubeUrl}.`,
+                      'search_youtube',
+                      'summary_dialogue'
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-full btn-matte-dark text-primary text-[11px] font-semibold cursor-pointer"
+                  title="Resumo em Português + conversa prática nos 3 idiomas"
+                >
+                  Resumo + Diálogo
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    submitPromptWithPayload(
+                      `Extraia as melhores expressões nativas e flashcards do vídeo ${detectedYoutubeUrl}.`,
+                      'search_youtube',
+                      'extract_expressions'
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-full btn-matte-dark text-amber-300 text-[11px] font-semibold cursor-pointer"
+                  title="Extrair expressões nativas do vídeo e salvar Flashcards no Deck"
+                >
+                  Extrair Flashcards
+                </button>
+                {onSendToCreationStudio && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onSendToCreationStudio(
+                        `${detectedYoutubeUrl}\nTítulo: ${previewYoutubeMeta?.title || 'Vídeo do YouTube'}\nCanal: ${previewYoutubeMeta?.authorName || 'YouTube'}`,
+                        'podcast'
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-full btn-matte-dark text-emerald-300 text-[11px] font-semibold cursor-pointer"
+                    title="Transformar este vídeo em um Podcast ou Debate com 2 vozes no Estúdio de Criação"
+                  >
+                    + Podcast 2 Vozes
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

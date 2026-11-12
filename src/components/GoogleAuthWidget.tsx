@@ -3,10 +3,12 @@
  * Integrado diretamente na Sidebar sem modais desnecessários.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { LogOut, CheckCircle2, Mail, ArrowRight } from 'lucide-react';
+import { LogOut, CheckCircle2, Mail, ArrowRight, UserPlus, X } from 'lucide-react';
 import type { GoogleUserSession } from '../types/polyglot';
 import {
   getActiveSession,
+  getRecentGoogleAccounts,
+  removeRecentGoogleAccount,
   subscribeAuthChanges,
   authenticateWithGoogleCredential,
   signInWithGoogleEmailDirect,
@@ -50,6 +52,9 @@ export const GoogleAuthWidget: React.FC<GoogleAuthWidgetProps> = ({
   compact = false,
 }) => {
   const [session, setSession] = useState<GoogleUserSession>(() => getActiveSession());
+  const [recentAccounts, setRecentAccounts] = useState<GoogleUserSession[]>(() =>
+    getRecentGoogleAccounts()
+  );
   const [googleClientId, setGoogleClientId] = useState<string>('');
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [emailInput, setEmailInput] = useState('');
@@ -61,6 +66,7 @@ export const GoogleAuthWidget: React.FC<GoogleAuthWidgetProps> = ({
   useEffect(() => {
     const unsub = subscribeAuthChanges((next) => {
       setSession(next);
+      setRecentAccounts(getRecentGoogleAccounts());
       onSessionChange?.(next);
     });
     return unsub;
@@ -146,8 +152,26 @@ export const GoogleAuthWidget: React.FC<GoogleAuthWidgetProps> = ({
     }
   };
 
+  const handleQuickAccountSelect = async (acc: GoogleUserSession) => {
+    setErrorMsg(null);
+    try {
+      setIsSubmitting(true);
+      await signInWithGoogleEmailDirect(acc.email, acc.name);
+      setShowEmailForm(false);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Falha ao reconectar conta.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRemoveSavedAccount = (email: string) => {
+    setRecentAccounts(removeRecentGoogleAccount(email));
+  };
+
   const handleSignOut = () => {
     signOutGoogle();
+    setRecentAccounts(getRecentGoogleAccounts());
     setShowEmailForm(false);
   };
 
@@ -209,9 +233,75 @@ export const GoogleAuthWidget: React.FC<GoogleAuthWidgetProps> = ({
     <div
       data-state={isSubmitting ? 'loading' : 'idle'}
       aria-busy={isSubmitting}
-      className={showEmailForm ? 'rounded-2xl card-matte p-3 flex flex-col gap-2' : 'flex flex-col'}
+      className={
+        showEmailForm || recentAccounts.length > 0
+          ? 'rounded-2xl card-matte p-3 flex flex-col gap-2'
+          : 'flex flex-col gap-1.5'
+      }
     >
       {googleClientId && <div ref={gsiButtonRef} className="flex justify-center overflow-hidden" />}
+
+      {!showEmailForm && recentAccounts.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold">
+              Contas Google Salvas
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowEmailForm(true)}
+              className="text-[10px] text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+              title="Adicionar outra conta Google"
+            >
+              <UserPlus className="w-3 h-3 text-amber-400" />
+              <span>Outra conta</span>
+            </button>
+          </div>
+          {recentAccounts.map((acc) => {
+            const accInitials = (acc.name || acc.email || 'G')
+              .split(' ')
+              .map((p) => p[0])
+              .join('')
+              .slice(0, 2)
+              .toUpperCase();
+            return (
+              <div
+                key={acc.email}
+                className="flex items-center justify-between gap-1.5 p-1.5 rounded-xl surface-inset"
+              >
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => handleQuickAccountSelect(acc)}
+                  className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer"
+                  title={`Entrar com ${acc.email}`}
+                >
+                  <span className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                    {accInitials}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="text-xs font-bold text-primary block truncate">
+                      {acc.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-secondary block truncate">
+                      {acc.email}
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveSavedAccount(acc.email)}
+                  className="p-1 rounded-lg text-secondary hover:text-rose-400 cursor-pointer shrink-0"
+                  title="Remover atalho desta conta"
+                  aria-label={`Remover conta salva ${acc.email}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {!showEmailForm ? (
         <button
@@ -243,7 +333,7 @@ export const GoogleAuthWidget: React.FC<GoogleAuthWidgetProps> = ({
               d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
             />
           </svg>
-          <span>Entrar com Google</span>
+          <span>{recentAccounts.length > 0 ? 'Conectar outra Conta Google' : 'Entrar com Google'}</span>
         </button>
       ) : (
         <form onSubmit={handleDirectGoogleSignIn} className="flex flex-col gap-2">

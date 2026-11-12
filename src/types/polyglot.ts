@@ -42,6 +42,27 @@ export interface LiveAgentToolCallResult {
 
 export type MessageOriginMode = 'polyglot' | 'live_agent' | 'youtube' | 'web_search';
 
+export type YoutubePostLinkAction =
+  | 'ask_intent'
+  | 'translate_video'
+  | 'summary_dialogue'
+  | 'extract_expressions'
+  | 'custom_prompt';
+
+export interface YoutubeClipRange {
+  start?: string;
+  end?: string;
+}
+
+export interface YoutubeVideoMetadata {
+  videoId: string;
+  canonicalUrl: string;
+  title: string;
+  authorName?: string;
+  thumbnailUrl: string;
+  durationHint?: string;
+}
+
 export interface PolyglotMessage {
   id: string;
   userPrompt: string;
@@ -65,6 +86,16 @@ export interface PolyglotMessage {
   agentPersona?: AgentPersona;
   /** URL de vídeo do YouTube analisado pelo Agente */
   youtubeUrl?: string;
+  /** Metadados verificados do vídeo do YouTube principal */
+  youtubeMeta?: YoutubeVideoMetadata;
+  /** Resultados de vídeos do YouTube encontrados em uma busca por tema */
+  youtubeSearchResults?: YoutubeVideoMetadata[];
+  /** Ação pós-link selecionada ou inferida para o vídeo do YouTube */
+  youtubeAction?: YoutubePostLinkAction;
+  /** Intervalo opcional de tempo do vídeo (ex.: 00:00 a 03:00) */
+  youtubeClipRange?: YoutubeClipRange;
+  /** Indica que o card aguarda a escolha da ação pós-link pelo usuário */
+  awaitingYoutubeIntent?: boolean;
   /** Fontes verificadas via Google Search Grounding / URL Context */
   sources?: AgentExploreSource[];
   /** Origem da rodada para exibição de badge no histórico e no card */

@@ -19,7 +19,16 @@ import type {
   AlignedChunk,
   GoogleUserSession,
   SavedConversation,
+  YoutubePostLinkAction,
+  YoutubeClipRange,
+  YoutubeVideoMetadata,
 } from './src/types/polyglot';
+import {
+  normalizeYoutubeVideo,
+  inferYoutubeActionFromPrompt,
+  parseStructuredJsonFromModel,
+  parseYoutubeSearchResultsHtml,
+} from './src/utils/youtubeHelper';
 import {
   getVoiceAcousticStyle,
   buildExpressiveTtsTranscript,
@@ -58,8 +67,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 // Cloud Run encaminha X-Forwarded-For: confiar em 1 hop para rate limiting por IP correto
 app.set('trust proxy', 1);
-// Headers de segurança (CSP desabilitada: o app consome Google Fonts/Material Symbols via CDN)
-app.use(helmet({ contentSecurityPolicy: false }));
+// Headers de segurança (CSP desabilitada; COOP same-origin-allow-popups para permitir popup OAuth Google)
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  })
+);
 
 // Payload grande apenas nas rotas que recebem áudio ou PDF base64; o restante da API aceita no máximo 2 MB
 app.use('/api/extract-text', express.json({ limit: '25mb' }));
@@ -419,17 +433,32 @@ DIRETRIZES PROSÓDICAS PARA SÍNTESE NEURAL (GEMINI 3.8 FLASH TTS):
    - Gere exatamente entre 6 e ${Math.min(maxTurns, 8)} turnos alternados entre ${speaker1.name} e ${speaker2.name}.
    - Comece direto no assunto (in media res), sem introduções artificiais.`;
 
-    const prompt = `Analise detalhadamente o seguinte documento e produza o roteiro de debate dialético estruturado em JSON:
+    const ytDetectedInDoc = normalizeYoutubeVideo(documentText);
+    const prompt = ytDetectedInDoc
+      ? `Analise profundamente o vídeo do YouTube anexado (${ytDetectedInDoc.canonicalUrl}) e as instruções adicionais abaixo, produzindo o roteiro estruturado em JSON sobre o conteúdo real do vídeo:\n\n--- INSTRUÇÕES / CONTEXTO ---\n${documentText.slice(0, 10000)}\n--- FIM ---`
+      : `Analise detalhadamente o seguinte documento e produza o roteiro de debate dialético estruturado em JSON:\n\n--- CONTEÚDO DO DOCUMENTO ---\n${documentText.slice(0, 10000)}\n--- FIM DO DOCUMENTO ---\n\nGere a resposta em formato JSON correspondente ao esquema solicitado.`;
 
---- CONTEÚDO DO DOCUMENTO ---
-${documentText.slice(0, 10000)}
---- FIM DO DOCUMENTO ---
-
-Gere a resposta em formato JSON correspondente ao esquema solicitado.`;
+    const scriptContents: Parameters<typeof ai.models.generateContent>[0]['contents'] =
+      ytDetectedInDoc
+        ? [
+            {
+              role: 'user',
+              parts: [
+                {
+                  fileData: {
+                    fileUri: ytDetectedInDoc.canonicalUrl,
+                    mimeType: 'video/mp4',
+                  },
+                },
+                { text: prompt },
+              ],
+            },
+          ]
+        : prompt;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
-      contents: prompt,
+      contents: scriptContents,
       config: {
         systemInstruction,
         temperature: 0.7,
@@ -1455,7 +1484,7 @@ app.get('/api/auth/config', (_req, res) => {
   });
 });
 
-app.post('/api/auth/google', (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential, email, name } = req.body as {
       credential?: string;
@@ -1475,6 +1504,7 @@ app.post('/api/auth/google', (req, res) => {
         email?: string;
         name?: string;
         picture?: string;
+        exp?: number;
       };
 
       if (
@@ -1482,6 +1512,33 @@ app.post('/api/auth/google', (req, res) => {
         (payload.iss !== 'https://accounts.google.com' && payload.iss !== 'accounts.google.com')
       ) {
         return res.status(401).json({ error: 'Emissor do token Google inválido.' });
+      }
+
+      if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now() - 60_000) {
+        return res.status(401).json({ error: 'Token Google expirado. Faça login novamente.' });
+      }
+
+      // Se houver GOOGLE_CLIENT_ID configurado, valida assinatura/audiência no endpoint oficial tokeninfo
+      const expectedClientId = (
+        process.env.GOOGLE_CLIENT_ID ||
+        process.env.VITE_GOOGLE_CLIENT_ID ||
+        ''
+      ).trim();
+      if (expectedClientId) {
+        try {
+          const verifyResp = await fetch(
+            `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`
+          );
+          if (!verifyResp.ok) {
+            return res.status(401).json({ error: 'Assinatura do token Google recusada.' });
+          }
+          const verifiedData = (await verifyResp.json()) as { aud?: string };
+          if (verifiedData.aud && verifiedData.aud !== expectedClientId) {
+            return res.status(401).json({ error: 'Client ID do token Google não corresponde.' });
+          }
+        } catch {
+          // Permanece com a validação estrutural caso sem rede externa no ambiente local
+        }
       }
 
       const safeUid = sanitizeUserId(`google_${payload.sub}`);
@@ -1920,30 +1977,112 @@ Regras obrigatórias de saída JSON:
 });
 
 // ==========================================
-// Agente Gemini com Busca Web (Google Search) & Vídeo do YouTube
+// Agente Gemini com Busca Web (Google Search), Catálogo YouTube & Fluxo Pós-Link
 // ==========================================
 
-function extractYoutubeUrl(input: string): string | null {
-  const match = input.match(
-    /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)[A-Za-z0-9_-]{6,}(?:[^\s"']*)?/i
-  );
-  return match ? match[0] : null;
+async function fetchYoutubeMetadata(rawUrlOrId: string): Promise<YoutubeVideoMetadata | null> {
+  const normalized = normalizeYoutubeVideo(rawUrlOrId);
+  if (!normalized) return null;
+
+  const { videoId, canonicalUrl } = normalized;
+  const fallbackMeta: YoutubeVideoMetadata = {
+    videoId,
+    canonicalUrl,
+    title: `Vídeo do YouTube (${videoId})`,
+    thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+  };
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`;
+    const resp = await fetch(oembedUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) return fallbackMeta;
+    const data = (await resp.json()) as {
+      title?: string;
+      author_name?: string;
+      thumbnail_url?: string;
+    };
+    return {
+      videoId,
+      canonicalUrl,
+      title: data.title || fallbackMeta.title,
+      authorName: data.author_name || undefined,
+      thumbnailUrl: data.thumbnail_url || fallbackMeta.thumbnailUrl,
+    };
+  } catch {
+    return fallbackMeta;
+  }
 }
+
+async function searchYoutubeVideos(query: string, maxResults = 4): Promise<YoutubeVideoMetadata[]> {
+  const cleanQuery = query
+    .replace(/^(busque|pesquise|procure|encontre|mostrar)\s+(no\s+youtube|v[ií]deos?\s+(no\s+youtube\s+)?(sobre|de)?)\s*/i, '')
+    .trim();
+  if (!cleanQuery) return [];
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanQuery)}&hl=pt&gl=BR`;
+    const resp = await fetch(searchUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+    });
+    clearTimeout(timeout);
+    if (!resp.ok) return [];
+    const html = await resp.text();
+    return parseYoutubeSearchResultsHtml(html, maxResults);
+  } catch {
+    return [];
+  }
+}
+
+app.get('/api/youtube/metadata', async (req, res) => {
+  const rawUrl = typeof req.query.url === 'string' ? req.query.url : '';
+  const metadata = await fetchYoutubeMetadata(rawUrl);
+  if (!metadata) {
+    return res.status(400).json({
+      success: false,
+      error: 'URL do YouTube inválida.',
+    });
+  }
+  return res.json({
+    success: true,
+    metadata,
+  });
+});
 
 app.post('/api/agent-explore', async (req, res) => {
   const {
     prompt = '',
     youtubeUrl: explicitYoutubeUrl,
+    youtubeAction: explicitAction,
+    clipRange,
     enableSearch = true,
   } = req.body as {
     prompt?: string;
     youtubeUrl?: string;
+    youtubeAction?: YoutubePostLinkAction;
+    clipRange?: YoutubeClipRange;
     enableSearch?: boolean;
   };
 
-  const detectedYt = explicitYoutubeUrl?.trim() || extractYoutubeUrl(prompt) || undefined;
+  const normalizedYt =
+    normalizeYoutubeVideo(explicitYoutubeUrl || '') || normalizeYoutubeVideo(prompt);
+  const detectedYt = normalizedYt?.canonicalUrl;
+  const effectiveAction: YoutubePostLinkAction | undefined = detectedYt
+    ? explicitAction || inferYoutubeActionFromPrompt(prompt)
+    : undefined;
+
   const cleanPrompt = capText(
-    prompt.trim() || (detectedYt ? 'Analise este vídeo do YouTube e gere uma conversa de estudo.' : ''),
+    prompt.trim() ||
+      (detectedYt ? 'Analise este vídeo do YouTube e gere o conteúdo solicitado.' : ''),
     3000
   );
 
@@ -1953,7 +2092,51 @@ app.post('/api/agent-explore', async (req, res) => {
     });
   }
 
+  // MODO 1: Link colado sem comando específico ("ask_intent") -> retorna imediatamente o Card Interativo com Player e as 4 opções pós-link
+  if (detectedYt && effectiveAction === 'ask_intent') {
+    const youtubeMeta = (await fetchYoutubeMetadata(detectedYt)) || undefined;
+    const videoTitle = youtubeMeta?.title || 'Vídeo do YouTube';
+    const channelLabel = youtubeMeta?.authorName ? ` do canal ${youtubeMeta.authorName}` : '';
+
+    const introChunks: AlignedChunk[] = [
+      {
+        id: 0,
+        en: `Ready to explore "${videoTitle}"! Choose above whether to translate the spoken video, summarize key ideas, or create a 2-voice podcast.`,
+        it: `Pronto per esplorare "${videoTitle}"! Scegli qui sopra se tradurre il parlato del video, riassumere le idee chiave o creare un podcast a 2 voci.`,
+        ja: `「${videoTitle}」の準備ができました！上のボタンから、動画の音声翻訳、要約と会話、または2人のポッドキャスト作成を選んでください。`,
+        jaPronunciation: `"${videoTitle}" no junbi ga dekimashita! Ue no botan kara, dōga no onsei honyaku, yōyaku to kaiwa, matawa futari no poddokyasuto sakusei o erande kudasai.`,
+      },
+    ];
+
+    return res.json({
+      success: true,
+      originMode: 'youtube',
+      youtubeUrl: detectedYt,
+      youtubeMeta,
+      youtubeAction: 'ask_intent',
+      awaitingYoutubeIntent: true,
+      agentReplyPtBr: `Vídeo identificado: "${videoTitle}"${channelLabel}. O que você quer fazer com este link? Escolha uma das opções abaixo (Traduzir a fala do vídeo nos 3 idiomas, Resumo + Diálogo de estudo, Extrair Flashcards ou transformar em Podcast de 2 vozes):`,
+      sources: [
+        {
+          title: youtubeMeta?.title || 'Vídeo do YouTube',
+          uri: detectedYt,
+        },
+      ],
+      chunks: introChunks,
+      fullText: {
+        en: introChunks[0].en,
+        it: introChunks[0].it,
+        ja: introChunks[0].ja,
+      },
+    });
+  }
+
   try {
+    const [youtubeMeta, youtubeSearchResults] = await Promise.all([
+      detectedYt ? fetchYoutubeMetadata(detectedYt) : Promise.resolve(null),
+      !detectedYt && enableSearch ? searchYoutubeVideos(cleanPrompt, 4) : Promise.resolve([]),
+    ]);
+
     const parts: Array<
       | { text: string }
       | { fileData: { fileUri: string; mimeType: string } }
@@ -1968,17 +2151,57 @@ app.post('/api/agent-explore', async (req, res) => {
       });
     }
 
+    const clipRangeInstruction =
+      clipRange?.start || clipRange?.end
+        ? `Foque especificamente no trecho de tempo do vídeo de ${clipRange.start || '00:00'} até ${clipRange.end || 'o final'}.`
+        : 'Considere o conteúdo integral do vídeo (se for longo, divida os momentos mais importantes cronologicamente em até 8 blocos).';
+
+    const actionSpecificInstructions =
+      effectiveAction === 'translate_video'
+        ? `MODO SELECIONADO PELO USUÁRIO: TRADUZIR E TRANSCREVER A FALA DO VÍDEO NOS 3 IDIOMAS.
+- ${clipRangeInstruction}
+- Transcreva fielmente o que é dito no vídeo em sequência cronológica e traduza/alinhe cada trecho (6 a 10 chunks) em Inglês ("en"), Italiano ("it") e Japonês ("ja" + "jaPronunciation" em Romaji).
+- No campo "agentReplyPtBr", apresente um guia em Português do Brasil indicando o tema central e a tradução contextual da fala do vídeo.`
+        : effectiveAction === 'extract_expressions'
+        ? `MODO SELECIONADO PELO USUÁRIO: EXTRAIR EXPRESSÕES NATIVAS & FLASHCARDS DO VÍDEO.
+- ${clipRangeInstruction}
+- Extraia de 5 a 8 expressões idiomáticas, frases de alta frequência ou vocabulário real usado no vídeo e alinhe cada expressão em Inglês ("en"), Italiano ("it") e Japonês ("ja" + "jaPronunciation" em Romaji).
+- No campo "agentReplyPtBr", explique em Português do Brasil o significado, tom e nuance de cada expressão extraída do vídeo.`
+        : effectiveAction === 'summary_dialogue'
+        ? `MODO SELECIONADO PELO USUÁRIO: RESUMO EXECUTIVO + DIÁLOGO PRÁTICO DE ESTUDO.
+- ${clipRangeInstruction}
+- No campo "agentReplyPtBr", elabore um resumo completo, didático e bem estruturado em Português do Brasil (pt-BR) sobre tudo o que o vídeo ensina ou mostra.
+- Nos "chunks" (4 a 6 blocos), crie um diálogo natural de estudo nos 3 idiomas ("en", "it", "ja" + "jaPronunciation") aplicando o tema do vídeo.`
+        : `MODO SELECIONADO PELO USUÁRIO: PESQUISA & RESPOSTA POLIGLOTA.
+- Analise profundamente o vídeo ou tema solicitado ("${cleanPrompt}").
+- Se houver vídeos encontrados no catálogo do YouTube listados abaixo, recomende os mais relevantes no campo "agentReplyPtBr" explicando por que valem a pena.
+- Elabore de 4 a 6 chunks alinhados em Inglês ("en"), Italiano ("it") e Japonês ("ja" + "jaPronunciation" em Romaji) sobre o tema.`;
+
+    const youtubeCatalogContext =
+      youtubeSearchResults.length > 0
+        ? `\nVídeos reais encontrados no catálogo do YouTube para esta busca:\n${youtubeSearchResults
+            .map(
+              (v, idx) =>
+                `${idx + 1}. "${v.title}" (${v.authorName || 'YouTube'}${v.durationHint ? ` · ${v.durationHint}` : ''}) -> ${v.canonicalUrl}`
+            )
+            .join('\n')}\n`
+        : '';
+
     parts.push({
       text: `Solicitação do usuário: "${cleanPrompt}"
-${detectedYt ? `Vídeo do YouTube anexado: ${detectedYt}` : ''}
+${
+  detectedYt
+    ? `Vídeo do YouTube anexado: ${detectedYt}${
+        youtubeMeta?.title ? ` — Título: "${youtubeMeta.title}" (${youtubeMeta.authorName || 'YouTube'})` : ''
+      }`
+    : ''
+}
+${youtubeCatalogContext}
+${actionSpecificInstructions}
 
-Sua tarefa como Agente Pesquisador e Linguista Poliglota:
-1. Analise profundamente o vídeo do YouTube (se fornecido) e/ou pesquise informações atualizadas e confiáveis na Web.
-2. Responda ou resuma de forma clara, útil e amigável em Português do Brasil (pt-BR) no campo "agentReplyPtBr".
-3. Crie uma conversa ou sequência de frases práticas sobre esse exato conteúdo dividida em 3 a 5 chunks alinhados em Inglês ("en"), Italiano ("it") e Japonês ("ja" + "jaPronunciation" em Romaji).
-4. Retorne ESTRITAMENTE um objeto JSON válido com as chaves:
+Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown ao redor) com as chaves:
 {
-  "agentReplyPtBr": "Resumo/resposta completa em português sobre o vídeo ou pesquisa...",
+  "agentReplyPtBr": "Texto completo em português do Brasil...",
   "chunks": [
     { "id": 0, "en": "...", "it": "...", "ja": "...", "jaPronunciation": "..." }
   ],
@@ -1986,24 +2209,64 @@ Sua tarefa como Agente Pesquisador e Linguista Poliglota:
 }`,
     });
 
+    // Quando fileData do YouTube está presente, não combinamos urlContext para evitar 400 INVALID_ARGUMENT na Vertex AI
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: [{ role: 'user', parts }],
       config: {
-        temperature: 0.4,
-        tools: enableSearch ? [{ googleSearch: {} }, { urlContext: {} }] : undefined,
+        temperature: 0.35,
+        tools: detectedYt
+          ? undefined
+          : enableSearch
+          ? [{ googleSearch: {} }]
+          : undefined,
       },
     });
 
     const rawText = (response.text || '').trim();
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    const parsed = parseStructuredJsonFromModel<{
+      agentReplyPtBr?: string;
+      chunks?: AlignedChunk[];
+      fullText?: { en: string; it: string; ja: string };
+    }>(rawText);
 
-    if (!parsed || !Array.isArray(parsed.chunks) || !parsed.fullText) {
-      throw new Error('O Agente não retornou o bloco JSON estruturado esperado.');
+    if (!parsed || !Array.isArray(parsed.chunks) || parsed.chunks.length === 0) {
+      throw new Error('O Agente não retornou os blocos de chunks estruturados esperados.');
     }
 
+    const normalizedChunks: AlignedChunk[] = parsed.chunks.map((c, idx) => ({
+      id: typeof c.id === 'number' ? c.id : idx,
+      en: String(c.en || ''),
+      it: String(c.it || ''),
+      ja: String(c.ja || ''),
+      jaPronunciation: c.jaPronunciation ? String(c.jaPronunciation) : undefined,
+    }));
+
+    const resolvedFullText = {
+      en: parsed.fullText?.en || normalizedChunks.map((c) => c.en).join(' '),
+      it: parsed.fullText?.it || normalizedChunks.map((c) => c.it).join(' '),
+      ja: parsed.fullText?.ja || normalizedChunks.map((c) => c.ja).join(' '),
+    };
+
     const sources: AgentExploreSource[] = [];
+    if (detectedYt) {
+      sources.push({
+        title: youtubeMeta?.title
+          ? `${youtubeMeta.title}${youtubeMeta.authorName ? ` (${youtubeMeta.authorName})` : ''}`
+          : 'Vídeo do YouTube Analisado',
+        uri: detectedYt,
+      });
+    }
+
+    for (const ytItem of youtubeSearchResults) {
+      if (!sources.some((s) => s.uri === ytItem.canonicalUrl)) {
+        sources.push({
+          title: `YouTube: ${ytItem.title}${ytItem.authorName ? ` · ${ytItem.authorName}` : ''}`,
+          uri: ytItem.canonicalUrl,
+        });
+      }
+    }
+
     const candidate = response.candidates?.[0] as
       | {
           groundingMetadata?: {
@@ -2014,7 +2277,7 @@ Sua tarefa como Agente Pesquisador e Linguista Poliglota:
 
     const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
     for (const gc of groundingChunks) {
-      if (gc.web?.uri) {
+      if (gc.web?.uri && !sources.some((s) => s.uri === gc.web?.uri)) {
         sources.push({
           title: gc.web.title || gc.web.uri,
           uri: gc.web.uri,
@@ -2022,28 +2285,56 @@ Sua tarefa como Agente Pesquisador e Linguista Poliglota:
       }
     }
 
-    if (detectedYt && !sources.some((s) => s.uri === detectedYt)) {
-      sources.unshift({
-        title: 'Vídeo do YouTube Analisado',
-        uri: detectedYt,
-      });
-    }
+    // Se a ação for extract_expressions, gera toolCalls automáticos para salvar os cards no Deck
+    const toolCallsExecuted: LiveAgentToolCallResult[] =
+      effectiveAction === 'extract_expressions'
+        ? normalizedChunks.slice(0, 3).map((chunk, idx) => ({
+            id: `tool-yt-fc-${Date.now()}-${idx}`,
+            name: 'create_study_flashcard',
+            behavior: 'NON_BLOCKING',
+            args: {
+              frontPhrase: chunk.en,
+              backTranslation: `${chunk.it} • ${chunk.ja}`,
+            },
+            status: 'executed',
+            summaryPtBr: `Expressão do vídeo salva no Deck: "${chunk.en}"`,
+          }))
+        : [];
 
     return res.json({
       success: true,
       originMode: detectedYt ? 'youtube' : 'web_search',
       youtubeUrl: detectedYt,
+      youtubeMeta: youtubeMeta || undefined,
+      youtubeSearchResults: youtubeSearchResults.length > 0 ? youtubeSearchResults : undefined,
+      youtubeAction: effectiveAction,
+      awaitingYoutubeIntent: false,
       agentReplyPtBr: parsed.agentReplyPtBr || '',
       sources: sources.slice(0, 6),
-      chunks: parsed.chunks,
-      fullText: parsed.fullText,
+      chunks: normalizedChunks,
+      fullText: resolvedFullText,
+      toolCallsExecuted: toolCallsExecuted.length > 0 ? toolCallsExecuted : undefined,
     });
   } catch (error: unknown) {
     console.warn('[WARN] /api/agent-explore fallback ativado:', formatGeminiError(error, 'Erro Agent Explore'));
+    const [youtubeMeta, youtubeSearchResults] = await Promise.all([
+      detectedYt ? fetchYoutubeMetadata(detectedYt) : Promise.resolve(null),
+      !detectedYt ? searchYoutubeVideos(cleanPrompt, 4) : Promise.resolve([]),
+    ]);
     const fallback = buildFallbackPolyglotReply(cleanPrompt, 'tutor_conversational', detectedYt);
-    const fallbackSources: AgentExploreSource[] = detectedYt
-      ? [{ title: 'Vídeo do YouTube Informado', uri: detectedYt }]
-      : [];
+    const fallbackSources: AgentExploreSource[] = [];
+    if (detectedYt) {
+      fallbackSources.push({
+        title: youtubeMeta?.title || 'Vídeo do YouTube Informado',
+        uri: detectedYt,
+      });
+    }
+    for (const v of youtubeSearchResults) {
+      fallbackSources.push({
+        title: `YouTube: ${v.title}`,
+        uri: v.canonicalUrl,
+      });
+    }
 
     return res.json({
       success: true,
@@ -2051,8 +2342,11 @@ Sua tarefa como Agente Pesquisador e Linguista Poliglota:
       warning: formatGeminiError(error, 'Operando em modo de contingência local.'),
       originMode: detectedYt ? 'youtube' : 'web_search',
       youtubeUrl: detectedYt,
+      youtubeMeta: youtubeMeta || undefined,
+      youtubeSearchResults: youtubeSearchResults.length > 0 ? youtubeSearchResults : undefined,
+      youtubeAction: effectiveAction,
       agentReplyPtBr: fallback.agentReplyPtBr,
-      sources: fallbackSources,
+      sources: fallbackSources.slice(0, 6),
       chunks: fallback.chunks,
       fullText: fallback.fullText,
     });

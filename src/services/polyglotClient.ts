@@ -7,16 +7,35 @@ import type {
   LiveAgentToolCallResult,
   SavedConversation,
   MessageOriginMode,
+  YoutubePostLinkAction,
+  YoutubeClipRange,
+  YoutubeVideoMetadata,
 } from '../types/polyglot';
 import {
   FAVORITE_VOICES_STORAGE_KEY,
   DEFAULT_FAVORITE_VOICES_BY_LANG,
   sanitizeFavoriteVoices,
 } from '../types/voices';
+import {
+  detectYoutubeUrl,
+  normalizeYoutubeVideo,
+  isBareYoutubeLinkOnly,
+  inferYoutubeActionFromPrompt,
+  hasYoutubeOrWebSearchIntent,
+} from '../utils/youtubeHelper';
 import { parseApiJson } from './apiClient';
 import { getAuthHeaders } from './authService';
 
-export { FAVORITE_VOICES_STORAGE_KEY, DEFAULT_FAVORITE_VOICES_BY_LANG, sanitizeFavoriteVoices };
+export {
+  FAVORITE_VOICES_STORAGE_KEY,
+  DEFAULT_FAVORITE_VOICES_BY_LANG,
+  sanitizeFavoriteVoices,
+  detectYoutubeUrl,
+  normalizeYoutubeVideo,
+  isBareYoutubeLinkOnly,
+  inferYoutubeActionFromPrompt,
+  hasYoutubeOrWebSearchIntent,
+};
 
 export const readFavoriteVoicesByLanguage = (): Record<'en' | 'it' | 'ja', string> => {
   try {
@@ -36,11 +55,17 @@ export const saveFavoriteVoicesByLanguage = (
   return clean;
 };
 
-export function detectYoutubeUrl(text: string): string | null {
-  const match = text.match(
-    /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)[A-Za-z0-9_-]{6,}(?:[^\s"']*)?/i
-  );
-  return match ? match[0] : null;
+export async function requestYoutubeMetadata(url: string): Promise<YoutubeVideoMetadata | null> {
+  try {
+    const resp = await fetch(`/api/youtube/metadata?url=${encodeURIComponent(url)}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    if (!resp.ok) return null;
+    const data = await parseApiJson<{ metadata?: YoutubeVideoMetadata }>(resp);
+    return data.metadata || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function requestTranslateParallelChunks(text: string): Promise<{
@@ -88,12 +113,18 @@ export async function requestLiveAgentTurn(params: {
 export async function requestAgentExplore(params: {
   prompt: string;
   youtubeUrl?: string;
+  youtubeAction?: YoutubePostLinkAction;
+  clipRange?: YoutubeClipRange;
   enableSearch?: boolean;
 }): Promise<{
   ok: boolean;
   success?: boolean;
   originMode?: MessageOriginMode;
   youtubeUrl?: string;
+  youtubeMeta?: YoutubeVideoMetadata;
+  youtubeSearchResults?: YoutubeVideoMetadata[];
+  youtubeAction?: YoutubePostLinkAction;
+  awaitingYoutubeIntent?: boolean;
   agentReplyPtBr?: string;
   sources?: AgentExploreSource[];
   chunks?: AlignedChunk[];

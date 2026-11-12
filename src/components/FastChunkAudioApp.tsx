@@ -24,9 +24,8 @@ import {
   requestFetchUserChunks,
   requestDeleteUserChunk,
   requestGenerateChunks,
-  persistBrowserState,
-  readBrowserState,
 } from '../services/polyglotClient';
+import { getActiveSession, subscribeAuthChanges } from '../services/authService';
 
 // Banco inicial offline para teste imediato de alta fluência
 const CHUNK_PRESETS: Record<TargetLang, Record<string, ChunkItem[]>> = {
@@ -165,13 +164,14 @@ export const FastChunkAudioApp: React.FC = () => {
 
   const loopTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Identificador Anônimo de Dispositivo (Persistente no navegador)
-  const userId = useMemo(() => {
-    const stored = readBrowserState('fastchunks_user_id');
-    if (stored) return stored;
-    const newId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    persistBrowserState('fastchunks_user_id', newId);
-    return newId;
+  // Identificador de Sessão Ativa (Sincronizado em tempo real com Login/Logout Google)
+  const [userId, setUserId] = useState<string>(() => getActiveSession().uid);
+
+  useEffect(() => {
+    const unsub = subscribeAuthChanges((nextSession) => {
+      setUserId(nextSession.uid);
+    });
+    return unsub;
   }, []);
 
   // Idiomas disponíveis com códigos técnicos e identificadores

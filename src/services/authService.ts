@@ -7,22 +7,62 @@ import type { GoogleUserSession } from '../types/polyglot';
 
 const SESSION_STORAGE_KEY = 'mytts_google_session_v1';
 const LEGACY_USER_ID_KEY = 'fastchunks_user_id';
+const RECENT_ACCOUNTS_KEY = 'mytts_recent_google_accounts_v1';
 
 type AuthListener = (session: GoogleUserSession) => void;
 const listeners = new Set<AuthListener>();
+const memoryFallbackStorage = new Map<string, string>();
 
-function createDefaultGuestSession(): GoogleUserSession {
-  let existingId = 'guest_local';
+function readStorage(key: string): string | null {
   try {
-    const savedId = localStorage.getItem(LEGACY_USER_ID_KEY);
-    if (savedId && savedId.trim()) {
-      existingId = savedId.trim();
-    } else {
-      existingId = `usr_${Math.random().toString(36).slice(2, 10)}`;
-      localStorage.setItem(LEGACY_USER_ID_KEY, existingId);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch {
+    // fallback para memória
+  }
+  return memoryFallbackStorage.get(key) ?? null;
+}
+
+function writeStorage(key: string, value: string): void {
+  memoryFallbackStorage.set(key, value);
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
     }
   } catch {
     // fallback silencioso
+  }
+}
+
+function removeStorage(key: string): void {
+  memoryFallbackStorage.delete(key);
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // fallback silencioso
+  }
+}
+
+function generateFreshGuestUid(): string {
+  return `usr_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createDefaultGuestSession(forceNewGuestId = false): GoogleUserSession {
+  let existingId = 'guest_local';
+  try {
+    const savedId = forceNewGuestId ? null : readStorage(LEGACY_USER_ID_KEY);
+    // Nunca reaproveita um uid de conta Google ("google_...") como sessão de visitante deslogado
+    if (savedId && savedId.trim() && !savedId.trim().startsWith('google_')) {
+      existingId = savedId.trim();
+    } else {
+      existingId = generateFreshGuestUid();
+      writeStorage(LEGACY_USER_ID_KEY, existingId);
+    }
+  } catch {
+    existingId = generateFreshGuestUid();
   }
 
   return {
@@ -33,9 +73,64 @@ function createDefaultGuestSession(): GoogleUserSession {
   };
 }
 
+export function getRecentGoogleAccounts(): GoogleUserSession[] {
+  try {
+    const raw = readStorage(RECENT_ACCOUNTS_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is GoogleUserSession =>
+        Boolean(
+          item &&
+            typeof item === 'object' &&
+            typeof (item as GoogleUserSession).uid === 'string' &&
+            typeof (item as GoogleUserSession).email === 'string' &&
+            (item as GoogleUserSession).email.includes('@')
+        )
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentGoogleAccount(session: GoogleUserSession): void {
+  if (!session.isGoogleAuthenticated || !session.email) return;
+  try {
+    const current = getRecentGoogleAccounts().filter(
+      (acc) => acc.email.toLowerCase() !== session.email.toLowerCase()
+    );
+    const updated = [
+      {
+        uid: session.uid,
+        name: session.name,
+        email: session.email,
+        picture: session.picture,
+        isGoogleAuthenticated: true,
+      },
+      ...current,
+    ].slice(0, 5);
+    writeStorage(RECENT_ACCOUNTS_KEY, JSON.stringify(updated));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function removeRecentGoogleAccount(email: string): GoogleUserSession[] {
+  try {
+    const next = getRecentGoogleAccounts().filter(
+      (acc) => acc.email.toLowerCase() !== email.trim().toLowerCase()
+    );
+    writeStorage(RECENT_ACCOUNTS_KEY, JSON.stringify(next));
+    return next;
+  } catch {
+    return [];
+  }
+}
+
 export function getActiveSession(): GoogleUserSession {
   try {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    const raw = readStorage(SESSION_STORAGE_KEY);
     if (raw) {
       const parsed: unknown = JSON.parse(raw);
       if (
@@ -55,8 +150,9 @@ export function getActiveSession(): GoogleUserSession {
 
 export function setActiveSession(session: GoogleUserSession): GoogleUserSession {
   try {
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-    localStorage.setItem(LEGACY_USER_ID_KEY, session.uid);
+    writeStorage(SESSION_STORAGE_KEY, JSON.stringify(session));
+    writeStorage(LEGACY_USER_ID_KEY, session.uid);
+    saveRecentGoogleAccount(session);
   } catch {
     // fallback
   }
@@ -65,12 +161,12 @@ export function setActiveSession(session: GoogleUserSession): GoogleUserSession 
 }
 
 export function signOutGoogle(): GoogleUserSession {
-  const guest = createDefaultGuestSession();
   try {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    removeStorage(SESSION_STORAGE_KEY);
   } catch {
     // ignore
   }
+  const guest = createDefaultGuestSession(true);
   listeners.forEach((fn) => fn(guest));
   return guest;
 }

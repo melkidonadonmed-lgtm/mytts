@@ -81,7 +81,8 @@ Transcrição pontuada de áudio capturado no microfone via `gemini-3.8-flash`.
 - `POST /api/translate-parallel-chunks`: alinhamento semântico trilingue (`en`, `it`, `ja` + `jaPronunciation`) -> `{ success: true, chunks: [...], fullText: { en, it, ja } }`.
 - `POST /api/generate-flashcard`: gera flashcard pedagógico Anki (`front`, `back`, `nuance`, `pronunciation`, `example`, `exampleTranslation`) -> `{ success: true, card: {...} }`.
 - `POST /api/live-agent-turn` (até 25 MB): turno conversacional por voz/texto com personas (`tutor_conversational`, `practice_partner`, `polyglot_translator`) e Function Calling `NON_BLOCKING` (`create_study_flashcard`, `switch_studio_voice`).
-- `POST /api/agent-explore`: pesquisa web fundamentada (`googleSearch` + `urlContext`) e análise multimodal de vídeos do YouTube (`fileData`) com geração de chunks alinhados e fontes (`sources`).
+- `GET /api/youtube/metadata`: retorna metadados reais do vídeo (`videoId`, `canonicalUrl`, `title`, `authorName`, `thumbnailUrl`) via YouTube oEmbed.
+- `POST /api/agent-explore`: pesquisa web fundamentada (`googleSearch`), busca no catálogo do YouTube (`youtubeSearchResults`) e análise multimodal de vídeos do YouTube (`fileData` com URL canônica) suportando modos de ação pós-link (`ask_intent`, `translate_video`, `summary_dialogue`, `extract_expressions`, `custom_prompt`) e intervalo opcional de tempo (`clipRange`).
 
 ### 2.9. Autenticação Google, Histórico de Conversas e `GET /api/health`
 - `GET /api/auth/config` & `POST /api/auth/google`: configuração Google Identity Services e autenticação de sessão (`{ success: true, user }`).
