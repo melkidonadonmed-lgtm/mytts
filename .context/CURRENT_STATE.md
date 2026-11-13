@@ -157,6 +157,9 @@
      - Enxugada a navegação em [`src/components/Sidebar.tsx`](../src/components/Sidebar.tsx) e [`src/components/MobileAppHeader.tsx`](../src/components/MobileAppHeader.tsx) de 6 para 4 módulos (`Chat Poliglota`, `Configuração de Vozes`, `FastChunks`, `Área de Estudo`) e despoluído o cabeçalho do Chat Poliglota.
   4. **Área de Estudo no Estilo Anki / Brainscape (`Task 4` — `Suite 19`)**:
      - Criados [`src/components/study/StudyDeckOverview.tsx`](../src/components/study/StudyDeckOverview.tsx) e [`src/components/study/FlashcardCreatorPanel.tsx`](../src/components/study/FlashcardCreatorPanel.tsx) e refatorado [`src/components/StudyArenaView.tsx`](../src/components/StudyArenaView.tsx) em 3 sub-abas (`Baralhos`, `Estudar`, `Criar & Gerenciar`), com prevenção de duplicação de cards, feedback de salvamento e limpeza de campos opcionais.
+  5. **Deploy em Produção (`13/11/2026` — Revisão `mytts-00007-wvx`)**:
+     - Publicada a revisão `mytts-00007-wvx` no Cloud Run em São Paulo (`southamerica-east1` — `https://mytts-1044179901556.southamerica-east1.run.app`, 100% do tráfego) e atualizada a URL curta no Firebase Hosting (`https://mytts.web.app`, bundles `dist/assets/index-DUy9xPMh.js` e `dist/assets/index-7-yOGw2d.css`).
+     - Validado em produção real: `GET https://mytts.web.app/api/health` (`status: "online", modelTts: "gemini-3.8-flash-tts", storage: "firestore"`) e HTML 200 servindo o novo bundle com `<meta name="color-scheme">`.
 
 ## Débitos Técnicos e Blockers
 - **Credenciais Cloud/Local**: Operacional em produção (`https://mytts.web.app` / Cloud Run `southamerica-east1`) e localmente (`:3002`) via failover automático para Vertex AI ADC (`agent-md-506215` / `global`).
