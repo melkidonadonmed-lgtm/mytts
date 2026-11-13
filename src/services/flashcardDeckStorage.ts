@@ -118,7 +118,7 @@ export function filterStudyQueue(
   });
 }
 
-export function buildManualFlashcardItem(input: {
+export interface BuildManualFlashcardInput {
   id?: string;
   deckName: string;
   language?: string;
@@ -130,7 +130,9 @@ export function buildManualFlashcardItem(input: {
   nuance?: string;
   createdAt?: number;
   existing?: Partial<FlashcardItem>;
-}): FlashcardItem {
+}
+
+export function buildManualFlashcardItem(input: BuildManualFlashcardInput): FlashcardItem {
   const front = input.front.trim();
   const back = input.back.trim();
   const deckName =
@@ -139,16 +141,25 @@ export function buildManualFlashcardItem(input: {
   const rawLang = input.language?.trim() || input.existing?.language?.trim() || '';
   const detectedLang = detectFlashcardLanguage(front, rawLang || undefined);
 
-  const cleanPronunciation = input.pronunciation?.trim();
   const pronunciation =
-    cleanPronunciation && cleanPronunciation.length > 0
-      ? cleanPronunciation
+    input.pronunciation !== undefined
+      ? input.pronunciation.trim() || undefined
       : input.existing?.pronunciation?.trim() || undefined;
 
-  const example = input.example?.trim() || input.existing?.example?.trim() || front;
+  const example =
+    input.example !== undefined
+      ? input.example.trim() || front
+      : input.existing?.example?.trim() || front;
+
   const exampleTranslation =
-    input.exampleTranslation?.trim() || input.existing?.exampleTranslation?.trim() || back;
-  const nuance = input.nuance?.trim() || input.existing?.nuance?.trim() || 'Estudo Ativo';
+    input.exampleTranslation !== undefined
+      ? input.exampleTranslation.trim() || back
+      : input.existing?.exampleTranslation?.trim() || back;
+
+  const nuance =
+    input.nuance !== undefined
+      ? input.nuance.trim()
+      : input.existing?.nuance?.trim() || 'Estudo Ativo';
 
   const id =
     input.id?.trim() ||

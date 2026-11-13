@@ -36,9 +36,30 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [previewFlipped, setPreviewFlipped] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const clearForm = () => {
+    setFront('');
+    setBack('');
+    setPronunciation('');
+    setExample('');
+    setExampleTranslation('');
+    setNuance('');
+    setPreviewFlipped(false);
+    setAiError(null);
+  };
+
+  useEffect(() => {
+    if (!statusMessage) return;
+    const timer = setTimeout(() => {
+      setStatusMessage(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [statusMessage]);
 
   useEffect(() => {
     if (initialCard) {
+      setStatusMessage(null);
       setDeckName(initialCard.deckName || defaultDeckName);
       setLanguage(normalizeLanguageBadge(initialCard.language));
       setFront(initialCard.front || '');
@@ -59,6 +80,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
     const trimmedFront = front.trim();
     if (!trimmedFront) return setAiError('Digite a Frente (Expressão/Frase) para a IA completar.');
     setAiError(null);
+    if (statusMessage) setStatusMessage(null);
     setIsGenerating(true);
     try {
       const res = await requestGenerateFlashcard(trimmedFront, language === 'auto' ? '' : language);
@@ -83,6 +105,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
 
   const handleSave = (createNext = false) => {
     if (!front.trim() || !back.trim()) return;
+    const wasEditing = Boolean(initialCard);
     onSaveCard(
       buildManualFlashcardItem({
         id: initialCard?.id,
@@ -97,16 +120,27 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
         existing: initialCard || undefined,
       })
     );
-    if (createNext) {
-      setFront('');
-      setBack('');
-      setPronunciation('');
-      setExample('');
-      setExampleTranslation('');
-      setNuance('');
-      setPreviewFlipped(false);
-      setAiError(null);
-    }
+    clearForm();
+    setStatusMessage(
+      wasEditing
+        ? 'Flashcard atualizado com sucesso!'
+        : createNext
+          ? 'Flashcard salvo! Pronto para o próximo.'
+          : 'Flashcard salvo no baralho!'
+    );
+  };
+
+  const handleCancelEdit = () => {
+    clearForm();
+    setStatusMessage(null);
+    onCancelEdit?.();
+  };
+
+  const updateField = (setter: React.Dispatch<React.SetStateAction<string>>) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setter(e.target.value);
+    if (statusMessage) setStatusMessage(null);
   };
 
   const allDecks = Array.from(new Set([defaultDeckName, ...availableDecks])).filter(Boolean);
@@ -137,6 +171,17 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-7 space-y-4 p-5 sm:p-6 rounded-3xl card-matte border border-slate-800">
+          {statusMessage && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-2"
+            >
+              <GoogleIcon name="check_circle" size={16} className="text-emerald-400 shrink-0" />
+              <span>{statusMessage}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label htmlFor="deck-select" className="block text-xs font-bold text-secondary">Baralho</label>
@@ -174,14 +219,14 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
                 <span>{isGenerating ? 'Completando...' : 'Completar com IA'}</span>
               </button>
             </div>
-            <textarea id="card-front" rows={2} value={front} onChange={(e) => setFront(e.target.value)} placeholder="Ex: Take it with a grain of salt / Non vedo l'ora / よろしくお願いします" className="w-full px-3.5 py-2.5 rounded-xl input-sunken text-sm text-primary placeholder-slate-500 border border-slate-800 focus:outline-none focus:border-amber-500/40" />
+            <textarea id="card-front" rows={2} value={front} onChange={updateField(setFront)} placeholder="Ex: Take it with a grain of salt / Non vedo l'ora / よろしくお願いします" className="w-full px-3.5 py-2.5 rounded-xl input-sunken text-sm text-primary placeholder-slate-500 border border-slate-800 focus:outline-none focus:border-amber-500/40" />
           </div>
 
           {aiError && <p className="text-xs text-rose-400 bg-rose-950/40 border border-rose-500/30 p-2.5 rounded-xl">{aiError}</p>}
 
           <div className="space-y-1.5">
             <label htmlFor="card-back" className="block text-xs font-extrabold text-primary">Verso (Tradução / Significado) *</label>
-            <textarea id="card-back" rows={2} value={back} onChange={(e) => setBack(e.target.value)} placeholder="Ex: Não leve tão a sério / Mal posso esperar / Conto com você" className="w-full px-3.5 py-2.5 rounded-xl input-sunken text-sm text-emerald-300 placeholder-slate-500 border border-slate-800 focus:outline-none focus:border-emerald-500/40" />
+            <textarea id="card-back" rows={2} value={back} onChange={updateField(setBack)} placeholder="Ex: Não leve tão a sério / Mal posso esperar / Conto com você" className="w-full px-3.5 py-2.5 rounded-xl input-sunken text-sm text-emerald-300 placeholder-slate-500 border border-slate-800 focus:outline-none focus:border-emerald-500/40" />
           </div>
 
           <div className="pt-2 border-t border-slate-800/80">
@@ -193,21 +238,21 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
               <div className="space-y-3 pt-3">
                 <div className="space-y-1">
                   <label htmlFor="card-pron" className="block text-xs font-semibold text-secondary">Pronúncia Fonética / Rōmaji</label>
-                  <input id="card-pron" type="text" value={pronunciation} onChange={(e) => setPronunciation(e.target.value)} placeholder="Ex: /teɪk ɪt/ ou yoroshiku" className="w-full min-h-[44px] px-3 py-2 rounded-xl input-sunken text-xs text-primary border border-slate-800" />
+                  <input id="card-pron" type="text" value={pronunciation} onChange={updateField(setPronunciation)} placeholder="Ex: /teɪk ɪt/ ou yoroshiku" className="w-full min-h-[44px] px-3 py-2 rounded-xl input-sunken text-xs text-primary border border-slate-800" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label htmlFor="card-ex" className="block text-xs font-semibold text-secondary">Frase de Exemplo</label>
-                    <input id="card-ex" type="text" value={example} onChange={(e) => setExample(e.target.value)} placeholder="Ex: Take his advice..." className="w-full min-h-[44px] px-3 py-2 rounded-xl input-sunken text-xs text-primary border border-slate-800" />
+                    <input id="card-ex" type="text" value={example} onChange={updateField(setExample)} placeholder="Ex: Take his advice..." className="w-full min-h-[44px] px-3 py-2 rounded-xl input-sunken text-xs text-primary border border-slate-800" />
                   </div>
                   <div className="space-y-1">
                     <label htmlFor="card-ex-tr" className="block text-xs font-semibold text-secondary">Tradução do Exemplo</label>
-                    <input id="card-ex-tr" type="text" value={exampleTranslation} onChange={(e) => setExampleTranslation(e.target.value)} placeholder="Ex: Veja o conselho..." className="w-full min-h-[44px] px-3 py-2 rounded-xl input-sunken text-xs text-secondary border border-slate-800" />
+                    <input id="card-ex-tr" type="text" value={exampleTranslation} onChange={updateField(setExampleTranslation)} placeholder="Ex: Veja o conselho..." className="w-full min-h-[44px] px-3 py-2 rounded-xl input-sunken text-xs text-secondary border border-slate-800" />
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label htmlFor="card-nuance" className="block text-xs font-semibold text-secondary">Nuance Cultural / Contexto</label>
-                  <input id="card-nuance" type="text" value={nuance} onChange={(e) => setNuance(e.target.value)} placeholder="Ex: Usado no cotidiano..." className="w-full min-h-[44px] px-3 py-2 rounded-xl input-sunken text-xs text-secondary border border-slate-800" />
+                  <input id="card-nuance" type="text" value={nuance} onChange={updateField(setNuance)} placeholder="Ex: Usado no cotidiano..." className="w-full min-h-[44px] px-3 py-2 rounded-xl input-sunken text-xs text-secondary border border-slate-800" />
                 </div>
               </div>
             )}
@@ -225,7 +270,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
               </button>
             )}
             {initialCard && onCancelEdit && (
-              <button type="button" onClick={onCancelEdit} className="min-h-[44px] px-4 py-2.5 rounded-xl btn-matte-dark text-secondary hover:text-primary text-xs font-bold border border-slate-800 cursor-pointer">Cancelar Edição</button>
+              <button type="button" onClick={handleCancelEdit} className="min-h-[44px] px-4 py-2.5 rounded-xl btn-matte-dark text-secondary hover:text-primary text-xs font-bold border border-slate-800 cursor-pointer">Cancelar Edição</button>
             )}
           </div>
         </div>

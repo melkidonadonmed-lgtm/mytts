@@ -879,6 +879,53 @@ test('Suite 19: Área de Estudo Anki/Brainscape — Métricas de Baralho, Fila S
   assert.strictEqual(editedCard.repetitions, 3, 'Deve preservar repetitions');
   assert.strictEqual(editedCard.nextReviewAt, now + 7 * DAY_MS, 'Deve preservar nextReviewAt');
   assert.strictEqual(editedCard.createdAt, sampleCards[2].createdAt, 'Deve preservar createdAt');
+
+  // 5. buildManualFlashcardItem (limpeza de campos opcionais vs preservação quando omitidos)
+  const cardWithDetails: FlashcardItem = {
+    ...sampleCards[2],
+    pronunciation: 'piːs əv keɪk',
+    nuance: 'Expressão idiomática',
+  };
+
+  // Quando omitidos (undefined), preserva os valores existentes de existing
+  const preservedCard = buildManualFlashcardItem({
+    id: cardWithDetails.id,
+    deckName: 'Baralho Principal',
+    front: 'Piece of cake',
+    back: 'Muito fácil',
+    existing: cardWithDetails,
+  });
+  assert.strictEqual(
+    preservedCard.pronunciation,
+    'piːs əv keɪk',
+    'Omitir pronúncia (undefined) deve preservar valor de existing'
+  );
+  assert.strictEqual(
+    preservedCard.nuance,
+    'Expressão idiomática',
+    'Omitir nuance (undefined) deve preservar valor de existing'
+  );
+
+  // Quando passados vazios (''), limpa os campos opcionais em vez de recorrer a existing
+  const clearedCard = buildManualFlashcardItem({
+    id: cardWithDetails.id,
+    deckName: 'Baralho Principal',
+    front: 'Piece of cake',
+    back: 'Muito fácil',
+    pronunciation: '',
+    nuance: '',
+    existing: cardWithDetails,
+  });
+  assert.strictEqual(
+    clearedCard.pronunciation,
+    undefined,
+    'Passar pronúncia vazia deve limpar o campo (undefined)'
+  );
+  assert.strictEqual(
+    clearedCard.nuance,
+    '',
+    'Passar nuance vazia deve limpar a nuance existente para string vazia'
+  );
 });
 
 export async function runContractTests(): Promise<number> {
