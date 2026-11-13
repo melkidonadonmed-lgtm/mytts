@@ -184,6 +184,72 @@ export async function requestDeleteUserConversation(conversationId: string): Pro
   }
 }
 
+export async function requestClearUnpinnedConversations(): Promise<number> {
+  try {
+    const resp = await fetch('/api/conversations', {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    if (!resp.ok) return 0;
+    const data = await parseApiJson<{ removedCount?: number }>(resp);
+    return typeof data.removedCount === 'number' ? data.removedCount : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function requestListUserFlashcards(): Promise<FlashcardItem[]> {
+  try {
+    const resp = await fetch('/api/flashcards', {
+      headers: { ...getAuthHeaders() },
+    });
+    if (!resp.ok) return [];
+    const data = await parseApiJson<{ cards?: FlashcardItem[] }>(resp);
+    return Array.isArray(data.cards) ? data.cards : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function requestSaveUserFlashcards(cards: FlashcardItem[]): Promise<FlashcardItem[]> {
+  try {
+    const resp = await fetch('/api/flashcards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ cards }),
+    });
+    if (!resp.ok) return cards;
+    const data = await parseApiJson<{ cards?: FlashcardItem[] }>(resp);
+    return Array.isArray(data.cards) ? data.cards : cards;
+  } catch {
+    return cards;
+  }
+}
+
+export async function requestDeleteUserFlashcard(cardId: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`/api/flashcards/${encodeURIComponent(cardId)}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function requestClearUserFlashcards(): Promise<boolean> {
+  try {
+    const resp = await fetch('/api/flashcards', {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function requestGenerateFlashcard(
   chunkText: string,
   language: string

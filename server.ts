@@ -12,11 +12,13 @@ import { randomUUID } from 'crypto';
 import { GoogleGenAI, Type } from '@google/genai';
 import { chunkStorage } from './src/services/chunkStorage';
 import { getConversationStorage } from './src/services/conversationStorage';
+import { getFlashcardStorage } from './src/services/flashcardStorage';
 import { ChunkItem, TargetLang } from './src/types/chunks';
 import type {
   AgentPersona,
   AgentExploreSource,
   AlignedChunk,
+  FlashcardItem,
   GoogleUserSession,
   SavedConversation,
   YoutubePostLinkAction,
@@ -1541,11 +1543,15 @@ app.post('/api/auth/google', async (req, res) => {
         }
       }
 
-      const safeUid = sanitizeUserId(`google_${payload.sub}`);
+      const canonicalEmail = (payload.email || '').trim().toLowerCase();
+      const rawIdentifier = canonicalEmail
+        ? canonicalEmail.replace(/[^a-z0-9]/g, '_').slice(0, 56)
+        : String(payload.sub).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 56);
+      const safeUid = sanitizeUserId(`google_${rawIdentifier}`);
       const user: GoogleUserSession = {
         uid: safeUid,
         name: payload.name || payload.email?.split('@')[0] || 'Usuário Google',
-        email: payload.email || '',
+        email: canonicalEmail || payload.email || '',
         picture: payload.picture,
         idToken: credential,
         isGoogleAuthenticated: true,
@@ -1555,7 +1561,8 @@ app.post('/api/auth/google', async (req, res) => {
 
     if (email && typeof email === 'string' && email.includes('@')) {
       const cleanEmail = email.trim().toLowerCase();
-      const safeUid = sanitizeUserId(`google_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`);
+      const safeEmailSlug = cleanEmail.replace(/[^a-z0-9]/g, '_').slice(0, 56);
+      const safeUid = sanitizeUserId(`google_${safeEmailSlug}`);
       const displayName =
         typeof name === 'string' && name.trim().length > 0
           ? name.trim().slice(0, 60)
@@ -1608,6 +1615,7 @@ app.post('/api/conversations', async (req, res) => {
       userName: String(body.userName || 'Familiar').slice(0, 80),
       userEmail: body.userEmail ? String(body.userEmail).slice(0, 120) : undefined,
       title: String(body.title || 'Conversa Poliglota').slice(0, 140),
+      customTitle: Boolean(body.customTitle),
       createdAt: body.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       pinned: Boolean(body.pinned),
@@ -1639,6 +1647,97 @@ app.delete('/api/conversations/:id', async (req, res) => {
   } catch (error: unknown) {
     return res.status(500).json({
       error: error instanceof Error ? error.message : 'Falha ao remover conversa do histórico.',
+    });
+  }
+});
+
+app.delete('/api/conversations', async (req, res) => {
+  try {
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const removedCount = await conversationStorage.clearUnpinned(userId);
+    return res.json({
+      success: true,
+      removedCount,
+    });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao limpar conversas não fixadas.',
+    });
+  }
+});
+
+const flashcardStorage = getFlashcardStorage();
+
+app.get('/api/flashcards', async (req, res) => {
+  try {
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const cards = await flashcardStorage.listByUser(userId);
+    return res.json({
+      success: true,
+      storageMode: flashcardStorage.mode,
+      cards,
+    });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao listar flashcards do usuário.',
+    });
+  }
+});
+
+app.post('/api/flashcards', async (req, res) => {
+  try {
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const body = req.body as { cards?: FlashcardItem[]; card?: FlashcardItem } | undefined;
+    const incoming: FlashcardItem[] = Array.isArray(body?.cards)
+      ? body.cards.slice(0, 500)
+      : body?.card
+        ? [body.card]
+        : [];
+
+    if (incoming.length === 0) {
+      return res.status(400).json({ error: 'Informe card ou cards para salvar no baralho.' });
+    }
+
+    const saved = await flashcardStorage.upsertMany(userId, incoming);
+    return res.json({
+      success: true,
+      storageMode: flashcardStorage.mode,
+      cards: saved,
+    });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao salvar flashcards.',
+    });
+  }
+});
+
+app.delete('/api/flashcards/:id', async (req, res) => {
+  try {
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const cardId = String(req.params.id || '').slice(0, 80);
+    const deleted = await flashcardStorage.remove(userId, cardId);
+    return res.json({
+      success: true,
+      deleted,
+    });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao excluir flashcard.',
+    });
+  }
+});
+
+app.delete('/api/flashcards', async (req, res) => {
+  try {
+    const userId = sanitizeUserId(req.headers['x-user-id']);
+    const clearedCount = await flashcardStorage.clearByUser(userId);
+    return res.json({
+      success: true,
+      clearedCount,
+    });
+  } catch (error: unknown) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Falha ao limpar baralho de flashcards.',
     });
   }
 });

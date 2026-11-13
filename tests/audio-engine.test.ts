@@ -470,6 +470,82 @@ test('Suite 16: Gemini 3.8 Flash TTS — 12 Emoções, 5 Personas Acústicas e T
   assert.strictEqual(buildExpressiveTtsTranscript(''), '');
 });
 
+import {
+  parseFlashcardsInput,
+  detectFlashcardLanguage,
+  normalizeLanguageBadge,
+  candidatesToFlashcardItems,
+} from '../src/utils/flashcardParser';
+import { getFlashcardStorage } from '../src/services/flashcardStorage';
+
+test('Suite 17: Parser Multi-Formato de Flashcards (JSON, CSV Anki, Markdown, HTML), Detecção de Idioma e Persistência por Usuário', async () => {
+  // 1. ARRANGE & ACT — Detecção automática de idioma ('en-US' | 'it-IT' | 'ja-JP' e badge 'EN' | 'IT' | 'JA')
+  assert.strictEqual(detectFlashcardLanguage('お疲れ様です (Otsukaresama desu)'), 'ja-JP');
+  assert.strictEqual(detectFlashcardLanguage('Non vedo l’ora di andare a Roma, grazie!'), 'it-IT');
+  assert.strictEqual(detectFlashcardLanguage('Break a leg on your presentation today'), 'en-US');
+  assert.strictEqual(normalizeLanguageBadge('ja-JP'), 'JA');
+  assert.strictEqual(normalizeLanguageBadge('it-IT'), 'IT');
+  assert.strictEqual(normalizeLanguageBadge('en-US'), 'EN');
+
+  // 2. Parser de Tabela Markdown
+  const mdInput = `| Frente | Verso | Contexto | Idioma |
+| --- | --- | --- | --- |
+| Break the ice | Quebrar o gelo | Reunião inicial | EN |
+| In bocca al lupo | Boa sorte | Antes de prova | IT |
+| よろしくお願いします | Conto com você | Saudação formal | JA |`;
+  const mdParsed = parseFlashcardsInput(mdInput, { deckName: 'Deck MD' });
+  assert.strictEqual(mdParsed.detectedFormat, 'markdown');
+  assert.strictEqual(mdParsed.cards.length, 3);
+  assert.strictEqual(mdParsed.cards[0].front, 'Break the ice');
+  assert.strictEqual(mdParsed.cards[1].language, 'it-IT');
+  assert.strictEqual(mdParsed.cards[2].language, 'ja-JP');
+
+  // 3. Parser CSV/TSV Anki com aspas escapadas
+  const csvInput = `front;back;context;lang\n"Hit the nail on the head";"Acertar em cheio";"Diagnóstico preciso";"EN"\n"Meno male!";"Ainda bem!";"Alívio";"IT"`;
+  const csvParsed = parseFlashcardsInput(csvInput, { deckName: 'Deck Anki' });
+  assert.strictEqual(csvParsed.detectedFormat, 'csv');
+  assert.strictEqual(csvParsed.cards.length, 2);
+  assert.strictEqual(csvParsed.cards[0].front, 'Hit the nail on the head');
+  assert.strictEqual(csvParsed.cards[1].language, 'it-IT');
+
+  // 4. Parser JSON + Sanitização Zero-Trust contra <script> e prototype pollution
+  const jsonInput = JSON.stringify([
+    {
+      front: '<script>alert(1)</script>Piece of cake',
+      back: '<b>Muito fácil</b>',
+      context: 'Exame tranquilo',
+      language: 'EN',
+    },
+  ]);
+  const jsonParsed = parseFlashcardsInput(jsonInput, { deckName: 'Deck JSON' });
+  assert.strictEqual(jsonParsed.detectedFormat, 'json');
+  assert.strictEqual(jsonParsed.cards.length, 1);
+  assert.strictEqual(jsonParsed.cards[0].front, 'Piece of cake');
+  assert.strictEqual(jsonParsed.cards[0].back, 'Muito fácil');
+
+  // 5. Conversão para FlashcardItem e Persistência isolada por userId
+  const items = candidatesToFlashcardItems(mdParsed.cards, 'Deck Teste Suite 17');
+  assert.strictEqual(items.length, 3);
+  assert.strictEqual(items[0].deckName, 'Deck Teste Suite 17');
+  assert.strictEqual(items[0].status, 'new');
+
+  const store = getFlashcardStorage();
+  const testUid = `test_flash_user_${Date.now()}`;
+  const savedCards = await store.upsertMany(testUid, items);
+  assert.strictEqual(savedCards.length, 3);
+
+  const listedCards = await store.listByUser(testUid);
+  assert.strictEqual(listedCards.length, 3);
+
+  const removedOne = await store.remove(testUid, items[0].id);
+  assert.strictEqual(removedOne, true);
+
+  const clearedCount = await store.clearByUser(testUid);
+  assert.strictEqual(clearedCount, 2);
+  const afterClear = await store.listByUser(testUid);
+  assert.strictEqual(afterClear.length, 0);
+});
+
 export async function runContractTests(): Promise<number> {
   let passed = 0;
   for (const t of contractTests) {

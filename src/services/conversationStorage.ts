@@ -12,6 +12,7 @@ export interface ConversationStorageAdapter {
   listByUser(userId: string): Promise<SavedConversation[]>;
   upsert(userId: string, conversation: SavedConversation): Promise<SavedConversation>;
   remove(userId: string, conversationId: string): Promise<boolean>;
+  clearUnpinned(userId: string): Promise<number>;
 }
 
 const DATA_DIR = path.join(process.cwd(), '.data');
@@ -95,6 +96,18 @@ class LocalConversationAdapter implements ConversationStorageAdapter {
     this.writeAll(store);
     return true;
   }
+
+  async clearUnpinned(userId: string): Promise<number> {
+    const store = this.readAll();
+    const list = Array.isArray(store[userId]) ? store[userId] : [];
+    const pinnedOnly = list.filter((c) => Boolean(c.pinned));
+    const removedCount = list.length - pinnedOnly.length;
+    if (removedCount > 0) {
+      store[userId] = pinnedOnly;
+      this.writeAll(store);
+    }
+    return removedCount;
+  }
 }
 
 class FirestoreConversationAdapter implements ConversationStorageAdapter {
@@ -166,6 +179,31 @@ class FirestoreConversationAdapter implements ConversationStorageAdapter {
       return this.fallback.remove(userId, conversationId);
     }
   }
+
+  async clearUnpinned(userId: string): Promise<number> {
+    const removedLocal = await this.fallback.clearUnpinned(userId);
+    try {
+      const snap = await this.db
+        .collection(this.collectionName)
+        .where('userId', '==', userId)
+        .get();
+      const batch = this.db.batch();
+      let deletedCloud = 0;
+      snap.forEach((doc) => {
+        const data = doc.data() as SavedConversation;
+        if (!data?.pinned) {
+          batch.delete(doc.ref);
+          deletedCloud++;
+        }
+      });
+      if (deletedCloud > 0) {
+        await batch.commit();
+      }
+      return Math.max(removedLocal, deletedCloud);
+    } catch {
+      return removedLocal;
+    }
+  }
 }
 
 let cachedAdapter: ConversationStorageAdapter | null = null;
@@ -175,7 +213,7 @@ export function getConversationStorage(): ConversationStorageAdapter {
 
   const isCloudRun = Boolean(process.env.K_SERVICE);
   const hasExplicitCreds = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS);
-  const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+  const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'agent-md-506215';
 
   if ((isCloudRun || hasExplicitCreds) && projectId) {
     try {

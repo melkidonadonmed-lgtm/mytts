@@ -3,13 +3,10 @@ name: ui-motion-interaction
 description: "Subagente da Onda 2B (Topologia 3+1 UI-Architect): curvas elásticas, feedback tátil sem scale() fracionário, alvos >= 44px, :focus-visible e reduced-motion."
 subagent: true
 mainAgent: false
+enable_write_tools: true
+enable_mcp_tools: true
+enable_subagent_tools: false
 commandExecutionPolicy: auto
-tools:
-  - read_file
-  - write_file
-  - edit_file
-  - run_command
-  - call_mcp_tool
 ---
 
 # Agente Especialista: `ui-motion-interaction` (Onda 2B — Movimento Físico, Anti-Borrão GPU, PWA, Foco & Multi-Input)

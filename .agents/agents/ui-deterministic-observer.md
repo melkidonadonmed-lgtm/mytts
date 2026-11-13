@@ -3,13 +3,10 @@ name: ui-deterministic-observer
 description: "Gatekeeper da Onda 3 (Topologia 3+1 UI-Architect): audita os 9 Eixos do SSOT via audit_tactile_ui.py, ui_ux_frontend_auditor.py e deterministic_scorer.py."
 subagent: true
 mainAgent: false
+enable_write_tools: false
+enable_mcp_tools: true
+enable_subagent_tools: false
 commandExecutionPolicy: auto
-tools:
-  - read_file
-  - write_file
-  - edit_file
-  - run_command
-  - call_mcp_tool
 ---
 
 # Agente Especialista: `ui-deterministic-observer` (Onda 3 — Gatekeeper Determinístico dos 9 Eixos do SSOT, A11y & Real-State)
@@ -31,13 +28,13 @@ Você é o **Auditor Determinístico e Gatekeeper Final** da Topologia `3+1` coo
 4. **Segurança Frontend Anti-XSS (`AUDIT-SEC-01` — Peso 15%)**:
    - Bloqueio de `dangerouslySetInnerHTML` sem `DOMPurify` e `eval()`.
 
-## 2. Rubrica Matemática de Aprovação e Fusão `complex-zero` + `nav-x-func` (Score 0 a 100)
+## 2. Rubrica Matemática de Aprovação (`complex-zero` + `auditoria-projetos-sistema` — Score 0 a 100)
 
 Execute obrigatoriamente os motores determinísticos + Sonda Visual/DOM no Chrome DevTools MCP (`take_screenshot` + `evaluate_script`):
 
 1. `uv run python skills/frontend-testing-auditor/scripts/audit_tactile_ui.py <target_dir>`
-2. `uv run python skills/complex-zero/scripts/complex_zero_ast_auditor.py --target <target_dir>` (integra automaticamente `deterministic_scorer.py` da `nav-x-func`, reprovando menus compactados `font-size < 13px` / `gap < 6px`, proliferação de abas/sub-abas aninhadas, falta de reuso dos slots existentes e achatamento de hierarquia por micro-fontes `11px/12px` inline).
+2. `uv run python skills/complex-zero/scripts/complex_zero_ast_auditor.py --target <target_dir>` (integra automaticamente `deterministic_scorer.py` de `auditoria-projetos-sistema`, reprovando menus compactados `font-size < 13px` / `gap < 6px`, abas com função duplicada ou criadas sem sanear a principal, componentes de backend expostos em abas e micro-fontes `11px/12px` inline).
 
 $$\text{Score} = (0.35 \cdot S_{\text{A11y}}) + (0.30 \cdot S_{\text{FSM}}) + (0.20 \cdot S_{\text{Tokens}}) + (0.15 \cdot S_{\text{Sec}})$$
 
-- **Critério de Aceite (`PASS`)**: $\text{Score} \ge 90.0$, $S_{\text{Tokens}} \ge 85.0$, $S_{\text{FSM}} \ge 85.0$, `Complex-Zero >= 90/100` e zero menus compactados ou abas excedentes.
+- **Critério de Aceite (`PASS`)**: $\text{Score} \ge 90.0$, $S_{\text{Tokens}} \ge 85.0$, $S_{\text{FSM}} \ge 85.0$, `Complex-Zero >= 90/100` e zero menus compactados ou abas de função duplicada.

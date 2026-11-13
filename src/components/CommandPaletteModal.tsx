@@ -3,6 +3,7 @@ import { AppTab } from './Sidebar';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
 import { persistBrowserState } from '../services/polyglotClient';
+import type { UnifiedHistoryItem } from '../types/polyglot';
 
 export interface CommandPaletteProps {
   isOpen: boolean;
@@ -11,13 +12,18 @@ export interface CommandPaletteProps {
   onSelectVoice: (voice: VoiceProfile) => void;
   currentVoice: VoiceProfile;
   onOpenDeck?: () => void;
+  onToggleLeftSidebar?: () => void;
+  onToggleRightHistory?: () => void;
+  onOpenAuthModal?: () => void;
+  historyItems?: UnifiedHistoryItem[];
+  onSelectHistoryItem?: (item: UnifiedHistoryItem) => void;
 }
 
 interface CommandItem {
   id: string;
   title: string;
   subtitle: string;
-  category: 'Navegação' | 'Vozes Neurais' | 'Ações Rápidas';
+  category: 'Navegação' | 'Vozes Neurais' | 'Ações Rápidas' | 'Histórico Recente';
   icon: string;
   shortcut?: string;
   action: () => void;
@@ -30,6 +36,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
   onSelectVoice,
   currentVoice,
   onOpenDeck,
+  onToggleLeftSidebar,
+  onToggleRightHistory,
+  onOpenAuthModal,
+  historyItems = [],
+  onSelectHistoryItem,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -95,12 +106,24 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         },
       },
       {
+        id: 'tab-study',
+        title: 'Área de Estudo & Flashcards Deck',
+        subtitle: 'Importação rápida (JSON/CSV/MD) e repetição espaçada com TTS',
+        category: 'Navegação',
+        icon: 'school',
+        shortcut: '5',
+        action: () => {
+          onSelectTab('study');
+          onClose();
+        },
+      },
+      {
         id: 'tab-voices',
         title: 'Biblioteca de Vozes Neurais',
         subtitle: 'Catálogo de timbres e audição de amostras de 3 segundos',
         category: 'Navegação',
         icon: 'record_voice_over',
-        shortcut: '5',
+        shortcut: '6',
         action: () => {
           onSelectTab('voices');
           onClose();
@@ -118,6 +141,50 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         },
       },
     ];
+
+    if (onToggleLeftSidebar) {
+      list.push({
+        id: 'action-toggle-sidebar',
+        title: 'Alternar Barra Lateral Esquerda (Rail Mode)',
+        subtitle: 'Expandir ou recolher o menu de navegação lateral (280px ↔ 68px)',
+        category: 'Ações Rápidas',
+        icon: 'panel_left_close',
+        shortcut: 'Ctrl+B',
+        action: () => {
+          onToggleLeftSidebar();
+          onClose();
+        },
+      });
+    }
+
+    if (onToggleRightHistory) {
+      list.push({
+        id: 'action-toggle-history',
+        title: 'Alternar Gaveta de Histórico & Sessões',
+        subtitle: 'Abrir ou recolher a linha do tempo lateral direita',
+        category: 'Ações Rápidas',
+        icon: 'history',
+        shortcut: 'Ctrl+H',
+        action: () => {
+          onToggleRightHistory();
+          onClose();
+        },
+      });
+    }
+
+    if (onOpenAuthModal) {
+      list.push({
+        id: 'action-open-auth',
+        title: 'Gerenciar Conta Google & Sessão',
+        subtitle: 'Conectar conta Google, trocar perfil ou usar modo local',
+        category: 'Ações Rápidas',
+        icon: 'cloud_done',
+        action: () => {
+          onOpenAuthModal();
+          onClose();
+        },
+      });
+    }
 
     GEMINI_VOICES.forEach((voice) => {
       list.push({
@@ -142,7 +209,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         category: 'Ações Rápidas',
         icon: 'style',
         action: () => {
-          onSelectTab('polyglot');
+          onSelectTab('study');
           onOpenDeck();
           onClose();
         },
@@ -196,8 +263,42 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       action: () => applyPresetCommand('sapphire', 'dark'),
     });
 
+    if (onSelectHistoryItem && historyItems.length > 0) {
+      historyItems.slice(0, 12).forEach((item) => {
+        const langBadge = item.languages.join(' · ');
+        list.push({
+          id: `hist-${item.kind}-${item.id}`,
+          title: item.title,
+          subtitle: `${item.subtitle} · ${langBadge}`,
+          category: 'Histórico Recente',
+          icon:
+            item.kind === 'chat'
+              ? 'translate'
+              : item.kind === 'debate_tts'
+              ? 'group'
+              : 'school',
+          shortcut: langBadge || undefined,
+          action: () => {
+            onSelectHistoryItem(item);
+            onClose();
+          },
+        });
+      });
+    }
+
     return list;
-  }, [onSelectTab, onSelectVoice, currentVoice, onOpenDeck, onClose]);
+  }, [
+    onSelectTab,
+    onSelectVoice,
+    currentVoice,
+    onOpenDeck,
+    onToggleLeftSidebar,
+    onToggleRightHistory,
+    onOpenAuthModal,
+    historyItems,
+    onSelectHistoryItem,
+    onClose,
+  ]);
 
   const filteredCommands = useMemo(() => {
     if (!query.trim()) return commands;

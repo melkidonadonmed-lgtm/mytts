@@ -26,6 +26,10 @@ import {
   requestGenerateChunks,
 } from '../services/polyglotClient';
 import { getActiveSession, subscribeAuthChanges } from '../services/authService';
+import {
+  addFlashcardsToDeck,
+  chunkItemToFlashcard,
+} from '../services/flashcardDeckStorage';
 
 // Banco inicial offline para teste imediato de alta fluência
 const CHUNK_PRESETS: Record<TargetLang, Record<string, ChunkItem[]>> = {
@@ -146,6 +150,16 @@ export const FastChunkAudioApp: React.FC = () => {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [loopDrillId, setLoopDrillId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [addedFlashcardId, setAddedFlashcardId] = useState<string | null>(null);
+
+  const handleSendChunkToFlashcard = (item: ChunkItem) => {
+    const card = chunkItemToFlashcard(item, selectedLang);
+    addFlashcardsToDeck([card]);
+    setAddedFlashcardId(item.id);
+    window.setTimeout(() => {
+      setAddedFlashcardId((prev) => (prev === item.id ? null : prev));
+    }, 2000);
+  };
 
   // Estado de Chunks Customizados persistidos no Backend
   const [customChunks, setCustomChunks] = useState<ChunkItem[]>([]);
@@ -617,6 +631,19 @@ export const FastChunkAudioApp: React.FC = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSendChunkToFlashcard(item)}
+                        className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                          addedFlashcardId === item.id
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-slate-950 hover:bg-amber-500/15 text-amber-300 border-slate-800 hover:border-amber-500/35'
+                        }`}
+                        title="Enviar este bloco para a Área de Estudo (Flashcards Deck)"
+                      >
+                        <BookOpen className="w-3 h-3" />
+                        <span>{addedFlashcardId === item.id ? 'No Baralho!' : '+ Flashcard'}</span>
+                      </button>
                       {item.isCustom && (
                         <button
                           onClick={() => handleDeleteCustomChunk(item.id)}

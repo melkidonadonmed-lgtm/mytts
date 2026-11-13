@@ -6,9 +6,9 @@
 O **MyTTS Studio** é uma estação de trabalho de áudio neural (síntese TTS, debates dual-speaker, ditado inteligente, treino de idiomas FastChunks e Chat Poliglota) construída sobre os modelos Gemini (`gemini-3.8-flash-tts` + `gemini-3.8-flash`), com processamento de áudio Web Audio API no cliente e FFmpeg no backend.
 
 ## 2. Fronteiras do MVP Atual
-- Acesso **aberto**, sem onboarding: identidade por sessão de dispositivo via header `X-User-Id` (formato restrito a `[a-zA-Z0-9_-]{1,64}`, sanitizado no servidor).
-- Persistência de chunks e conversas: Firestore (`fastchunks_chunks` e `mytts_conversations`) com fallback local (`.data/chunks.json` e `.data/conversations.json`) quando não há credenciais GCP.
-- 5 abas principais em SPA (`Chat Poliglota` com Ditado/Live Mic integrados, `Estúdio de Criação`, `Estúdio de Debate`, `FastChunks`, `Biblioteca de Vozes`) + modais (`Arquitetura`, `Paleta de Comandos Ctrl+K`).
+- Acesso **híbrido** (Google OAuth / Contas Google Salvas / Visitante Local): identidade de sessão via `authService.ts` (`UserSessionPopover` + `AuthModal` `<dialog closedby="any">`) e header `X-User-Id` (`[a-zA-Z0-9_-]{1,64}`, sanitizado no servidor).
+- Persistência dual por `userId` (`southamerica-east1`): Firestore (`fastchunks_chunks`, `mytts_conversations` e `mytts_flashcards`) com fallback local (`.data/chunks.json`, `.data/conversations.json` e `.data/flashcards.json`) + stores reativos locais (`flashcardDeckStorage.ts`, `sessionHistoryStorage.ts`).
+- 6 módulos principais em SPA (`Chat Poliglota`, `Estúdio de Criação`, `Estúdio de Debate`, `FastChunks`, `Área de Estudo` com `StudyArenaView` 3D & `FlashcardImporterModal` multi-formato JSON/CSV/MD/HTML, e `Biblioteca de Vozes`) + Sidebar Esquerda Colapsável (`Icon Rail Mode` `280px` ↔ `68px`, `Ctrl+B`) + Gaveta Direita de Histórico (`HistorySidebar` `320px` ↔ `0px`, `Ctrl+H`) + modais (`Arquitetura`, `Paleta de Comandos Ctrl+K`).
 
 ## 3. Restrições de Segurança (hard rules)
 - `GEMINI_API_KEY` via `.env` com failover automático para Vertex AI Application Default Credentials (`project: agent-md-506215, location: global`) quando a chave estiver ausente ou inativa (`401 ACCOUNT_STATE_INVALID`).

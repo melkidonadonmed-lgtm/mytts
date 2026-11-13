@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Sidebar, AppTab } from './components/Sidebar';
 import { StudioWorkspace } from './components/StudioWorkspace';
 import { PolyglotChatStudio } from './components/PolyglotChatStudio';
@@ -8,6 +8,10 @@ import { DocumentInputSection } from './components/DocumentInputSection';
 import { DebateConfigPanel } from './components/DebateConfigPanel';
 import { ScriptViewer } from './components/ScriptViewer';
 import { FastChunkAudioApp } from './components/FastChunkAudioApp';
+import { StudyArenaView } from './components/StudyArenaView';
+import { HistorySidebar } from './components/HistorySidebar';
+import { AuthModal } from './components/AuthModal';
+import { MobileAppHeader } from './components/MobileAppHeader';
 import { BottomAudioDock } from './components/BottomAudioDock';
 import { ArchitectureModal } from './components/ArchitectureModal';
 import {
@@ -18,13 +22,42 @@ import {
   SpeakerProfile,
   StudioRenderMode,
 } from './types/debate';
+import type {
+  FlashcardItem,
+  SavedConversation,
+  SavedDebateSession,
+  UnifiedHistoryItem,
+} from './types/polyglot';
 import { LANGUAGE_OPTIONS, SAMPLE_DOCUMENTS, INITIAL_PRESET_SCRIPTS } from './data/sampleDebates';
 import { GaplessAudioPlayer } from './utils/audioEngine';
 import { speakBrowserFallback, stopBrowserSpeech } from './utils/audio';
 import { VoiceProfile, GEMINI_VOICES } from './types/voices';
 import { requestDebateScript } from './services/apiClient';
 import { generateAudioCacheKey, synthesizeWithCache } from './utils/audioCache';
-import { persistBrowserState, readBrowserState } from './services/polyglotClient';
+import {
+  persistBrowserState,
+  readBrowserState,
+  requestListUserConversations,
+  requestSaveUserConversation,
+  requestDeleteUserConversation,
+  requestClearUnpinnedConversations,
+} from './services/polyglotClient';
+import {
+  readFlashcardDeck,
+  subscribeFlashcardDeck,
+  deleteFlashcardFromDeck,
+} from './services/flashcardDeckStorage';
+import {
+  readDebateSessions,
+  subscribeSessionHistory,
+  saveDebateSessionFromScript,
+  togglePinDebateSession,
+  renameDebateSession,
+  deleteDebateSession,
+  clearUnpinnedDebateSessions,
+  buildUnifiedHistoryItems,
+} from './services/sessionHistoryStorage';
+import { getActiveSession, subscribeAuthChanges } from './services/authService';
 import { SOFT_UI_PRESETS } from './config/tokens';
 import type { SoftUIThemePreset } from './types';
 import { GoogleIcon } from './components/GoogleIcon';
@@ -34,17 +67,84 @@ const TAB_BREADCRUMB_LABELS: Record<AppTab, string> = {
   reader: 'Estúdio de Criação (Solo & 2x)',
   debate: 'Estúdio de Debate Dialético',
   chunks: 'FastChunks (Treino Lexical)',
+  study: 'Área de Estudo & Flashcards Deck',
   voices: 'Biblioteca de Vozes Neurais',
   architecture: 'Arquitetura & Governança',
 };
 
-// Orquestrador principal do MyTTS Studio (Chat Poliglota como página principal e sincronização global de voz por Card)
+// Orquestrador principal do MyTTS Studio (3 Colunas Responsivas: Rail Sidebar + Canvas Central + History Sidebar)
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('polyglot');
   const [studioRenderMode, setStudioRenderMode] = useState<StudioRenderMode>('solo');
   const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(GEMINI_VOICES[0]); // Puck default
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  // Estados Colapsáveis Independentes (Sidebar Esquerda 280px <-> 68px e Histórico Direito 320px <-> 0px)
+  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState<boolean>(() => {
+    return readBrowserState('mytts_sidebar_collapsed') === 'true';
+  });
+  const [isRightHistoryOpen, setIsRightHistoryOpen] = useState<boolean>(() => {
+    return readBrowserState('mytts_history_open') === 'true';
+  });
+
+  // Dados Globais para a HistorySidebar e Contadores
+  const [userSession, setUserSession] = useState(() => getActiveSession());
+  const [conversations, setConversations] = useState<SavedConversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [debateSessions, setDebateSessions] = useState<SavedDebateSession[]>(() =>
+    readDebateSessions()
+  );
+  const [flashcards, setFlashcards] = useState<FlashcardItem[]>(() => readFlashcardDeck());
+  const [selectedStudyCardId, setSelectedStudyCardId] = useState<string | null>(null);
+
+  const handleToggleLeftSidebar = useCallback(() => {
+    setIsLeftSidebarCollapsed((prev) => {
+      const next = !prev;
+      persistBrowserState('mytts_sidebar_collapsed', String(next));
+      return next;
+    });
+  }, []);
+
+  const handleToggleRightHistory = useCallback(() => {
+    setIsRightHistoryOpen((prev) => {
+      const next = !prev;
+      persistBrowserState('mytts_history_open', String(next));
+      // Regra responsiva (< 1440px): abrir o histórico direito recolhe automaticamente a sidebar esquerda para Icon Rail (68px)
+      if (next && typeof window !== 'undefined' && window.innerWidth < 1440) {
+        setIsLeftSidebarCollapsed(true);
+        persistBrowserState('mytts_sidebar_collapsed', 'true');
+      }
+      return next;
+    });
+  }, []);
+
+  // Sincroniza Flashcards, Sessões de Debate e Conversas
+  useEffect(() => {
+    setFlashcards(readFlashcardDeck());
+    const unsubFlash = subscribeFlashcardDeck(setFlashcards);
+    const unsubDebate = subscribeSessionHistory(() => {
+      setDebateSessions(readDebateSessions());
+    });
+    const unsubAuth = subscribeAuthChanges((nextSession) => {
+      setUserSession(nextSession);
+      setDebateSessions(readDebateSessions(nextSession.uid));
+      void requestListUserConversations().then(setConversations);
+    });
+    void requestListUserConversations().then(setConversations);
+    return () => {
+      unsubFlash();
+      unsubDebate();
+      unsubAuth();
+    };
+  }, []);
+
+  const unifiedHistoryItems = useMemo(() => {
+    void flashcards.length;
+    return buildUnifiedHistoryItems(conversations, debateSessions, userSession.uid);
+  }, [conversations, debateSessions, flashcards.length, userSession.uid]);
 
   // Preset Soft UI v4.5 (obsidian | slate | moss | sapphire) + Tema Binário sincronizado
   const [activePreset, setActivePreset] = useState<SoftUIThemePreset>(() => {
@@ -93,7 +193,7 @@ export default function App() {
     persistBrowserState('mytts_preset', activePreset);
   }, [theme, activePreset]);
 
-  // Listener para sincronizar tema e atalho global Ctrl + K / Cmd + K
+  // Listener para sincronizar tema e atalhos globais (Ctrl+K, Ctrl+B, Ctrl+H)
   useEffect(() => {
     const syncThemeFromStorage = () => {
       const saved = readBrowserState('mytts_theme');
@@ -109,6 +209,12 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        handleToggleLeftSidebar();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        handleToggleRightHistory();
       }
     };
     window.addEventListener('storage', syncThemeFromStorage);
@@ -119,7 +225,7 @@ export default function App() {
       window.removeEventListener('mytts-theme-change', syncThemeFromStorage);
       window.removeEventListener('keydown', onGlobalKeyDown);
     };
-  }, []);
+  }, [handleToggleLeftSidebar, handleToggleRightHistory]);
 
   // Debate Studio State
   const [documentText, setDocumentText] = useState<string>(SAMPLE_DOCUMENTS[0].content);
@@ -274,6 +380,7 @@ export default function App() {
       }
 
       setScript(data.script);
+      saveDebateSessionFromScript(data.script, { format, documentText, userId: userSession.uid });
       await synthesizeTurns(data.script);
     } catch (err: unknown) {
       console.error(err);
@@ -480,43 +587,144 @@ export default function App() {
     ? script?.speakers.find((s) => s.name === activeTurn.speaker) || script?.speakers[0]
     : script?.speakers[0];
 
-  const handleNavigateTab = (tab: AppTab): void => {
-    if (isPlaying && tab === 'reader') {
-      player.pause();
-    }
-    const docWithTransition = document as Document & {
-      startViewTransition?: (cb: () => void) => { finished?: Promise<void> };
-    };
-    if (docWithTransition.startViewTransition) {
-      const transition = docWithTransition.startViewTransition(() => setActiveTab(tab));
-      if (transition && transition.finished) {
-        transition.finished.then(() => {
-          window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-          mainCanvasRef.current?.focus({ preventScroll: true });
-        }).catch(() => {});
+  const handleNavigateTab = useCallback(
+    (tab: AppTab): void => {
+      if (isPlaying && tab === 'reader') {
+        player.pause();
+      }
+      const docWithTransition = document as Document & {
+        startViewTransition?: (cb: () => void) => { finished?: Promise<void> };
+      };
+      if (docWithTransition.startViewTransition) {
+        const transition = docWithTransition.startViewTransition(() => setActiveTab(tab));
+        if (transition && transition.finished) {
+          transition.finished
+            .then(() => {
+              window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+              mainCanvasRef.current?.focus({ preventScroll: true });
+            })
+            .catch(() => {});
+        } else {
+          setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+            mainCanvasRef.current?.focus({ preventScroll: true });
+          }, 50);
+        }
       } else {
+        setActiveTab(tab);
         setTimeout(() => {
           window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
           mainCanvasRef.current?.focus({ preventScroll: true });
-        }, 50);
+        }, 0);
       }
-    } else {
-      setActiveTab(tab);
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-        mainCanvasRef.current?.focus({ preventScroll: true });
-      }, 0);
+    },
+    [isPlaying, player]
+  );
+
+  // Handlers da HistorySidebar Direita
+  const handleSelectHistoryItem = useCallback(
+    (item: UnifiedHistoryItem) => {
+      if (item.kind === 'chat') {
+        setSelectedConversationId(item.id);
+        handleNavigateTab('polyglot');
+      } else if (item.kind === 'debate_tts' && item.debateSession) {
+        const restoredTurns = item.debateSession.turns.map((t) => ({
+          turn: t.turn,
+          speaker: t.speaker,
+          voice_id: t.voice_id,
+          text: t.text,
+          clean_text: t.clean_text || t.text.replace(/<[^>]+>/g, '').trim(),
+          emotion: (t.emotion || 'thoughtful') as DebateScript['turns'][number]['emotion'],
+          prosody: {
+            speech_rate: t.speech_rate || 1.0,
+            pre_delay_ms: t.pre_delay_ms || 250,
+            breath_sound: true,
+          },
+          audioStatus: 'idle' as const,
+        }));
+        setScript((prev) => ({
+          ...prev,
+          title: item.debateSession!.title,
+          topicSummary: item.debateSession!.documentPreview || prev.topicSummary,
+          language: item.debateSession!.language as LanguageCode,
+          turns: restoredTurns,
+        }));
+        handleNavigateTab('debate');
+      } else if (item.kind === 'flashcards') {
+        setSelectedStudyCardId(item.id);
+        handleNavigateTab('study');
+      }
+    },
+    [handleNavigateTab]
+  );
+
+  const handleTogglePinHistoryItem = useCallback(async (item: UnifiedHistoryItem) => {
+    if (item.kind === 'chat' && item.conversation) {
+      const updated: SavedConversation = {
+        ...item.conversation,
+        pinned: !item.conversation.pinned,
+      };
+      const saved = await requestSaveUserConversation(updated);
+      if (saved) {
+        setConversations((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
+      }
+    } else if (item.kind === 'debate_tts') {
+      togglePinDebateSession(item.id);
     }
-  };
+  }, []);
+
+  const handleRenameHistoryItem = useCallback(
+    async (item: UnifiedHistoryItem, newTitle: string) => {
+      if (item.kind === 'chat' && item.conversation) {
+        const updated: SavedConversation = {
+          ...item.conversation,
+          title: newTitle,
+          customTitle: true,
+        };
+        const saved = await requestSaveUserConversation(updated);
+        if (saved) {
+          setConversations((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
+        }
+      } else if (item.kind === 'debate_tts') {
+        renameDebateSession(item.id, newTitle);
+      }
+    },
+    []
+  );
+
+  const handleDeleteHistoryItem = useCallback(async (item: UnifiedHistoryItem) => {
+    if (item.kind === 'chat') {
+      const ok = await requestDeleteUserConversation(item.id);
+      if (ok) {
+        setConversations((prev) => prev.filter((c) => c.id !== item.id));
+      }
+    } else if (item.kind === 'debate_tts') {
+      deleteDebateSession(item.id);
+    } else if (item.kind === 'flashcards') {
+      deleteFlashcardFromDeck(item.id);
+    }
+  }, []);
+
+  const handleClearUnpinnedHistory = useCallback(async () => {
+    await requestClearUnpinnedConversations();
+    const nextConvs = await requestListUserConversations();
+    setConversations(nextConvs);
+    clearUnpinnedDebateSessions();
+  }, []);
 
   return (
     <div
       data-state="idle"
       aria-busy={isGenerating || isSynthesizing}
+      style={
+        {
+          '--left-sidebar-w': isLeftSidebarCollapsed ? '68px' : '280px',
+          '--right-sidebar-w': isRightHistoryOpen ? '320px' : '0px',
+        } as React.CSSProperties
+      }
       className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200"
     >
-      
-      {/* 1. Sidebar Persistente Minimalista (Cinza Monolítico / Ad Lucem) */}
+      {/* 1. Sidebar Esquerda Colapsável (280px <-> 68px Icon Rail Mode + Popover de Conta) */}
       <Sidebar
         activeTab={activeTab}
         onSelectTab={handleNavigateTab}
@@ -524,87 +732,29 @@ export default function App() {
         onSelectVoice={setSelectedVoice}
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
+        isCollapsed={isLeftSidebarCollapsed}
+        onToggleCollapse={handleToggleLeftSidebar}
         onOpenVoiceLibrary={() => handleNavigateTab('voices')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        flashcardCount={flashcards.length}
         theme={theme}
         onToggleTheme={handleToggleBinaryTheme}
         activePreset={activePreset}
         onSelectPreset={handleSelectPreset}
       />
 
-      {/* 2. Área de Trabalho Principal (com margem para sidebar no desktop) */}
-      <div className="flex-1 flex flex-col lg:pl-72 min-h-screen min-w-0 max-w-full overflow-x-clip">
-        
-        {/* Header Mobile com Hamburger e Atalho Rápido de Abas */}
-        <header className="px-2.5 sm:px-4 py-1.5 border-b border-slate-800/80 dock-matte !rounded-t-none !rounded-b-2xl flex flex-col gap-1.5 lg:hidden sticky top-0 z-30">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                type="button"
-                onClick={() => setIsMobileSidebarOpen(true)}
-                className="btn-compact-touch p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer shrink-0"
-                aria-label="Abrir menu de navegação"
-              >
-                <GoogleIcon name="menu" size={19} />
-              </button>
-              <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5 truncate">
-                <span>MyTTS</span>
-                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
-                  Studio
-                </span>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsCommandPaletteOpen(true)}
-                aria-label="Abrir busca rápida e paleta de comandos"
-                className="btn-compact-touch p-2 sm:px-2.5 sm:py-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300 hover:text-white inline-flex items-center gap-1 cursor-pointer"
-                title="Abrir Paleta de Comandos (Ctrl+K)"
-              >
-                <GoogleIcon name="search" size={16} className="text-amber-400" />
-                <span className="hidden sm:inline">Ctrl+K</span>
-              </button>
-              <div
-                className={`w-6 h-6 rounded-md bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white text-xs font-bold shrink-0`}
-              >
-                {selectedVoice.name[0]}
-              </div>
-              <span className="text-xs font-bold text-slate-300 font-mono">
-                {selectedVoice.name}
-              </span>
-            </div>
-          </div>
-
-          {/* Navegação Horizontal Rápida no Mobile */}
-          <nav
-            aria-label="Navegação rápida mobile"
-            className="pill-nav-shell grid grid-cols-5 items-center gap-0.5 p-1 w-full overflow-hidden"
-          >
-            {(
-              [
-                { id: 'polyglot', label: 'Poliglota', shortLabel: 'Poliglota' },
-                { id: 'reader', label: 'Estúdio', shortLabel: 'Estúdio' },
-                { id: 'debate', label: 'Debate (2)', shortLabel: 'Debate' },
-                { id: 'chunks', label: 'FastChunks', shortLabel: 'Chunks' },
-                { id: 'voices', label: 'Vozes', shortLabel: 'Vozes' },
-              ] as const
-            ).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                data-active={activeTab === item.id}
-                aria-current={activeTab === item.id ? 'page' : undefined}
-                onClick={() => handleNavigateTab(item.id)}
-                className="pill-nav-item min-h-9 px-1 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold whitespace-nowrap cursor-pointer flex items-center justify-center text-center min-w-0"
-              >
-                <span className="sm:hidden truncate">{item.shortLabel}</span>
-                <span className="hidden sm:inline">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </header>
+      {/* 2. Área de Trabalho Central (Acoplada às larguras dinâmicas das 2 Sidebars) */}
+      <div className="flex-1 flex flex-col lg:pl-[var(--left-sidebar-w)] lg:pr-[var(--right-sidebar-w)] transition-[padding] duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)] min-h-screen min-w-0 max-w-full overflow-x-clip">
+        <MobileAppHeader
+          activeTab={activeTab}
+          selectedVoice={selectedVoice}
+          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onToggleHistorySidebar={handleToggleRightHistory}
+          onNavigateTab={handleNavigateTab}
+          historyCount={unifiedHistoryItems.length}
+        />
 
         {/* Banner de Erro Global */}
         {globalError && (
@@ -615,6 +765,7 @@ export default function App() {
                 <span>{globalError}</span>
               </div>
               <button
+                type="button"
                 onClick={() => setGlobalError(null)}
                 className="text-rose-700 hover:text-rose-900 dark:text-rose-400 dark:hover:text-white font-mono text-xs cursor-pointer"
               >
@@ -624,11 +775,11 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. Canvas de Conteúdo por Módulo (com Camada 3: Breadcrumbs Estrutural a partir de sm:) */}
-        <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none bfc-flow-root">
+        {/* 3. Canvas de Conteúdo por Módulo (Alinhado à Régua Canônica max-w-[1440px]) */}
+        <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none">
           <nav
             aria-label="Caminho de navegação"
-            className="hidden sm:flex max-w-7xl w-full mx-auto px-4 sm:px-6 pt-3 pb-1 items-center justify-between text-xs text-secondary"
+            className="hidden sm:flex w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-3 pb-1 items-center justify-between text-xs text-secondary"
           >
             <ol role="list" className="breadcrumb-list">
               <li>
@@ -644,15 +795,47 @@ export default function App() {
                 {TAB_BREADCRUMB_LABELS[activeTab]}
               </li>
             </ol>
-            <span className="font-mono text-xs text-secondary hidden sm:inline tabular-nums">
-              Voz Ativa: <strong className="text-primary">{selectedVoice.name}</strong>
-            </span>
+
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-xs text-secondary hidden md:inline tabular-nums">
+                Voz Ativa: <strong className="text-primary">{selectedVoice.name}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={handleToggleRightHistory}
+                aria-expanded={isRightHistoryOpen}
+                aria-label="Alternar barra lateral direita de histórico (Ctrl + H)"
+                title="Alternar Histórico & Linha do Tempo de Sessões (Ctrl + H)"
+                className={`px-2.5 py-1 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  isRightHistoryOpen
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'btn-matte-dark text-secondary hover:text-primary border-slate-800'
+                }`}
+              >
+                <GoogleIcon
+                  name={isRightHistoryOpen ? 'panel_right_close' : 'history'}
+                  size={15}
+                  className="text-amber-400"
+                />
+                <span>Histórico</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 tabular-nums">
+                  {unifiedHistoryItems.length}
+                </span>
+              </button>
+            </div>
           </nav>
-          {/* Módulo Principal (#1): Chat Poliglota Multimodal (EN, IT, JA) com atalho Mic/Live API */}
+
+          {/* Módulo Principal (#1): Chat Poliglota Multimodal (EN, IT, JA) */}
           {activeTab === 'polyglot' && (
             <PolyglotChatStudio
               globalVoice={selectedVoice}
               onSyncGlobalVoice={setSelectedVoice}
+              selectedConversationId={selectedConversationId}
+              onConversationsChanged={(nextConvs, activeId) => {
+                setConversations(nextConvs);
+                setActiveConversationId(activeId);
+              }}
+              onOpenStudyTab={() => handleNavigateTab('study')}
               onSendToCreationStudio={(textToRender, renderMode) => {
                 if (textToRender) {
                   setDocumentText(textToRender);
@@ -692,7 +875,7 @@ export default function App() {
 
           {/* Módulo 3: Estúdio de Debate com 2 Vozes */}
           {activeTab === 'debate' && (
-            <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-36 flex flex-col gap-6">
+            <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 pb-36 flex flex-col gap-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
                 <div>
                   <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
@@ -737,11 +920,17 @@ export default function App() {
           )}
 
           {/* Módulo 4: FastChunks (Treinamento Lexical de Idiomas) */}
-          {activeTab === 'chunks' && (
-            <FastChunkAudioApp />
+          {activeTab === 'chunks' && <FastChunkAudioApp />}
+
+          {/* Módulo 5: Área de Estudo & Flashcards Deck (Zero-Friction Import + Arena 3D TTS) */}
+          {activeTab === 'study' && (
+            <StudyArenaView
+              selectedVoice={selectedVoice}
+              initialCardId={selectedStudyCardId}
+            />
           )}
 
-          {/* Módulo 5: Biblioteca de Vozes Neurais */}
+          {/* Módulo 6: Biblioteca de Vozes Neurais */}
           {activeTab === 'voices' && (
             <VoiceLibrary
               selectedVoice={selectedVoice}
@@ -751,7 +940,6 @@ export default function App() {
               }}
             />
           )}
-
         </main>
 
         {/* Dock de Áudio Inferior (Exibido com roteiro ativo no Leitor ou Debate) */}
@@ -783,6 +971,31 @@ export default function App() {
         )}
       </div>
 
+      {/* 4. Sidebar Direita Colapsável de Histórico e Linha do Tempo de Sessões (320px <-> 0px) */}
+      <HistorySidebar
+        isOpen={isRightHistoryOpen}
+        onClose={() => {
+          setIsRightHistoryOpen(false);
+          persistBrowserState('mytts_history_open', 'false');
+        }}
+        items={unifiedHistoryItems}
+        activeConversationId={activeConversationId}
+        isCloudSynced={userSession.isGoogleAuthenticated}
+        onSelectHistoryItem={handleSelectHistoryItem}
+        onNewConversation={() => {
+          setSelectedConversationId('__NEW__');
+          window.setTimeout(() => setSelectedConversationId(null), 50);
+          handleNavigateTab('polyglot');
+        }}
+        onTogglePin={handleTogglePinHistoryItem}
+        onRenameItem={handleRenameHistoryItem}
+        onDeleteItem={handleDeleteHistoryItem}
+        onClearUnpinned={handleClearUnpinnedHistory}
+      />
+
+      {/* 5. Modal Unificado de Login Google / Sessão / Diagnóstico TTS */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
       {/* Modal de Arquitetura e Inspeção */}
       {activeTab === 'architecture' && (
         <ArchitectureModal onClose={() => setActiveTab('polyglot')} />
@@ -792,18 +1005,14 @@ export default function App() {
       <CommandPaletteModal
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        onSelectTab={(tab) => {
-          const docWithTransition = document as Document & {
-            startViewTransition?: (cb: () => void) => void;
-          };
-          if (docWithTransition.startViewTransition) {
-            docWithTransition.startViewTransition(() => setActiveTab(tab));
-          } else {
-            setActiveTab(tab);
-          }
-        }}
+        onSelectTab={handleNavigateTab}
         onSelectVoice={(v) => setSelectedVoice(v)}
         currentVoice={selectedVoice}
+        onToggleLeftSidebar={handleToggleLeftSidebar}
+        onToggleRightHistory={handleToggleRightHistory}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        historyItems={unifiedHistoryItems}
+        onSelectHistoryItem={handleSelectHistoryItem}
       />
     </div>
   );

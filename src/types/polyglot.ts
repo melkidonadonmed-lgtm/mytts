@@ -6,6 +6,8 @@ export interface AlignedChunk {
   jaPronunciation?: string;
 }
 
+export type FlashcardRetentionStatus = 'new' | 'learning' | 'review' | 'mastered';
+
 export interface FlashcardItem {
   id: string;
   chunkText: string;
@@ -17,6 +19,13 @@ export interface FlashcardItem {
   example: string;
   exampleTranslation: string;
   createdAt: number;
+  deckName?: string;
+  status?: FlashcardRetentionStatus;
+  nextReviewAt?: number;
+  intervalDays?: number;
+  repetitions?: number;
+  lastReviewedAt?: number;
+  voiceId?: string;
 }
 
 export type AgentPersona = 'polyglot_translator' | 'tutor_conversational' | 'practice_partner';
@@ -108,11 +117,58 @@ export interface SavedConversation {
   userName: string;
   userEmail?: string;
   title: string;
+  customTitle?: boolean;
   createdAt: string;
   updatedAt: string;
   pinned?: boolean;
   originMode?: MessageOriginMode;
   messages: PolyglotMessage[];
+}
+
+export interface SavedDebateTurnSummary {
+  turn: number;
+  speaker: string;
+  voice_id: string;
+  text: string;
+  clean_text?: string;
+  emotion?: string;
+  speech_rate?: number;
+  pre_delay_ms?: number;
+  audioDurationSec?: number;
+}
+
+export interface SavedDebateSession {
+  id: string;
+  userId: string;
+  title: string;
+  customTitle?: boolean;
+  language: string;
+  format: string;
+  voiceIds: string[];
+  createdAt: string;
+  updatedAt: string;
+  pinned?: boolean;
+  turns: SavedDebateTurnSummary[];
+  documentPreview?: string;
+}
+
+export type UnifiedHistoryKind = 'chat' | 'debate_tts' | 'flashcards';
+
+export interface UnifiedHistoryItem {
+  id: string;
+  kind: UnifiedHistoryKind;
+  title: string;
+  subtitle: string;
+  updatedAt: string;
+  createdAt: string;
+  pinned?: boolean;
+  languages: string[];
+  voiceId: string;
+  originMode?: MessageOriginMode;
+  itemCount: number;
+  conversation?: SavedConversation;
+  debateSession?: SavedDebateSession;
+  deckName?: string;
 }
 
 export interface GoogleUserSession {

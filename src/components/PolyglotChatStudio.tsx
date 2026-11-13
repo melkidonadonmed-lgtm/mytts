@@ -13,8 +13,14 @@ import { ParallelMessageBlock } from './ParallelMessageBlock';
 import { AgentInputDock, AgentInputDockSubmitPayload } from './AgentInputDock';
 import { FlashcardDeckDrawer } from './FlashcardDeckDrawer';
 import { ExportInteractionModal } from './ExportInteractionModal';
-import { ConversationHistoryDrawer } from './ConversationHistoryDrawer';
 import { GoogleIcon } from './GoogleIcon';
+import {
+  readFlashcardDeck,
+  subscribeFlashcardDeck,
+  addFlashcardsToDeck,
+  deleteFlashcardFromDeck,
+  clearFlashcardDeck,
+} from '../services/flashcardDeckStorage';
 import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback, stopBrowserSpeech } from '../utils/audio';
 import { concatenateWavBuffers } from '../utils/audioEngine';
 import {
@@ -29,10 +35,7 @@ import {
   requestAgentExplore,
   requestListUserConversations,
   requestSaveUserConversation,
-  requestDeleteUserConversation,
   requestGenerateFlashcard,
-  persistBrowserState,
-  readBrowserState,
   readFavoriteVoicesByLanguage,
   saveFavoriteVoicesByLanguage,
 } from '../services/polyglotClient';
@@ -75,28 +78,26 @@ export interface PolyglotChatStudioProps {
   globalVoice?: VoiceProfile;
   onSyncGlobalVoice?: (voice: VoiceProfile) => void;
   onSendToCreationStudio?: (text: string, mode: StudioRenderMode) => void;
+  selectedConversationId?: string | null;
+  onConversationsChanged?: (conversations: SavedConversation[], activeId: string) => void;
+  onOpenStudyTab?: () => void;
 }
 
 export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   globalVoice,
   onSyncGlobalVoice,
   onSendToCreationStudio,
+  selectedConversationId,
+  onConversationsChanged,
+  onOpenStudyTab,
 }) => {
   const [userSession, setUserSession] = useState<GoogleUserSession>(() => getActiveSession());
   const [activeConversationId, setActiveConversationId] = useState<string>(() => `conv_${Date.now()}`);
   const [conversations, setConversations] = useState<SavedConversation[]>([]);
-  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
 
   const [messages, setMessages] = useState<PolyglotMessage[]>([INITIAL_DEMO_MESSAGE]);
   const [isLoading, setIsLoading] = useState(false);
-  const [deck, setDeck] = useState<FlashcardItem[]>(() => {
-    try {
-      const saved = readBrowserState('mytts_polyglot_deck');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [deck, setDeck] = useState<FlashcardItem[]>(() => readFlashcardDeck());
 
   const [isDeckDrawerOpen, setIsDeckDrawerOpen] = useState(false);
   const [exportingMessage, setExportingMessage] = useState<PolyglotMessage | null>(null);
@@ -189,8 +190,11 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   }, [globalVoice?.id]);
 
   useEffect(() => {
-    persistBrowserState('mytts_polyglot_deck', JSON.stringify(deck));
-  }, [deck]);
+    setDeck(readFlashcardDeck());
+    return subscribeFlashcardDeck((updated) => {
+      setDeck(updated);
+    });
+  }, []);
 
   // Persiste automaticamente os perfis favoritos de vozes por idioma no navegador
   useEffect(() => {
@@ -792,17 +796,20 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   messagesRef.current = messages;
   const activeConversationIdRef = useRef<string>(activeConversationId);
   activeConversationIdRef.current = activeConversationId;
+  const prevSessionRef = useRef<GoogleUserSession>(userSession);
 
   useEffect(() => {
     loadConversationsForActiveUser();
     const unsub = subscribeAuthChanges(async (nextSession) => {
+      const wasGuest = !prevSessionRef.current.isGoogleAuthenticated;
+      prevSessionRef.current = nextSession;
       setUserSession(nextSession);
 
-      // Se o usuário acabou de conectar uma Conta Google e tinha turnos ativos na tela, migra para a conta logada
+      // Só migra turnos ativos da tela se a transição for de Visitante Local -> Conta Google autenticada
       const currentReadyTurns = messagesRef.current.filter(
         (m) => m.status === 'ready' && m.id !== 'msg-demo-1'
       );
-      if (nextSession.isGoogleAuthenticated && currentReadyTurns.length > 0) {
+      if (wasGuest && nextSession.isGoogleAuthenticated && currentReadyTurns.length > 0) {
         const firstPrompt = currentReadyTurns[0].userPrompt || 'Conversa Poliglota';
         const migratedConv: SavedConversation = {
           id: activeConversationIdRef.current,
@@ -833,6 +840,26 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Notifica o container pai (App.tsx / HistorySidebar) sobre mudanças nas conversas
+  useEffect(() => {
+    onConversationsChanged?.(conversations, activeConversationId);
+  }, [conversations, activeConversationId, onConversationsChanged]);
+
+  // Responde à seleção externa de uma conversa ou comando "+ Nova Conversa" vindo da HistorySidebar
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    if (selectedConversationId === '__NEW__') {
+      handleNewConversation();
+      return;
+    }
+    if (selectedConversationId === activeConversationIdRef.current) return;
+    const found = conversations.find((c) => c.id === selectedConversationId);
+    if (found) {
+      handleSelectConversation(found);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedConversationId]);
+
   const persistConversationSnapshot = useCallback(
     async (updatedMessages: PolyglotMessage[], convId = activeConversationId) => {
       const readyOnly = updatedMessages.filter((m) => m.status === 'ready');
@@ -852,7 +879,8 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         userId: userSession.uid,
         userName: userSession.name,
         userEmail: userSession.email || undefined,
-        title: existing?.title || cleanTitle,
+        title: existing?.customTitle && existing.title ? existing.title : existing?.title || cleanTitle,
+        customTitle: existing?.customTitle,
         createdAt: existing?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         pinned: existing?.pinned || false,
@@ -890,35 +918,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     setMessages(nextMsgs);
     const lastId = nextMsgs[nextMsgs.length - 1].id;
     setFocusedMessageId(lastId);
-    setIsHistoryOpen(false);
     showToast(`Conversa "${conv.title}" restaurada.`);
-  };
-
-  const handleTogglePinConversation = async (conv: SavedConversation): Promise<void> => {
-    const updated: SavedConversation = { ...conv, pinned: !conv.pinned };
-    const saved = await requestSaveUserConversation(updated);
-    if (saved) {
-      setConversations((prev) =>
-        prev
-          .map((c) => (c.id === saved.id ? saved : c))
-          .sort((a, b) => {
-            if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
-            return b.updatedAt.localeCompare(a.updatedAt);
-          })
-      );
-    }
-  };
-
-  const handleDeleteConversation = async (convId: string): Promise<void> => {
-    const ok = await requestDeleteUserConversation(convId);
-    if (ok) {
-      setConversations((prev) => prev.filter((c) => c.id !== convId));
-      if (convId === activeConversationId) {
-        setActiveConversationId(`conv_${Date.now()}`);
-        setMessages([INITIAL_DEMO_MESSAGE]);
-      }
-      showToast('Conversa removida do histórico.');
-    }
   };
 
   const handleSendMessage = async (
@@ -1238,7 +1238,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
             };
           });
         if (addedCards.length > 0) {
-          setDeck((prev) => [...addedCards, ...prev]);
+          addFlashcardsToDeck(addedCards);
           showToast(`${addedCards.length} flashcards extraídos do vídeo e salvos no Deck!`);
         }
       }
@@ -1288,8 +1288,8 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     try {
       const data = await requestGenerateFlashcard(chunkText, language);
       if (data.ok && data.success && data.card) {
-        setDeck((prev) => [data.card!, ...prev]);
-        showToast(`Flashcard "${chunkText}" adicionado ao seu Deck!`);
+        addFlashcardsToDeck([data.card]);
+        showToast(`Flashcard "${chunkText}" enviado para a Área de Estudo!`);
       } else {
         throw new Error(data.error || 'Falha ao criar flashcard.');
       }
@@ -1306,60 +1306,114 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
   return (
     <div className="flex-1 flex flex-col min-h-screen font-sans">
-      
-      {/* 1. Header Minimalista do Estúdio Poliglota + Perfis Favoritos de Voz por Idioma */}
-      <header className="lg:sticky lg:top-0 z-20 dock-matte mx-2.5 sm:mx-6 lg:mx-0 mt-1.5 lg:mt-0 px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
-              <GoogleIcon name="translate" size={18} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h1 className="text-sm sm:text-base font-bold text-primary font-display truncate">
-                  Chat Poliglota Multimodal
-                </h1>
-                <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">
-                  EN • IT • JA
-                </span>
+      {/* 1. Header Minimalista do Estúdio Poliglota (Alinhado à Régua Canônica max-w-[1440px]) */}
+      <div className="lg:sticky lg:top-0 z-20 w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-2">
+        <header className="dock-matte rounded-2xl px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
+                <GoogleIcon name="translate" size={18} />
               </div>
-              <p className="text-[11px] text-secondary leading-snug mt-0.5 line-clamp-1 sm:line-clamp-none">
-                Voz por card · Sincronizado com o card focado ({currentFocusedVoice})
-              </p>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h1 className="text-sm sm:text-base font-bold text-primary font-display truncate">
+                    Chat Poliglota Multimodal
+                  </h1>
+                  <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">
+                    EN • IT • JA
+                  </span>
+                </div>
+                <p className="text-[11px] text-secondary leading-snug mt-0.5 line-clamp-1 sm:line-clamp-none">
+                  Voz por card · Sincronizado com o card focado ({currentFocusedVoice})
+                </p>
+              </div>
+            </div>
+
+            {/* Botões Mobile de Nova Conversa e Deck */}
+            <div className="xl:hidden flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleNewConversation}
+                className="btn-matte btn-matte-dark btn-compact-touch h-8 px-2.5 py-1 text-xs text-primary font-medium cursor-pointer"
+                title="Iniciar nova conversa limpa"
+              >
+                <GoogleIcon name="add" size={15} className="text-amber-400" />
+                <span>Nova</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => (onOpenStudyTab ? onOpenStudyTab() : setIsDeckDrawerOpen(true))}
+                className="btn-matte btn-matte-dark btn-compact-touch h-8 px-2.5 py-1 text-xs text-primary font-medium cursor-pointer"
+                title="Abrir Área de Estudo (Flashcards)"
+              >
+                <GoogleIcon name="school" size={15} className="text-amber-400" />
+                <span>Deck</span>
+                <span className="bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums">
+                  {deck.length}
+                </span>
+              </button>
             </div>
           </div>
 
-          {/* Botão Mobile de Acesso ao Deck */}
-          <button
-            type="button"
-            onClick={() => setIsDeckDrawerOpen(true)}
-            className="xl:hidden btn-matte btn-matte-dark btn-compact-touch h-8 px-2.5 py-1 text-xs text-primary font-medium cursor-pointer shrink-0"
-            title="Ver Flashcards salvos"
-          >
-            <GoogleIcon name="style" size={15} className="text-amber-400" />
-            <span>Deck</span>
-            <span className="bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums">
-              {deck.length}
-            </span>
-          </button>
-        </div>
+          {/* Barra de Perfis Favoritos de Vozes por Idioma + Nova Conversa + Área de Estudo */}
+          <div className="flex flex-wrap items-center justify-between xl:justify-end gap-2 w-full xl:w-auto">
+            <div
+              className="card-matte rounded-xl sm:rounded-full flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 w-full sm:w-auto"
+              aria-label="Perfis favoritos de vozes por idioma"
+            >
+              <div className="flex items-center justify-between sm:justify-start gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 text-secondary shrink-0">
+                  <GoogleIcon name="bookmark" size={13} className="text-amber-400" />
+                  <span>Vozes Favoritas:</span>
+                </span>
 
-        {/* Barra de Perfis Favoritos de Vozes por Idioma (Salvos no Navegador) + Botão de Deck */}
-        <div className="flex flex-wrap items-center justify-between xl:justify-end gap-2 w-full xl:w-auto">
-          <div
-            className="card-matte rounded-xl sm:rounded-full flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 w-full sm:w-auto"
-            aria-label="Perfis favoritos de vozes por idioma"
-          >
-            <div className="flex items-center justify-between sm:justify-start gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 text-secondary shrink-0">
-                <GoogleIcon name="bookmark" size={13} className="text-amber-400" />
-                <span>Vozes Favoritas:</span>
-              </span>
+                <button
+                  type="button"
+                  onClick={handleApplyFavoritesToAllCards}
+                  className="sm:hidden btn-compact-touch h-7 px-2.5 py-0.5 rounded-full btn-matte-amber text-white text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm shrink-0"
+                  title="Aplicar estas vozes favoritas a todos os cards da conversa atual"
+                >
+                  <GoogleIcon name="sync" size={12} />
+                  <span>Aplicar aos Cards</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 sm:flex items-center gap-1.5">
+                {(
+                  [
+                    { code: 'en', flag: 'EN', label: 'EN' },
+                    { code: 'it', flag: 'IT', label: 'IT' },
+                    { code: 'ja', flag: 'JA', label: 'JA' },
+                  ] as const
+                ).map((item) => (
+                  <label
+                    key={item.code}
+                    className="inline-flex items-center justify-center sm:justify-start gap-1 px-2 py-1 rounded-lg sm:rounded-full surface-inset text-[11px] font-bold cursor-pointer transition-colors min-w-0"
+                    title={`Voz favorita padrão para novos cards em ${item.label}`}
+                  >
+                    <span className="font-mono text-[10px] text-amber-400 shrink-0">{item.label}:</span>
+                    <select
+                      id={`fav-voice-${item.code}`}
+                      name={`favVoice_${item.code}`}
+                      aria-label={`Voz favorita para ${item.label}`}
+                      value={defaultVoiceByLang[item.code]}
+                      onChange={(e) => handleChangeFavoriteLanguageVoice(item.code, e.target.value)}
+                      className="bg-transparent font-mono font-bold text-[11px] text-primary focus:outline-none cursor-pointer min-w-0 truncate"
+                    >
+                      {GEMINI_VOICES.map((v) => (
+                        <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">
+                          {v.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
 
               <button
                 type="button"
                 onClick={handleApplyFavoritesToAllCards}
-                className="sm:hidden btn-compact-touch h-7 px-2.5 py-0.5 rounded-full btn-matte-amber text-white text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm shrink-0"
+                className="hidden sm:inline-flex btn-compact-touch h-7 px-2.5 py-0.5 rounded-full btn-matte-amber text-white text-[10px] font-extrabold transition-all cursor-pointer items-center gap-1 shadow-sm shrink-0"
                 title="Aplicar estas vozes favoritas a todos os cards da conversa atual"
               >
                 <GoogleIcon name="sync" size={12} />
@@ -1367,64 +1421,33 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-3 sm:flex items-center gap-1.5">
-              {(
-                [
-                  { code: 'en', flag: 'EN', label: 'EN' },
-                  { code: 'it', flag: 'IT', label: 'IT' },
-                  { code: 'ja', flag: 'JA', label: 'JA' },
-                ] as const
-              ).map((item) => (
-                <label
-                  key={item.code}
-                  className="inline-flex items-center justify-center sm:justify-start gap-1 px-2 py-1 rounded-lg sm:rounded-full surface-inset text-[11px] font-bold cursor-pointer transition-colors min-w-0"
-                  title={`Voz favorita padrão para novos cards em ${item.label}`}
-                >
-                  <span className="font-mono text-[10px] text-amber-400 shrink-0">{item.label}:</span>
-                  <select
-                    id={`fav-voice-${item.code}`}
-                    name={`favVoice_${item.code}`}
-                    aria-label={`Voz favorita para ${item.label}`}
-                    value={defaultVoiceByLang[item.code]}
-                    onChange={(e) => handleChangeFavoriteLanguageVoice(item.code, e.target.value)}
-                    className="bg-transparent font-mono font-bold text-[11px] text-primary focus:outline-none cursor-pointer min-w-0 truncate"
-                  >
-                    {GEMINI_VOICES.map((v) => (
-                      <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
+            <div className="hidden xl:flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleNewConversation}
+                className="btn-matte btn-matte-dark px-3 py-1.5 text-xs text-primary font-medium cursor-pointer flex items-center gap-1"
+                title="Iniciar Nova Conversa Limpa"
+              >
+                <GoogleIcon name="add" size={16} className="text-amber-400" />
+                <span>Nova Conversa</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => (onOpenStudyTab ? onOpenStudyTab() : setIsDeckDrawerOpen(true))}
+                className="btn-matte btn-matte-dark px-3 py-1.5 text-xs text-primary font-medium cursor-pointer flex items-center gap-1.5"
+                title="Abrir Área de Estudo (Flashcards Deck)"
+              >
+                <GoogleIcon name="school" size={16} className="text-amber-400" />
+                <span>Área de Estudo</span>
+                <span className="bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums">
+                  {deck.length}
+                </span>
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleApplyFavoritesToAllCards}
-              className="hidden sm:inline-flex btn-compact-touch h-7 px-2.5 py-0.5 rounded-full btn-matte-amber text-white text-[10px] font-extrabold transition-all cursor-pointer items-center gap-1 shadow-sm shrink-0"
-              title="Aplicar estas vozes favoritas a todos os cards da conversa atual"
-            >
-              <GoogleIcon name="sync" size={12} />
-              <span>Aplicar aos Cards</span>
-            </button>
           </div>
-
-          {/* Botão Desktop de Acesso ao Deck de Flashcards */}
-          <button
-            type="button"
-            onClick={() => setIsDeckDrawerOpen(true)}
-            className="hidden xl:inline-flex btn-matte btn-matte-dark px-3 py-1.5 text-xs text-primary font-medium cursor-pointer"
-            title="Ver Flashcards salvos"
-          >
-            <GoogleIcon name="style" size={16} className="text-amber-400" />
-            <span>Meu Deck</span>
-            <span className="bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums">
-              {deck.length}
-            </span>
-          </button>
-        </div>
-      </header>
+        </header>
+      </div>
 
       {/* 2. Toast de Feedback Suave */}
       {toastMessage && (
@@ -1434,24 +1457,12 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         </div>
       )}
 
-      {/* 3. Feed de Mensagens do Chat (Canvas Multi-Pane com Histórico Colapsável e Enquadramento Amplo) */}
+      {/* 3. Feed de Mensagens do Chat (Canvas Multi-Pane com Enquadramento Amplo max-w-[1440px]) */}
       <div
         role="region"
         aria-label="Feed de conversas poliglotas"
         className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-6 sm:pb-12 flex flex-col gap-4 sm:gap-6"
       >
-        <ConversationHistoryDrawer
-          conversations={conversations}
-          activeConversationId={activeConversationId}
-          isOpen={isHistoryOpen}
-          onToggleOpen={() => setIsHistoryOpen((prev) => !prev)}
-          onSelectConversation={handleSelectConversation}
-          onNewConversation={handleNewConversation}
-          onTogglePin={handleTogglePinConversation}
-          onDeleteConversation={handleDeleteConversation}
-          userEmail={userSession.email}
-        />
-
         {messages.map((message) => {
           const selectedLang = selectedLanguageByMsg[message.id] || 'en';
           const cardVoices = getCardVoicesForMessage(message.id);
@@ -1530,8 +1541,8 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         isOpen={isDeckDrawerOpen}
         onClose={() => setIsDeckDrawerOpen(false)}
         cards={deck}
-        onDeleteCard={(id) => setDeck((prev) => prev.filter((c) => c.id !== id))}
-        onClearDeck={() => setDeck([])}
+        onDeleteCard={(id) => deleteFlashcardFromDeck(id)}
+        onClearDeck={() => clearFlashcardDeck()}
         onPlayCardAudio={handlePlayChunkAudio}
       />
 
@@ -1542,7 +1553,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         message={exportingMessage}
         cardVoices={exportingMessage ? getCardVoicesForMessage(exportingMessage.id) : undefined}
         onAddCardsToDeck={(newCards) => {
-          setDeck((prev) => [...newCards, ...prev]);
+          addFlashcardsToDeck(newCards);
         }}
         onExportTrilogyWav={handleExportTrilogyWav}
         onShowToast={showToast}

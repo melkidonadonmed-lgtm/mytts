@@ -7,6 +7,7 @@ import type { GoogleUserSession } from '../types/polyglot';
 
 const SESSION_STORAGE_KEY = 'mytts_google_session_v1';
 const LEGACY_USER_ID_KEY = 'fastchunks_user_id';
+const GUEST_UID_STORAGE_KEY = 'mytts_guest_uid_v1';
 const RECENT_ACCOUNTS_KEY = 'mytts_recent_google_accounts_v1';
 
 type AuthListener = (session: GoogleUserSession) => void;
@@ -53,21 +54,25 @@ function generateFreshGuestUid(): string {
 function createDefaultGuestSession(forceNewGuestId = false): GoogleUserSession {
   let existingId = 'guest_local';
   try {
-    const savedId = forceNewGuestId ? null : readStorage(LEGACY_USER_ID_KEY);
-    // Nunca reaproveita um uid de conta Google ("google_...") como sessão de visitante deslogado
-    if (savedId && savedId.trim() && !savedId.trim().startsWith('google_')) {
-      existingId = savedId.trim();
+    const dedicatedGuestId = forceNewGuestId ? null : readStorage(GUEST_UID_STORAGE_KEY);
+    const savedLegacyId = forceNewGuestId ? null : readStorage(LEGACY_USER_ID_KEY);
+    // Preserva um guest_uid local estável sem reaproveitar uid de conta Google ("google_...")
+    if (dedicatedGuestId && dedicatedGuestId.trim() && !dedicatedGuestId.trim().startsWith('google_')) {
+      existingId = dedicatedGuestId.trim();
+    } else if (savedLegacyId && savedLegacyId.trim() && !savedLegacyId.trim().startsWith('google_')) {
+      existingId = savedLegacyId.trim();
     } else {
       existingId = generateFreshGuestUid();
-      writeStorage(LEGACY_USER_ID_KEY, existingId);
     }
+    writeStorage(GUEST_UID_STORAGE_KEY, existingId);
+    writeStorage(LEGACY_USER_ID_KEY, existingId);
   } catch {
     existingId = generateFreshGuestUid();
   }
 
   return {
     uid: existingId,
-    name: 'Visitante (Não conectado)',
+    name: 'Visitante (Local)',
     email: '',
     isGoogleAuthenticated: false,
   };
@@ -166,7 +171,7 @@ export function signOutGoogle(): GoogleUserSession {
   } catch {
     // ignore
   }
-  const guest = createDefaultGuestSession(true);
+  const guest = createDefaultGuestSession(false);
   listeners.forEach((fn) => fn(guest));
   return guest;
 }
