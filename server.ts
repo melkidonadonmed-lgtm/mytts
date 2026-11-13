@@ -201,8 +201,6 @@ function isAuthOrInvalidKeyError(err: unknown): boolean {
 const TTS_MODEL_CASCADE = [
   'gemini-3.8-flash-tts',
   'gemini-3.8-flash-lite-tts',
-  'gemini-3.1-flash-tts-preview',
-  'gemini-3.1-flash-lite-tts-preview',
 ];
 
 function adaptContentsForTtsModel(
@@ -273,7 +271,7 @@ async function executeGenerateContentWithCascade(
       if (params.model === 'gemini-3.8-flash') {
         return await client.models.generateContent({
           ...params,
-          model: 'gemini-3.8-flash-lite',
+          model: 'gemini-3.5-flash-lite',
         });
       }
     }
@@ -650,11 +648,11 @@ async function synthesizeGeminiTtsWav(
         msg.includes('Unknown name'))
     ) {
       response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-tts-preview',
+        model: 'gemini-3.8-flash-lite-tts',
         contents: [
           {
             role: 'user',
-            parts: [buildTtsModelPart(spokenText, speaker, style, 'gemini-3.1-flash-tts-preview')],
+            parts: [buildTtsModelPart(spokenText, speaker, style, 'inline-fallback')],
           },
         ],
         config: {

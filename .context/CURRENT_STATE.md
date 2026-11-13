@@ -1,8 +1,8 @@
 # Estado Atual do Workspace (mytts)
 
 ## Fase Atual
-- **Fase**: Evolução Arquitetural UI/UX de 4 Pilares (`12/11/2026`): Sidebar Esquerda Colapsável (`Rail Mode` `280px` ↔ `68px`, `Ctrl+B`), Popover de Sessão & Preferências + `AuthModal` (`<dialog closedby="any">`), 6º Módulo `Área de Estudo` (`StudyArenaView` + `FlashcardImporterModal` Multi-Formato JSON/CSV/MD/HTML + Persistência Dual Firestore `mytts_flashcards`), e Gaveta Direita Colapsável `HistorySidebar` (`320px` ↔ `0px`, `Ctrl+H`) + Alinhamento Simétrico do Canvas Central (`max-w-[1440px]`).
-- **Status da Branch**: `main` (Trio de qualidade `npm run lint && npm test && npm run build` 100% verde, 17/17 suítes Nível 4 aprovadas).
+- **Fase**: Reorganização do Frontend em 4 Módulos (`Chat Poliglota`, `Configuração de Vozes`, `FastChunks`, `Área de Estudo` Anki/Brainscape), Persistência Determinística de Novo Chat (`conversationSessionState.ts`), Simplificação para 2 Temas Foscos (`Escuro Fosco / obsidian` e `Claro Fosco / slate`) e Higienização de Cascata TTS (`13/11/2026`).
+- **Status da Branch**: `main` (Trio de qualidade `npm run lint && npm test && npm run build` 100% verde, 19/19 suítes Nível 4 aprovadas).
 
 ## Decisões Arquiteturais e Correções Aplicadas
 1. **Tema Minimalista de Estúdio de Áudio (`minimal-impact-ui` & `frontend-code-architect`)**:
@@ -140,6 +140,23 @@
   5. **Deploy em Produção (`12/11/2026` — Revisão `mytts-00006-28c`)**:
      - Publicada a revisão `mytts-00006-28c` no Cloud Run em São Paulo (`southamerica-east1` — `https://mytts-1044179901556.southamerica-east1.run.app`, 100% do tráfego) e atualizada a URL curta no Firebase Hosting (`https://mytts.web.app`, bundles `dist/assets/index-B-w4-4iW.js` e `dist/assets/index-DxV5aPhJ.css`).
      - Validado em produção real: `GET https://mytts.web.app/api/health` (`status: "online", modelTts: "gemini-3.8-flash-tts", storage: "firestore"`) e `GET https://mytts.web.app/api/flashcards` (`200 OK`).
+
+- **Higienização de Modelos & Cascata (`13/11/2026`)**:
+  - Removidos modelos preview em shutdown (`18/12/2026`) / legado `gemini-3.1-flash-tts-preview` / `gemini-3.1-flash-lite-tts-preview` de `TTS_MODEL_CASCADE` e do fallback `speechMetadata` em [`server.ts`](../server.ts) (agora restrito a `gemini-3.8-flash-tts` -> `gemini-3.8-flash-lite-tts` com fallback `'inline-fallback'`).
+  - Substituído fallback inexistente `gemini-3.8-flash-lite` em `POST /api/agent-explore` por `gemini-3.5-flash-lite`, e atualizados [`AGENTS.md`](../AGENTS.md), [`README.md`](../README.md), [`src/utils/prosodyEngine.ts`](../src/utils/prosodyEngine.ts) e [`tests/audio-engine.test.ts`](../tests/audio-engine.test.ts).
+
+- **Reorganização do Frontend em 4 Módulos, Persistência de Conversa, Temas Foscos e Área de Estudo Anki/Brainscape (`13/11/2026`)**:
+  1. **Persistência de Conversa e Sobrevivência do "Novo Chat" (`Task 1` — `Suite 18`)**:
+     - Criado [`src/services/conversationSessionState.ts`](../src/services/conversationSessionState.ts) escopado por `userId` (`mytts_active_conv_<uid>`) distinguindo rascunho explícito (`mode: 'new'`) e conversa salva (`mode: 'saved'`), impedindo que `list[0]` (ou conversa fixada) sobrescreva um Novo Chat.
+     - Mantido `<PolyglotChatStudio>` montado sob alternância `hidden` em [`src/App.tsx`](../src/App.tsx) para preservar rascunhos e mensagens ao trocar de aba.
+  2. **Simplificação para 2 Temas Foscos (`Task 2` — `Suite 13`)**:
+     - Restringido `SoftUIThemePreset` para `obsidian` (`Escuro Fosco`) e `slate` (`Claro Fosco`) com migração automática (`normalizeThemePreset`) em [`src/config/tokens.ts`](../src/config/tokens.ts), [`src/styles/theme.css`](../src/styles/theme.css), [`src/components/UserSessionPopover.tsx`](../src/components/UserSessionPopover.tsx) e [`src/components/CommandPaletteModal.tsx`](../src/components/CommandPaletteModal.tsx).
+     - Adicionados `<meta name="color-scheme">` e script anti-FOUC em [`index.html`](../index.html), removendo `.canvas-dot-grid`, brilhos especulares e `backdrop-blur-*` (`AUDIT-VIS-01`).
+  3. **Unificação em "Configuração de Vozes" & Navegação em 4 Abas (`Task 3`)**:
+     - Criado [`src/components/VoiceConfigWorkspace.tsx`](../src/components/VoiceConfigWorkspace.tsx) unificando `Catálogo & Favoritas` ([`src/components/VoiceLibraryModal.tsx`](../src/components/VoiceLibraryModal.tsx)), `Leitura Solo · 1 Voz` ([`src/components/StudioWorkspace.tsx`](../src/components/StudioWorkspace.tsx)) e `Debate & Diálogo · 2 Vozes` (`DebateConfigPanel` + `ScriptViewer`) sob uma única aba `voices`.
+     - Enxugada a navegação em [`src/components/Sidebar.tsx`](../src/components/Sidebar.tsx) e [`src/components/MobileAppHeader.tsx`](../src/components/MobileAppHeader.tsx) de 6 para 4 módulos (`Chat Poliglota`, `Configuração de Vozes`, `FastChunks`, `Área de Estudo`) e despoluído o cabeçalho do Chat Poliglota.
+  4. **Área de Estudo no Estilo Anki / Brainscape (`Task 4` — `Suite 19`)**:
+     - Criados [`src/components/study/StudyDeckOverview.tsx`](../src/components/study/StudyDeckOverview.tsx) e [`src/components/study/FlashcardCreatorPanel.tsx`](../src/components/study/FlashcardCreatorPanel.tsx) e refatorado [`src/components/StudyArenaView.tsx`](../src/components/StudyArenaView.tsx) em 3 sub-abas (`Baralhos`, `Estudar`, `Criar & Gerenciar`), com prevenção de duplicação de cards, feedback de salvamento e limpeza de campos opcionais.
 
 ## Débitos Técnicos e Blockers
 - **Credenciais Cloud/Local**: Operacional em produção (`https://mytts.web.app` / Cloud Run `southamerica-east1`) e localmente (`:3002`) via failover automático para Vertex AI ADC (`agent-md-506215` / `global`).

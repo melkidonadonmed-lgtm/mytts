@@ -104,7 +104,7 @@ export interface TtsSpeechMetadataPart {
 /**
  * Monta o `Part` de entrada para síntese neural de voz conforme o modelo alvo:
  * - Modelos `gemini-3.8-*` recebem `speechMetadata: { speaker, style }` em camelCase.
- * - Modelos legados na cascata (`gemini-3.1-*`, `gemini-2.5-*`) têm a direção acústica
+ * - Fallback inline (`inline-fallback` / modelos fora do prefixo `gemini-3.8-`) tem a direção acústica
  *   convertida em prompt textual inline e `speechMetadata` removido para evitar rejeição 400 ou descarte silencioso.
  */
 export function buildTtsModelPart(

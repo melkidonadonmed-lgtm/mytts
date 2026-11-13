@@ -7,22 +7,20 @@ archetypes:
   primary: "3.3 Workbench Split-View (Editor / Chat Poliglota / Trilha + Canvas de Síntese)"
   secondary: "3.2 Dashboard Analítico & Bento Grid (Nexus Bento Grid 12 Colunas)"
 colors:
-  surface-canvas: "#57545d"     # Layer 0: Cinza Studio Monolítico (60% no Studio Default; #F3F3F5 no Ad Lucem Light; #070709 no Terminal IBM)
-  surface-inset:  "#3e3b44"     # Layer 1: Cavidade física escavada (inputs/trilhos/#sidebar-active-tracker; #E8E8EE no Light)
-  surface-flat:   "#49464f"     # Layer 2: Placa intermediária sem borda dura (#E6E6EA no Light)
-  surface-raised: "#635f6a"     # Layer 3: Placa esculpida 135° (30%; #FFFFFF no Ad Lucem Light; #101014 no Terminal IBM)
-  surface-contrast: "#232127"   # Layer 4: Âncora de inversão tonal Terrixa (.terrixa-notched)
-  text-primary:   "#F7F6F9"     # Tinta primária de alto contraste (#111115 no Light)
-  text-secondary: "#DFDDE4"     # Tinta secundária para metadados (#3F3F46 no Light)
-  accent-point:   "#35acd8"     # Destaque focal Sky/Cerulean (10% max — Zero Azul Cobalto; #0284C7 no Light)
+  surface-canvas: "#1A1D24"     # Layer 0: Escuro Fosco (obsidian default; #E6E9EE no Claro Fosco / slate)
+  surface-inset:  "#14171D"     # Layer 1: Cavidade física fosca (inputs/trilhos; #DCE0E6 no Claro Fosco)
+  surface-flat:   "#21252E"     # Layer 2: Placa intermediária fosca (#EEF0F4 no Claro Fosco)
+  surface-raised: "#272C37"     # Layer 3: Placa elevada fosca sem brilho especular (#F4F5F7 no Claro Fosco)
+  surface-contrast: "#111419"   # Layer 4: Âncora de inversão tonal (#1B2028 no Claro Fosco)
+  text-primary:   "#E8ECF2"     # Tinta primária de alto contraste (#1A2029 no Claro Fosco)
+  text-secondary: "#9AA4B6"     # Tinta secundária para metadados (#525E70 no Claro Fosco)
+  accent-point:   "#35acd8"     # Destaque focal Sky/Cerulean (10% max — Zero Azul Cobalto; #0284C7 no Claro Fosco)
   accent-sapphire: "#0284C7"    # Cerulean Sapphire canônico
-  accent-amber:   "#D97706"     # Energia vocal de estúdio (Âmbar Mineral)
-  accent-emerald: "#059669"     # Indicador semântico de estabilidade e áudio online
+  accent-amber:   "#D97706"     # Energia vocal de estúdio (Âmbar Mineral; #B45309 no Claro Fosco)
+  accent-emerald: "#10B981"     # Indicador semântico de estabilidade e áudio online (#059669 no Claro Fosco)
 presets:
-  slate:    { canvas: "#F3F3F5", raised: "#FFFFFF", inset: "#E8E8EE", accent: "#0284C7" }
-  moss:     { canvas: "#F4F3EC", raised: "#F8F7F2", inset: "#E8E5DC", accent: "#174930" }
-  sapphire: { canvas: "#57545d", raised: "#635f6a", inset: "#3e3b44", accent: "#35acd8" }
-  obsidian: { canvas: "#070709", raised: "#101014", inset: "#0C0C10", accent: "#38BDF8" }
+  obsidian: { canvas: "#1A1D24", flat: "#21252E", raised: "#272C37", inset: "#14171D", accent: "#35acd8" }
+  slate:    { canvas: "#E6E9EE", flat: "#EEF0F4", raised: "#F4F5F7", inset: "#DCE0E6", accent: "#0284C7" }
 skills_integrated:
   - design-md (v8.0.0): Contrato Canônico 9 Seções + Adendos A–I, OKLCH 3 Camadas, 60-30-10 e @container
   - plan-uiux (v1.1.0): Auditoria Estrutural REA + Mutação Antes/Depois + Arquitetura CSS Moderna

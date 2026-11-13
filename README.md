@@ -55,9 +55,9 @@ graph TD
 - **Backend**: Node.js 22, Express, `@google/genai` SDK v2.4+, `@google-cloud/firestore`, `helmet` + `express-rate-limit`.
 - **Infraestrutura**: Google Cloud Run (Container multi-stage Linux), Google Cloud Build, GitHub Actions.
 - **Modelos de IA**:
-  - `gemini-3.1-flash-tts-preview`: Síntese neural de voz com Director's Chair.
+  - `gemini-3.8-flash-tts` / `gemini-3.8-flash-lite-tts`: Síntese neural de voz com Director's Chair (`speechMetadata`).
   - `gemini-3.8-flash`: Roteirização, extração de PDFs e transcrição de áudio.
-  - `gemini-3.1-flash-live-preview`: Conversação em tempo real (Fase 2).
+  - `gemini-3.8-live`: Conversação em tempo real (Fase 2).
 
 ---
 

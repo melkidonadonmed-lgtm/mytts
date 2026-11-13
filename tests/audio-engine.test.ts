@@ -405,11 +405,11 @@ test('Suite 16: Gemini 3.8 Flash TTS — 12 Emoções, 5 Personas Acústicas e T
     'Energetic delivery.',
     'gemini-3.8-flash-lite-tts'
   );
-  const partLegacy31 = buildTtsModelPart(
+  const partInlineFallback = buildTtsModelPart(
     '<breath> Olá mundo.',
     'Kore',
     'Warm expressive delivery.',
-    'gemini-3.1-flash-tts-preview'
+    'inline-fallback'
   );
 
   // 3. ASSERT
@@ -451,10 +451,10 @@ test('Suite 16: Gemini 3.8 Flash TTS — 12 Emoções, 5 Personas Acústicas e T
       style: 'Energetic delivery.',
     },
   });
-  assert.strictEqual(partLegacy31.speechMetadata, undefined);
+  assert.strictEqual(partInlineFallback.speechMetadata, undefined);
   assert.ok(
-    partLegacy31.text.startsWith('Performance Direction (Kore): Warm expressive delivery.\n\n<breath> Olá mundo.'),
-    'Modelos legados na cascata (gemini-3.1/2.5) devem receber direção inline sem speechMetadata'
+    partInlineFallback.text.startsWith('Performance Direction (Kore): Warm expressive delivery.\n\n<breath> Olá mundo.'),
+    'Fallback inline sem prefixo gemini-3.8- deve receber direção textual sem speechMetadata'
   );
 
   assert.ok(normalizedTranscript.includes('<heavy breath>'));

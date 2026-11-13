@@ -1,0 +1,25 @@
+{
+  "skill_name": "gemini-tts-expressive-audio",
+  "evals": [
+    {
+      "eval_id": "gemini-tts-expressive-audio-01",
+      "prompt": "Ajuste a rota /api/synthesize-turn e prosodyEngine.ts no MyTTS para garantir speechMetadata válido e failover na cascata 3.8.",
+      "should_trigger": true,
+      "expected_output": "Uso de speechMetadata em camelCase, isolamento de tags vocais no part.text, cascata gemini-3.8-flash-tts -> gemini-3.8-flash-lite-tts (sem modelos 3.1/2.5 descontinuados) e proteção de env vars no getVertexAdcClient().",
+      "assertions": [
+        "Usa speechMetadata em camelCase sem inserir tags angulares em style",
+        "Preserva isolamento de GEMINI_API_KEY/GOOGLE_API_KEY em try/finally no Vertex ADC",
+        "Respeita cascata TTS_MODEL_CASCADE e invalidação/preservação de tags na chave de cache"
+      ]
+    },
+    {
+      "eval_id": "gemini-tts-expressive-audio-02",
+      "prompt": "Crie uma consulta SQL no BigQuery para contar usuários ativos por país sem envolver áudio.",
+      "should_trigger": false,
+      "expected_output": "Não acionar gemini-tts-expressive-audio para consultas SQL sem relação com TTS ou áudio.",
+      "assertions": [
+        "Mantém fronteira negativa contra SQL ou tarefas fora de TTS/áudio"
+      ]
+    }
+  ]
+}
