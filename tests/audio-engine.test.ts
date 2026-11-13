@@ -681,6 +681,206 @@ test('Suite 18: Resolução de Conversa Ativa, Novo Chat Explícito vs. Chat Fix
   }
 });
 
+import type { FlashcardItem } from '../src/types/polyglot';
+import {
+  computeDeckSummaries,
+  filterStudyQueue,
+  buildManualFlashcardItem,
+} from '../src/services/flashcardDeckStorage';
+
+test('Suite 19: Área de Estudo Anki/Brainscape — Métricas de Baralho, Fila SRS Due e Criador Manual', () => {
+  const now = 1_730_000_000_000;
+  const DAY_MS = 86_400_000;
+
+  const sampleCards: FlashcardItem[] = [
+    {
+      id: 'c_new_1',
+      chunkText: 'Could I get an espresso?',
+      language: 'en-US',
+      front: 'Could I get an espresso?',
+      back: 'Poderia me ver um expresso?',
+      nuance: 'Pedido educado',
+      example: 'Could I get an espresso, please?',
+      exampleTranslation: 'Poderia me ver um expresso, por favor?',
+      createdAt: now - 10_000,
+      deckName: 'Baralho Principal',
+      status: 'new',
+      intervalDays: 0,
+      repetitions: 0,
+    },
+    {
+      id: 'c_due_review',
+      chunkText: 'Non vedo l’ora',
+      language: 'it-IT',
+      front: 'Non vedo l’ora',
+      back: 'Não vejo a hora / Mal posso esperar',
+      nuance: 'Expressão idiomática',
+      example: 'Non vedo l’ora di partire.',
+      exampleTranslation: 'Mal posso esperar para partir.',
+      createdAt: now - 2 * DAY_MS,
+      deckName: 'Baralho Principal',
+      status: 'learning',
+      intervalDays: 1,
+      repetitions: 1,
+      lastReviewedAt: now - DAY_MS,
+      nextReviewAt: now - 1000, // Vencido!
+    },
+    {
+      id: 'c_future_mastered',
+      chunkText: 'Piece of cake',
+      language: 'en-US',
+      front: 'Piece of cake',
+      back: 'Muito fácil / Moleza',
+      nuance: 'Expressão comum',
+      example: 'The exam was a piece of cake.',
+      exampleTranslation: 'O exame foi moleza.',
+      createdAt: now - 10 * DAY_MS,
+      deckName: 'Baralho Principal',
+      status: 'mastered',
+      intervalDays: 8,
+      repetitions: 3,
+      lastReviewedAt: now - DAY_MS,
+      nextReviewAt: now + 7 * DAY_MS, // No futuro (não due)
+    },
+    {
+      id: 'c_fast_1',
+      chunkText: 'なるほど',
+      language: 'ja-JP',
+      front: 'なるほど (Naruhodo)',
+      back: 'Entendi / Faz sentido',
+      nuance: 'Aizuchi de escuta',
+      example: 'なるほど、わかりました。',
+      exampleTranslation: 'Entendi, compreendi.',
+      createdAt: now - 5 * DAY_MS,
+      deckName: 'FastChunks',
+      status: 'mastered',
+      intervalDays: 5,
+      repetitions: 2,
+      lastReviewedAt: now - DAY_MS,
+      nextReviewAt: now + 4 * DAY_MS,
+    },
+    {
+      id: 'c_fast_2',
+      chunkText: 'よろしくお願いします',
+      language: 'ja-JP',
+      front: 'よろしくお願いします',
+      back: 'Conto com você',
+      nuance: 'Fórmula de cortesia',
+      example: '明日もよろしくお願いします。',
+      exampleTranslation: 'Amanhã conto com você também.',
+      createdAt: now - 6 * DAY_MS,
+      deckName: 'FastChunks',
+      status: 'mastered',
+      intervalDays: 10,
+      repetitions: 4,
+      lastReviewedAt: now - 2 * DAY_MS,
+      nextReviewAt: now + 8 * DAY_MS,
+    },
+  ];
+
+  // 1. computeDeckSummaries (agrupamento, contadores Anki, domínio Brainscape e ordenação)
+  const summaries = computeDeckSummaries(sampleCards, now);
+  assert.strictEqual(summaries.length, 2);
+
+  const mainDeck = summaries.find((s) => s.deckName === 'Baralho Principal');
+  assert.ok(mainDeck, 'Baralho Principal deve estar presente nos resumos');
+  assert.strictEqual(mainDeck.total, 3);
+  assert.strictEqual(mainDeck.newCount, 1);
+  assert.strictEqual(mainDeck.learningCount, 1);
+  assert.strictEqual(mainDeck.masteredCount, 1);
+  assert.strictEqual(mainDeck.dueCount, 2, 'dueCount deve incluir novos + vencidos');
+  assert.strictEqual(mainDeck.masteryPercent, 33, 'Math.round((1 / 3) * 100) = 33%');
+  assert.ok(mainDeck.languages.includes('EN') && mainDeck.languages.includes('IT'));
+
+  const fastDeck = summaries.find((s) => s.deckName === 'FastChunks');
+  assert.ok(fastDeck, 'FastChunks deve estar presente nos resumos');
+  assert.strictEqual(fastDeck.total, 2);
+  assert.strictEqual(fastDeck.newCount, 0);
+  assert.strictEqual(fastDeck.dueCount, 0, 'Ambos estão agendados no futuro');
+  assert.strictEqual(fastDeck.masteredCount, 2);
+  assert.strictEqual(fastDeck.masteryPercent, 100);
+  assert.deepStrictEqual(fastDeck.languages, ['JA']);
+
+  // Ordenação estável: Baralho Principal primeiro
+  assert.strictEqual(summaries[0].deckName, 'Baralho Principal');
+  assert.strictEqual(summaries[1].deckName, 'FastChunks');
+
+  // 2. filterStudyQueue (deck, idioma, dueOnly e timestamp)
+  const allMain = filterStudyQueue(sampleCards, {
+    deckName: 'Baralho Principal',
+    language: 'ALL',
+    dueOnly: false,
+    now,
+  });
+  assert.strictEqual(allMain.length, 3);
+
+  const dueOnlyMain = filterStudyQueue(sampleCards, {
+    deckName: 'Baralho Principal',
+    language: 'ALL',
+    dueOnly: true,
+    now,
+  });
+  assert.strictEqual(dueOnlyMain.length, 2, 'Deve excluir o card agendado para o futuro');
+  assert.ok(!dueOnlyMain.some((c) => c.id === 'c_future_mastered'));
+
+  const italianMain = filterStudyQueue(sampleCards, {
+    deckName: 'Baralho Principal',
+    language: 'IT',
+    dueOnly: false,
+    now,
+  });
+  assert.strictEqual(italianMain.length, 1);
+  assert.strictEqual(italianMain[0].id, 'c_due_review');
+
+  const allDecksDue = filterStudyQueue(sampleCards, {
+    deckName: 'ALL',
+    language: 'ALL',
+    dueOnly: true,
+    now,
+  });
+  assert.strictEqual(allDecksDue.length, 2);
+
+  // 3. buildManualFlashcardItem (criação com inferência de idioma e sanitização de vazios)
+  const createdCard = buildManualFlashcardItem({
+    deckName: 'Italiano Viagem',
+    front: 'Prendiamo un caffè insieme?',
+    back: 'Vamos tomar um café juntos?',
+    pronunciation: '   ',
+    example: '',
+    exampleTranslation: '',
+    nuance: '',
+  });
+
+  assert.ok(createdCard.id.startsWith('fc_manual_'));
+  assert.strictEqual(createdCard.deckName, 'Italiano Viagem');
+  assert.strictEqual(createdCard.language, 'it-IT', 'Deve inferir italiano automaticamente');
+  assert.strictEqual(createdCard.front, 'Prendiamo un caffè insieme?');
+  assert.strictEqual(createdCard.back, 'Vamos tomar um café juntos?');
+  assert.strictEqual(createdCard.pronunciation, undefined, 'String com espaços deve virar undefined');
+  assert.strictEqual(createdCard.example, 'Prendiamo un caffè insieme?', 'Fallback para front');
+  assert.strictEqual(createdCard.exampleTranslation, 'Vamos tomar um café juntos?', 'Fallback para back');
+  assert.strictEqual(createdCard.status, 'new');
+  assert.strictEqual(createdCard.intervalDays, 0);
+  assert.strictEqual(createdCard.repetitions, 0);
+
+  // 4. buildManualFlashcardItem (edição preservando id e progresso SRS)
+  const editedCard = buildManualFlashcardItem({
+    id: 'c_future_mastered',
+    deckName: 'Baralho Principal',
+    front: 'Piece of cake (revised)',
+    back: 'Muito fácil mesmo',
+    existing: sampleCards[2],
+  });
+
+  assert.strictEqual(editedCard.id, 'c_future_mastered');
+  assert.strictEqual(editedCard.front, 'Piece of cake (revised)');
+  assert.strictEqual(editedCard.status, 'mastered', 'Deve preservar status SRS');
+  assert.strictEqual(editedCard.intervalDays, 8, 'Deve preservar intervalDays');
+  assert.strictEqual(editedCard.repetitions, 3, 'Deve preservar repetitions');
+  assert.strictEqual(editedCard.nextReviewAt, now + 7 * DAY_MS, 'Deve preservar nextReviewAt');
+  assert.strictEqual(editedCard.createdAt, sampleCards[2].createdAt, 'Deve preservar createdAt');
+});
+
 export async function runContractTests(): Promise<number> {
   let passed = 0;
   for (const t of contractTests) {

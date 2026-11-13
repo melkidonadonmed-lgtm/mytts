@@ -70,7 +70,7 @@ export function detectFlashcardLanguage(
   }
 
   if (
-    /[àèéìòù]\b/.test(lower) ||
+    /[àèéìòù](?:\s|[.,!?;:]|$)/i.test(lower) ||
     /\b(potrei|vorrei|per favore|grazie|figurati|meno male|che ne pensi|non c'è|buongiorno|stasera|allora|proprio|questo|quella|anche|perché|più|già|può)\b/i.test(
       lower
     ) ||

@@ -13,7 +13,182 @@ import {
   requestListUserFlashcards,
   requestSaveUserFlashcards,
 } from './polyglotClient';
-import { detectFlashcardLanguage } from '../utils/flashcardParser';
+import { detectFlashcardLanguage, normalizeLanguageBadge } from '../utils/flashcardParser';
+
+export interface DeckSummary {
+  deckName: string;
+  total: number;
+  newCount: number;
+  dueCount: number;
+  learningCount: number;
+  masteredCount: number;
+  masteryPercent: number;
+  languages: string[];
+}
+
+export function computeDeckSummaries(cards: FlashcardItem[], now = Date.now()): DeckSummary[] {
+  const byDeck = new Map<string, FlashcardItem[]>();
+  for (const card of cards) {
+    const deck = (card.deckName || 'Baralho Principal').trim() || 'Baralho Principal';
+    const list = byDeck.get(deck);
+    if (list) {
+      list.push(card);
+    } else {
+      byDeck.set(deck, [card]);
+    }
+  }
+
+  const summaries: DeckSummary[] = [];
+  for (const [deckName, deckCards] of byDeck.entries()) {
+    let newCount = 0;
+    let learningCount = 0;
+    let masteredCount = 0;
+    let dueCount = 0;
+    const langSet = new Set<string>();
+
+    for (const card of deckCards) {
+      const status = card.status || 'new';
+      if (status === 'mastered') {
+        masteredCount++;
+      } else if (status === 'learning' || status === 'review') {
+        learningCount++;
+      } else {
+        newCount++;
+      }
+
+      if (status === 'new' || !card.nextReviewAt || card.nextReviewAt <= now) {
+        dueCount++;
+      }
+
+      const badge = normalizeLanguageBadge(card.language);
+      langSet.add(badge);
+    }
+
+    const total = deckCards.length;
+    const masteryPercent = total > 0 ? Math.round((masteredCount / total) * 100) : 0;
+    const languages = (['EN', 'IT', 'JA'] as const).filter((l) => langSet.has(l));
+
+    summaries.push({
+      deckName,
+      total,
+      newCount,
+      dueCount,
+      learningCount,
+      masteredCount,
+      masteryPercent,
+      languages,
+    });
+  }
+
+  return summaries.sort((a, b) => {
+    if (a.deckName === 'Baralho Principal' && b.deckName !== 'Baralho Principal') return -1;
+    if (b.deckName === 'Baralho Principal' && a.deckName !== 'Baralho Principal') return 1;
+    return a.deckName.localeCompare(b.deckName, 'pt-BR');
+  });
+}
+
+export function filterStudyQueue(
+  cards: FlashcardItem[],
+  options: { deckName: string; language: string; dueOnly: boolean; now?: number }
+): FlashcardItem[] {
+  const now = options.now ?? Date.now();
+  const filterDeck = options.deckName.trim();
+  const filterLang = options.language.trim();
+
+  return cards.filter((card) => {
+    const cardDeck = (card.deckName || 'Baralho Principal').trim() || 'Baralho Principal';
+    if (filterDeck && filterDeck !== 'ALL' && cardDeck !== filterDeck) {
+      return false;
+    }
+
+    if (filterLang && filterLang !== 'ALL') {
+      const cardBadge = normalizeLanguageBadge(card.language);
+      const queryBadge = normalizeLanguageBadge(filterLang);
+      if (cardBadge !== queryBadge && card.language !== filterLang) {
+        return false;
+      }
+    }
+
+    if (options.dueOnly) {
+      const isDue = card.status === 'new' || !card.nextReviewAt || card.nextReviewAt <= now;
+      if (!isDue) return false;
+    }
+
+    return true;
+  });
+}
+
+export function buildManualFlashcardItem(input: {
+  id?: string;
+  deckName: string;
+  language?: string;
+  front: string;
+  back: string;
+  pronunciation?: string;
+  example?: string;
+  exampleTranslation?: string;
+  nuance?: string;
+  createdAt?: number;
+  existing?: Partial<FlashcardItem>;
+}): FlashcardItem {
+  const front = input.front.trim();
+  const back = input.back.trim();
+  const deckName =
+    input.deckName.trim() || input.existing?.deckName?.trim() || 'Baralho Principal';
+
+  const rawLang = input.language?.trim() || input.existing?.language?.trim() || '';
+  const detectedLang = detectFlashcardLanguage(front, rawLang || undefined);
+
+  const cleanPronunciation = input.pronunciation?.trim();
+  const pronunciation =
+    cleanPronunciation && cleanPronunciation.length > 0
+      ? cleanPronunciation
+      : input.existing?.pronunciation?.trim() || undefined;
+
+  const example = input.example?.trim() || input.existing?.example?.trim() || front;
+  const exampleTranslation =
+    input.exampleTranslation?.trim() || input.existing?.exampleTranslation?.trim() || back;
+  const nuance = input.nuance?.trim() || input.existing?.nuance?.trim() || 'Estudo Ativo';
+
+  const id =
+    input.id?.trim() ||
+    input.existing?.id ||
+    `fc_manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const now = Date.now();
+  const createdAt =
+    typeof input.createdAt === 'number'
+      ? input.createdAt
+      : typeof input.existing?.createdAt === 'number'
+        ? input.existing.createdAt
+        : now;
+
+  const status = input.existing?.status || 'new';
+  const intervalDays =
+    typeof input.existing?.intervalDays === 'number' ? input.existing.intervalDays : 0;
+  const repetitions =
+    typeof input.existing?.repetitions === 'number' ? input.existing.repetitions : 0;
+
+  return {
+    id,
+    chunkText: front,
+    language: detectedLang,
+    front,
+    back,
+    nuance,
+    pronunciation,
+    example,
+    exampleTranslation,
+    createdAt,
+    deckName,
+    status,
+    intervalDays,
+    repetitions,
+    nextReviewAt: input.existing?.nextReviewAt,
+    lastReviewedAt: input.existing?.lastReviewedAt,
+    voiceId: input.existing?.voiceId,
+  };
+}
 
 const LEGACY_DECK_KEY = 'mytts_polyglot_deck';
 const LEGACY_MIGRATED_FLAG = 'mytts_polyglot_deck_migrated_v2';
