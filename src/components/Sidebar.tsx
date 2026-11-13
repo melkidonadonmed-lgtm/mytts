@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import type { VoiceProfile } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
 import { UserSessionPopover } from './UserSessionPopover';
 import type { SoftUIThemePreset } from '../types';
@@ -14,13 +13,10 @@ export type AppTab =
 interface SidebarProps {
   activeTab: AppTab;
   onSelectTab: (tab: AppTab) => void;
-  selectedVoice?: VoiceProfile;
-  onSelectVoice?: (voice: VoiceProfile) => void;
   isOpenMobile: boolean;
   onToggleMobile: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
-  onOpenVoiceLibrary?: () => void;
   onOpenCommandPalette?: () => void;
   onOpenAuthModal?: () => void;
   flashcardCount?: number;

@@ -30,15 +30,15 @@ export interface VoiceConfigWorkspaceProps {
   onChangeFavoriteVoice: (lang: 'en' | 'it' | 'ja', voiceId: string) => void;
   text: string;
   onChangeText: (text: string) => void;
-  player: GaplessAudioPlayer;
+  player?: GaplessAudioPlayer;
   isPlaying: boolean;
   playerCurrentTurn: number;
   script: DebateScript;
-  setScript: React.Dispatch<React.SetStateAction<DebateScript>>;
+  setScript?: React.Dispatch<React.SetStateAction<DebateScript>>;
   debateConfig: DebateConfig;
   onChangeDebateConfig: (config: DebateConfig) => void;
-  studioRenderMode: StudioRenderMode;
-  onChangeStudioRenderMode: (mode: StudioRenderMode) => void;
+  studioRenderMode?: StudioRenderMode;
+  onChangeStudioRenderMode?: (mode: StudioRenderMode) => void;
   onGenerateDebate: (
     speakers: [SpeakerProfile, SpeakerProfile],
     tension: 'friendly' | 'balanced' | 'provocative',
@@ -52,7 +52,7 @@ export interface VoiceConfigWorkspaceProps {
   onPlayTurn: (turnIndex: number) => void;
   onUpdateTurnText: (turnIndex: number, newText: string) => void;
   onUpdateTurnVoice: (turnIndex: number, newVoiceId: string) => void;
-  onOpenPolyglotTab: () => void;
+  onOpenPolyglotTab?: () => void;
 }
 
 const SUB_TABS: Array<{
@@ -75,11 +75,9 @@ export const VoiceConfigWorkspace: React.FC<VoiceConfigWorkspaceProps> = ({
   onChangeFavoriteVoice,
   text,
   onChangeText,
-  player,
   isPlaying,
   playerCurrentTurn,
   script,
-  setScript,
   debateConfig,
   onChangeDebateConfig,
   studioRenderMode,
@@ -91,6 +89,7 @@ export const VoiceConfigWorkspace: React.FC<VoiceConfigWorkspaceProps> = ({
   onPlayTurn,
   onUpdateTurnText,
   onUpdateTurnVoice,
+  onOpenPolyglotTab,
 }) => {
   return (
     <div className="flex-1 flex flex-col w-full min-w-0">
@@ -98,6 +97,17 @@ export const VoiceConfigWorkspace: React.FC<VoiceConfigWorkspaceProps> = ({
       <div className="w-full border-b border-slate-800/80 bg-slate-950/40 sticky top-0 z-20">
         <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
+            {onOpenPolyglotTab && (
+              <button
+                type="button"
+                onClick={onOpenPolyglotTab}
+                className="btn-compact-touch p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-slate-800/60 transition-colors cursor-pointer shrink-0"
+                title="Voltar ao Chat Poliglota"
+                aria-label="Voltar ao Chat Poliglota"
+              >
+                <GoogleIcon name="arrow_back" size={17} />
+              </button>
+            )}
             <span className="text-xs font-bold uppercase tracking-wider text-secondary font-mono">
               Configuração de Vozes:
             </span>
@@ -168,21 +178,6 @@ export const VoiceConfigWorkspace: React.FC<VoiceConfigWorkspaceProps> = ({
               onChangeText={onChangeText}
               selectedVoice={selectedVoice}
               onSelectVoice={onSelectVoice}
-              lockedRenderMode="solo"
-              player={player}
-              isPlaying={isPlaying}
-              playerCurrentTurn={playerCurrentTurn}
-              script={script}
-              setScript={setScript}
-              onGenerateDebate={onGenerateDebate}
-              isGeneratingDebate={isGeneratingDebate}
-              isSynthesizingDebate={isSynthesizingDebate}
-              onSynthesizeSingleTurn={onSynthesizeSingleTurn}
-              onPlayTurn={onPlayTurn}
-              onUpdateTurnText={onUpdateTurnText}
-              onUpdateTurnVoice={onUpdateTurnVoice}
-              studioRenderMode={studioRenderMode}
-              onChangeStudioRenderMode={onChangeStudioRenderMode}
             />
           </div>
         )}
@@ -231,7 +226,12 @@ export const VoiceConfigWorkspace: React.FC<VoiceConfigWorkspaceProps> = ({
                 />
                 <DebateConfigPanel
                   config={debateConfig}
-                  onChangeConfig={onChangeDebateConfig}
+                  onChangeConfig={(next) => {
+                    onChangeDebateConfig(next);
+                    if (next.format && next.format !== studioRenderMode) {
+                      onChangeStudioRenderMode?.(next.format as StudioRenderMode);
+                    }
+                  }}
                 />
               </div>
 

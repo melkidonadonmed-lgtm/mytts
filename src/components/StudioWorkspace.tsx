@@ -13,15 +13,6 @@ import {
   RotateCw,
 } from 'lucide-react';
 import { VoiceProfile } from '../types/voices';
-import {
-  ConversationFormat,
-  DebateConfig,
-  DebateScript,
-  LanguageCode,
-  SpeakerProfile,
-  StudioRenderMode,
-} from '../types/debate';
-import { GaplessAudioPlayer } from '../utils/audioEngine';
 import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback, stopBrowserSpeech } from '../utils/audio';
 import { VoiceCardGrid } from './VoiceCardGrid';
 import { StudioTextEditor } from './StudioTextEditor';
@@ -36,28 +27,6 @@ export interface StudioWorkspaceProps {
   onChangeText: (text: string) => void;
   selectedVoice: VoiceProfile;
   onSelectVoice: (voice: VoiceProfile) => void;
-  lockedRenderMode?: 'solo';
-  player?: GaplessAudioPlayer;
-  isPlaying?: boolean;
-  playerCurrentTurn?: number;
-  script?: DebateScript;
-  setScript?: React.Dispatch<React.SetStateAction<DebateScript>>;
-  debateConfig?: DebateConfig;
-  onChangeDebateConfig?: (config: DebateConfig) => void;
-  onGenerateDebate?: (
-    speakers: [SpeakerProfile, SpeakerProfile],
-    tension: 'friendly' | 'balanced' | 'provocative',
-    format?: ConversationFormat,
-    language?: LanguageCode
-  ) => Promise<void>;
-  isGeneratingDebate?: boolean;
-  isSynthesizingDebate?: boolean;
-  onSynthesizeSingleTurn?: (turnIndex: number) => Promise<void>;
-  onPlayTurn?: (turnIndex: number) => void;
-  onUpdateTurnText?: (turnIndex: number, newText: string) => void;
-  onUpdateTurnVoice?: (turnIndex: number, newVoiceId: string) => void;
-  studioRenderMode?: StudioRenderMode;
-  onChangeStudioRenderMode?: (mode: StudioRenderMode) => void;
 }
 
 const CALIBRATION_PRESETS: { id: CalibrationPreset; label: string; icon: string; desc: string }[] = [

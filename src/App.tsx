@@ -772,13 +772,10 @@ export default function App() {
       <Sidebar
         activeTab={activeTab}
         onSelectTab={handleNavigateTab}
-        selectedVoice={selectedVoice}
-        onSelectVoice={setSelectedVoice}
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
         isCollapsed={isLeftSidebarCollapsed}
         onToggleCollapse={handleToggleLeftSidebar}
-        onOpenVoiceLibrary={() => handleNavigateTab('voices', 'catalog')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         flashcardCount={flashcards.length}

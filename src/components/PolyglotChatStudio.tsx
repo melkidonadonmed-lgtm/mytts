@@ -396,42 +396,6 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     void handleTogglePlay(messageId, lang, undefined, voiceId);
   };
 
-  // Alteração do perfil favorito de voz para um idioma na barra superior
-  const handleChangeFavoriteLanguageVoice = (
-    lang: 'en' | 'it' | 'ja',
-    voiceId: string
-  ): void => {
-    const currentForMsg =
-      cardVoicesByMsgRef.current[focusedMessageId] ||
-      cardVoicesByMsg[focusedMessageId] ||
-      defaultVoiceByLang;
-    const updatedVoices = {
-      ...currentForMsg,
-      [lang]: voiceId,
-    };
-    cardVoicesByMsgRef.current = {
-      ...cardVoicesByMsgRef.current,
-      [focusedMessageId]: updatedVoices,
-    };
-
-    setDefaultVoiceByLang((prev) => ({ ...prev, [lang]: voiceId }));
-    setCardVoicesByMsg((prev) => ({
-      ...prev,
-      [focusedMessageId]: updatedVoices,
-    }));
-    setMessages((prev) =>
-      prev.map((m) => (m.id === focusedMessageId ? { ...m, cardVoices: updatedVoices } : m))
-    );
-    setSelectedLanguageByMsg((prev) => ({ ...prev, [focusedMessageId]: lang }));
-    syncVoiceToGlobal(voiceId);
-    const langLabels: Record<'en' | 'it' | 'ja', string> = {
-      en: 'Inglês (EN)',
-      it: 'Italiano (IT)',
-      ja: 'Japonês (JA)',
-    };
-    showToast(`Voz favorita de ${langLabels[lang]} salva como ${voiceId}`);
-  };
-
   // Reprodução ou Pausa do Áudio do Card usando a voz exclusiva do card
   const handleTogglePlay = async (
     messageId: string,
@@ -1175,8 +1139,14 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
                 const updated = { en: vId, it: vId, ja: vId };
                 readyMessage.cardVoices = updated;
                 setCardVoicesByMsg((prev) => ({ ...prev, [newMessageId]: updated }));
-              } else {
-                handleChangeFavoriteLanguageVoice(targetLang, vId);
+              } else if (targetLang === 'en' || targetLang === 'it' || targetLang === 'ja') {
+                const updated = {
+                  ...(readyMessage.cardVoices || defaultVoiceByLang),
+                  [targetLang]: vId,
+                };
+                readyMessage.cardVoices = updated;
+                setCardVoicesByMsg((prev) => ({ ...prev, [newMessageId]: updated }));
+                setDefaultVoiceByLang((prev) => ({ ...prev, [targetLang]: vId }));
               }
               syncVoiceToGlobal(vId);
               showToast(tool.summaryPtBr);
