@@ -546,6 +546,114 @@ test('Suite 17: Parser Multi-Formato de Flashcards (JSON, CSV Anki, Markdown, HT
   assert.strictEqual(afterClear.length, 0);
 });
 
+import type { SavedConversation } from '../src/types/polyglot';
+import {
+  resolveInitialConversationTarget,
+  readActiveConversationTarget,
+  persistActiveConversationTarget,
+} from '../src/services/conversationSessionState';
+
+test('Suite 18: Resolução de Conversa Ativa, Novo Chat Explícito vs. Chat Fixado e Isolamento por Usuário', () => {
+  const pinnedFirst: SavedConversation = {
+    id: 'conv_pinned_1',
+    userId: 'uid_1',
+    userName: 'Melki Teste',
+    title: 'Primeiro Chat Fixado',
+    createdAt: '2026-11-01T10:00:00.000Z',
+    updatedAt: '2026-11-01T10:00:00.000Z',
+    pinned: true,
+    messages: [],
+  };
+  const recentSecond: SavedConversation = {
+    id: 'conv_recent_2',
+    userId: 'uid_1',
+    userName: 'Melki Teste',
+    title: 'Segundo Chat Recente',
+    createdAt: '2026-11-12T10:00:00.000Z',
+    updatedAt: '2026-11-12T10:00:00.000Z',
+    pinned: false,
+    messages: [],
+  };
+
+  // 1. Novo chat explícito NÃO pode ser sobrescrito pelo primeiro chat fixado
+  const draftRes = resolveInitialConversationTarget({
+    explicitSelection: null,
+    savedTarget: { mode: 'new', draftId: 'conv_draft_999' },
+    conversations: [pinnedFirst, recentSecond],
+  });
+  assert.deepStrictEqual(draftRes, { action: 'keep_new_draft', draftId: 'conv_draft_999' });
+
+  // 2. Seleção salva da segunda conversa sobrevive mesmo havendo conversa fixada em list[0]
+  const secondRes = resolveInitialConversationTarget({
+    explicitSelection: null,
+    savedTarget: { mode: 'saved', conversationId: 'conv_recent_2' },
+    conversations: [pinnedFirst, recentSecond],
+  });
+  assert.strictEqual(secondRes.action, 'load_saved');
+  if (secondRes.action === 'load_saved') {
+    assert.strictEqual(secondRes.conversation.id, 'conv_recent_2');
+  }
+
+  // 3. Seleção explícita '__NEW__' tem precedência absoluta
+  const explicitNewRes = resolveInitialConversationTarget({
+    explicitSelection: '__NEW__',
+    savedTarget: { mode: 'saved', conversationId: 'conv_pinned_1' },
+    conversations: [pinnedFirst, recentSecond],
+  });
+  assert.strictEqual(explicitNewRes.action, 'keep_new_draft');
+
+  // 4. Conversa salva inexistente (foi deletada) faz fallback gracioso para list[0]
+  const deletedFallback = resolveInitialConversationTarget({
+    explicitSelection: null,
+    savedTarget: { mode: 'saved', conversationId: 'conv_deletada' },
+    conversations: [pinnedFirst, recentSecond],
+  });
+  assert.strictEqual(deletedFallback.action, 'load_saved');
+  if (deletedFallback.action === 'load_saved') {
+    assert.strictEqual(deletedFallback.conversation.id, 'conv_pinned_1');
+  }
+
+  // 5. Isolamento de Estado por Usuário em readActiveConversationTarget / persistActiveConversationTarget
+  const origDesc = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  try {
+    const memoryStore = new Map<string, string>();
+    const mockStorage = {
+      getItem: (key: string) => memoryStore.get(key) ?? null,
+      setItem: (key: string, value: string) => memoryStore.set(key, String(value)),
+      removeItem: (key: string) => {
+        memoryStore.delete(key);
+      },
+      clear: () => memoryStore.clear(),
+      length: 0,
+      key: () => null,
+    };
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: mockStorage,
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
+
+    persistActiveConversationTarget('user_alice', { mode: 'new', draftId: 'draft_alice_1' });
+    persistActiveConversationTarget('user_bob', { mode: 'saved', conversationId: 'conv_bob_2' });
+
+    assert.deepStrictEqual(readActiveConversationTarget('user_alice'), {
+      mode: 'new',
+      draftId: 'draft_alice_1',
+    });
+    assert.deepStrictEqual(readActiveConversationTarget('user_bob'), {
+      mode: 'saved',
+      conversationId: 'conv_bob_2',
+    });
+  } finally {
+    if (origDesc) {
+      Object.defineProperty(globalThis, 'localStorage', origDesc);
+    } else {
+      delete (globalThis as Record<string, unknown>).localStorage;
+    }
+  }
+});
+
 export async function runContractTests(): Promise<number> {
   let passed = 0;
   for (const t of contractTests) {

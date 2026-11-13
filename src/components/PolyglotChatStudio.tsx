@@ -39,6 +39,11 @@ import {
   readFavoriteVoicesByLanguage,
   saveFavoriteVoicesByLanguage,
 } from '../services/polyglotClient';
+import {
+  readActiveConversationTarget,
+  persistActiveConversationTarget,
+  resolveInitialConversationTarget,
+} from '../services/conversationSessionState';
 import { getActiveSession, subscribeAuthChanges } from '../services/authService';
 
 const INITIAL_DEMO_MESSAGE: PolyglotMessage = {
@@ -79,6 +84,7 @@ export interface PolyglotChatStudioProps {
   onSyncGlobalVoice?: (voice: VoiceProfile) => void;
   onSendToCreationStudio?: (text: string, mode: StudioRenderMode) => void;
   selectedConversationId?: string | null;
+  newConversationSignal?: number;
   onConversationsChanged?: (conversations: SavedConversation[], activeId: string) => void;
   onOpenStudyTab?: () => void;
 }
@@ -88,11 +94,21 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   onSyncGlobalVoice,
   onSendToCreationStudio,
   selectedConversationId,
+  newConversationSignal,
   onConversationsChanged,
   onOpenStudyTab,
 }) => {
   const [userSession, setUserSession] = useState<GoogleUserSession>(() => getActiveSession());
-  const [activeConversationId, setActiveConversationId] = useState<string>(() => `conv_${Date.now()}`);
+  const [isExplicitNewChat, setIsExplicitNewChat] = useState<boolean>(() => {
+    if (selectedConversationId === '__NEW__') return true;
+    return readActiveConversationTarget(getActiveSession().uid)?.mode === 'new';
+  });
+  const [activeConversationId, setActiveConversationId] = useState<string>(() => {
+    const saved = readActiveConversationTarget(getActiveSession().uid);
+    if (saved?.mode === 'new') return saved.draftId;
+    if (saved?.mode === 'saved') return saved.conversationId;
+    return `conv_${Date.now()}`;
+  });
   const [conversations, setConversations] = useState<SavedConversation[]>([]);
 
   const [messages, setMessages] = useState<PolyglotMessage[]>([INITIAL_DEMO_MESSAGE]);
@@ -781,22 +797,93 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     }
   };
 
-  // Sincronização de Sessão Google e Carregamento do Histórico de Conversas
-  const loadConversationsForActiveUser = useCallback(async () => {
-    const list = await requestListUserConversations();
-    setConversations(list);
-    if (list.length > 0 && messages.length === 1 && messages[0].id === 'msg-demo-1') {
-      const mostRecent = list[0];
-      setActiveConversationId(mostRecent.id);
-      setMessages(mostRecent.messages.length > 0 ? mostRecent.messages : [INITIAL_DEMO_MESSAGE]);
-    }
-  }, [messages]);
-
   const messagesRef = useRef<PolyglotMessage[]>(messages);
   messagesRef.current = messages;
   const activeConversationIdRef = useRef<string>(activeConversationId);
   activeConversationIdRef.current = activeConversationId;
+  const isExplicitNewChatRef = useRef<boolean>(isExplicitNewChat);
+  isExplicitNewChatRef.current = isExplicitNewChat;
   const prevSessionRef = useRef<GoogleUserSession>(userSession);
+
+  const handleNewConversation = useCallback((): void => {
+    stopCurrentAudio();
+    const nextId = `conv_${Date.now()}`;
+    setIsExplicitNewChat(true);
+    isExplicitNewChatRef.current = true;
+    setActiveConversationId(nextId);
+    activeConversationIdRef.current = nextId;
+    setMessages([INITIAL_DEMO_MESSAGE]);
+    setFocusedMessageId('msg-demo-1');
+    persistActiveConversationTarget(userSession.uid, { mode: 'new', draftId: nextId });
+    onConversationsChanged?.(conversations, nextId);
+    showToast('Nova conversa iniciada! Suas conversas anteriores estão salvas no histórico.');
+  }, [conversations, onConversationsChanged, stopCurrentAudio, userSession.uid]);
+
+  const handleSelectConversation = useCallback((conv: SavedConversation): void => {
+    stopCurrentAudio();
+    setIsExplicitNewChat(false);
+    isExplicitNewChatRef.current = false;
+    setActiveConversationId(conv.id);
+    activeConversationIdRef.current = conv.id;
+    const nextMsgs = conv.messages.length > 0 ? conv.messages : [INITIAL_DEMO_MESSAGE];
+    setMessages(nextMsgs);
+    const lastId = nextMsgs[nextMsgs.length - 1].id;
+    setFocusedMessageId(lastId);
+    persistActiveConversationTarget(userSession.uid, { mode: 'saved', conversationId: conv.id });
+    showToast(`Conversa "${conv.title}" restaurada.`);
+  }, [stopCurrentAudio, userSession.uid]);
+
+  // Sincronização de Sessão Google e Carregamento do Histórico de Conversas
+  const loadConversationsForActiveUser = useCallback(async () => {
+    const list = await requestListUserConversations();
+    setConversations(list);
+
+    // Se o usuário está explicitamente em um rascunho de novo chat, preserva e nunca sobrescreve
+    if (isExplicitNewChatRef.current) {
+      return;
+    }
+
+    const savedTarget = readActiveConversationTarget(userSession.uid);
+    const targetDecision = resolveInitialConversationTarget({
+      explicitSelection: selectedConversationId || null,
+      savedTarget,
+      conversations: list,
+    });
+
+    if (targetDecision.action === 'keep_new_draft') {
+      setIsExplicitNewChat(true);
+      isExplicitNewChatRef.current = true;
+      setActiveConversationId(targetDecision.draftId);
+      activeConversationIdRef.current = targetDecision.draftId;
+      setMessages([INITIAL_DEMO_MESSAGE]);
+      persistActiveConversationTarget(userSession.uid, {
+        mode: 'new',
+        draftId: targetDecision.draftId,
+      });
+      return;
+    }
+
+    if (targetDecision.action === 'load_saved') {
+      const conv = targetDecision.conversation;
+      // Se a conversa já é a ativa e temos mensagens além do demo padrão, preserva estado atual
+      if (
+        conv.id === activeConversationIdRef.current &&
+        messagesRef.current.length > 0 &&
+        messagesRef.current[0].id !== 'msg-demo-1'
+      ) {
+        return;
+      }
+      setIsExplicitNewChat(false);
+      isExplicitNewChatRef.current = false;
+      setActiveConversationId(conv.id);
+      activeConversationIdRef.current = conv.id;
+      setMessages(conv.messages.length > 0 ? conv.messages : [INITIAL_DEMO_MESSAGE]);
+      persistActiveConversationTarget(userSession.uid, {
+        mode: 'saved',
+        conversationId: conv.id,
+      });
+    }
+  }, [selectedConversationId, userSession.uid]);
 
   useEffect(() => {
     loadConversationsForActiveUser();
@@ -828,11 +915,35 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
       const list = await requestListUserConversations();
       setConversations(list);
-      if (list.length > 0) {
-        setActiveConversationId(list[0].id);
-        setMessages(list[0].messages);
+      const nextSavedTarget = readActiveConversationTarget(nextSession.uid);
+      const decision = resolveInitialConversationTarget({
+        explicitSelection: null,
+        savedTarget: nextSavedTarget,
+        conversations: list,
+      });
+
+      if (decision.action === 'keep_new_draft') {
+        setIsExplicitNewChat(true);
+        isExplicitNewChatRef.current = true;
+        setActiveConversationId(decision.draftId);
+        activeConversationIdRef.current = decision.draftId;
+        setMessages([INITIAL_DEMO_MESSAGE]);
+      } else if (decision.action === 'load_saved') {
+        setIsExplicitNewChat(false);
+        isExplicitNewChatRef.current = false;
+        setActiveConversationId(decision.conversation.id);
+        activeConversationIdRef.current = decision.conversation.id;
+        setMessages(
+          decision.conversation.messages.length > 0
+            ? decision.conversation.messages
+            : [INITIAL_DEMO_MESSAGE]
+        );
       } else {
-        setActiveConversationId(`conv_${Date.now()}`);
+        setIsExplicitNewChat(true);
+        isExplicitNewChatRef.current = true;
+        const draftId = `conv_${Date.now()}`;
+        setActiveConversationId(draftId);
+        activeConversationIdRef.current = draftId;
         setMessages([INITIAL_DEMO_MESSAGE]);
       }
     });
@@ -844,6 +955,18 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   useEffect(() => {
     onConversationsChanged?.(conversations, activeConversationId);
   }, [conversations, activeConversationId, onConversationsChanged]);
+
+  // Responde ao sinal de nova conversa vindo de App.tsx (sem setTimeout hack)
+  const isFirstSignalRenderRef = useRef(true);
+  useEffect(() => {
+    if (isFirstSignalRenderRef.current) {
+      isFirstSignalRenderRef.current = false;
+      return;
+    }
+    if (newConversationSignal) {
+      handleNewConversation();
+    }
+  }, [newConversationSignal, handleNewConversation]);
 
   // Responde à seleção externa de uma conversa ou comando "+ Nova Conversa" vindo da HistorySidebar
   useEffect(() => {
@@ -857,8 +980,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     if (found) {
       handleSelectConversation(found);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConversationId]);
+  }, [selectedConversationId, conversations, handleNewConversation, handleSelectConversation]);
 
   const persistConversationSnapshot = useCallback(
     async (updatedMessages: PolyglotMessage[], convId = activeConversationId) => {
@@ -890,6 +1012,9 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
       const saved = await requestSaveUserConversation(payload);
       if (saved) {
+        setIsExplicitNewChat(false);
+        isExplicitNewChatRef.current = false;
+        persistActiveConversationTarget(userSession.uid, { mode: 'saved', conversationId: convId });
         setConversations((prev) => {
           const rest = prev.filter((c) => c.id !== saved.id);
           return [saved, ...rest].sort((a, b) => {
@@ -901,25 +1026,6 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     },
     [activeConversationId, conversations, userSession]
   );
-
-  const handleNewConversation = (): void => {
-    stopCurrentAudio();
-    const nextId = `conv_${Date.now()}`;
-    setActiveConversationId(nextId);
-    setMessages([INITIAL_DEMO_MESSAGE]);
-    setFocusedMessageId('msg-demo-1');
-    showToast('Nova conversa iniciada! Suas conversas anteriores estão salvas no histórico.');
-  };
-
-  const handleSelectConversation = (conv: SavedConversation): void => {
-    stopCurrentAudio();
-    setActiveConversationId(conv.id);
-    const nextMsgs = conv.messages.length > 0 ? conv.messages : [INITIAL_DEMO_MESSAGE];
-    setMessages(nextMsgs);
-    const lastId = nextMsgs[nextMsgs.length - 1].id;
-    setFocusedMessageId(lastId);
-    showToast(`Conversa "${conv.title}" restaurada.`);
-  };
 
   const handleSendMessage = async (
     text: string,

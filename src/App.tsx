@@ -94,6 +94,7 @@ export default function App() {
   const [conversations, setConversations] = useState<SavedConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [newConversationSignal, setNewConversationSignal] = useState<number>(0);
   const [debateSessions, setDebateSessions] = useState<SavedDebateSession[]>(() =>
     readDebateSessions()
   );
@@ -826,11 +827,16 @@ export default function App() {
           </nav>
 
           {/* Módulo Principal (#1): Chat Poliglota Multimodal (EN, IT, JA) */}
-          {activeTab === 'polyglot' && (
+          <div
+            hidden={activeTab !== 'polyglot'}
+            aria-hidden={activeTab !== 'polyglot'}
+            className={activeTab === 'polyglot' ? 'contents' : 'hidden'}
+          >
             <PolyglotChatStudio
               globalVoice={selectedVoice}
               onSyncGlobalVoice={setSelectedVoice}
               selectedConversationId={selectedConversationId}
+              newConversationSignal={newConversationSignal}
               onConversationsChanged={(nextConvs, activeId) => {
                 setConversations(nextConvs);
                 setActiveConversationId(activeId);
@@ -847,7 +853,7 @@ export default function App() {
                 handleNavigateTab('reader');
               }}
             />
-          )}
+          </div>
 
           {/* Módulo 2: Central de Criação Unificada (Solo + Debate + Podcast + Bar + Jantar) */}
           {activeTab === 'reader' && (
@@ -983,8 +989,8 @@ export default function App() {
         isCloudSynced={userSession.isGoogleAuthenticated}
         onSelectHistoryItem={handleSelectHistoryItem}
         onNewConversation={() => {
-          setSelectedConversationId('__NEW__');
-          window.setTimeout(() => setSelectedConversationId(null), 50);
+          setSelectedConversationId(null);
+          setNewConversationSignal((prev) => prev + 1);
           handleNavigateTab('polyglot');
         }}
         onTogglePin={handleTogglePinHistoryItem}
