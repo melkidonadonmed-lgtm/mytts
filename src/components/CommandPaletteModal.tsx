@@ -8,7 +8,7 @@ import type { UnifiedHistoryItem } from '../types/polyglot';
 export interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTab: (tab: AppTab) => void;
+  onSelectTab: (tab: AppTab, subTab?: 'catalog' | 'solo' | 'debate') => void;
   onSelectVoice: (voice: VoiceProfile) => void;
   currentVoice: VoiceProfile;
   onOpenDeck?: () => void;
@@ -70,26 +70,38 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         },
       },
       {
-        id: 'tab-reader',
-        title: 'Estúdio de Criação (Solo & 2 Vozes)',
-        subtitle: 'Leitura Solo 1 Voz & Debate 2 Vozes no mesmo canvas',
+        id: 'tab-voices-catalog',
+        title: 'Configuração de Vozes · Catálogo & Favoritas',
+        subtitle: 'Catálogo de vozes neurais e preferências por idioma do Chat',
         category: 'Navegação',
-        icon: 'headphones',
+        icon: 'record_voice_over',
         shortcut: '2',
         action: () => {
-          onSelectTab('reader');
+          onSelectTab('voices', 'catalog');
           onClose();
         },
       },
       {
-        id: 'tab-debate',
-        title: 'Estúdio de Debate Dialético',
-        subtitle: 'Discussão antagônica e embate de ideias com voz por turno',
+        id: 'tab-voices-solo',
+        title: 'Estúdio de Criação · Leitura Solo (1 Voz)',
+        subtitle: 'Ingestão de texto/PDF, calibração prosódica e síntese WAV',
         category: 'Navegação',
-        icon: 'group',
+        icon: 'headphones',
         shortcut: '3',
         action: () => {
-          onSelectTab('debate');
+          onSelectTab('voices', 'solo');
+          onClose();
+        },
+      },
+      {
+        id: 'tab-voices-debate',
+        title: 'Estúdio de Debate & Conversa (2 Vozes)',
+        subtitle: 'Discussão dialética, podcast e embates de ideias com 2 vozes',
+        category: 'Navegação',
+        icon: 'group',
+        shortcut: '4',
+        action: () => {
+          onSelectTab('voices', 'debate');
           onClose();
         },
       },
@@ -99,7 +111,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         subtitle: 'Frases coloquiais em EN, IT & JA com repetição espaçada',
         category: 'Navegação',
         icon: 'bolt',
-        shortcut: '4',
+        shortcut: '5',
         action: () => {
           onSelectTab('chunks');
           onClose();
@@ -111,21 +123,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         subtitle: 'Importação rápida (JSON/CSV/MD) e repetição espaçada com TTS',
         category: 'Navegação',
         icon: 'school',
-        shortcut: '5',
-        action: () => {
-          onSelectTab('study');
-          onClose();
-        },
-      },
-      {
-        id: 'tab-voices',
-        title: 'Biblioteca de Vozes Neurais',
-        subtitle: 'Catálogo de timbres e audição de amostras de 3 segundos',
-        category: 'Navegação',
-        icon: 'record_voice_over',
         shortcut: '6',
         action: () => {
-          onSelectTab('voices');
+          onSelectTab('study');
           onClose();
         },
       },

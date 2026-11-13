@@ -87,6 +87,8 @@ export interface PolyglotChatStudioProps {
   newConversationSignal?: number;
   onConversationsChanged?: (conversations: SavedConversation[], activeId: string) => void;
   onOpenStudyTab?: () => void;
+  onOpenVoicesConfigTab?: () => void;
+  favoriteVoicesByLang?: Record<'en' | 'it' | 'ja', string>;
 }
 
 export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
@@ -97,6 +99,8 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   newConversationSignal,
   onConversationsChanged,
   onOpenStudyTab,
+  onOpenVoicesConfigTab,
+  favoriteVoicesByLang,
 }) => {
   const [userSession, setUserSession] = useState<GoogleUserSession>(() => getActiveSession());
   const [isExplicitNewChat, setIsExplicitNewChat] = useState<boolean>(() => {
@@ -216,6 +220,25 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   useEffect(() => {
     saveFavoriteVoicesByLanguage(defaultVoiceByLang);
   }, [defaultVoiceByLang]);
+
+  useEffect(() => {
+    if (favoriteVoicesByLang) {
+      setDefaultVoiceByLang(favoriteVoicesByLang);
+    }
+  }, [favoriteVoicesByLang]);
+
+  useEffect(() => {
+    const handleVoicesChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<Record<'en' | 'it' | 'ja', string>>;
+      if (customEvent.detail) {
+        setDefaultVoiceByLang(customEvent.detail);
+      } else {
+        setDefaultVoiceByLang(readFavoriteVoicesByLanguage());
+      }
+    };
+    window.addEventListener('mytts-favorite-voices-changed', handleVoicesChanged);
+    return () => window.removeEventListener('mytts-favorite-voices-changed', handleVoicesChanged);
+  }, []);
 
   const getLanguageTag = (code: string): string => {
     if (code === 'it') return 'it-IT';
@@ -407,22 +430,6 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
       ja: 'Japonês (JA)',
     };
     showToast(`Voz favorita de ${langLabels[lang]} salva como ${voiceId}`);
-  };
-
-  // Aplica o perfil favorito de vozes (EN, IT, JA) a todos os cards do chat atual
-  const handleApplyFavoritesToAllCards = (): void => {
-    const next: Record<string, Record<'en' | 'it' | 'ja', string>> = {};
-    messages.forEach((m) => {
-      next[m.id] = { ...defaultVoiceByLang };
-    });
-    cardVoicesByMsgRef.current = next;
-    setCardVoicesByMsg(next);
-    setMessages((prev) => prev.map((m) => ({ ...m, cardVoices: { ...defaultVoiceByLang } })));
-    const currentLang = selectedLanguageByMsg[focusedMessageId] || 'en';
-    syncVoiceToGlobal(defaultVoiceByLang[currentLang]);
-    showToast(
-      `Perfis favoritos (${defaultVoiceByLang.en} / ${defaultVoiceByLang.it} / ${defaultVoiceByLang.ja}) aplicados a todos os cards!`
-    );
   };
 
   // Reprodução ou Pausa do Áudio do Card usando a voz exclusiva do card
@@ -1457,71 +1464,21 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
             </div>
           </div>
 
-          {/* Barra de Perfis Favoritos de Vozes por Idioma + Nova Conversa + Área de Estudo */}
+          {/* Barra de Ações Rápidas: Configurar Vozes + Nova Conversa + Área de Estudo */}
           <div className="flex flex-wrap items-center justify-between xl:justify-end gap-2 w-full xl:w-auto">
-            <div
-              className="card-matte rounded-xl sm:rounded-full flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 w-full sm:w-auto"
-              aria-label="Perfis favoritos de vozes por idioma"
-            >
-              <div className="flex items-center justify-between sm:justify-start gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 text-secondary shrink-0">
-                  <GoogleIcon name="bookmark" size={13} className="text-amber-400" />
-                  <span>Vozes Favoritas:</span>
-                </span>
-
-                <button
-                  type="button"
-                  onClick={handleApplyFavoritesToAllCards}
-                  className="sm:hidden btn-compact-touch h-7 px-2.5 py-0.5 rounded-full btn-matte-amber text-white text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm shrink-0"
-                  title="Aplicar estas vozes favoritas a todos os cards da conversa atual"
-                >
-                  <GoogleIcon name="sync" size={12} />
-                  <span>Aplicar aos Cards</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 sm:flex items-center gap-1.5">
-                {(
-                  [
-                    { code: 'en', flag: 'EN', label: 'EN' },
-                    { code: 'it', flag: 'IT', label: 'IT' },
-                    { code: 'ja', flag: 'JA', label: 'JA' },
-                  ] as const
-                ).map((item) => (
-                  <label
-                    key={item.code}
-                    className="inline-flex items-center justify-center sm:justify-start gap-1 px-2 py-1 rounded-lg sm:rounded-full surface-inset text-[11px] font-bold cursor-pointer transition-colors min-w-0"
-                    title={`Voz favorita padrão para novos cards em ${item.label}`}
-                  >
-                    <span className="font-mono text-[10px] text-amber-400 shrink-0">{item.label}:</span>
-                    <select
-                      id={`fav-voice-${item.code}`}
-                      name={`favVoice_${item.code}`}
-                      aria-label={`Voz favorita para ${item.label}`}
-                      value={defaultVoiceByLang[item.code]}
-                      onChange={(e) => handleChangeFavoriteLanguageVoice(item.code, e.target.value)}
-                      className="bg-transparent font-mono font-bold text-[11px] text-primary focus:outline-none cursor-pointer min-w-0 truncate"
-                    >
-                      {GEMINI_VOICES.map((v) => (
-                        <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">
-                          {v.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ))}
-              </div>
-
+            {onOpenVoicesConfigTab && (
               <button
                 type="button"
-                onClick={handleApplyFavoritesToAllCards}
-                className="hidden sm:inline-flex btn-compact-touch h-7 px-2.5 py-0.5 rounded-full btn-matte-amber text-white text-[10px] font-extrabold transition-all cursor-pointer items-center gap-1 shadow-sm shrink-0"
-                title="Aplicar estas vozes favoritas a todos os cards da conversa atual"
+                onClick={onOpenVoicesConfigTab}
+                className="btn-matte btn-matte-dark px-3 py-1.5 rounded-xl text-xs text-secondary hover:text-primary font-medium cursor-pointer inline-flex items-center gap-1.5 transition-colors border border-slate-800 hover:border-amber-500/40"
+                title="Configurar vozes favoritas no Catálogo de Vozes"
               >
-                <GoogleIcon name="sync" size={12} />
-                <span>Aplicar aos Cards</span>
+                <GoogleIcon name="record_voice_over" size={15} className="text-amber-400" />
+                <span className="font-mono text-[11px] text-primary">
+                  Vozes: {defaultVoiceByLang.en} · {defaultVoiceByLang.it} · {defaultVoiceByLang.ja}
+                </span>
               </button>
-            </div>
+            )}
 
             <div className="hidden xl:flex items-center gap-1.5">
               <button

@@ -77,19 +77,17 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
         </div>
       </div>
 
-      {/* Navegação Horizontal Rápida no Mobile (6 Módulos) */}
+      {/* Navegação Horizontal Rápida no Mobile (4 Módulos Principais) */}
       <nav
         aria-label="Navegação rápida mobile"
-        className="pill-nav-shell grid grid-cols-6 items-center gap-0.5 p-1 w-full overflow-hidden"
+        className="pill-nav-shell grid grid-cols-4 items-center gap-0.5 p-1 w-full overflow-hidden"
       >
         {(
           [
             { id: 'polyglot', label: 'Poliglota', shortLabel: 'Chat' },
-            { id: 'reader', label: 'Estúdio', shortLabel: 'Estúdio' },
-            { id: 'debate', label: 'Debate', shortLabel: 'Debate' },
+            { id: 'voices', label: 'Vozes', shortLabel: 'Vozes' },
             { id: 'chunks', label: 'Chunks', shortLabel: 'Chunks' },
             { id: 'study', label: 'Estudo', shortLabel: 'Estudo' },
-            { id: 'voices', label: 'Vozes', shortLabel: 'Vozes' },
           ] as const
         ).map((item) => (
           <button

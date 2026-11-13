@@ -1,28 +1,26 @@
 import React, { useEffect } from 'react';
-import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
+import type { VoiceProfile } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
 import { UserSessionPopover } from './UserSessionPopover';
 import type { SoftUIThemePreset } from '../types';
 
 export type AppTab =
   | 'polyglot'
-  | 'reader'
-  | 'debate'
+  | 'voices'
   | 'chunks'
   | 'study'
-  | 'voices'
   | 'architecture';
 
 interface SidebarProps {
   activeTab: AppTab;
   onSelectTab: (tab: AppTab) => void;
-  selectedVoice: VoiceProfile;
+  selectedVoice?: VoiceProfile;
   onSelectVoice?: (voice: VoiceProfile) => void;
   isOpenMobile: boolean;
   onToggleMobile: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
-  onOpenVoiceLibrary: () => void;
+  onOpenVoiceLibrary?: () => void;
   onOpenCommandPalette?: () => void;
   onOpenAuthModal?: () => void;
   flashcardCount?: number;
@@ -35,13 +33,10 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
-  selectedVoice,
-  onSelectVoice,
   isOpenMobile,
   onToggleMobile,
   isCollapsed = false,
   onToggleCollapse,
-  onOpenVoiceLibrary,
   onOpenCommandPalette,
   onOpenAuthModal,
   flashcardCount = 0,
@@ -68,18 +63,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       description: 'EN, IT & JA · Voz + YouTube + Live',
     },
     {
-      id: 'reader',
-      label: 'Estúdio de Criação',
-      badge: 'Solo & 2x',
-      iconName: 'headphones',
-      description: 'Leitura Solo & Conversa 2 Vozes',
-    },
-    {
-      id: 'debate',
-      label: 'Estúdio de Debate',
-      badge: '2 Vozes',
-      iconName: 'group',
-      description: 'Roteiro dialético com voz por turno',
+      id: 'voices',
+      label: 'Configuração de Vozes',
+      badge: 'Estúdio & Vozes',
+      iconName: 'record_voice_over',
+      description: 'Catálogo, Leitura Solo & Debate 2x',
     },
     {
       id: 'chunks',
@@ -94,13 +82,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: flashcardCount > 0 ? `${flashcardCount} Cards` : 'Flashcards',
       iconName: 'school',
       description: 'Importação rápida e repetição com TTS',
-    },
-    {
-      id: 'voices',
-      label: 'Biblioteca de Vozes',
-      badge: '5 Timbres',
-      iconName: 'record_voice_over',
-      description: 'Catálogo e audição de amostras',
     },
   ];
 
@@ -321,88 +302,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
             })}
           </nav>
-
-          {/* 2. Voz Sincronizada (Card Ativo) */}
-          {effectiveCollapsed ? (
-            <button
-              type="button"
-              onClick={onOpenVoiceLibrary}
-              aria-label={`Voz Sincronizada: ${selectedVoice.name} (${selectedVoice.archetype})`}
-              title={`Voz Sincronizada: ${selectedVoice.name} (${selectedVoice.archetype})`}
-              className="rail-tooltip-host relative w-11 h-11 rounded-xl card-matte flex items-center justify-center hover:border-amber-500/40 transition-colors cursor-pointer"
-            >
-              <div
-                className={`w-7 h-7 rounded-xl bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white font-bold text-xs shadow-sm`}
-              >
-                {selectedVoice.name[0]}
-              </div>
-              <span
-                className="w-2 h-2 rounded-full bg-amber-400 border border-slate-950 absolute bottom-1 right-1"
-                aria-hidden="true"
-              />
-              <span className="rail-tooltip">
-                Voz Ativa: <span className="text-amber-400">{selectedVoice.name}</span>
-              </span>
-            </button>
-          ) : (
-            <div className="p-2.5 rounded-2xl card-matte overflow-hidden whitespace-nowrap">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-semibold text-secondary uppercase tracking-wider font-mono">
-                  Voz Sincronizada (Card Ativo)
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenVoiceLibrary();
-                    if (isOpenMobile) onToggleMobile();
-                  }}
-                  className="btn-compact-touch text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-0.5 cursor-pointer"
-                >
-                  <span>Catálogo</span>
-                  <GoogleIcon name="chevron_right" size={15} />
-                </button>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-7 h-7 rounded-xl bg-gradient-to-tr ${selectedVoice.avatarColor} flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0`}
-                >
-                  {selectedVoice.name[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  {onSelectVoice ? (
-                    <select
-                      id="sidebar-global-voice-select"
-                      name="globalVoice"
-                      aria-label="Voz global sincronizada com o card focado"
-                      value={selectedVoice.id}
-                      onChange={(e) => {
-                        const found = GEMINI_VOICES.find((v) => v.id === e.target.value);
-                        if (found) onSelectVoice(found);
-                      }}
-                      className="w-full bg-transparent text-xs font-bold text-primary font-display focus:outline-none cursor-pointer"
-                    >
-                      {GEMINI_VOICES.map((v) => (
-                        <option
-                          key={v.id}
-                          value={v.id}
-                          className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                        >
-                          {v.name} · {v.archetype}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <h3 className="text-xs font-bold text-primary truncate font-display">
-                      {selectedVoice.name}
-                    </h3>
-                  )}
-                  <p className="text-[10px] text-secondary truncate">
-                    Muda automaticamente com o card focado
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* 3. Botão de Busca Rápida (Ctrl + K) */}
           {onOpenCommandPalette &&

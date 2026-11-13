@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Sidebar, AppTab } from './components/Sidebar';
-import { StudioWorkspace } from './components/StudioWorkspace';
+import { VoiceConfigWorkspace, VoiceConfigSubTab } from './components/VoiceConfigWorkspace';
 import { PolyglotChatStudio } from './components/PolyglotChatStudio';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
-import { VoiceLibrary } from './components/VoiceLibraryModal';
-import { DocumentInputSection } from './components/DocumentInputSection';
-import { DebateConfigPanel } from './components/DebateConfigPanel';
-import { ScriptViewer } from './components/ScriptViewer';
 import { FastChunkAudioApp } from './components/FastChunkAudioApp';
 import { StudyArenaView } from './components/StudyArenaView';
 import { HistorySidebar } from './components/HistorySidebar';
@@ -41,6 +37,8 @@ import {
   requestSaveUserConversation,
   requestDeleteUserConversation,
   requestClearUnpinnedConversations,
+  readFavoriteVoicesByLanguage,
+  saveFavoriteVoicesByLanguage,
 } from './services/polyglotClient';
 import {
   readFlashcardDeck,
@@ -64,17 +62,19 @@ import { GoogleIcon } from './components/GoogleIcon';
 
 const TAB_BREADCRUMB_LABELS: Record<AppTab, string> = {
   polyglot: 'Chat Poliglota Multimodal',
-  reader: 'Estúdio de Criação (Solo & 2x)',
-  debate: 'Estúdio de Debate Dialético',
+  voices: 'Configuração de Vozes',
   chunks: 'FastChunks (Treino Lexical)',
   study: 'Área de Estudo & Flashcards Deck',
-  voices: 'Biblioteca de Vozes Neurais',
   architecture: 'Arquitetura & Governança',
 };
 
 // Orquestrador principal do MyTTS Studio (3 Colunas Responsivas: Rail Sidebar + Canvas Central + History Sidebar)
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('polyglot');
+  const [voiceConfigSubTab, setVoiceConfigSubTab] = useState<VoiceConfigSubTab>('catalog');
+  const [favoriteVoicesByLang, setFavoriteVoicesByLang] = useState<Record<'en' | 'it' | 'ja', string>>(() =>
+    readFavoriteVoicesByLanguage()
+  );
   const [studioRenderMode, setStudioRenderMode] = useState<StudioRenderMode>('solo');
   const [selectedVoice, setSelectedVoice] = useState<VoiceProfile>(GEMINI_VOICES[0]); // Puck default
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
@@ -600,16 +600,39 @@ export default function App() {
     ? script?.speakers.find((s) => s.name === activeTurn.speaker) || script?.speakers[0]
     : script?.speakers[0];
 
+  const handleChangeFavoriteVoice = useCallback((lang: 'en' | 'it' | 'ja', voiceId: string) => {
+    setFavoriteVoicesByLang((prev) => {
+      const next = { ...prev, [lang]: voiceId };
+      saveFavoriteVoicesByLanguage(next);
+      window.dispatchEvent(new CustomEvent('mytts-favorite-voices-changed', { detail: next }));
+      return next;
+    });
+  }, []);
+
   const handleNavigateTab = useCallback(
-    (tab: AppTab): void => {
-      if (isPlaying && tab === 'reader') {
+    (tab: AppTab | 'reader' | 'debate', subTab?: VoiceConfigSubTab): void => {
+      let targetTab: AppTab = 'polyglot';
+      if (tab === 'reader') {
+        targetTab = 'voices';
+        setVoiceConfigSubTab('solo');
+      } else if (tab === 'debate') {
+        targetTab = 'voices';
+        setVoiceConfigSubTab('debate');
+      } else {
+        targetTab = tab;
+        if (tab === 'voices' && subTab) {
+          setVoiceConfigSubTab(subTab);
+        }
+      }
+
+      if (isPlaying && (targetTab !== 'voices' || subTab === 'solo')) {
         player.pause();
       }
       const docWithTransition = document as Document & {
         startViewTransition?: (cb: () => void) => { finished?: Promise<void> };
       };
       if (docWithTransition.startViewTransition) {
-        const transition = docWithTransition.startViewTransition(() => setActiveTab(tab));
+        const transition = docWithTransition.startViewTransition(() => setActiveTab(targetTab));
         if (transition && transition.finished) {
           transition.finished
             .then(() => {
@@ -624,7 +647,7 @@ export default function App() {
           }, 50);
         }
       } else {
-        setActiveTab(tab);
+        setActiveTab(targetTab);
         setTimeout(() => {
           window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
           mainCanvasRef.current?.focus({ preventScroll: true });
@@ -670,7 +693,7 @@ export default function App() {
           language: item.debateSession!.language as LanguageCode,
           turns: restoredTurns,
         }));
-        handleNavigateTab('debate');
+        handleNavigateTab('voices', 'debate');
       } else if (item.kind === 'flashcards') {
         setSelectedStudyCardId(item.id);
         handleNavigateTab('study');
@@ -755,7 +778,7 @@ export default function App() {
         onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
         isCollapsed={isLeftSidebarCollapsed}
         onToggleCollapse={handleToggleLeftSidebar}
-        onOpenVoiceLibrary={() => handleNavigateTab('voices')}
+        onOpenVoiceLibrary={() => handleNavigateTab('voices', 'catalog')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         flashcardCount={flashcards.length}
@@ -859,31 +882,43 @@ export default function App() {
               newConversationSignal={newConversationSignal}
               onConversationsChanged={handleConversationsChanged}
               onOpenStudyTab={() => handleNavigateTab('study')}
+              onOpenVoicesConfigTab={() => handleNavigateTab('voices', 'catalog')}
+              favoriteVoicesByLang={favoriteVoicesByLang}
               onSendToCreationStudio={(textToRender, renderMode) => {
                 if (textToRender) {
                   setDocumentText(textToRender);
                 }
                 setStudioRenderMode(renderMode);
-                if (renderMode !== 'solo') {
+                if (renderMode === 'solo') {
+                  handleNavigateTab('voices', 'solo');
+                } else {
                   setConfig((prev) => ({ ...prev, format: renderMode }));
+                  handleNavigateTab('voices', 'debate');
                 }
-                handleNavigateTab('reader');
               }}
             />
           </div>
 
-          {/* Módulo 2: Central de Criação Unificada (Solo + Debate + Podcast + Bar + Jantar) */}
-          {activeTab === 'reader' && (
-            <StudioWorkspace
-              text={documentText}
-              onChangeText={setDocumentText}
+          {/* Módulo 2: Configuração de Vozes (Catálogo & Favoritas + Estúdio Solo + Debate/Conversa) */}
+          {activeTab === 'voices' && (
+            <VoiceConfigWorkspace
+              activeSubTab={voiceConfigSubTab}
+              onChangeSubTab={setVoiceConfigSubTab}
               selectedVoice={selectedVoice}
               onSelectVoice={setSelectedVoice}
+              favoriteVoicesByLang={favoriteVoicesByLang}
+              onChangeFavoriteVoice={handleChangeFavoriteVoice}
+              text={documentText}
+              onChangeText={setDocumentText}
               player={player}
               isPlaying={isPlaying}
               playerCurrentTurn={playerCurrentTurn}
               script={script}
               setScript={setScript}
+              debateConfig={config}
+              onChangeDebateConfig={handleUpdateDebateConfig}
+              studioRenderMode={studioRenderMode}
+              onChangeStudioRenderMode={setStudioRenderMode}
               onGenerateDebate={handleGenerateDebateWithCustomSpeakers}
               isGeneratingDebate={isGenerating}
               isSynthesizingDebate={isSynthesizing}
@@ -891,82 +926,24 @@ export default function App() {
               onPlayTurn={handlePlayDebateTurn}
               onUpdateTurnText={handleUpdateTurnText}
               onUpdateTurnVoice={handleUpdateTurnVoice}
-              studioRenderMode={studioRenderMode}
-              onChangeStudioRenderMode={setStudioRenderMode}
+              onOpenPolyglotTab={() => handleNavigateTab('polyglot')}
             />
           )}
 
-          {/* Módulo 3: Estúdio de Debate com 2 Vozes */}
-          {activeTab === 'debate' && (
-            <div className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 pb-36 flex flex-col gap-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-                    Estúdio de Debate Dialético (2 Vozes)
-                  </h1>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Crie discussões estimulantes e embates de ideias a partir de documentos.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-xl">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Dual Speaker TTS (Kore &amp; Puck)</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <div className="lg:col-span-5 flex flex-col gap-6">
-                  <DocumentInputSection
-                    currentLanguage={config.language}
-                    textInput={documentText}
-                    onChangeText={setDocumentText}
-                    onGenerateDebate={() => handleGenerateDebateWithCustomSpeakers()}
-                    isGenerating={isGenerating}
-                  />
-                  <DebateConfigPanel config={config} onChangeConfig={handleUpdateDebateConfig} />
-                </div>
-
-                <div className="lg:col-span-7 flex flex-col gap-4">
-                  <ScriptViewer
-                    script={script}
-                    currentTurnIndex={playerCurrentTurn}
-                    isPlaying={isPlaying}
-                    onPlayTurn={handlePlayDebateTurn}
-                    onSynthesizeTurn={handleSynthesizeSingleTurn}
-                    onUpdateTurnText={handleUpdateTurnText}
-                    onUpdateTurnVoice={handleUpdateTurnVoice}
-                    isSynthesizing={isSynthesizing}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Módulo 4: FastChunks (Treinamento Lexical de Idiomas) */}
+          {/* Módulo 3: FastChunks (Treinamento Lexical de Idiomas) */}
           {activeTab === 'chunks' && <FastChunkAudioApp />}
 
-          {/* Módulo 5: Área de Estudo & Flashcards Deck (Zero-Friction Import + Arena 3D TTS) */}
+          {/* Módulo 4: Área de Estudo & Flashcards Deck (Zero-Friction Import + Arena 3D TTS) */}
           {activeTab === 'study' && (
             <StudyArenaView
               selectedVoice={selectedVoice}
               initialCardId={selectedStudyCardId}
             />
           )}
-
-          {/* Módulo 6: Biblioteca de Vozes Neurais */}
-          {activeTab === 'voices' && (
-            <VoiceLibrary
-              selectedVoice={selectedVoice}
-              onSelectVoice={(v) => {
-                setSelectedVoice(v);
-                setActiveTab('polyglot');
-              }}
-            />
-          )}
         </main>
 
-        {/* Dock de Áudio Inferior (Exibido com roteiro ativo no Leitor ou Debate) */}
-        {(activeTab === 'debate' || (Boolean(script?.turns?.length) && activeTab === 'reader')) && (
+        {/* Dock de Áudio Inferior (Exibido com roteiro ativo na aba Configuração de Vozes) */}
+        {activeTab === 'voices' && (voiceConfigSubTab === 'debate' || Boolean(script?.turns?.length)) && (
           <BottomAudioDock
             player={player}
             script={script}
