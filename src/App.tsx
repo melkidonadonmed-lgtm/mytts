@@ -623,6 +623,14 @@ export default function App() {
   );
 
   // Handlers da HistorySidebar Direita
+  const handleConversationsChanged = useCallback(
+    (nextConvs: SavedConversation[], activeId: string) => {
+      setConversations(nextConvs);
+      setActiveConversationId(activeId);
+    },
+    []
+  );
+
   const handleSelectHistoryItem = useCallback(
     (item: UnifiedHistoryItem) => {
       if (item.kind === 'chat') {
@@ -837,10 +845,7 @@ export default function App() {
               onSyncGlobalVoice={setSelectedVoice}
               selectedConversationId={selectedConversationId}
               newConversationSignal={newConversationSignal}
-              onConversationsChanged={(nextConvs, activeId) => {
-                setConversations(nextConvs);
-                setActiveConversationId(activeId);
-              }}
+              onConversationsChanged={handleConversationsChanged}
               onOpenStudyTab={() => handleNavigateTab('study')}
               onSendToCreationStudio={(textToRender, renderMode) => {
                 if (textToRender) {

@@ -100,7 +100,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 }) => {
   const [userSession, setUserSession] = useState<GoogleUserSession>(() => getActiveSession());
   const [isExplicitNewChat, setIsExplicitNewChat] = useState<boolean>(() => {
-    if (selectedConversationId === '__NEW__') return true;
+    if (selectedConversationId === '__NEW__' || selectedConversationId === 'new') return true;
     return readActiveConversationTarget(getActiveSession().uid)?.mode === 'new';
   });
   const [activeConversationId, setActiveConversationId] = useState<string>(() => {
@@ -868,8 +868,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
       // Se a conversa já é a ativa e temos mensagens além do demo padrão, preserva estado atual
       if (
         conv.id === activeConversationIdRef.current &&
-        messagesRef.current.length > 0 &&
-        messagesRef.current[0].id !== 'msg-demo-1'
+        (messagesRef.current.length > 1 || messagesRef.current.some((m) => m.id !== 'msg-demo-1'))
       ) {
         return;
       }
@@ -956,14 +955,11 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     onConversationsChanged?.(conversations, activeConversationId);
   }, [conversations, activeConversationId, onConversationsChanged]);
 
-  // Responde ao sinal de nova conversa vindo de App.tsx (sem setTimeout hack)
-  const isFirstSignalRenderRef = useRef(true);
+  // Responde ao sinal de nova conversa vindo de App.tsx evitando loop reativo por re-render de App
+  const prevSignalRef = useRef(newConversationSignal);
   useEffect(() => {
-    if (isFirstSignalRenderRef.current) {
-      isFirstSignalRenderRef.current = false;
-      return;
-    }
-    if (newConversationSignal) {
+    if (newConversationSignal && newConversationSignal !== prevSignalRef.current) {
+      prevSignalRef.current = newConversationSignal;
       handleNewConversation();
     }
   }, [newConversationSignal, handleNewConversation]);
@@ -971,7 +967,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
   // Responde à seleção externa de uma conversa ou comando "+ Nova Conversa" vindo da HistorySidebar
   useEffect(() => {
     if (!selectedConversationId) return;
-    if (selectedConversationId === '__NEW__') {
+    if (selectedConversationId === '__NEW__' || selectedConversationId === 'new') {
       handleNewConversation();
       return;
     }

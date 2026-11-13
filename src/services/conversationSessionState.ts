@@ -68,8 +68,8 @@ export function resolveInitialConversationTarget(params: {
   | { action: 'none' } {
   const { explicitSelection, savedTarget, conversations } = params;
 
-  // 1. Seleção explícita '__NEW__' vinda da UI tem prioridade absoluta
-  if (explicitSelection === '__NEW__') {
+  // 1. Seleção explícita '__NEW__' ou 'new' vinda da UI tem prioridade absoluta
+  if (explicitSelection === '__NEW__' || explicitSelection === 'new') {
     const draftId = savedTarget?.mode === 'new' ? savedTarget.draftId : `conv_${Date.now()}`;
     return { action: 'keep_new_draft', draftId };
   }

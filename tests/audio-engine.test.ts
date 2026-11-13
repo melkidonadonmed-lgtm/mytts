@@ -594,13 +594,20 @@ test('Suite 18: Resolução de Conversa Ativa, Novo Chat Explícito vs. Chat Fix
     assert.strictEqual(secondRes.conversation.id, 'conv_recent_2');
   }
 
-  // 3. Seleção explícita '__NEW__' tem precedência absoluta
+  // 3. Seleção explícita '__NEW__' e 'new' tem precedência absoluta
   const explicitNewRes = resolveInitialConversationTarget({
     explicitSelection: '__NEW__',
     savedTarget: { mode: 'saved', conversationId: 'conv_pinned_1' },
     conversations: [pinnedFirst, recentSecond],
   });
   assert.strictEqual(explicitNewRes.action, 'keep_new_draft');
+
+  const explicitNewLowerRes = resolveInitialConversationTarget({
+    explicitSelection: 'new',
+    savedTarget: { mode: 'saved', conversationId: 'conv_pinned_1' },
+    conversations: [pinnedFirst, recentSecond],
+  });
+  assert.strictEqual(explicitNewLowerRes.action, 'keep_new_draft');
 
   // 4. Conversa salva inexistente (foi deletada) faz fallback gracioso para list[0]
   const deletedFallback = resolveInitialConversationTarget({
