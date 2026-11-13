@@ -3,6 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      (function () {
+        try {
+          var rawPreset = localStorage.getItem('mytts_preset');
+          var rawTheme = localStorage.getItem('mytts_theme');
+          var p = (rawPreset || '').toLowerCase().trim();
+          var isLight = p === 'moss' || p === 'light' || p === 'slate' || (!rawPreset && rawTheme === 'light');
+          var mode = isLight ? 'light' : 'dark';
+          var preset = isLight ? 'slate' : 'obsidian';
+          var docEl = document.documentElement;
+          docEl.setAttribute('data-theme', mode);
+          docEl.setAttribute('data-preset', preset);
+          if (mode === 'dark') {
+            docEl.classList.add('dark');
+          } else {
+            docEl.classList.remove('dark');
+          }
+          var metaCs = document.querySelector('meta[name="color-scheme"]');
+          if (metaCs) metaCs.setAttribute('content', mode);
+        } catch (_) {}
+      })();
+    </script>
     <title>MyTTS Studio - Estúdio Neural de Áudio & Chat Poliglota</title>
     <meta name="description" content="Estação de trabalho de áudio neural de altíssima fidelidade com síntese Gemini 3.1 Flash TTS, debates dialéticos e treino de idiomas em 3 línguas paralelas." />
     <meta property="og:title" content="MyTTS Studio - Estúdio Neural de Áudio & Chat Poliglota" />
@@ -15,7 +38,7 @@
     <!-- Google Fonts: Plus Jakarta Sans, Inter, Outfit, IBM Plex Sans e IBM Plex Mono / JetBrains Mono -->
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   </head>
-  <body class="h-full selection:bg-amber-500/20 selection:text-amber-200 bg-slate-950 text-slate-100 canvas-dot-grid">
+  <body class="h-full selection:bg-amber-500/20 selection:text-amber-200 bg-slate-950 text-slate-100">
     <!-- Estados de inicialização: vazio, carregando, sucesso e erro -->
     <div id="root" class="h-full"></div>
     <noscript>Erro ao carregar: ative o JavaScript para iniciar o MyTTS Studio com sucesso.</noscript>

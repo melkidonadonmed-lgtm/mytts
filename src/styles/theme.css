@@ -1,120 +1,69 @@
 /* ==========================================================================
-   CATÁLOGO DE PRESETS TONAIS EX UMBRIS + AD LUCEM (v5.0 Minimalist Impact)
-   1. Cinza Studio Monolítico (#57545d / #49464f / Menu #8e8999) — Dark/Gray Default
-   2. Ad Lucem Moderno (#F3F3F5 / #FFFFFF / #0284C7) — Light Default
-   3. Moss & Calm (#F4F3EC / #174930) — Light Organic
-   4. Terminal IBM Ex Umbris (#070709 / #101014) — Deep Dark
+   CATÁLOGO DE PRESETS TONAIS FOSCOS (v5.1 Soft UI Matte)
+   1. Escuro Fosco (obsidian: #1A1D24 / #21252E / #272C37) — Dark Matte
+   2. Claro Fosco (slate: #E6E9EE / #EEF0F4 / #F4F5F7) — Light Matte
    ========================================================================== */
 
 [data-preset="obsidian"] {
-  --surface-canvas: #57545d;
-  --surface-flat: #49464f;
-  --surface-raised: #635f6a;
-  --surface-inset: #3e3b44;
-  --surface-contrast: #232127;
+  --surface-canvas: #1A1D24;
+  --surface-flat: #21252E;
+  --surface-raised: #272C37;
+  --surface-inset: #14171D;
+  --surface-contrast: #111419;
   --accent-point: #35acd8;
   --accent-sapphire: #0284C7;
-  --nav-shell-bg: #8e8999;
-  --nav-shell-ink: #16151A;
-  --canvas-dot-color: rgba(255, 255, 255, 0.17);
+  --nav-shell-bg: #21252E;
+  --nav-shell-ink: #E8ECF2;
+  --canvas-dot-color: transparent;
 
-  --bg-canvas: #57545d !important;
-  --bg-surface-0: #49464f !important;
-  --bg-surface-1: #49464f !important;
-  --bg-surface-2: #635f6a !important;
-  --bg-surface-inset: #3e3b44 !important;
-  --bg-card: #49464f !important;
-  --bg-card-hover: #534f5a !important;
+  --bg-canvas: #1A1D24 !important;
+  --bg-surface-0: #21252E !important;
+  --bg-surface-1: #21252E !important;
+  --bg-surface-2: #272C37 !important;
+  --bg-surface-inset: #14171D !important;
+  --bg-card: #272C37 !important;
+  --bg-card-hover: #2F3542 !important;
   --accent-primary: #35acd8 !important;
   --accent-primary-hover: #0284C7 !important;
 }
 
 [data-preset="slate"] {
-  --surface-canvas: #F3F3F5;
-  --surface-flat: #E6E6EA;
-  --surface-raised: #FFFFFF;
-  --surface-inset: #E8E8EE;
-  --surface-contrast: #18181C;
+  --surface-canvas: #E6E9EE;
+  --surface-flat: #EEF0F4;
+  --surface-raised: #F4F5F7;
+  --surface-inset: #DCE0E6;
+  --surface-contrast: #1B2028;
   --accent-point: #0284C7;
   --accent-sapphire: #1E6091;
-  --nav-shell-bg: rgba(230, 230, 234, 0.94);
-  --nav-shell-ink: #18181B;
-  --canvas-dot-color: rgba(24, 24, 27, 0.14);
+  --nav-shell-bg: #EEF0F4;
+  --nav-shell-ink: #1A2029;
+  --canvas-dot-color: transparent;
 
-  --bg-canvas: #F3F3F5 !important;
-  --bg-surface-0: #FFFFFF !important;
-  --bg-surface-1: #FFFFFF !important;
-  --bg-surface-2: #E6E6EA !important;
-  --bg-surface-inset: #E8E8EE !important;
-  --bg-card: #FFFFFF !important;
-  --bg-card-hover: #FFFFFF !important;
+  --bg-canvas: #E6E9EE !important;
+  --bg-surface-0: #F4F5F7 !important;
+  --bg-surface-1: #F4F5F7 !important;
+  --bg-surface-2: #EEF0F4 !important;
+  --bg-surface-inset: #DCE0E6 !important;
+  --bg-card: #F4F5F7 !important;
+  --bg-card-hover: #EEF0F4 !important;
   --accent-primary: #0284C7 !important;
   --accent-primary-hover: #1E6091 !important;
 }
 
-[data-preset="moss"] {
-  --surface-canvas: #F4F3EC;
-  --surface-flat: #ECEAE0;
-  --surface-raised: #F8F7F2;
-  --surface-inset: #E8E5DC;
-  --surface-contrast: #1A2E22;
-  --accent-point: #174930;
-  --accent-sapphire: #059669;
-  --canvas-dot-color: rgba(23, 73, 48, 0.15);
-
-  --bg-canvas: #F4F3EC !important;
-  --bg-surface-0: #F8F7F2 !important;
-  --bg-surface-1: #FDFCF9 !important;
-  --bg-surface-2: #ECEAE0 !important;
-  --bg-surface-inset: #E8E5DC !important;
-  --bg-card: #F8F7F2 !important;
-  --bg-card-hover: #FDFCF9 !important;
-  --accent-primary: #174930 !important;
-  --accent-primary-hover: #059669 !important;
-}
-
-[data-preset="sapphire"] {
-  --surface-canvas: #070709;
-  --surface-flat: #101014;
-  --surface-raised: #18181E;
-  --surface-inset: #050507;
-  --surface-contrast: #1D1D24;
-  --accent-point: #35acd8;
-  --accent-sapphire: #0284C7;
-  --canvas-dot-color: rgba(53, 172, 216, 0.16);
-
-  --bg-canvas: #070709 !important;
-  --bg-surface-0: #101014 !important;
-  --bg-surface-1: #101014 !important;
-  --bg-surface-2: #18181E !important;
-  --bg-surface-inset: #050507 !important;
-  --bg-card: #101014 !important;
-  --bg-card-hover: #18181E !important;
-  --accent-primary: #35acd8 !important;
-  --accent-primary-hover: #0284C7 !important;
-}
-
-/* Fundo com Aspecto de Canva com Pontos (Dot-Matrix Studio Grid 22x22px) */
+/* Superfície Fosca Limpa (Sem ruído pontilhado) */
 .canvas-dot-grid,
 body,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-950,
-[data-theme="dark"][data-preset="sapphire"] .bg-slate-950,
 [data-theme="light"] .bg-slate-950 {
   background-color: var(--bg-canvas) !important;
-  background-image: radial-gradient(
-    circle,
-    var(--canvas-dot-color, rgba(255, 255, 255, 0.16)) 1.35px,
-    transparent 1.45px
-  ) !important;
-  background-size: 22px 22px !important;
-  background-position: 0 0 !important;
+  background-image: none !important;
 }
 
-/* Aplicação das superfícies Cinza sobre Cinza (#57545d / #49464f / #635f6a) no modo escuro padrão */
+/* Aplicação das superfícies modo escuro fosco obsidian (#1A1D24 / #21252E / #272C37) */
 [data-theme="dark"][data-preset="obsidian"] aside {
-  background-color: #49464f !important;
+  background-color: #21252E !important;
   background-image: none !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-900,
@@ -122,19 +71,19 @@ body,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/80,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/70,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/60 {
-  background-color: #49464f !important;
+  background-color: #21252E !important;
   background-image: none !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/70,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/60,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/80 {
-  background-color: #3e3b44 !important;
+  background-color: #14171D !important;
   background-image: none !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-800 {
-  background-color: #635f6a !important;
+  background-color: #272C37 !important;
   background-image: none !important;
 }
 
@@ -143,37 +92,37 @@ body,
 [data-theme="dark"][data-preset="obsidian"] .border-slate-800\/70,
 [data-theme="dark"][data-preset="obsidian"] .border-slate-800\/60,
 [data-theme="dark"][data-preset="obsidian"] .border-slate-700 {
-  border-color: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
 }
 
-/* Nitidez tipográfica e contraste elevado no Cinza Studio Monolítico (#57545d / #49464f) */
+/* Nitidez tipográfica e contraste elevado no Escuro Fosco (#E8ECF2 / #9AA4B6) */
 [data-theme="dark"][data-preset="obsidian"] .text-slate-200,
 [data-theme="dark"][data-preset="obsidian"] .text-slate-300 {
-  color: #F4F2F8 !important;
+  color: #E8ECF2 !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .text-slate-400 {
-  color: #E2DFEC !important;
+  color: #9AA4B6 !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .text-slate-500 {
-  color: #CFCBD9 !important;
+  color: #717D91 !important;
 }
 
-/* Tema Terminal IBM Ex Umbris: tipografia técnica IBM Plex */
-[data-preset="sapphire"] body,
-[data-preset="sapphire"] {
-  font-family: 'IBM Plex Sans', 'Plus Jakarta Sans', system-ui, sans-serif;
-}
-
-/* Pílula de Navegação Nítida (#8e8999 com tinta escura #16151A no Cinza Studio) */
+/* Pílula de Navegação Fosca */
 .pill-nav-shell {
   background-color: var(--nav-shell-bg);
   color: var(--nav-shell-ink);
   border-radius: 9999px;
   padding-block: 4px;
   padding-inline: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="light"] .pill-nav-shell {
+  border-color: rgba(30, 41, 59, 0.12);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 .pill-nav-item {
@@ -190,24 +139,16 @@ body,
 .pill-nav-item[data-active="true"] {
   background-color: var(--nav-active-bg) !important;
   color: var(--nav-active-ink) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
 }
 
-/* Aplicação das superfícies minerais dos presets claros sobre containers e cartões */
-[data-theme="light"][data-preset="moss"] .card-matte,
-[data-theme="light"][data-preset="moss"] aside,
-[data-theme="light"][data-preset="moss"] .bg-slate-900 {
-  background-color: #F8F7F2 !important;
-  background-image: none !important;
-  border-color: #D6D2C4 !important;
-}
-
+/* Aplicação das superfícies do Claro Fosco (slate: papel-slate sem branco puro) */
 [data-theme="light"][data-preset="slate"] .card-matte,
 [data-theme="light"][data-preset="slate"] aside,
 [data-theme="light"][data-preset="slate"] .bg-slate-900 {
-  background-color: #FFFFFF !important;
+  background-color: #F4F5F7 !important;
   background-image: none !important;
-  border-color: rgba(24, 24, 27, 0.1) !important;
+  border-color: rgba(30, 41, 59, 0.12) !important;
 }
 
 [data-theme="light"] .btn-matte-primary {

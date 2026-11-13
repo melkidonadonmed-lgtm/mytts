@@ -58,7 +58,7 @@ import {
   buildUnifiedHistoryItems,
 } from './services/sessionHistoryStorage';
 import { getActiveSession, subscribeAuthChanges } from './services/authService';
-import { SOFT_UI_PRESETS } from './config/tokens';
+import { SOFT_UI_PRESETS, normalizeThemePreset } from './config/tokens';
 import type { SoftUIThemePreset } from './types';
 import { GoogleIcon } from './components/GoogleIcon';
 
@@ -147,11 +147,11 @@ export default function App() {
     return buildUnifiedHistoryItems(conversations, debateSessions, userSession.uid);
   }, [conversations, debateSessions, flashcards.length, userSession.uid]);
 
-  // Preset Soft UI v4.5 (obsidian | slate | moss | sapphire) + Tema Binário sincronizado
+  // Preset Soft UI Fosco (obsidian: Escuro Fosco | slate: Claro Fosco) + Tema Binário sincronizado
   const [activePreset, setActivePreset] = useState<SoftUIThemePreset>(() => {
-    const savedPreset = readBrowserState('mytts_preset') as SoftUIThemePreset | null;
-    if (savedPreset && savedPreset in SOFT_UI_PRESETS) {
-      return savedPreset;
+    const savedPreset = readBrowserState('mytts_preset');
+    if (savedPreset) {
+      return normalizeThemePreset(savedPreset);
     }
     const savedTheme = readBrowserState('mytts_theme');
     return savedTheme === 'light' ? 'slate' : 'obsidian';
@@ -159,18 +159,22 @@ export default function App() {
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = readBrowserState('mytts_theme');
-    return saved === 'light' || saved === 'dark' ? saved : 'dark';
+    if (saved === 'light' || saved === 'dark') {
+      return saved;
+    }
+    const savedPreset = readBrowserState('mytts_preset');
+    return normalizeThemePreset(savedPreset) === 'slate' ? 'light' : 'dark';
   });
 
   const handleSelectPreset = (nextPreset: SoftUIThemePreset): void => {
-    setActivePreset(nextPreset);
-    setTheme(SOFT_UI_PRESETS[nextPreset].mode);
+    const normalized = normalizeThemePreset(nextPreset);
+    setActivePreset(normalized);
+    setTheme(SOFT_UI_PRESETS[normalized].mode);
   };
 
   const handleToggleBinaryTheme = (): void => {
     if (theme === 'dark') {
-      const nextLightPreset = activePreset === 'obsidian' ? 'slate' : activePreset;
-      setActivePreset(nextLightPreset);
+      setActivePreset('slate');
       setTheme('light');
     } else {
       setActivePreset('obsidian');
@@ -190,6 +194,10 @@ export default function App() {
       document.documentElement.classList.remove('dark');
       document.body.classList.remove('dark');
     }
+    const metaColor = document.querySelector('meta[name="color-scheme"]');
+    if (metaColor) {
+      metaColor.setAttribute('content', theme);
+    }
     persistBrowserState('mytts_theme', theme);
     persistBrowserState('mytts_preset', activePreset);
   }, [theme, activePreset]);
@@ -197,13 +205,15 @@ export default function App() {
   // Listener para sincronizar tema e atalhos globais (Ctrl+K, Ctrl+B, Ctrl+H)
   useEffect(() => {
     const syncThemeFromStorage = () => {
+      const savedPreset = readBrowserState('mytts_preset');
+      const normalizedPreset = normalizeThemePreset(savedPreset);
+      setActivePreset(normalizedPreset);
+
       const saved = readBrowserState('mytts_theme');
       if (saved === 'light' || saved === 'dark') {
         setTheme(saved);
-      }
-      const savedPreset = readBrowserState('mytts_preset') as SoftUIThemePreset | null;
-      if (savedPreset && savedPreset in SOFT_UI_PRESETS) {
-        setActivePreset(savedPreset);
+      } else {
+        setTheme(SOFT_UI_PRESETS[normalizedPreset].mode);
       }
     };
     const onGlobalKeyDown = (e: KeyboardEvent) => {
@@ -220,10 +230,12 @@ export default function App() {
     };
     window.addEventListener('storage', syncThemeFromStorage);
     window.addEventListener('mytts-theme-change', syncThemeFromStorage);
+    window.addEventListener('mytts-theme-changed', syncThemeFromStorage);
     window.addEventListener('keydown', onGlobalKeyDown);
     return () => {
       window.removeEventListener('storage', syncThemeFromStorage);
       window.removeEventListener('mytts-theme-change', syncThemeFromStorage);
+      window.removeEventListener('mytts-theme-changed', syncThemeFromStorage);
       window.removeEventListener('keydown', onGlobalKeyDown);
     };
   }, [handleToggleLeftSidebar, handleToggleRightHistory]);

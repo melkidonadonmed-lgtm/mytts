@@ -22,63 +22,33 @@ export const DESIGN_SYSTEM_VERSION = '4.5-soft' as const;
 export const SOFT_UI_PRESETS: Record<SoftUIThemePreset, DesignTokenPalette> = {
   obsidian: {
     id: 'obsidian',
-    label: 'Cinza Studio',
+    label: 'Escuro Fosco',
     mode: 'dark',
-    canvas: '#57545d',
-    flat: '#49464f',
-    raised: '#635f6a',
-    inset: '#3e3b44',
-    contrast: '#232127',
-    textPrimary: '#F7F6F9',
-    textSecondary: '#DFDDE4',
+    canvas: '#1A1D24',
+    flat: '#21252E',
+    raised: '#272C37',
+    inset: '#14171D',
+    contrast: '#111419',
+    textPrimary: '#E8ECF2',
+    textSecondary: '#9AA4B6',
     accentPoint: '#35acd8',
     accentSecondary: '#D97706',
     accentEmerald: '#10B981',
   },
   slate: {
     id: 'slate',
-    label: 'Ad Lucem',
+    label: 'Claro Fosco',
     mode: 'light',
-    canvas: '#F3F3F5',
-    flat: '#E6E6EA',
-    raised: '#FFFFFF',
-    inset: '#E8E8EE',
-    contrast: '#18181C',
-    textPrimary: '#111115',
-    textSecondary: '#3F3F46',
+    canvas: '#E6E9EE',
+    flat: '#EEF0F4',
+    raised: '#F4F5F7',
+    inset: '#DCE0E6',
+    contrast: '#1B2028',
+    textPrimary: '#1A2029',
+    textSecondary: '#525E70',
     accentPoint: '#0284C7',
-    accentSecondary: '#1E6091',
+    accentSecondary: '#B45309',
     accentEmerald: '#059669',
-  },
-  moss: {
-    id: 'moss',
-    label: 'Moss',
-    mode: 'light',
-    canvas: '#F4F3EC',
-    flat: '#ECEAE0',
-    raised: '#F8F7F2',
-    inset: '#E8E5DC',
-    contrast: '#1A2E22',
-    textPrimary: '#1E293B',
-    textSecondary: '#57635B',
-    accentPoint: '#174930',
-    accentSecondary: '#059669',
-    accentEmerald: '#059669',
-  },
-  sapphire: {
-    id: 'sapphire',
-    label: 'Terminal IBM',
-    mode: 'dark',
-    canvas: '#070709',
-    flat: '#101014',
-    raised: '#18181E',
-    inset: '#050507',
-    contrast: '#1D1D24',
-    textPrimary: '#F4F4F6',
-    textSecondary: '#B4B4BE',
-    accentPoint: '#35acd8',
-    accentSecondary: '#0284C7',
-    accentEmerald: '#10B981',
   },
 };
 
@@ -90,8 +60,18 @@ export const TONAL_LAYER_CLASSES: Record<TonalLayer, string> = {
   4: 'surface-contrast terrixa-notched',
 };
 
-export function resolvePresetTokens(preset: SoftUIThemePreset = 'obsidian'): DesignTokenPalette {
-  return SOFT_UI_PRESETS[preset] ?? SOFT_UI_PRESETS.obsidian;
+export function normalizeThemePreset(raw: string | null | undefined): SoftUIThemePreset {
+  if (!raw) return 'obsidian';
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed === 'moss' || trimmed === 'light' || trimmed === 'slate') {
+    return 'slate';
+  }
+  return 'obsidian';
+}
+
+export function resolvePresetTokens(preset?: string | null): DesignTokenPalette {
+  const normalized = normalizeThemePreset(preset);
+  return SOFT_UI_PRESETS[normalized];
 }
 
 export function getBentoSpanClass(colSpan: 3 | 4 | 6 | 8 | 12 = 4): string {

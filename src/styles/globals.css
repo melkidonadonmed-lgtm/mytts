@@ -28,12 +28,12 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Pilha de 4+1 Camadas Tonais (Padrão Áudio Studio: Cinza sobre Cinza Monolítico) */
-  --surface-canvas: #57545d;
-  --surface-inset: #3e3b44;
-  --surface-flat: #49464f;
-  --surface-raised: #635f6a;
-  --surface-contrast: #232127;
+  /* Pilha de 4+1 Camadas Tonais (Escuro Fosco: obsidian) */
+  --surface-canvas: #1A1D24;
+  --surface-inset: #14171D;
+  --surface-flat: #21252E;
+  --surface-raised: #272C37;
+  --surface-contrast: #111419;
 
   /* Camada 2: Tokens Semânticos Adaptativos (OKLCH + light-dark + color-mix + 60-30-10) */
   --bg-app: var(--surface-canvas);
@@ -46,16 +46,16 @@
   --border-semantic: color-mix(in oklab, var(--ink-primary) 16%, transparent);
   --border-subtle: var(--border-semantic);
 
-  --text-primary: #F7F6F9;
-  --text-secondary: #DFDDE4;
-  --text-muted: #BDB9C6;
+  --text-primary: #E8ECF2;
+  --text-secondary: #9AA4B6;
+  --text-muted: #717D91;
   --text-main: var(--text-primary);
 
-  /* Barra de Menu em Pílula (#8e8999 com tinta escura #16151A) */
-  --nav-shell-bg: #8e8999;
-  --nav-shell-ink: #16151A;
-  --nav-active-bg: #18181C;
-  --nav-active-ink: #F5F4F8;
+  /* Barra de Menu em Pílula Fosca */
+  --nav-shell-bg: #21252E;
+  --nav-shell-ink: #E8ECF2;
+  --nav-active-bg: #14171D;
+  --nav-active-ink: #E8ECF2;
 
   /* Destaque Focal Único — 60-30-10 & 98/2 Rule */
   --accent-point: #35acd8;
@@ -72,35 +72,30 @@
   --card-radius: var(--radius-lg);
   --card-padding: var(--space-6);
 
-  /* Sombra Esculpida 3 Camadas + 1px Rim Light (3 Níveis de Elevação Canônicos) */
-  --rim-light: rgba(255, 255, 255, 0.14);
-  --catch-light: inset 0 1px 0 0 var(--rim-light);
-  --specular-rim: inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+  /* Sombra Esculpida Fosca (Zero Brilho Especular Superior) */
+  --rim-light: rgba(148, 163, 184, 0.14);
+  --catch-light: 0 0 0 0 transparent;
+  --specular-rim: 0 0 0 0 transparent;
   --shadow-elevation-1:
-    0 1px 2px rgba(15, 14, 18, 0.24),
-    0 4px 12px -2px rgba(15, 14, 18, 0.30),
-    var(--catch-light);
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.22);
   --shadow-elevation-2:
-    0 2px 4px rgba(15, 14, 18, 0.28),
-    0 10px 24px -4px rgba(15, 14, 18, 0.36),
-    0 20px 40px -12px rgba(15, 14, 18, 0.24),
-    var(--catch-light);
+    0 2px 6px rgba(0, 0, 0, 0.22),
+    0 8px 16px -2px rgba(0, 0, 0, 0.26);
   --shadow-elevation-3:
-    0 4px 8px rgba(15, 14, 18, 0.34),
-    0 16px 32px -4px rgba(15, 14, 18, 0.45),
-    var(--specular-rim);
+    0 4px 12px rgba(0, 0, 0, 0.28),
+    0 12px 24px -4px rgba(0, 0, 0, 0.32);
   --elevation-low: var(--shadow-elevation-1);
   --elevation-medium: var(--shadow-elevation-2);
   --elevation-high: var(--shadow-elevation-3);
   --shadow-card: var(--shadow-elevation-2);
   --shadow-float: var(--shadow-elevation-3);
   --shadow-inset:
-    inset 2px 2px 6px rgba(15, 14, 18, 0.48),
-    inset -1px -1px 3px rgba(255, 255, 255, 0.08);
+    inset 1px 1px 3px rgba(0, 0, 0, 0.35);
   --sunken-recess: var(--shadow-inset);
 
-  --soft-shadow-main: 0 10px 24px -4px rgba(15, 14, 18, 0.36);
-  --soft-shadow-light: inset 0 1px 0 0 var(--rim-light);
+  --soft-shadow-main: 0 2px 6px rgba(0, 0, 0, 0.22);
+  --soft-shadow-light: 0 0 0 0 transparent;
   --soft-shadow-inset: var(--shadow-inset);
 
   --radius-lg: 20px;
@@ -114,43 +109,39 @@
 }
 
 [data-theme="light"] {
-  /* Claro Editorial Moderno (Ad Lucem) */
-  --surface-canvas: #F3F3F5;
-  --surface-inset: #E8E8EE;
-  --surface-flat: #E6E6EA;
-  --surface-raised: #FFFFFF;
-  --surface-contrast: #18181C;
+  /* Claro Fosco Editorial (slate: papel-slate sem branco puro) */
+  --surface-canvas: #E6E9EE;
+  --surface-inset: #DCE0E6;
+  --surface-flat: #EEF0F4;
+  --surface-raised: #F4F5F7;
+  --surface-contrast: #1B2028;
 
-  --text-primary: #111115;
-  --text-secondary: #3F3F46;
-  --text-muted: #686873;
+  --text-primary: #1A2029;
+  --text-secondary: #525E70;
+  --text-muted: #64748B;
 
-  --nav-shell-bg: rgba(230, 230, 234, 0.94);
-  --nav-shell-ink: #18181B;
-  --nav-active-bg: #18181C;
-  --nav-active-ink: #FFFFFF;
+  --nav-shell-bg: #EEF0F4;
+  --nav-shell-ink: #1A2029;
+  --nav-active-bg: #DCE0E6;
+  --nav-active-ink: #1A2029;
 
   --accent-point: #0284C7;
   --accent-sapphire: #1E6091;
   --accent-soft-bg: rgba(2, 132, 199, 0.12);
 
-  /* Sombra Esculpida 3 Camadas + 1px Rim Light (Ad Lucem) */
-  --rim-light: rgba(255, 255, 255, 0.95);
+  /* Sombra Esculpida Fosca (Claro Fosco) */
+  --rim-light: rgba(30, 41, 59, 0.12);
   --shadow-card:
-    0 1px 2px rgba(9, 9, 11, 0.05),
-    0 8px 24px -4px rgba(9, 9, 11, 0.07),
-    0 20px 40px -12px rgba(9, 9, 11, 0.04),
-    inset 0 1px 0 0 var(--rim-light);
+    0 1px 3px rgba(15, 23, 42, 0.06),
+    0 4px 12px -2px rgba(15, 23, 42, 0.08);
   --shadow-float:
-    0 4px 10px rgba(9, 9, 11, 0.07),
-    0 16px 32px -6px rgba(9, 9, 11, 0.1),
-    inset 0 1px 0 0 #FFFFFF;
+    0 2px 8px rgba(15, 23, 42, 0.08),
+    0 8px 20px -4px rgba(15, 23, 42, 0.1);
   --shadow-inset:
-    inset 2px 2px 5px rgba(24, 24, 27, 0.08),
-    inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+    inset 1px 1px 3px rgba(15, 23, 42, 0.06);
 
-  --soft-shadow-main: 0 8px 24px -4px rgba(9, 9, 11, 0.07);
-  --soft-shadow-light: inset 0 1px 0 0 var(--rim-light);
+  --soft-shadow-main: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --soft-shadow-light: 0 0 0 0 transparent;
   --soft-shadow-inset: var(--shadow-inset);
 }
 

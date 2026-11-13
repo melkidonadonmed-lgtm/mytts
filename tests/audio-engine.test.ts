@@ -102,7 +102,12 @@ test('Suite 12: Calibração Prosódica Multilíngue e Sanitização com AutoPro
 
 // Suite 13: Auditoria Determinística Soft UI v4.5-soft (FSM, Tokens Anti-Cobalto & Sanitização)
 import { resolveCardFSMState, sanitizeCardTitle } from '../src/components/ui/SoftCard';
-import { SOFT_UI_PRESETS, resolvePresetTokens, getBentoSpanClass } from '../src/config/tokens';
+import {
+  SOFT_UI_PRESETS,
+  resolvePresetTokens,
+  getBentoSpanClass,
+  normalizeThemePreset,
+} from '../src/config/tokens';
 
 test('Suite 13: Soft UI v4.5-soft — FSM Determinística (AUDIT-STATE-01/02) e Tokens Anti-Cobalto (AUDIT-VIS-01)', () => {
   // 1. ARRANGE
@@ -126,6 +131,21 @@ test('Suite 13: Soft UI v4.5-soft — FSM Determinística (AUDIT-STATE-01/02) e 
   assert.strictEqual(sanitizedTitle, 'Estúdio Neural <img src=x onerror=void(0)>');
   assert.strictEqual(slateTokens.accentPoint, '#0284C7');
   assert.strictEqual(span8, 'col-span-8');
+
+  // Validação dos 2 únicos presets foscos ('obsidian' e 'slate') e migração legada
+  assert.deepStrictEqual(Object.keys(SOFT_UI_PRESETS).sort(), ['obsidian', 'slate'].sort());
+  assert.strictEqual(normalizeThemePreset('moss'), 'slate');
+  assert.strictEqual(normalizeThemePreset('light'), 'slate');
+  assert.strictEqual(normalizeThemePreset('slate'), 'slate');
+  assert.strictEqual(normalizeThemePreset('sapphire'), 'obsidian');
+  assert.strictEqual(normalizeThemePreset('dark'), 'obsidian');
+  assert.strictEqual(normalizeThemePreset('obsidian'), 'obsidian');
+  assert.strictEqual(normalizeThemePreset(null), 'obsidian');
+  assert.strictEqual(normalizeThemePreset(undefined), 'obsidian');
+  assert.strictEqual(normalizeThemePreset('unknown-theme'), 'obsidian');
+
+  // Superfície clara fosca sem branco puro ofuscante (#FFFFFF)
+  assert.notStrictEqual(slateTokens.raised.toLowerCase(), '#ffffff');
 
   allPresets.forEach((palette) => {
     const values = Object.values(palette).map((v) => v.toLowerCase());

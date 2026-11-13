@@ -4,7 +4,7 @@ export type TonalLayer = 0 | 1 | 2 | 3 | 4;
 
 export type ComponentFSMState = 'idle' | 'loading' | 'error' | 'pressed';
 
-export type SoftUIThemePreset = 'slate' | 'moss' | 'sapphire' | 'obsidian';
+export type SoftUIThemePreset = 'obsidian' | 'slate';
 
 export interface AuditTelemetryResult {
   a11yScore: number;

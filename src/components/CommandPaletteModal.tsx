@@ -216,21 +216,48 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
       });
     }
 
-    const applyPresetCommand = (presetId: 'obsidian' | 'slate' | 'moss' | 'sapphire', mode: 'dark' | 'light') => {
+    const applyPresetCommand = (presetId: 'obsidian' | 'slate', mode: 'dark' | 'light') => {
       document.documentElement.setAttribute('data-theme', mode);
       document.body.setAttribute('data-theme', mode);
       document.documentElement.setAttribute('data-preset', presetId);
       document.body.setAttribute('data-preset', presetId);
+      if (mode === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.body.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.body.classList.remove('dark');
+      }
       persistBrowserState('mytts_theme', mode);
       persistBrowserState('mytts_preset', presetId);
       window.dispatchEvent(new Event('mytts-theme-change'));
+      window.dispatchEvent(new Event('mytts-theme-changed'));
       onClose();
     };
 
+    const isCurrentlyDark =
+      document.documentElement.classList.contains('dark') ||
+      document.documentElement.getAttribute('data-theme') === 'dark';
+
+    list.push({
+      id: 'toggle-theme',
+      title: 'Alternar Tema (Claro / Escuro)',
+      subtitle: isCurrentlyDark
+        ? 'Mudar para Claro Fosco (slate)'
+        : 'Mudar para Escuro Fosco (obsidian)',
+      category: 'Ações Rápidas',
+      icon: isCurrentlyDark ? 'light_mode' : 'dark_mode',
+      action: () =>
+        applyPresetCommand(
+          isCurrentlyDark ? 'slate' : 'obsidian',
+          isCurrentlyDark ? 'light' : 'dark'
+        ),
+    });
+
     list.push({
       id: 'preset-obsidian',
-      title: 'Tema: Cinza Studio Monolítico (#57545d / #49464f)',
-      subtitle: 'Cinza sobre cinza arquitetônico com menus #8e8999 (Padrão Escuro)',
+      title: 'Ativar Escuro Fosco',
+      subtitle: 'Superfícies slate-carvão foscas (#1A1D24 / #21252E / #272C37)',
       category: 'Ações Rápidas',
       icon: 'dark_mode',
       action: () => applyPresetCommand('obsidian', 'dark'),
@@ -238,29 +265,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 
     list.push({
       id: 'preset-slate',
-      title: 'Tema: Ad Lucem Moderno (#F3F3F5 / #FFFFFF)',
-      subtitle: 'Modo claro moderno editorial com alto contraste e superfície esculpida',
+      title: 'Ativar Claro Fosco',
+      subtitle: 'Superfícies papel-slate sem branco puro (#E6E9EE / #EEF0F4 / #F4F5F7)',
       category: 'Ações Rápidas',
       icon: 'light_mode',
       action: () => applyPresetCommand('slate', 'light'),
-    });
-
-    list.push({
-      id: 'preset-moss',
-      title: 'Tema: Moss & Calm (#F4F3EC / #174930)',
-      subtitle: 'Modo claro orgânico com acento verde floresta sereno',
-      category: 'Ações Rápidas',
-      icon: 'palette',
-      action: () => applyPresetCommand('moss', 'light'),
-    });
-
-    list.push({
-      id: 'preset-sapphire',
-      title: 'Tema: Terminal IBM Ex Umbris (#070709 / #101014)',
-      subtitle: 'Preto profundo técnico de alto contraste',
-      category: 'Ações Rápidas',
-      icon: 'palette',
-      action: () => applyPresetCommand('sapphire', 'dark'),
     });
 
     if (onSelectHistoryItem && historyItems.length > 0) {

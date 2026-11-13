@@ -138,7 +138,7 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
       aria-labelledby="flashcard-importer-title"
       onClose={onClose}
       onClick={handleBackdropClick}
-      className="m-auto w-[calc(100%-1.5rem)] max-w-4xl rounded-3xl bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-0 backdrop:bg-black/75 backdrop:backdrop-blur-xs open:flex open:flex-col overflow-hidden max-h-[90dvh]"
+      className="m-auto w-[calc(100%-1.5rem)] max-w-4xl rounded-3xl bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-0 backdrop:bg-black/75 open:flex open:flex-col overflow-hidden max-h-[90dvh]"
     >
       {/* Cabeçalho */}
       <div className="px-6 py-4 border-b border-slate-800/90 flex items-center justify-between bg-slate-900/60 shrink-0">

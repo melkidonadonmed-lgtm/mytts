@@ -50,30 +50,30 @@
    DESIGN SYSTEM TÁTIL MELKI — TEMA BINÁRIO (DARK & LIGHT)
    ========================================================================== */
 
-/* 1. MODO ESCURO CANÔNICO (Padrão Cinza sobre Cinza Monolítico para Áudio Studio) */
+/* 1. MODO ESCURO FOSCO (obsidian — Superfícies Slate-Carvão Foscas) */
 :root {
   color-scheme: dark;
 
-  --bg-canvas: #57545d;
-  --bg-surface-0: #49464f;
-  --bg-surface-1: #49464f;
-  --bg-surface-2: #635f6a;
-  --bg-surface-inset: #3e3b44;
-  --bg-card: #49464f;
-  --bg-card-hover: #534f5a;
-  --canvas-dot-color: rgba(255, 255, 255, 0.17);
+  --bg-canvas: #1A1D24;
+  --bg-surface-0: #21252E;
+  --bg-surface-1: #21252E;
+  --bg-surface-2: #272C37;
+  --bg-surface-inset: #14171D;
+  --bg-card: #272C37;
+  --bg-card-hover: #2F3542;
+  --canvas-dot-color: transparent;
 
-  --border-subtle: rgba(255, 255, 255, 0.14);
-  --border-muted: rgba(255, 255, 255, 0.14);
-  --border-tactile: rgba(255, 255, 255, 0.18);
-  --border-hover: rgba(255, 255, 255, 0.34);
-  --border-rim-light: rgba(255, 255, 255, 0.22);
+  --border-subtle: rgba(148, 163, 184, 0.14);
+  --border-muted: rgba(148, 163, 184, 0.14);
+  --border-tactile: rgba(148, 163, 184, 0.20);
+  --border-hover: rgba(148, 163, 184, 0.30);
+  --border-rim-light: rgba(148, 163, 184, 0.14);
   --border-focus: rgba(53, 172, 216, 0.65);
 
   /* Tipografia de Alta Nitidez (Zero Aspecto Borrado/Craquelado) */
-  --text-primary: #FFFFFF;
-  --text-secondary: #F3F1F8;
-  --text-tertiary: #DFDCE8;
+  --text-primary: #E8ECF2;
+  --text-secondary: #9AA4B6;
+  --text-tertiary: #717D91;
   --text-on-accent: #ffffff;
 
   --accent: #35acd8;
@@ -103,35 +103,35 @@
   --code-border: rgba(53, 172, 216, 0.32);
 }
 
-/* 2. MODO CLARO MODERNO (Ad Lucem — Alto Contraste Tipográfico & Superfícies Esculpidas) */
+/* 2. MODO CLARO FOSCO (slate — Papel-Slate Fosco sem Branco Ofuscante) */
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-canvas: #F3F3F5;
-  --bg-surface-0: #FFFFFF;
-  --bg-surface-1: #FFFFFF;
-  --bg-surface-2: #E6E6EA;
-  --bg-surface-inset: #E8E8EE;
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #FFFFFF;
-  --canvas-dot-color: rgba(24, 24, 27, 0.14);
+  --bg-canvas: #E6E9EE;
+  --bg-surface-0: #F4F5F7;
+  --bg-surface-1: #F4F5F7;
+  --bg-surface-2: #EEF0F4;
+  --bg-surface-inset: #DCE0E6;
+  --bg-card: #F4F5F7;
+  --bg-card-hover: #EEF0F4;
+  --canvas-dot-color: transparent;
 
-  --border-subtle: rgba(24, 24, 27, 0.10);
-  --border-muted: rgba(24, 24, 27, 0.12);
-  --border-tactile: rgba(24, 24, 27, 0.16);
+  --border-subtle: rgba(30, 41, 59, 0.12);
+  --border-muted: rgba(30, 41, 59, 0.12);
+  --border-tactile: rgba(30, 41, 59, 0.16);
   --border-hover: rgba(2, 132, 199, 0.45);
-  --border-rim-light: rgba(255, 255, 255, 0.98);
+  --border-rim-light: rgba(30, 41, 59, 0.12);
   --border-focus: rgba(2, 132, 199, 0.55);
 
-  --text-primary: #09090B;
-  --text-secondary: #27272A;
-  --text-tertiary: #52525B;
+  --text-primary: #1A2029;
+  --text-secondary: #525E70;
+  --text-tertiary: #64748B;
   --text-on-accent: #ffffff;
 
-  --accent: #0369a1;
-  --accent-primary: #0369a1;
-  --accent-primary-hover: #075985;
-  --accent-amber: #92400e;
+  --accent: #0284C7;
+  --accent-primary: #0284C7;
+  --accent-primary-hover: #1E6091;
+  --accent-amber: #B45309;
 
   /* Badges Alto Contraste no Modo Claro */
   --badge-blue-bg: #e1ebfa;
@@ -262,13 +262,11 @@
 .card-matte {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-top: 1px solid var(--border-rim-light);
   border-radius: 1rem;
   isolation: isolate;
   box-shadow: 
-    0 2px 4px 0 rgba(0, 0, 0, 0.28),
-    0 10px 24px -4px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 0 var(--border-rim-light);
+    0 1px 2px 0 rgba(0, 0, 0, 0.16),
+    0 2px 6px 0 rgba(0, 0, 0, 0.22);
   transition:
     transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
@@ -277,45 +275,35 @@
 }
 
 :root .card-matte:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   background: var(--bg-card-hover);
   border-color: var(--border-hover);
-  border-top-color: rgba(255, 255, 255, 0.38);
   box-shadow: 
-    0 6px 14px -2px rgba(0, 0, 0, 0.45),
-    0 18px 36px -6px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.28);
+    0 2px 6px 0 rgba(0, 0, 0, 0.22),
+    0 8px 16px -2px rgba(0, 0, 0, 0.28);
 }
 
 [data-theme="light"] .card-matte {
-  background: #ffffff !important;
-  border: 1px solid #cbd5e1 !important;
-  box-shadow: 
-    0 1px 3px rgba(15, 23, 42, 0.05),
-    0 6px 16px -2px rgba(15, 23, 42, 0.07),
-    inset 0 1px 0 0 #ffffff !important;
+  background: #f4f5f7 !important;
+  border: 1px solid rgba(30, 41, 59, 0.12) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06) !important;
 }
 
 [data-theme="light"] .card-matte:hover {
-  transform: translateY(-4px);
-  border-color: #38bdf8 !important;
-  box-shadow: 
-    0 6px 14px -2px rgba(2, 132, 199, 0.10),
-    0 16px 32px -4px rgba(15, 23, 42, 0.12),
-    inset 0 1px 0 0 #ffffff !important;
+  transform: translateY(-2px);
+  border-color: rgba(2, 132, 199, 0.45) !important;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08) !important;
 }
 
 /* Card Ativo / Selecionado com Elevação Spring */
 .card-matte-active {
   background: var(--bg-surface-2);
   border: 1px solid rgba(53, 172, 216, 0.55);
-  border-top: 1px solid rgba(125, 211, 252, 0.78);
   border-radius: 1rem;
   isolation: isolate;
   box-shadow: 
     0 0 0 1px rgba(53, 172, 216, 0.28),
-    0 10px 26px -4px rgba(0, 0, 0, 0.52),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+    0 2px 6px rgba(0, 0, 0, 0.22);
   transition:
     transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
@@ -323,26 +311,25 @@
 }
 
 .card-matte-active:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   box-shadow: 
     0 0 0 1px rgba(53, 172, 216, 0.42),
-    0 16px 34px -4px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.32);
+    0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
 [data-theme="light"] .card-matte-active {
-  background: #ffffff !important;
+  background: #f4f5f7 !important;
   border: 1px solid #0284c7 !important;
   box-shadow: 
     0 0 0 1px rgba(2, 132, 199, 0.35),
-    0 8px 22px -2px rgba(2, 132, 199, 0.14) !important;
+    0 1px 3px rgba(15, 23, 42, 0.06) !important;
 }
 
 [data-theme="light"] .card-matte-active:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   box-shadow: 
     0 0 0 1px rgba(2, 132, 199, 0.5),
-    0 14px 30px -3px rgba(2, 132, 199, 0.2) !important;
+    0 4px 12px -2px rgba(15, 23, 42, 0.08) !important;
 }
 
 /* Cavidade Tátil / Input Sunken (Search, Textareas, Filters) */
@@ -447,11 +434,8 @@
 .btn-matte-primary {
   background: #0369a1;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  border-top: 1px solid rgba(255, 255, 255, 0.32);
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
-    0 2px 6px 0 rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.22);
 }
 
 .btn-matte-primary:hover {
@@ -462,8 +446,8 @@
 [data-theme="light"] .btn-matte-primary {
   background: #0369a1 !important;
   color: #ffffff !important;
-  border: 1px solid #075985 !important;
-  box-shadow: 0 2px 6px rgba(3, 105, 161, 0.25) !important;
+  border: 1px solid rgba(30, 41, 59, 0.12) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06) !important;
 }
 
 [data-theme="light"] .btn-matte-primary:hover {

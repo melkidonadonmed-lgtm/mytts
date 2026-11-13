@@ -231,53 +231,51 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
             </div>
           </div>
 
-          {/* 4. Seletor de Tema Minimalista (Cinza, Ad Lucem, Moss, Terminal) */}
-          {onSelectPreset && (
+          {/* 4. Seletor Segmentado de Tema Fosco (Escuro Fosco / Claro Fosco) */}
+          {onSelectPreset ? (
             <div
-              role="radiogroup"
-              aria-label="Selecionar Preset de Tema Minimalista"
-              className="p-2 rounded-xl surface-inset space-y-1.5"
+              role="group"
+              aria-label="Selecionar Tema do Sistema"
+              className="p-1.5 rounded-xl surface-inset space-y-1.5"
             >
-              <div className="flex items-center justify-between px-0.5">
+              <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-secondary font-semibold">
-                  Tema Minimalista
+                  Tema do Sistema
                 </span>
                 <span className="text-[10px] font-mono font-bold text-primary">
-                  {SOFT_UI_PRESETS[activePreset].label}
+                  {SOFT_UI_PRESETS[activePreset]?.label ?? (theme === 'dark' ? 'Escuro Fosco' : 'Claro Fosco')}
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-1">
+              <div className="grid grid-cols-2 gap-1 bg-black/20 dark:bg-black/40 p-1 rounded-lg">
                 {(Object.keys(SOFT_UI_PRESETS) as SoftUIThemePreset[]).map((presetKey) => {
                   const presetObj = SOFT_UI_PRESETS[presetKey];
                   const isSelected = activePreset === presetKey;
+                  const iconName = presetKey === 'obsidian' ? 'dark_mode' : 'light_mode';
                   return (
                     <button
                       key={presetKey}
                       type="button"
-                      role="radio"
-                      aria-checked={isSelected}
+                      aria-pressed={isSelected}
                       onClick={() => onSelectPreset(presetKey)}
-                      className={`btn-compact-touch min-h-[36px] px-1 py-1 rounded-lg text-[10px] font-semibold flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer btn-anti-squish ${
+                      className={`btn-compact-touch min-h-[34px] px-2 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                         isSelected
-                          ? 'card-matte-active text-primary font-bold'
-                          : 'text-secondary hover:text-primary'
+                          ? 'card-matte-active text-primary font-bold shadow-xs'
+                          : 'text-secondary hover:text-primary hover:bg-white/5'
                       }`}
-                      title={`Aplicar tema ${presetObj.label}`}
+                      title={`Ativar ${presetObj.label}`}
                     >
-                      <span
-                        className="w-3 h-3 rounded-full border border-white/25 shadow-xs shrink-0"
-                        style={{ backgroundColor: presetObj.canvas }}
+                      <GoogleIcon
+                        name={iconName}
+                        size={15}
+                        className={isSelected ? 'text-amber-400' : 'text-secondary'}
                       />
-                      <span className="truncate max-w-full">{presetObj.label.split(' ')[0]}</span>
+                      <span className="truncate">{presetObj.label}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
-          )}
-
-          {/* Alternador Binário Modo Claro Moderno (AD LUCEM) / Cinza Studio */}
-          {onToggleTheme && (
+          ) : onToggleTheme ? (
             <button
               type="button"
               onClick={onToggleTheme}
@@ -290,14 +288,14 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                   className="text-amber-400"
                 />
                 <span className="font-sans font-bold">
-                  {theme === 'dark' ? 'Modo Claro Moderno' : 'Modo Cinza Studio'}
+                  {theme === 'dark' ? 'Modo Claro Fosco' : 'Modo Escuro Fosco'}
                 </span>
               </div>
               <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/10 text-secondary">
-                {theme === 'dark' ? 'Ad Lucem' : 'Cinza'}
+                {theme === 'dark' ? 'Claro' : 'Escuro'}
               </span>
             </button>
-          )}
+          ) : null}
 
           {/* 5. Ações de Conta / Login e Links de Governança */}
           <div className="pt-1 border-t border-slate-800/80 flex flex-col gap-1.5">
@@ -406,7 +404,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
               <p className="text-[10px] font-mono text-secondary truncate">
                 {session.isGoogleAuthenticated
                   ? session.email
-                  : `Modo Local · ${SOFT_UI_PRESETS[activePreset].label.split(' ')[0]}`}
+                  : `Modo Local · ${SOFT_UI_PRESETS[activePreset]?.label ?? (theme === 'dark' ? 'Escuro Fosco' : 'Claro Fosco')}`}
               </p>
             </div>
           )}
