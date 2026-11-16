@@ -1,27 +1,49 @@
-# Catálogo de Tags Vocais Canônicas (`gemini-3.8-flash-tts`) & Pipeline FFmpeg/Audio
+# Canonical Vocal Tags (`gemini-3.8-flash-tts`) & FFmpeg Audio Pipeline
 
-Referência técnica complementar de [`SKILL.md`](../SKILL.md) para síntese expressiva e processamento de áudio no MyTTS Studio.
+Complementary technical reference for `SKILL.md` (`gemini-tts-expressive-audio`) covering expressive speech synthesis, prosody heuristics, cache behavior, and FFmpeg audio mastering in MyTTS Studio.
 
 ---
 
-## 1. As 42 Tags Vocais Inline (`part.text` em `speech-generation.md#vocal-bursts`)
+## 1. Active Gemini 3.8 TTS Models & Payload Contract
 
-Usar exclusivamente dentro de `part.text` (sempre em inglês, independentemente do idioma falado — `pt-BR`, `it-IT`, `ja-JP`, etc.), nunca dentro de `speechMetadata.style`:
+- **Active Cascade (`TTS_MODEL_CASCADE` in `src/server/geminiClient.ts`):** `gemini-3.8-flash-tts` -> `gemini-3.8-flash-lite-tts`.
+- **Migrated / Forbidden Models:** Never use retired `gemini-3.1-flash-tts-preview`, `gemini-3.1-flash-lite-tts-preview`, or `gemini-2.5-*-preview-tts` models, and never reference the non-existent `gemini-3.8-flash-lite` model ID.
+- **Part Serialization (`buildTtsModelPart` in `src/utils/prosodyEngine.ts`):**
+  - For `gemini-3.8-*` targets, attach `speechMetadata: { speaker, style }` in **camelCase** (`@google/genai` `partToMldev`/`partToVertex` silently drops `speech_metadata`).
+  - For `inline-fallback` (non-`gemini-3.8-` fallback targets), omit `speechMetadata` and prepend `Performance Direction (${speaker}): ${style}\n\n${spokenText}`.
 
-- **Respiração e fisiologia:** `<breath>`, `<heavy breath>`, `<exhales>`, `<pant>`, `<sigh>`, `<sighs>`, `<gasp>`, `<yawn>`, `<cough>`, `<sneeze>`, `<snort>`, `<throat-clearing>` (alias `throat clear` normalizado para `<throat-clearing>`), `<groan>`, `<grunt>`, `<growl>`, `<grr>`, `<argh>`, `<hiss>`, `<moan>`, `<pff>`, `<phew>`, `<tsk>`
-- **Riso e emoção:** `<laugh>`, `<laughter>`, `<chuckle>`, `<chuckles>`, `<giggle>`, `<snicker>`, `<cackle>`, `<cheer>`, `<cry>`, `<sob>`, `<whimper>`, `<scream>`, `<shout>`, `<shriek>`
-- **Sussurro pontual:** `<whisper>`, `<whispers>`, `<whispering>`
-- **Pausas:** `<short pause>`, `<long pause>` *(não existe `<medium pause>`; velocidade/pitch contínuos pertencem a `speechMetadata.style`)*
+## 2. The 42 Canonical Inline Vocal Tags (`CANONICAL_VOCAL_TAGS` in `part.text`)
 
-## 2. Personas, Emoções e Heurística de Fôlego (`prosodyEngine.ts`)
+Use strictly inside `part.text`—always in English regardless of the spoken locale (`pt-BR`, `en-US`, `it-IT`, `ja-JP`)—and never inside `speechMetadata.style`:
 
-- **5 Personas:** `Puck`, `Kore`, `Aoede`, `Fenrir`, `Enceladus`.
-- **12 Emoções (`getEmotionStyle`):** `natural`, `storytelling`, `technical`, `spontaneous`, `thoughtful`, `inquisitive`, `skeptical`, `ironic`, `passionate`, `resolute`, `expressive`, `calm`.
-- **Entre parágrafos:** Injetar `<short pause> <breath> ` quando o parágrafo atual tiver `>= 6` palavras ou o anterior tiver `>= 10` palavras.
-- **Orações longas (`> 20` palavras):** Injetar `<short pause> <breath>` (ou `<breath>` em `passionate`/`expressive`) após os primeiros 35% da frase em ponto de articulação (`,`, `;` ou ` — `) caso `withoutLeadingTags` ainda não contenha tag de respiração/pausa.
+- **Breath & physiology:** `<breath>`, `<heavy breath>`, `<exhales>`, `<pant>`, `<sigh>`, `<sighs>`, `<gasp>`, `<yawn>`, `<cough>`, `<sneeze>`, `<snort>`, `<throat-clearing>` (alias `throat clear` normalized to `<throat-clearing>`), `<groan>`, `<grunt>`, `<growl>`, `<grr>`, `<argh>`, `<hiss>`, `<moan>`, `<pff>`, `<phew>`, `<tsk>`
+- **Laughter & emotion:** `<laugh>`, `<laughter>`, `<chuckle>`, `<chuckles>`, `<giggle>`, `<snicker>`, `<cackle>`, `<cheer>`, `<cry>`, `<sob>`, `<whimper>`, `<scream>`, `<shout>`, `<shriek>`
+- **Point-in-time whisper:** `<whisper>`, `<whispers>`, `<whispering>`
+- **Pauses:** `<short pause>`, `<long pause>` *(there is no `<medium pause>`; continuous speed and pitch belong in `speechMetadata.style`)*
 
-## 3. Mixagem FFmpeg (`/api/mix-audio` em `src/server/audioContainer.ts`)
+Bracketed markers (e.g., `[deep breath]`, `[sigh]`, `[pause]`) are normalized by `buildExpressiveTtsTranscript()` into canonical angle-bracket tags, while non-canonical `<...>` tags are stripped.
 
-- Usar `asplit=2[voice_sc][voice_mix]` antes de referenciar o stream `[voice]` duas vezes.
-- Aplicar `aresample=44100` em ambas as entradas e passar `[bg]` como primeiro input e `[voice_sc]` como segundo input (gatilho sidechain) em `[bg][voice_sc]sidechaincompress`.
-- Duração exata WAV 24 kHz mono PCM 16-bit: `Math.max(0, wavBuffer.length - 44) / (24000 * 2)`.
+## 3. Personas, Emotions & Breath Heuristics (`src/utils/prosodyEngine.ts`)
+
+- **5 Prebuilt Voice Personas (`VOICE_ACOUSTIC_PERSONAS` / `ALLOWED_PREVIEW_VOICES`):** `Puck`, `Kore`, `Aoede`, `Fenrir`, `Enceladus`.
+- **12 Emotion Styles (`getEmotionStyle`):** `natural`, `storytelling`, `technical`, `spontaneous`, `thoughtful`, `inquisitive`, `skeptical`, `ironic`, `passionate`, `resolute`, `expressive`, `calm`.
+- **4 Supported Languages (`ALLOWED_PREVIEW_LANGS`):** `pt-BR`, `en-US`, `it-IT`, `ja-JP` (`ja-JP`/`ja` skips Western comma-slicing while preserving explicit vocal tags).
+- **Between paragraphs:** Inject `<short pause> <breath> ` when the current paragraph has `>= 6` words or the previous paragraph has `>= 10` words (unless already starting with a breath/sigh/pause tag).
+- **Long sentences (`> 20` words):** Inject `<short pause> <breath>` (or `<breath>` for `passionate`/`expressive`) after `min(48, floor(length * 0.35))` chars at an articulation boundary (`,`, `;`, or ` — `) when `withoutLeadingTags` lacks a breath/pause tag and at least `18` characters remain.
+- **Multi-sentence cadence:** Prepend `<breath>` before even-indexed sentences (`sentIdx > 0 && sentIdx % 2 === 0 && words.length >= 10`) when the transcript has no explicit breath or pause tag.
+
+## 4. FFmpeg Mixing (`/api/mix-audio` in `src/server/audioContainer.ts` & `ttsRoutes.ts`)
+
+- Resample both inputs to 44.1 kHz (`aresample=44100`).
+- Split the voice stream via `asplit=2[voice_sc][voice_mix]` before referencing `[voice_sc]` and `[voice_mix]` separately (prevents `Invalid stream specifier: voice`).
+- Pass `[bg]` as the first input and `[voice_sc]` as the second (sidechain trigger) input:
+  `[0:a]aresample=44100,volume=${voiceVol},asplit=2[voice_sc][voice_mix];[1:a]aresample=44100,volume=${bgVol}[bg];[bg][voice_sc]sidechaincompress=threshold=0.08:ratio=${ratio}:attack=100:release=500[ducked];[voice_mix][ducked]amix=inputs=2:duration=first:dropout_transition=2[out]`
+- Encode mastered output with `-c:a pcm_s16le -ar 44100`.
+- **Exact 24 kHz mono 16-bit PCM WAV duration (`src/server/geminiClient.ts`):** `Math.max(0, wavBuffer.length - 44) / (24000 * 2)` (floored at `1.0` s in `synthesizeGeminiTtsWav` after wrapping with `ensureWavContainer(base64Audio, 24000)`).
+
+## 5. Client Cache, Card State & Playback Fidelity (`audioCache.ts` & `audio.ts`)
+
+- **Cache Hierarchy (`src/utils/audioCache.ts`):** L1 RAM `Map` (max `60` entries) + L2 IndexedDB (`mytts_audio_cache_v2`, store `audio_records`, max `300` LRU entries).
+- **Deterministic Key (`generateAudioCacheKey`):** Format `${type}:${language}:${voiceId}:${speed}:${emotion}:${normalizedText}` using `turn.text` (preserving vocal tags), never `turn.clean_text`.
+- **State Invalidation:** Editing turn text or switching a card voice clears `audioBase64: undefined`; explicit re-synthesis passes `bypassCache: true`; `<select>` handlers must invoke `onChangeCardVoice()` without firing `onSelectCard()` first.
+- **Playback & Browser Fallback (`src/utils/audio.ts`):** Always set `audio.preservesPitch = true` on HTML5 audio elements using `playbackRate`, and pass `voiceId` to `speakBrowserFallback(text, { lang, rate, voiceId })` so pitch/rate multipliers match the selected persona.

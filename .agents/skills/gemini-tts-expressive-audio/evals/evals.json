@@ -3,22 +3,42 @@
   "evals": [
     {
       "eval_id": "gemini-tts-expressive-audio-01",
-      "prompt": "Ajuste a rota /api/synthesize-turn e prosodyEngine.ts no MyTTS para garantir speechMetadata válido e failover na cascata 3.8.",
+      "prompt": "Update the /api/synthesize-turn route and src/utils/prosodyEngine.ts in MyTTS Studio to enforce valid camelCase speechMetadata, keep vocal tags isolated in part.text, and ensure Vertex AI ADC failover and TTS_MODEL_CASCADE remain intact.",
       "should_trigger": true,
-      "expected_output": "Uso de speechMetadata em camelCase, isolamento de tags vocais no part.text, cascata gemini-3.8-flash-tts -> gemini-3.8-flash-lite-tts (sem modelos 3.1/2.5 descontinuados) e proteção de env vars no getVertexAdcClient().",
+      "expected_output": "Uses camelCase speechMetadata without angle-bracket tags or negative directives in style, isolates the 42 canonical English vocal tags in part.text, protects GEMINI_API_KEY/GOOGLE_API_KEY in try/finally inside getVertexAdcClient(), and preserves the gemini-3.8-flash-tts -> gemini-3.8-flash-lite-tts cascade.",
       "assertions": [
-        "Usa speechMetadata em camelCase sem inserir tags angulares em style",
-        "Preserva isolamento de GEMINI_API_KEY/GOOGLE_API_KEY em try/finally no Vertex ADC",
-        "Respeita cascata TTS_MODEL_CASCADE e invalidação/preservação de tags na chave de cache"
+        "Serializes speechMetadata in camelCase and excludes angle-bracket tags from style",
+        "Preserves GEMINI_API_KEY and GOOGLE_API_KEY env isolation in try/finally inside getVertexAdcClient()",
+        "Maintains the gemini-3.8-flash-tts -> gemini-3.8-flash-lite-tts cascade without retired 3.1-*-tts-preview or 2.5-* models"
       ]
     },
     {
       "eval_id": "gemini-tts-expressive-audio-02",
-      "prompt": "Crie uma consulta SQL no BigQuery para contar usuários ativos por país sem envolver áudio.",
-      "should_trigger": false,
-      "expected_output": "Não acionar gemini-tts-expressive-audio para consultas SQL sem relação com TTS ou áudio.",
+      "prompt": "Fix FFmpeg sidechain ducking in /api/mix-audio, verify WAV durationSec calculation, and ensure debate turn caching and HTML5 players preserve vocal tags and pitch.",
+      "should_trigger": true,
+      "expected_output": "Applies asplit=2[voice_sc][voice_mix] and aresample=44100 in buildFfmpegMixFilterComplex, subtracts the 44-byte RIFF header when computing durationSec from 24 kHz mono 16-bit PCM WAV, builds cache keys with turn.text via generateAudioCacheKey(), and sets audio.preservesPitch = true.",
       "assertions": [
-        "Mantém fronteira negativa contra SQL ou tarefas fora de TTS/áudio"
+        "Includes asplit=2[voice_sc][voice_mix] and aresample=44100 before sidechaincompress",
+        "Subtracts 44 bytes for the RIFF WAV header when computing durationSec at 48000 bytes/sec",
+        "Generates cache keys from turn.text (not clean_text) and sets audio.preservesPitch = true"
+      ]
+    },
+    {
+      "eval_id": "gemini-tts-expressive-audio-03",
+      "prompt": "Write a BigQuery SQL analytics query to count daily active users grouped by country and signup cohort without any audio, TTS, or speech synthesis.",
+      "should_trigger": false,
+      "expected_output": "Does not trigger gemini-tts-expressive-audio for BigQuery SQL analytics unrelated to TTS or audio pipelines.",
+      "assertions": [
+        "Respects the negative scope boundary against SQL queries and non-audio workloads"
+      ]
+    },
+    {
+      "eval_id": "gemini-tts-expressive-audio-04",
+      "prompt": "Refactor the OKLCH color tokens, 3-level elevation shadows, and @container card spacing in src/styles/globals.css with no changes to TTS synthesis, prosody, audio cache, or playback.",
+      "should_trigger": false,
+      "expected_output": "Does not trigger gemini-tts-expressive-audio for pure CSS/OKLCH styling or UI layout work unrelated to TTS or audio playback.",
+      "assertions": [
+        "Respects the negative scope boundary against CSS/OKLCH styling and UI layout tasks"
       ]
     }
   ]
