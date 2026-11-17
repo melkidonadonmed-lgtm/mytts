@@ -1,7 +1,7 @@
 {
   "entries": [
     {
-      "path": "C:/Users/melki/.agents/skills",
+      "path": "C:/Users/melki/.gemini/skill-catalog/user-skills",
       "include_only": [
         "vercel-react-best-practices",
         "web-design-guidelines",

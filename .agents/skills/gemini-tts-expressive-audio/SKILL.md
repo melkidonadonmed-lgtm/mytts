@@ -22,19 +22,21 @@ Govern Gemini neural TTS, acoustic direction, auth failover, L1/L2 caching, FFmp
 - **Scope:** `/api/synthesize-turn`, `/api/mix-audio`, `geminiClient.ts`, `prosodyEngine.ts`, `audioCache.ts`, `audio.ts`, and players.
 - **Runtime:** `@google/genai`, `ffmpeg`, `AQ.`/`AIza`/ADC (`global`) auth, 5 voices (`Puck`, `Kore`, `Aoede`, `Fenrir`, `Enceladus`), 12 emotions, 4 locales (`pt-BR`, `en-US`, `it-IT`, `ja-JP`).
 
-## 3. Step-by-Step Procedure
+## 3. Step-by-Step Procedure (CoT -> ToT -> ReAct -> RAW)
 
-1. **Enforce Two-Channel `Part` Payload (`prosodyEngine.ts` + `geminiClient.ts`):**
+1. **Phase 1 — Two-Channel `Part` Payload Audit (`CoT` — `prosodyEngine.ts` + `geminiClient.ts`):**
    - Send `speechMetadata: { speaker, style }` in **camelCase** for `gemini-3.8-*`; `@google/genai` (`partToMldev`/`partToVertex`) silently drops `speech_metadata`.
    - Keep `speechMetadata.style` to persona, acoustic direction, speed, and emotion—never `<...>` tags or negative rules.
    - Route verbatim text and the 42 English vocal tags (plus `<short pause>` / `<long pause>`) solely in `part.text` via `buildExpressiveTtsTranscript()`.
-2. **Route Hybrid Auth & ADC Failover (`getGenAiClient` / `getVertexAdcClient`):**
+2. **Phase 2 — Hybrid Auth & Cascade Failover (`ToT` — `getGenAiClient` / `getVertexAdcClient`):**
    - Set `vertexai: true` for `AQ.` keys and `vertexai: false` for `AIza` keys.
    - In `getVertexAdcClient()` (`global`), delete `GEMINI_API_KEY` and `GOOGLE_API_KEY` from `process.env` in `try` and restore in `finally`.
-3. **Preserve Cache Keys, Card State & Playback:**
+3. **Phase 3 — Cache Keys, Card State & Playback (`ReAct`):**
    - Compute keys with `generateAudioCacheKey()` from `turn.text` (with tags), never `turn.clean_text`.
    - Clear `audioBase64: undefined` on edits, send `bypassCache: true` on re-synthesis, and never call `onSelectCard()` before `onChangeCardVoice()`.
    - Set `audio.preservesPitch = true`, pass `voiceId` to `speakBrowserFallback()`, subtract 44 RIFF bytes for `durationSec` (`24000 * 2` B/s), and use `asplit=2` + `aresample=44100` in FFmpeg.
+4. **Phase 4 — Command-First Verification (`RAW`):**
+   - Execute `npm run lint && npm test && npm run build` in the repository root and confirm zero errors before closing.
 
 ## 4. Gotchas & Edge Cases
 
@@ -44,7 +46,7 @@ Govern Gemini neural TTS, acoustic direction, auth failover, L1/L2 caching, FFmp
 ## 5. Output Schema & Validation Criteria
 
 - **Responses:** `/api/synthesize-turn` -> `{ success, turnNumber, audioBase64, mimeType: 'audio/wav', durationSec }`; `/api/mix-audio` -> `{ success, audioBase64, mimeType: 'audio/wav' }`.
-- **Gate:** Run tests/build and verify camelCase `speechMetadata`, tag isolation in `part.text`, 44-byte RIFF offset, and `preservesPitch = true`.
+- **Gate:** Run `npm run lint && npm test && npm run build` and verify camelCase `speechMetadata`, tag isolation in `part.text`, 44-byte RIFF offset, and `preservesPitch = true`.
 
 ## 6. User Communication Rule
 
