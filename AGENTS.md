@@ -1,87 +1,39 @@
-# AGENTS.md — MyTTS Studio (`mytts`)
+# AGENTS.md — MyTTS Studio (`mytts` v2.1)
 
-## Visão geral
+> **Global Kernel Inheritance:** Universal Golden Rules (1–8), `Managed Antigravity Agent` constraints, Technical English internals / **Portuguese (`pt-BR`)** user bridge, and the Self-Refine Closing Block inherit from `quality-efficiency-guidelines.md` (`always_on`).
 
-Estúdio de voz neural sobre a API Gemini: leitura TTS com "Director's Chair" (prosódia, direção e
-trilhas procedurais), ditado/transcrição, debate dual-speaker e *FastChunks* (síntese fatiada com
-cache). A reprodução no cliente é WAV 24 kHz via Web Audio API. Docs canônicos: `CONTEXT.md`
-(arquitetura), `SPEC.md` (contratos/endpoints), `DESIGN.md` e `design/design.md` (visual),
-`.context/CURRENT_STATE.md` e `.context/SESSION_LOG.md` (estado e histórico).
+## 0. Project Overview & Stack
 
-## Stack verificada (`package.json`)
+Neural voice studio built on the Gemini API: TTS reading with "Director's Chair" (prosody, direction, procedural soundtracks), dictation/transcription, dual-speaker debate, and *FastChunks* (sliced cached synthesis) playing 24 kHz WAV via Web Audio API.
+- **State Triad & Docs:** [`.context/context.md`](file:///C:/Users/melki/dev/repos/mytts/.context/context.md) | [`.context/spec.md`](file:///C:/Users/melki/dev/repos/mytts/.context/spec.md) | [`DESIGN.md`](file:///C:/Users/melki/dev/repos/mytts/DESIGN.md) | [`.context/CURRENT_STATE.md`](file:///C:/Users/melki/dev/repos/mytts/.context/CURRENT_STATE.md)
+- **Client:** React 19.0 + Tailwind v4 (`@tailwindcss/vite` 4.3) + Vite 8, `lucide-react`, `motion`.
+- **Server:** Express 4 run via `tsx` in `server.ts` (no separate server build step); `helmet`, `express-rate-limit` 8, `@google/genai`, `@google-cloud/firestore` 9.
+- **Types & Testing:** TypeScript 7.0.2 (`strict` + `noUnusedLocals`/`noUnusedParameters`), Playwright 1.63, npm (`package-lock.json` -> `npm ci`).
 
-- **Cliente:** React 19.0 + Tailwind v4 (`@tailwindcss/vite` 4.3) + Vite 8, `lucide-react`, `motion`.
-- **Servidor:** Express 4 rodado por `tsx` em `server.ts`, **sem etapa de compilação**; `helmet`,
-  `express-rate-limit` 8, `@google/genai` 2.4, `@google-cloud/firestore` 9.
-- **Tipos:** TypeScript 7.0.2 (devDep), `strict` + `noUnusedLocals`/`noUnusedParameters`.
-- **Qualidade/gerência:** Playwright 1.63; npm + `package-lock.json` → use `npm ci`.
-
-## Comandos
+## 1. Commands (`Command-First` — Canonical Port `3002`)
 
 ```bash
-npm ci                      # instala a partir do lockfile
-cp .env.example .env        # preencher GEMINI_API_KEY (opcional se houver Vertex AI ADC ativo)
+npm ci                      # reproducible install from lockfile
 npm run dev                 # tsx server.ts -> http://0.0.0.0:3002
-npm run build               # vite build -> dist/       (npm run preview serve o build)
+npm run build               # vite build -> dist/
 npm run lint                # tsc --noEmit
 npm test                    # tsx test-audio-engine.ts
-npm start                   # tsx server.ts (produção); npm run clean = rm -rf dist server.js
+npm start                   # tsx server.ts (production)
 ```
 
-**Porta canônica: 3002** (`process.env.PORT || 3002`, `server.ts`). O `:3000` do `README.md`
-está desatualizado.
+## 2. Structure & Domain Invariants
 
-## Estrutura
+- **Modules:** `server.ts` (routes `/api/*`, rate limits, `gemini-3.8-flash-tts` + Vertex AI Express Mode `AQ.` + automatic Vertex AI ADC failover `global` + Firestore), `src/App.tsx`, `src/components/`, `src/utils/` (`audioEngine`, `prosodyEngine`, `proceduralSoundtracks`, `audioCache`, `liveVoiceMonitor`), `src/services/`.
+- **Bilingual Bridge (`[LOCK-04]`):** Author all code identifiers, comments, commits, `SKILL.md`, and `.context/*.md` in Technical English (preserving `pt-BR` UI copy and expressive TTS prompts where required by the studio UI). Formulate all user-facing dialogue and status reports in **Portuguese (`pt-BR`)**.
+- **Code & UI Hygiene:** Narrow `catch (err: unknown)` (never `catch (e: any)`); use semantic `<button>` elements (never clickable `<div>`); slate + amber palette (`DESIGN.md` v8.0.0); run `npm run lint && npm test && npm run build` before closing.
+- **Security:** Keep `GEMINI_API_KEY` in `.env` only; rate limit 120 req/15 min (AI) and 300 req/15 min (`/api`); `ensureWavContainer` writes the 44-byte RIFF header; invoke FFmpeg exclusively via `execFile` with clamped parameters; never trust `X-User-Id` for authorization; deploy target Cloud Run `southamerica-east1` (`agent-md-506215`, service `mytts`, `scripts/deploy-sp.ps1`).
 
-- `server.ts` — servidor único: rotas, rate limit, cache, integração `gemini-3.8-flash-tts` (`speechMetadata` camelCase) + Vertex AI Express Mode (`AQ.`) + failover automático Vertex AI ADC (`global`) + Firestore.
-- `src/App.tsx` (entrada) e `src/components/`: `PolyglotChatStudio`, `StudioWorkspace`,
-  `DebateConfigPanel`, `FloatingCardAudioController`, `BottomAudioDock`, `AgentInputDock`,
-  `ConversationHistoryDrawer`, `GoogleAuthWidget`, `VoiceCardGrid`, `CommandPaletteModal`.
-- `src/utils/`: `audioEngine`, `prosodyEngine`, `proceduralSoundtracks`, `audioCache`, `csvExporter`,
-  `liveVoiceMonitor`; `src/services/`: `chunkStorage.ts`, `conversationStorage.ts`, `authService.ts`.
-- API REST (`SPEC.md`): `synthesize-speech`, `preview-voice`, `transcribe-audio`, `extract-text`,
-  `generate-script`, `synthesize-turn`, `translate-parallel-chunks`, `live-agent-turn`, `agent-explore`,
-  `conversations`, `auth/google`, `health` (todas sob `/api/`).
+## 3. Evolutionary Memory (Project-Learned Rules)
 
-## Convenções
+> Detailed expressive synthesis rules live in local skill [`.agents/skills/gemini-tts-expressive-audio/SKILL.md`](file:///C:/Users/melki/dev/repos/mytts/.agents/skills/gemini-tts-expressive-audio/SKILL.md).
 
-- **Idioma:** todo texto, comentário e commit em pt-BR.
-- **Erro:** `catch` sempre com `unknown` + narrowing; proibido `catch (e: any)`.
-- **Interação:** todo controle é `<button>` com handler real — sem `div` clicável.
-- **Visual:** paleta slate + âmbar (`DESIGN.md` v8.0.0 — Cinza Studio Monolítico / Ad Lucem), nunca zinco; fontes Outfit / Inter / Plus Jakarta / JetBrains Mono.
-- **Contexto:** registre mudanças relevantes em `.context/`.
-- **Trio de qualidade:** `npm run lint && npm test && npm run build`; mexeu no motor de áudio,
-  `npm test` é obrigatório.
-
-## Memória Evolutiva (Oportunidades & Regras Aprendidas)
-
-> Regras detalhadas de síntese expressiva e prosódia refatoradas na skill local [`.agents/skills/gemini-tts-expressive-audio/SKILL.md`](.agents/skills/gemini-tts-expressive-audio/SKILL.md).
-
-1. **Chaves `AQ.` vs. `AIza` e Failover Vertex AI ADC (`global`)**: No `@google/genai`, `AQ.` exige `vertexai: true` e `AIza` usa `vertexai: false`. Em `getVertexAdcClient()` (`server.ts`), isole temporariamente `process.env.GEMINI_API_KEY`/`GOOGLE_API_KEY` ao instanciar ADC (`project: agent-md-506215, location: global`) e use a cascata `gemini-3.8-flash-tts` → `gemini-3.8-flash-lite-tts` (evitando modelos `gemini-3.1-*tts-preview` e `gemini-2.5-*`, descontinuados em nov–dez/2026, e o inexistente `gemini-3.8-flash-lite`).
-2. **`speechMetadata` em camelCase vs. 42 Tags Vocais Inline (`@google/genai`)**: O serializador `partToMldev`/`partToVertex` exige `speechMetadata: { speaker, style }` em **camelCase** no `Part` (`speech_metadata` em snake_case é silenciosamente descartado). Mantenha `speechMetadata.style` exclusivo para direção acústica/emocional (12 emoções, 5 personas, zero `<tags>` literais ou instruções negativas) e injete as 42 tags canônicas (`<breath>`, `<sigh>`, `<laugh>`, `<short pause>`, etc.) apenas em `part.text` via `buildExpressiveTtsTranscript`.
-3. **Cache de Turnos (`turn.text`), Sincronia de Cards e `preservesPitch`**: Gere chaves de cache de turnos por `turn.text` (nunca `turn.clean_text`), limpe `audioBase64` ao editar texto ou trocar voz nos cards (`DebateConfigPanel`), passe `bypassCache: true` ao re-sintetizar, mantenha `cardVoicesByMsgRef` síncrono sem disparar `onSelectCard()` antes de `onChangeCardVoice()` no `<select>`, e ative `audio.preservesPitch = true` em todos os players HTML5.
-4. **Diferenciação Acústica no Fallback Web Speech (`speakBrowserFallback`)**: Sempre repasse `voiceId` (`Puck`, `Kore`, `Aoede`, `Fenrir`, `Enceladus`) para o fallback local do navegador para aplicar seleção por gênero de voz do sistema, `pitch` e cadência distintos.
-5. **Tailwind v4 `@variant dark` e Tokens `globals.css`**: Mantenha `@import "./styles/globals.css"` e `@variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));` em `src/index.css` para evitar conflito de contraste cor-sobre-cor entre temas.
-
-## Segurança
-
-- `GEMINI_API_KEY` só via `.env` (com hot-reload em `server.ts`); `.env*` está no `.gitignore`.
-- **`firebase-config.json` está versionado** (`git ls-files` confirma). Se contiver credenciais de
-  serviço, remova do índice (`git rm --cached`) e rotacione a chave.
-- Rate limit por IP: 120 req/15 min na IA, 300 req/15 min no restante de `/api`.
-- Payloads: 2 MB padrão, 25 MB em transcrição/live, 50 MB na mixagem; textos truncados em
-  20.000 / 2.000 / 5.000 caracteres conforme o endpoint.
-- `ensureWavContainer` produz cabeçalho RIFF de 44 bytes (sem ele o áudio não toca); FFmpeg só via
-  `execFile`, parâmetros clampados, temporários limpos em `finally`.
-- `X-User-Id` é **spoofável** — não é autenticação; não o use para autorizar nada.
-
-## Deploy
-
-`Dockerfile` multi-stage (`node:22-slim`) + `firebase.json` + `.firebaserc`; alvo Cloud Run `southamerica-east1` (São Paulo), projeto `agent-md-506215`, serviço `mytts`, script `scripts/deploy-sp.ps1`.
-
----
-
-<!-- WORKSPACE-CONTEXT START -->
-## Referências Globais do Workspace
-- Diretrizes globais de engenharia, arquitetura visual por propósito e memória: [C:\Users\melki\dev\AGENTS.md](file:///C:/Users/melki/dev/AGENTS.md) e [Preferências de Trabalho com Agentes.md](file:///C:/Users/melki/dev/notes/Memória/Preferências%20de%20Trabalho%20com%20Agentes.md).
-<!-- WORKSPACE-CONTEXT END -->
+1. **`AQ.` vs. `AIza` Keys & Vertex AI ADC (`global`) Failover:** In `@google/genai`, `AQ.` requires `vertexai: true` while `AIza` uses `vertexai: false`. In `getVertexAdcClient()` (`server.ts`), temporarily isolate `process.env.GEMINI_API_KEY`/`GOOGLE_API_KEY` when instantiating ADC (`project: agent-md-506215, location: global`) and cascade `gemini-3.8-flash-tts` -> `gemini-3.8-flash-lite-tts` (never retired `3.1-*tts-preview`/`2.5-*` or non-existent `gemini-3.8-flash-lite`).
+2. **`speechMetadata` camelCase vs. 42 Inline Vocal Tags:** `@google/genai` `partToMldev`/`partToVertex` requires `speechMetadata: { speaker, style }` in **camelCase** (`speech_metadata` is silently dropped). Keep `speechMetadata.style` strictly for acoustic/emotional direction (zero literal `<tags>` or negative instructions) and inject the 42 canonical tags (`<breath>`, `<sigh>`, `<laugh>`, `<short pause>`) only into `part.text` via `buildExpressiveTtsTranscript`.
+3. **Turn Cache (`turn.text`), Card Sync & `preservesPitch`:** Key turn caches by `turn.text` (never `turn.clean_text`), clear `audioBase64` when editing text or changing voices in `DebateConfigPanel`, pass `bypassCache: true` on re-synthesis, keep `cardVoicesByMsgRef` synchronous, and enable `audio.preservesPitch = true`.
+4. **Web Speech Fallback Differentiation (`speakBrowserFallback`):** Always pass `voiceId` (`Puck`, `Kore`, `Aoede`, `Fenrir`, `Enceladus`) to browser fallback to apply distinct system voice gender, pitch, and cadence.
+5. **Tailwind v4 `@variant dark` & `globals.css`:** Keep `@import "./styles/globals.css"` and `@variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));` in `src/index.css`.

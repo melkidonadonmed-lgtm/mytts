@@ -31,4 +31,5 @@ O **MyTTS Studio** é uma estação de trabalho de áudio neural (síntese TTS, 
 - Todo botão interativo deve ser `<button>` semântico com handler real; proibido `onClick` vazio.
 - Ao alterar o motor de áudio, executar `npm test` (conformidade matemática de ganhos dB e cabeçalho WAV).
 - `package.json` mantém `@google/genai: "^2.4.0"` sincronizado com `package-lock.json` (`2.25.0`) para garantir `npm ci` determinístico sem erro `EALLOWREMOTE`.
+- `[2026-11-16]` Atualizados `vite` (`^8.3.8`), `@tailwindcss/vite` (`^4.3.5`), `tailwindcss` (`^4.3.5`), `tsx` (`^4.23.15`), `playwright` (`^1.65.1`), adicionado script `typecheck` e `overrides` de segurança (`body-parser`, `glob`, `google-gax`, `ip-address`, `minimatch`, `qs`, `rimraf`), zerando as 8 vulnerabilidades do `npm audit` (`found 0 vulnerabilities`) com `npm run typecheck` e `npm test` (`20/20` suítes PASS).
 
