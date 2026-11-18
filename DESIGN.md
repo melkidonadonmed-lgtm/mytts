@@ -7,20 +7,20 @@ archetypes:
   primary: "3.3 Workbench Split-View (Editor / Chat Poliglota / Trilha + Canvas de Síntese)"
   secondary: "3.2 Dashboard Analítico & Bento Grid (Nexus Bento Grid 12 Colunas)"
 colors:
-  surface-canvas: "#1A1D24"     # Layer 0: Escuro Fosco (obsidian default; #E6E9EE no Claro Fosco / slate)
-  surface-inset:  "#14171D"     # Layer 1: Cavidade física fosca (inputs/trilhos; #DCE0E6 no Claro Fosco)
-  surface-flat:   "#21252E"     # Layer 2: Placa intermediária fosca (#EEF0F4 no Claro Fosco)
-  surface-raised: "#272C37"     # Layer 3: Placa elevada fosca sem brilho especular (#F4F5F7 no Claro Fosco)
-  surface-contrast: "#111419"   # Layer 4: Âncora de inversão tonal (#1B2028 no Claro Fosco)
-  text-primary:   "#E8ECF2"     # Tinta primária de alto contraste (#1A2029 no Claro Fosco)
-  text-secondary: "#9AA4B6"     # Tinta secundária para metadados (#525E70 no Claro Fosco)
-  accent-point:   "#35acd8"     # Destaque focal Sky/Cerulean (10% max — Zero Azul Cobalto; #0284C7 no Claro Fosco)
+  surface-canvas: "#0A0C10"     # Layer 0: Tactile Matte OKLCH (obsidian default; #E4E9EF no Steadfast Stainless / slate)
+  surface-inset:  "#06070A"     # Layer 1: Cavidade embutida (wells/inputs; #D5DCE4 no slate)
+  surface-flat:   "#13161F"     # Layer 2: Placa de superfície (#EEF2F6 no slate)
+  surface-raised: "#191D29"     # Layer 3: Placa elevada com luz zenital (#F5F7FA no slate)
+  surface-contrast: "#1E2330"   # Layer 4: Tecla tátil & âncora (#11161F no slate)
+  text-primary:   "#F3F5F8"     # Tinta primária de alto contraste (#11161F no slate)
+  text-secondary: "#9BA3B0"     # Tinta secundária para metadados (#4A5565 no slate)
+  accent-point:   "#35acd8"     # Destaque focal Sky/Cerulean (10% max — Zero Azul Cobalto; #0284C7 no slate)
   accent-sapphire: "#0284C7"    # Cerulean Sapphire canônico
-  accent-amber:   "#D97706"     # Energia vocal de estúdio (Âmbar Mineral; #B45309 no Claro Fosco)
-  accent-emerald: "#10B981"     # Indicador semântico de estabilidade e áudio online (#059669 no Claro Fosco)
+  accent-amber:   "#D97706"     # Energia vocal de estúdio (Âmbar Mineral; #B45309 no slate)
+  accent-emerald: "#10B981"     # Indicador semântico de estabilidade e áudio online (#059669 no slate)
 presets:
-  obsidian: { canvas: "#1A1D24", flat: "#21252E", raised: "#272C37", inset: "#14171D", accent: "#35acd8" }
-  slate:    { canvas: "#E6E9EE", flat: "#EEF0F4", raised: "#F4F5F7", inset: "#DCE0E6", accent: "#0284C7" }
+  obsidian: { canvas: "#0A0C10", flat: "#13161F", raised: "#191D29", inset: "#06070A", accent: "#35acd8" }
+  slate:    { canvas: "#E4E9EF", flat: "#EEF2F6", raised: "#F5F7FA", inset: "#D5DCE4", accent: "#0284C7" }
 skills_integrated:
   - design-md (v8.0.0): Contrato Canônico 9 Seções + Adendos A–I, OKLCH 3 Camadas, 60-30-10 e @container
   - plan-uiux (v1.1.0): Auditoria Estrutural REA + Mutação Antes/Depois + Arquitetura CSS Moderna
@@ -31,9 +31,9 @@ skills_integrated:
 
 ## 1. Visão Geral e Tema Visual (Overview & Visual Theme)
 O **MyTTS Studio** (`mytts`) adota uma estética de **Estação de Trabalho de Áudio Neural de Alta Precisão** (*Minimalist Tactile Prestige + Studio Operations*), combinando o arquétipo **Workbench Split-View** (Chat Poliglota Multimodal EN/IT/JA, Leitor Neural com *Director's Chair*, Estúdio Dialético de 2 Vozes e FastChunks) com **Nexus Bento Grid** e **Thumb-Zone Audio Dock**.
-- **Atmosfera Sensorial e Polaridade:** Superfície padrão **Cinza Studio Monolítico** (`#57545d` canvas, `#49464f` flat, `#635f6a` raised e barra de navegação em pílula `#8e8999` com tinta escura `#16151A`), alternável em tempo real sem FOUC para **Claro Editorial Moderno (*Ad Lucem*)** (`#F3F3F5` canvas + `#FFFFFF` puro nos cards + Cerulean `#0284C7`), **Moss Organic** (`#F4F3EC` + `#174930`) e **Terminal IBM Deep Dark** (`#070709` + `#101014`).
+- **Atmosfera Sensorial e Polaridade:** Superfície padrão **Tactile Matte (`obsidian`)** em grafite profundo (`#0A0C10` canvas, `#13161F` cards, `#191D29` elevado, `#06070A` cavidades embutidas, luz zenital radial sutil e borda especular superior de `1px`), alternável em tempo real sem FOUC para **Steadfast Stainless (`slate`)** (`#E4E9EF` canvas + `#F5F7FA` nos cards + `#0284C7` Cerulean).
 - **Invariante Anti-Glassmorphism e Anti-Cobalto (`AUDIT-VIS-01`):** Zero ocorrências de `backdrop-filter: blur()` (`backdrop-blur-*`), zero brilhos neon e zero azul cobalto elétrico (`#0044FF`, `#0057FF`, `#1D4ED8`, `#233DFF`) em todo o diretório `src/`.
-- **Inspirações de Referência:** **ElevenLabs Studio** (clareza operacional de síntese vocal e biblioteca de vozes), **Linear** (densidade funcional, comando rápido `Ctrl+K` e atalhos de teclado) e **Teenage Engineering / Braun** (física tátil de botões pressionáveis, iluminação zenital de 135° e contadores `tabular-nums`).
+- **Inspirações de Referência:** **ElevenLabs Studio** (clareza operacional de síntese vocal e biblioteca de vozes), **Linear** (densidade funcional, comando rápido `Ctrl+K` e atalhos de teclado) e **Teenage Engineering / Braun / Tactile Matte** (física tátil de teclas pressionáveis, iluminação zenital radial de 3 camadas e contadores `tabular-nums`).
 
 ---
 
@@ -186,7 +186,7 @@ O sistema organiza a locomoção espacial em **3 Camadas Independentes**:
 ---
 
 ## 8. Arquétipos de Interface e Níveis de Complexidade (Interface Archetypes & Complexity Tiers)
-- **Nível de Complexidade:** `tier_3_fullstack_app_router_pwa` (Full-Stack React 19 + Express + Web Audio API + Firestore + Gemini 3.1 Flash TTS / 3.8 Flash).
+- **Nível de Complexidade:** `tier_3_fullstack_app_router_pwa` (Full-Stack React 19 + Express + Web Audio API + Firestore + Gemini 3.8 Flash TTS / 3.8 Flash).
 - **Arquétipos Combinados:**
   - **3.3 Workbench Split-View:** Trilha tripla sincronizada no `PolyglotChatStudio` (Inglês, Italiano e Japonês lado a lado com sincronia de hover por chunk e controlador flutuante) + `StudioWorkspace` (editor de texto/PDF + painel de calibração prosódica e grade de vozes).
   - **3.2 Dashboard Analítico & Bento Grid:** `BentoGridShell` de 12 colunas e `FastChunkAudioApp` com cards auto-adaptativos via CSS Grid RAM (`repeat(auto-fit, minmax(min(100%, 280px), 1fr))`) e `subgrid`.

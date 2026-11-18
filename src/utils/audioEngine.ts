@@ -55,7 +55,12 @@ export function getAudioContext(autoResume = false): AudioContext {
     sharedAudioContext = new AudioContextClass();
   }
   if (autoResume && sharedAudioContext.state === 'suspended') {
-    void sharedAudioContext.resume().catch(() => {});
+    void sharedAudioContext.resume().catch((err: unknown) => {
+      console.debug(
+        '[AudioContext] Resume aguardando gesto do usuário:',
+        err instanceof Error ? err.message : String(err)
+      );
+    });
   }
   return sharedAudioContext;
 }
@@ -304,7 +309,12 @@ export class GaplessAudioPlayer {
     if (!this.audioContext) {
       this.audioContext = getAudioContext(autoResume);
     } else if (autoResume && this.audioContext.state === 'suspended') {
-      void this.audioContext.resume().catch(() => {});
+      void this.audioContext.resume().catch((err: unknown) => {
+        console.debug(
+          '[GaplessAudioPlayer] Resume aguardando gesto do usuário:',
+          err instanceof Error ? err.message : String(err)
+        );
+      });
     }
     if (!this.analyser) {
       this.analyser = this.audioContext.createAnalyser();

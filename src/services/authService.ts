@@ -245,3 +245,17 @@ export function getAuthHeaders(): Record<string, string> {
   }
   return headers;
 }
+
+export async function fetchGoogleAuthConfig(): Promise<{ googleClientId?: string } | null> {
+  try {
+    const resp = await fetch('/api/auth/config');
+    if (!resp.ok) return null;
+    return (await resp.json()) as { googleClientId?: string };
+  } catch (err: unknown) {
+    console.debug(
+      '[AuthService] Falha ao obter configuração Google OAuth:',
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  }
+}

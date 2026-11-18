@@ -50,36 +50,36 @@
    DESIGN SYSTEM TÁTIL MELKI — TEMA BINÁRIO (DARK & LIGHT)
    ========================================================================== */
 
-/* 1. MODO ESCURO FOSCO (obsidian — Superfícies Slate-Carvão Foscas) */
+/* 1. MODO ESCURO TACTILE MATTE (obsidian) */
 :root {
   color-scheme: dark;
 
-  --bg-canvas: #1A1D24;
-  --bg-surface-0: #21252E;
-  --bg-surface-1: #21252E;
-  --bg-surface-2: #272C37;
-  --bg-surface-inset: #14171D;
-  --bg-card: #272C37;
-  --bg-card-hover: #2F3542;
+  --bg-canvas: oklch(0.155 0.012 260);
+  --bg-surface-0: oklch(0.195 0.018 262);
+  --bg-surface-1: oklch(0.195 0.018 262);
+  --bg-surface-2: oklch(0.23 0.02 262);
+  --bg-surface-inset: oklch(0.125 0.01 260);
+  --bg-card: oklch(0.195 0.018 262);
+  --bg-card-hover: oklch(0.23 0.02 262);
   --canvas-dot-color: transparent;
 
-  --border-subtle: rgba(148, 163, 184, 0.14);
-  --border-muted: rgba(148, 163, 184, 0.14);
-  --border-tactile: rgba(148, 163, 184, 0.20);
-  --border-hover: rgba(148, 163, 184, 0.30);
-  --border-rim-light: rgba(148, 163, 184, 0.14);
-  --border-focus: rgba(53, 172, 216, 0.65);
+  --border-subtle: oklch(1 0 0 / 0.055);
+  --border-muted: oklch(1 0 0 / 0.06);
+  --border-tactile: oklch(1 0 0 / 0.08);
+  --border-hover: oklch(1 0 0 / 0.14);
+  --border-rim-light: oklch(1 0 0 / 0.14);
+  --border-focus: oklch(0.71 0.13 225 / 0.65);
 
-  /* Tipografia de Alta Nitidez (Zero Aspecto Borrado/Craquelado) */
-  --text-primary: #E8ECF2;
-  --text-secondary: #9AA4B6;
-  --text-tertiary: #717D91;
+  /* Tipografia de Alta Nitidez */
+  --text-primary: oklch(0.968 0.005 255);
+  --text-secondary: oklch(0.715 0.018 255);
+  --text-tertiary: oklch(0.515 0.018 255);
   --text-on-accent: #ffffff;
 
-  --accent: #35acd8;
-  --accent-primary: #0369a1;
-  --accent-primary-hover: #075985;
-  --accent-amber: #d97706;
+  --accent: oklch(0.71 0.13 225);
+  --accent-primary: oklch(0.57 0.15 240);
+  --accent-primary-hover: oklch(0.50 0.14 240);
+  --accent-amber: oklch(0.68 0.16 65);
 
   /* Badges Dinâmicas */
   --badge-blue-bg: rgba(53, 172, 216, 0.20);
@@ -103,35 +103,35 @@
   --code-border: rgba(53, 172, 216, 0.32);
 }
 
-/* 2. MODO CLARO FOSCO (slate — Papel-Slate Fosco sem Branco Ofuscante) */
+/* 2. MODO CLARO METÁLICO (slate — Steadfast Stainless) */
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg-canvas: #E6E9EE;
-  --bg-surface-0: #F4F5F7;
-  --bg-surface-1: #F4F5F7;
-  --bg-surface-2: #EEF0F4;
-  --bg-surface-inset: #DCE0E6;
-  --bg-card: #F4F5F7;
-  --bg-card-hover: #EEF0F4;
+  --bg-canvas: oklch(0.93 0.01 250);
+  --bg-surface-0: oklch(0.975 0.005 250);
+  --bg-surface-1: oklch(0.975 0.005 250);
+  --bg-surface-2: oklch(0.955 0.006 250);
+  --bg-surface-inset: oklch(0.89 0.012 250);
+  --bg-card: oklch(0.975 0.005 250);
+  --bg-card-hover: oklch(0.99 0.003 250);
   --canvas-dot-color: transparent;
 
-  --border-subtle: rgba(30, 41, 59, 0.12);
-  --border-muted: rgba(30, 41, 59, 0.12);
-  --border-tactile: rgba(30, 41, 59, 0.16);
-  --border-hover: rgba(2, 132, 199, 0.45);
-  --border-rim-light: rgba(30, 41, 59, 0.12);
-  --border-focus: rgba(2, 132, 199, 0.55);
+  --border-subtle: oklch(0.2 0.02 255 / 0.075);
+  --border-muted: oklch(0.2 0.02 255 / 0.08);
+  --border-tactile: oklch(0.2 0.02 255 / 0.11);
+  --border-hover: oklch(0.57 0.15 240 / 0.35);
+  --border-rim-light: oklch(1 0 0 / 0.95);
+  --border-focus: oklch(0.57 0.15 240 / 0.55);
 
-  --text-primary: #1A2029;
-  --text-secondary: #525E70;
-  --text-tertiary: #64748B;
+  --text-primary: oklch(0.19 0.02 255);
+  --text-secondary: oklch(0.44 0.02 255);
+  --text-tertiary: oklch(0.60 0.02 255);
   --text-on-accent: #ffffff;
 
-  --accent: #0284C7;
-  --accent-primary: #0284C7;
-  --accent-primary-hover: #1E6091;
-  --accent-amber: #B45309;
+  --accent: oklch(0.57 0.15 240);
+  --accent-primary: oklch(0.57 0.15 240);
+  --accent-primary-hover: oklch(0.46 0.11 242);
+  --accent-amber: oklch(0.55 0.15 55);
 
   /* Badges Alto Contraste no Modo Claro */
   --badge-blue-bg: #e1ebfa;
@@ -258,106 +258,107 @@
    COMPONENTES TÁTEIS UNIVERSAIS COM MOVIMENTO SPRING NO HOVER
    ========================================================================== */
 
-/* Cartão com Acabamento Mate + Elevação Física Spring ao passar o mouse */
+/* Cartão com Acabamento Tátil + Luz Zenital Radial + 3 Camadas Físicas */
 .card-matte {
-  background: var(--bg-card);
+  background-color: var(--bg-card);
+  background-image: var(--light-zenith);
   border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg, 18px);
   isolation: isolate;
-  box-shadow: 
-    0 1px 2px 0 rgba(0, 0, 0, 0.16),
-    0 2px 6px 0 rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-elevation-2);
   transition:
-    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.22s ease,
-    background-color 0.22s ease;
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 :root .card-matte:hover {
   transform: translateY(-2px);
-  background: var(--bg-card-hover);
+  background-color: var(--bg-card-hover);
+  background-image: var(--light-zenith-hover);
   border-color: var(--border-hover);
-  box-shadow: 
-    0 2px 6px 0 rgba(0, 0, 0, 0.22),
-    0 8px 16px -2px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-elevation-3);
 }
 
 [data-theme="light"] .card-matte {
-  background: #f4f5f7 !important;
-  border: 1px solid rgba(30, 41, 59, 0.12) !important;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06) !important;
+  background-color: var(--bg-card) !important;
+  background-image: var(--light-zenith) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow-elevation-2) !important;
 }
 
 [data-theme="light"] .card-matte:hover {
   transform: translateY(-2px);
-  border-color: rgba(2, 132, 199, 0.45) !important;
-  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08) !important;
+  background-image: var(--light-zenith-hover) !important;
+  border-color: var(--border-hover) !important;
+  box-shadow: var(--shadow-elevation-3) !important;
 }
 
 /* Card Ativo / Selecionado com Elevação Spring */
 .card-matte-active {
-  background: var(--bg-surface-2);
-  border: 1px solid rgba(53, 172, 216, 0.55);
-  border-radius: 1rem;
+  background-color: var(--bg-surface-2);
+  background-image: var(--light-zenith-hover);
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  border-radius: var(--radius-lg, 18px);
   isolation: isolate;
-  box-shadow: 
-    0 0 0 1px rgba(53, 172, 216, 0.28),
-    0 2px 6px rgba(0, 0, 0, 0.22);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 22%, transparent),
+    var(--shadow-elevation-2);
   transition:
-    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.22s ease;
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease;
 }
 
 .card-matte-active:hover {
   transform: translateY(-2px);
-  box-shadow: 
-    0 0 0 1px rgba(53, 172, 216, 0.42),
-    0 4px 12px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 36%, transparent),
+    var(--shadow-elevation-3);
 }
 
 [data-theme="light"] .card-matte-active {
-  background: #f4f5f7 !important;
-  border: 1px solid #0284c7 !important;
-  box-shadow: 
-    0 0 0 1px rgba(2, 132, 199, 0.35),
-    0 1px 3px rgba(15, 23, 42, 0.06) !important;
+  background-color: var(--bg-card) !important;
+  background-image: var(--light-zenith-hover) !important;
+  border: 1px solid var(--accent-primary) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent-primary) 26%, transparent),
+    var(--shadow-elevation-2) !important;
 }
 
 [data-theme="light"] .card-matte-active:hover {
   transform: translateY(-2px);
-  box-shadow: 
-    0 0 0 1px rgba(2, 132, 199, 0.5),
-    0 4px 12px -2px rgba(15, 23, 42, 0.08) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent-primary) 42%, transparent),
+    var(--shadow-elevation-3) !important;
 }
 
-/* Cavidade Tátil / Input Sunken (Search, Textareas, Filters) */
+/* Cavidade Tátil / Input Sunken (Well Embutido) */
 .input-sunken {
   background: var(--bg-surface-inset);
-  border: 1px solid var(--border-tactile);
-  border-radius: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
   padding-block: 8px;
   padding-inline: 16px;
   color: var(--text-primary);
   outline: none;
+  box-shadow: var(--shadow-inset);
   transition:
-    border-color 0.15s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.15s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.15s ease;
+    border-color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.16s ease;
 }
 
 :root .input-sunken {
-  box-shadow: 
-    inset 1px 1px 3px 0 rgba(0, 0, 0, 0.6),
-    inset -1px -1px 1px 0 rgba(255, 255, 255, 0.02);
+  box-shadow: var(--shadow-inset);
 }
 
 [data-theme="light"] .input-sunken {
-  background: #f1f5f9 !important;
-  border-color: #cbd5e1 !important;
-  color: #0f172a !important;
-  box-shadow: inset 1px 1px 3px rgba(15, 23, 42, 0.08) !important;
+  background: var(--bg-surface-inset) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-inset) !important;
 }
 
 .input-sunken:focus {
@@ -469,30 +470,33 @@ textarea:focus-visible:not(.dock-composer-textarea) {
   box-shadow: none !important;
 }
 
-/* Botão Secundário / Dark */
+/* Botão Secundário / Tactile Key (Estilo projetos-gcloud) */
 .btn-matte-dark {
-  background: #3e3b44;
-  color: #F7F6F9;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  background-color: var(--surface-contrast);
+  background-image: var(--light-key);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-elevation-1);
 }
 
 .btn-matte-dark:hover {
-  background: #635f6a;
-  color: #FFFFFF;
+  background-color: var(--surface-raised);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
 }
 
 [data-theme="light"] .btn-matte-dark {
-  background: #ffffff !important;
-  color: #18181B !important;
-  border: 1px solid #cbd5e1 !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+  background-color: var(--surface-raised) !important;
+  background-image: var(--light-key) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow-elevation-1) !important;
 }
 
 [data-theme="light"] .btn-matte-dark:hover {
-  background: #f1f5f9 !important;
-  color: #09090B !important;
-  border-color: #94a3b8 !important;
+  background-color: oklch(0.99 0.003 250) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-hover) !important;
 }
 
 /* Botão Âmbar Mineral */

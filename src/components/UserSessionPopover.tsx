@@ -22,6 +22,7 @@ import {
   signOutGoogle,
   subscribeAuthChanges,
 } from '../services/authService';
+import { fetchHealthSummary } from '../services/apiClient';
 import { persistBrowserState, readBrowserState } from '../services/polyglotClient';
 import { GoogleIcon } from './GoogleIcon';
 
@@ -77,20 +78,15 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     let active = true;
-    fetch('/api/health')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: Partial<HealthSummary> | null) => {
-        if (!active || !data) return;
-        setHealth({
-          status: data.status || 'online',
-          modelTts: data.modelTts || 'gemini-3.8-flash-tts',
-          storage: data.storage || 'firestore',
-          geminiKeyConfigured: data.geminiKeyConfigured !== false,
-        });
-      })
-      .catch(() => {
-        // mantém resumo padrão
+    void fetchHealthSummary().then((data) => {
+      if (!active || !data) return;
+      setHealth({
+        status: data.status || 'online',
+        modelTts: data.modelTts || 'gemini-3.8-flash-tts',
+        storage: data.storage || 'firestore',
+        geminiKeyConfigured: data.geminiKeyConfigured !== false,
       });
+    });
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -144,12 +140,12 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
         <div
           role="dialog"
           aria-label="Preferências de Conta, Sincronização e Temas"
-          className={`fixed lg:absolute bottom-16 z-50 w-72 rounded-2xl card-matte p-3.5 shadow-2xl border border-slate-700/80 space-y-3 ${
+          className={`fixed lg:absolute bottom-16 z-50 w-72 rounded-2xl card-matte p-3.5 shadow-2xl border border-[var(--border-subtle)] space-y-3 ${
             isCollapsed ? 'left-3 lg:left-[74px] lg:bottom-2' : 'left-3 right-3 lg:left-0 lg:bottom-16'
           }`}
         >
           {/* 1. Cabeçalho da Conta & Status Cloud southamerica-east1 */}
-          <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800/80">
+          <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-[var(--border-subtle)]">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-extrabold text-primary font-display truncate">
@@ -387,7 +383,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
               </div>
             )}
             <span
-              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ${
+              className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--surface-flat)] ${
                 session.isGoogleAuthenticated ? 'bg-emerald-400' : 'bg-amber-400'
               }`}
             />

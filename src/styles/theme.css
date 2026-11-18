@@ -1,69 +1,78 @@
 /* ==========================================================================
-   CATÁLOGO DE PRESETS TONAIS FOSCOS (v5.1 Soft UI Matte)
-   1. Escuro Fosco (obsidian: #1A1D24 / #21252E / #272C37) — Dark Matte
-   2. Claro Fosco (slate: #E6E9EE / #EEF0F4 / #F4F5F7) — Light Matte
+   CATÁLOGO DE PRESETS TONAIS OKLCH (Tactile Matte & Steadfast Stainless)
+   1. obsidian: Tactile Matte (#0A0C10 / #13161F / #191D29 / #06070A)
+   2. slate: Steadfast Stainless (#E4E9EF / #EEF2F6 / #F5F7FA / #D5DCE4)
    ========================================================================== */
 
 [data-preset="obsidian"] {
-  --surface-canvas: #1A1D24;
-  --surface-flat: #21252E;
-  --surface-raised: #272C37;
-  --surface-inset: #14171D;
-  --surface-contrast: #111419;
-  --accent-point: #35acd8;
-  --accent-sapphire: #0284C7;
-  --nav-shell-bg: #21252E;
-  --nav-shell-ink: #E8ECF2;
+  --surface-canvas: oklch(0.155 0.012 260);
+  --surface-flat: oklch(0.195 0.018 262);
+  --surface-raised: oklch(0.23 0.02 262);
+  --surface-inset: oklch(0.125 0.01 260);
+  --surface-contrast: oklch(0.258 0.022 262);
+  --accent-point: oklch(0.71 0.13 225);
+  --accent-sapphire: oklch(0.57 0.15 240);
+  --nav-shell-bg: var(--surface-inset);
+  --nav-shell-ink: var(--text-secondary);
   --canvas-dot-color: transparent;
 
-  --bg-canvas: #1A1D24 !important;
-  --bg-surface-0: #21252E !important;
-  --bg-surface-1: #21252E !important;
-  --bg-surface-2: #272C37 !important;
-  --bg-surface-inset: #14171D !important;
-  --bg-card: #272C37 !important;
-  --bg-card-hover: #2F3542 !important;
-  --accent-primary: #35acd8 !important;
-  --accent-primary-hover: #0284C7 !important;
+  --bg-canvas: var(--surface-canvas);
+  --bg-surface-0: var(--surface-flat);
+  --bg-surface-1: var(--surface-flat);
+  --bg-surface-2: var(--surface-raised);
+  --bg-surface-inset: var(--surface-inset);
+  --bg-card: var(--surface-flat);
+  --bg-card-hover: var(--surface-raised);
+  --accent-primary: var(--accent-point);
+  --accent-primary-hover: var(--accent-sapphire);
 }
 
 [data-preset="slate"] {
-  --surface-canvas: #E6E9EE;
-  --surface-flat: #EEF0F4;
-  --surface-raised: #F4F5F7;
-  --surface-inset: #DCE0E6;
-  --surface-contrast: #1B2028;
-  --accent-point: #0284C7;
-  --accent-sapphire: #1E6091;
-  --nav-shell-bg: #EEF0F4;
-  --nav-shell-ink: #1A2029;
+  --surface-canvas: oklch(0.93 0.01 250);
+  --surface-flat: oklch(0.955 0.006 250);
+  --surface-raised: oklch(0.975 0.005 250);
+  --surface-inset: oklch(0.89 0.012 250);
+  --surface-contrast: oklch(0.19 0.02 255);
+  --accent-point: oklch(0.57 0.15 240);
+  --accent-sapphire: oklch(0.46 0.11 242);
+  --nav-shell-bg: var(--surface-inset);
+  --nav-shell-ink: var(--text-secondary);
   --canvas-dot-color: transparent;
 
-  --bg-canvas: #E6E9EE !important;
-  --bg-surface-0: #F4F5F7 !important;
-  --bg-surface-1: #F4F5F7 !important;
-  --bg-surface-2: #EEF0F4 !important;
-  --bg-surface-inset: #DCE0E6 !important;
-  --bg-card: #F4F5F7 !important;
-  --bg-card-hover: #EEF0F4 !important;
-  --accent-primary: #0284C7 !important;
-  --accent-primary-hover: #1E6091 !important;
+  --bg-canvas: var(--surface-canvas);
+  --bg-surface-0: var(--surface-raised);
+  --bg-surface-1: var(--surface-raised);
+  --bg-surface-2: var(--surface-flat);
+  --bg-surface-inset: var(--surface-inset);
+  --bg-card: var(--surface-raised);
+  --bg-card-hover: oklch(0.99 0.003 250);
+  --accent-primary: var(--accent-point);
+  --accent-primary-hover: var(--accent-sapphire);
 }
 
-/* Superfície Fosca Limpa (Sem ruído pontilhado) */
+/* Superfície Tátil Limpa com Luz Zenital Sutil */
 .canvas-dot-grid,
-body,
+body {
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(80% 45% at 50% 0%, oklch(1 0 0 / 0.035) 0%, transparent 100%);
+}
+
+[data-theme="light"] .canvas-dot-grid,
+[data-theme="light"] body {
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(80% 45% at 50% 0%, oklch(1 0 0 / 0.45) 0%, transparent 100%);
+}
+
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-950,
 [data-theme="light"] .bg-slate-950 {
   background-color: var(--bg-canvas) !important;
-  background-image: none !important;
 }
 
-/* Aplicação das superfícies modo escuro fosco obsidian (#1A1D24 / #21252E / #272C37) */
+/* Mapeamento refinado de containers para o tema Tactile Matte (obsidian) */
 [data-theme="dark"][data-preset="obsidian"] aside {
-  background-color: #21252E !important;
-  background-image: none !important;
-  border-color: rgba(148, 163, 184, 0.14) !important;
+  background-color: var(--surface-flat) !important;
+  background-image: var(--light-zenith) !important;
+  border-color: var(--border-subtle) !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-900,
@@ -71,20 +80,17 @@ body,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/80,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/70,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-900\/60 {
-  background-color: #21252E !important;
-  background-image: none !important;
+  background-color: var(--surface-flat) !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/70,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/60,
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-950\/80 {
-  background-color: #14171D !important;
-  background-image: none !important;
+  background-color: var(--surface-inset) !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .bg-slate-800 {
-  background-color: #272C37 !important;
-  background-image: none !important;
+  background-color: var(--surface-raised) !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .border-slate-800,
@@ -92,63 +98,65 @@ body,
 [data-theme="dark"][data-preset="obsidian"] .border-slate-800\/70,
 [data-theme="dark"][data-preset="obsidian"] .border-slate-800\/60,
 [data-theme="dark"][data-preset="obsidian"] .border-slate-700 {
-  border-color: rgba(148, 163, 184, 0.14) !important;
+  border-color: var(--border-subtle) !important;
 }
 
-/* Nitidez tipográfica e contraste elevado no Escuro Fosco (#E8ECF2 / #9AA4B6) */
 [data-theme="dark"][data-preset="obsidian"] .text-slate-200,
 [data-theme="dark"][data-preset="obsidian"] .text-slate-300 {
-  color: #E8ECF2 !important;
+  color: var(--text-primary) !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .text-slate-400 {
-  color: #9AA4B6 !important;
+  color: var(--text-secondary) !important;
 }
 
 [data-theme="dark"][data-preset="obsidian"] .text-slate-500 {
-  color: #717D91 !important;
+  color: var(--text-muted) !important;
 }
 
-/* Pílula de Navegação Fosca */
+/* Cavidade Segmentada (Segmented Well — estilo projetos-gcloud) */
 .pill-nav-shell {
   background-color: var(--nav-shell-bg);
   color: var(--nav-shell-ink);
   border-radius: 9999px;
   padding-block: 4px;
   padding-inline: 4px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
-}
-
-[data-theme="light"] .pill-nav-shell {
-  border-color: rgba(30, 41, 59, 0.12);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-inset);
 }
 
 .pill-nav-item {
   color: var(--nav-shell-ink) !important;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 9999px;
+  border: 1px solid transparent;
   transition:
-    background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-    color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    background-color 0.18s var(--ease-spring),
+    color 0.18s var(--ease-spring),
+    box-shadow 0.18s var(--ease-spring),
+    transform 0.18s var(--ease-spring);
+}
+
+.pill-nav-item:hover {
+  color: var(--text-primary) !important;
 }
 
 .pill-nav-item[data-active="true"] {
   background-color: var(--nav-active-bg) !important;
+  background-image: var(--light-key) !important;
   color: var(--nav-active-ink) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  font-weight: 600;
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-elevation-1);
 }
 
-/* Aplicação das superfícies do Claro Fosco (slate: papel-slate sem branco puro) */
+/* Superfícies Steadfast Stainless (slate) */
 [data-theme="light"][data-preset="slate"] .card-matte,
 [data-theme="light"][data-preset="slate"] aside,
 [data-theme="light"][data-preset="slate"] .bg-slate-900 {
-  background-color: #F4F5F7 !important;
-  background-image: none !important;
-  border-color: rgba(30, 41, 59, 0.12) !important;
+  background-color: var(--surface-raised) !important;
+  background-image: var(--light-zenith) !important;
+  border-color: var(--border-subtle) !important;
 }
 
 [data-theme="light"] .btn-matte-primary {

@@ -23,20 +23,20 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
   historyCount = 0,
 }) => {
   return (
-    <header className="px-2.5 sm:px-4 py-1.5 border-b border-slate-800/80 dock-matte !rounded-t-none !rounded-b-2xl flex flex-col gap-1.5 lg:hidden sticky top-0 z-30">
+    <header className="px-2.5 sm:px-4 py-1.5 border-b border-[var(--border-subtle)] dock-matte !rounded-t-none !rounded-b-2xl flex flex-col gap-1.5 lg:hidden sticky top-0 z-30">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <button
             type="button"
             onClick={onOpenMobileSidebar}
-            className="btn-compact-touch p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white cursor-pointer shrink-0"
+            className="btn-compact-touch p-2 rounded-xl btn-matte-dark text-secondary hover:text-primary cursor-pointer shrink-0"
             aria-label="Abrir menu de navegação"
           >
             <GoogleIcon name="menu" size={19} />
           </button>
-          <span className="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5 truncate">
+          <span className="font-extrabold text-sm tracking-tight text-primary flex items-center gap-1.5 truncate">
             <span>MyTTS</span>
-            <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+            <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-md surface-inset-pill border border-[var(--border-subtle)] text-amber-400 font-semibold tracking-wide">
               Studio
             </span>
           </span>
@@ -47,7 +47,7 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
             type="button"
             onClick={onOpenCommandPalette}
             aria-label="Abrir busca rápida e paleta de comandos"
-            className="btn-compact-touch p-2 sm:px-2.5 sm:py-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300 hover:text-white inline-flex items-center gap-1 cursor-pointer"
+            className="btn-compact-touch p-2 sm:px-2.5 sm:py-1 rounded-xl btn-matte-dark text-xs font-mono text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
             title="Abrir Paleta de Comandos (Ctrl+K)"
           >
             <GoogleIcon name="search" size={16} className="text-amber-400" />
@@ -58,12 +58,12 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
             type="button"
             onClick={onToggleHistorySidebar}
             aria-label="Abrir gaveta de histórico de sessões"
-            className="btn-compact-touch p-2 sm:px-2.5 sm:py-1 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300 hover:text-white inline-flex items-center gap-1 cursor-pointer"
+            className="btn-compact-touch p-2 sm:px-2.5 sm:py-1 rounded-xl btn-matte-dark text-xs font-mono text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
             title="Abrir Histórico & Sessões (Ctrl+H)"
           >
             <GoogleIcon name="history" size={16} className="text-amber-400" />
             {historyCount > 0 && (
-              <span className="text-[10px] font-mono text-amber-300 tabular-nums">
+              <span className="text-[10px] font-mono text-amber-400 tabular-nums">
                 {historyCount}
               </span>
             )}

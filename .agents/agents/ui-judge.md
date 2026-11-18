@@ -1,6 +1,6 @@
 ---
 name: ui-judge
-description: "Stage 3 Read-Only Actor-Critic Judge Subagent: audits WCAG 2.2 AA/AAA OKLab contrast (FNR < 0.001), 4-Pillar Readiness (>= 90), 6-Dimension UI/UX score (>= 85), 48x48px targets, :focus-visible, DOM==Tab order, anti-XSS, and 12-vector anti-AI-Slop, returning PASSED or REJECTED. Do NOT use for writing UI code."
+description: "Stage 3 Read-Only Actor-Critic Judge Subagent: audits WCAG 2.2 AA/AAA OKLab contrast (FNR < 0.001), 4-Pillar Readiness (>= 90), 6-Dim UI/UX (>= 85), isolated print/test checks, fail-closed UNVERIFIED scope gates, 48x48px targets, anti-XSS, and anti-AI-Slop, returning PASSED, REJECTED, or UNVERIFIED. Do NOT use for writing UI code."
 subagent: true
 mainAgent: false
 model: inherit
@@ -32,7 +32,7 @@ Run the unified composite gate with plugin-first fallback:
 Always pass `--wcag AAA` whenever clinical/EHR/PEP or `.sus-grid` targets (`clinical-minimalist-ui`) are evaluated.
 
 ## Operating Contract (<= 5 Active Rules)
-1. **Strict Read-Only Self-Refine Gatekeeping:** Never modify files; run `--composite --json`, and emit `PASSED` or `REJECTED` with `refinement_round` (`1..3`), unified `[file:line]` remediations for `ui-worker`, and `HITL_ESCALATION_REQUIRED` if round `3` still fails.
+1. **Strict Read-Only Fail-Closed Gatekeeping:** Never modify files; audit full `src/` root (emit `UNVERIFIED` if `truncated` or `scope_narrowed` to `styles/`), run `--composite --json`, and emit `PASSED`, `REJECTED`, or `UNVERIFIED` with `refinement_round` (`1..3`), exact `[file:line]` fixes, and `HITL_ESCALATION_REQUIRED` after round `3`.
 2. **Exact OKLab Polarity Contrast & Zero Neon/Pure-Black:** Enforce Björn Ottosson OKLab contrast across `:root` and every `[data-theme]` polarity block (`>= 4.5:1` AA, `>= 7.0:1` AAA/clinical, Dark elevation `well < canvas < card < card-lit`, zero `#000000`, `C <= 0.22`, semantic red `<= 0.24` within `15°..40°`, `color-mix(in oklab)`).
 3. **Strict 12-Vector Anti-AI-Slop Gate:** Reject blur blobs/bloops, confetti badges, dashed wireframes, layout-thrashing reflow transitions, amateur inline SVGs, emojis, or mixed icon packs.
 4. **Composite Multi-Pillar Thresholds:** Require `ui_judge_gatekeeper` `PASSED` (zero critical findings), `audit_tactile_ui.py` Readiness `>= 90`, `ui_ux_frontend_auditor.py` Score `>= 85`, static WAI-ARIA compliance, `DOM == Tab Order`, `divsoup <= 0.45`, `:focus-visible`, and `>= 44x44px` (`48x48px` touch) targets.

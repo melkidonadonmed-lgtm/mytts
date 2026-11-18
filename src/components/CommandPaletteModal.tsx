@@ -475,7 +475,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
               <span>Fechar</span>
             </span>
           </div>
-          <span className="font-mono text-amber-400 font-semibold">MyTTS Studio · Cinza Studio &amp; Ad Lucem</span>
+          <span className="font-mono text-amber-400 font-semibold">MyTTS Studio · Tactile Matte &amp; Steadfast Stainless</span>
         </div>
       </div>
     </div>

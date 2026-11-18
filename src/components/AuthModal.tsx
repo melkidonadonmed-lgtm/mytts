@@ -13,8 +13,34 @@ import {
   X,
 } from 'lucide-react';
 import type { GoogleUserSession } from '../types/polyglot';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+          }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              theme?: string;
+              size?: string;
+              text?: string;
+              shape?: string;
+              width?: number;
+            }
+          ) => void;
+        };
+      };
+    };
+  }
+}
 import {
   authenticateWithGoogleCredential,
+  fetchGoogleAuthConfig,
   getActiveSession,
   getRecentGoogleAccounts,
   removeRecentGoogleAccount,
@@ -100,13 +126,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (!isOpen) return;
     let active = true;
-    fetch('/api/auth/config')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { googleClientId?: string } | null) => {
-        if (!active || !data?.googleClientId) return;
-        setGoogleClientId(data.googleClientId);
-      })
-      .catch(() => {});
+    void fetchGoogleAuthConfig().then((data) => {
+      if (!active || !data?.googleClientId) return;
+      setGoogleClientId(data.googleClientId);
+    });
     return () => {
       active = false;
     };

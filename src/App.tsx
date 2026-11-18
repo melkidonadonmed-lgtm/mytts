@@ -639,7 +639,12 @@ export default function App() {
               window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
               mainCanvasRef.current?.focus({ preventScroll: true });
             })
-            .catch(() => {});
+            .catch((err: unknown) => {
+              console.debug(
+                '[Navigation] ViewTransition interrompida:',
+                err instanceof Error ? err.message : String(err)
+              );
+            });
         } else {
           setTimeout(() => {
             window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
@@ -766,7 +771,7 @@ export default function App() {
           '--right-sidebar-w': isRightHistoryOpen ? '320px' : '0px',
         } as React.CSSProperties
       }
-      className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200"
+      className="min-h-screen surface-canvas text-primary flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200"
     >
       {/* 1. Sidebar Esquerda Colapsável (280px <-> 68px Icon Rail Mode + Popover de Conta) */}
       <Sidebar
@@ -849,8 +854,8 @@ export default function App() {
                 title="Alternar Histórico & Linha do Tempo de Sessões (Ctrl + H)"
                 className={`px-2.5 py-1 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   isRightHistoryOpen
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                    : 'btn-matte-dark text-secondary hover:text-primary border-slate-800'
+                    ? 'card-matte-active text-amber-400 border-[var(--border-subtle)]'
+                    : 'btn-matte-dark text-secondary hover:text-primary border-[var(--border-subtle)]'
                 }`}
               >
                 <GoogleIcon
@@ -859,7 +864,7 @@ export default function App() {
                   className="text-amber-400"
                 />
                 <span>Histórico</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 tabular-nums">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded surface-inset-pill text-amber-400 tabular-nums">
                   {unifiedHistoryItems.length}
                 </span>
               </button>

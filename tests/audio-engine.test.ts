@@ -928,6 +928,37 @@ test('Suite 19: Área de Estudo Anki/Brainscape — Métricas de Baralho, Fila S
   );
 });
 
+// Suite 20: Validação Estrita de Fronteira Server-Side (validators.ts — Happy Path & Adversarial)
+import {
+  validateStrictPayload,
+  ROUTE_ALLOWED_KEYS,
+} from '../src/server/validators';
+
+test('Suite 20: Validadores Estritos de Fronteira REST — Rejeição Adversarial de Chaves Extras e Payloads Malformados', () => {
+  // 1. ARRANGE & ACT (Happy path)
+  const validTts = validateStrictPayload(
+    { text: 'Olá mundo', voiceId: 'Puck', speed: 1.0 },
+    ROUTE_ALLOWED_KEYS.synthesizeSpeech
+  );
+  // Adversarial: mass-assignment / unknown key injection
+  const injectedKey = validateStrictPayload(
+    { text: 'Olá mundo', __proto_pollute__: true, isAdmin: true },
+    ROUTE_ALLOWED_KEYS.synthesizeSpeech
+  );
+  // Adversarial: non-object body (array / primitive)
+  const arrayBody = validateStrictPayload(['invalid'], ROUTE_ALLOWED_KEYS.synthesizeSpeech);
+  const nullBody = validateStrictPayload(null, ROUTE_ALLOWED_KEYS.authGoogle);
+
+  // 2. ASSERT
+  assert.strictEqual(validTts.ok, true);
+  assert.strictEqual(injectedKey.ok, false);
+  if (!injectedKey.ok) {
+    assert.ok(injectedKey.error.includes('Campos não permitidos'));
+  }
+  assert.strictEqual(arrayBody.ok, false);
+  assert.strictEqual(nullBody.ok, false);
+});
+
 export async function runContractTests(): Promise<number> {
   let passed = 0;
   for (const t of contractTests) {

@@ -103,7 +103,12 @@ export function startLiveVoiceMonitor(options: LiveVoiceMonitorOptions): LiveVoi
         rafId = null;
       }
       if (audioCtx && audioCtx.state !== 'closed') {
-        audioCtx.close().catch(() => {});
+        audioCtx.close().catch((err: unknown) => {
+          console.debug(
+            '[LiveVoiceMonitor] Falha ao fechar AudioContext:',
+            err instanceof Error ? err.message : String(err)
+          );
+        });
       }
     },
   };

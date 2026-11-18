@@ -1,6 +1,6 @@
 # MyTTS Studio (Speechify & ElevenLabs Inspired)
 
-Estúdio de voz neural de altíssima fidelidade e usabilidade imediata baseado na **Gemini 3.1 Flash TTS Preview**, **Gemini 3.8 Flash** e **Gemini Live API**.
+Estúdio de voz neural de altíssima fidelidade e usabilidade imediata baseado na **Gemini 3.8 Flash TTS**, **Gemini 3.8 Flash** e **Gemini Live API**.
 
 ---
 
@@ -9,7 +9,7 @@ Estúdio de voz neural de altíssima fidelidade e usabilidade imediata baseado n
 1. **Leitor Neural Direto (Speechify / ElevenLabs Style)**:
    - Cole qualquer texto, ensaio ou artigo e ouça instantaneamente com vozes humanas expressivas.
    - **Director's Chair Prompting**: Controle dinâmico de tom, respiração e pausas naturais na fala.
-   - Tags prosódicas de 1 clique: `[deep breath]`, `[sighs]`, `[pause]`, `[laughs]`, `[whispers]`.
+   - Tags prosódicas de 1 clique: `<breath>`, `<sigh>`, `<short pause>`, `<laugh>`, `<whispers>` (42 tags canônicas).
    - Download direto do arquivo de áudio WAV (24kHz, 16-bit mono).
 2. **Ditado por Microfone & Transcrição Inteligente**:
    - Grave sua voz diretamente pelo microfone do navegador.
@@ -39,7 +39,7 @@ graph TD
     Client -->|POST /api/generate-script| Server
     Client -->|POST /api/synthesize-chunk| Server
     
-    Server -->|Director's Chair + Audio Tags| GeminiTTS[Gemini 3.1 Flash TTS Preview]
+    Server -->|Director's Chair + Audio Tags| GeminiTTS[Gemini 3.8 Flash TTS]
     Server -->|Multimodal LLM| GeminiFlash[Gemini 3.8 Flash]
     Server -->|Persistência Chunks| Firestore[Google Cloud Firestore]
     
@@ -91,7 +91,7 @@ O projeto conta com `Dockerfile` multi-stage otimizado para deploy em um comando
 ```powershell
 gcloud run deploy mytts `
   --source . `
-  --region us-central1 `
+  --region southamerica-east1 `
   --allow-unauthenticated `
   --project agent-md-506215 `
   --set-env-vars="GEMINI_API_KEY=SUA_CHAVE,GCP_PROJECT_ID=agent-md-506215"

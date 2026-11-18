@@ -1,6 +1,6 @@
 # Especificação de Design, Arquitetura e Navegabilidade (MyTTS Studio)
 
-Este documento estabelece o design system, a arquitetura de interfaces e o plano funcional e ergonômico do **MyTTS Studio**, alinhado ao contrato canônico [`DESIGN.md`](file:///c:/Users/melki/dev/repos/mytts/DESIGN.md) (`v8.0.0`) e às referências globais como **Speechify**, **ElevenLabs** e **Linear**, potencializado pelos modelos neurais **Gemini 3.1 Flash TTS Preview**, **Gemini 3.8 Flash** e **Web Audio API**.
+Este documento estabelece o design system, a arquitetura de interfaces e o plano funcional e ergonômico do **MyTTS Studio**, alinhado ao contrato canônico [`DESIGN.md`](file:///c:/Users/melki/dev/repos/mytts/DESIGN.md) e às referências globais como **Speechify**, **ElevenLabs** e **Linear**, potencializado pelos modelos neurais **`gemini-3.8-flash-tts`**, **`gemini-3.8-flash`** e **Web Audio API**.
 
 ---
 
@@ -19,37 +19,29 @@ A aplicação adota o padrão canônico de **Navegação em 3 Camadas (Sidebar L
 
 ```mermaid
 graph TD
-    A["Sidebar Persistente + Pílula Superior"] --> P["1. Chat Poliglota IA (EN / IT / JA + Live Mic)"]
-    A --> B["2. Estúdio de Voz (Solo & Conversa)"]
-    A --> D["3. Debate IA (Estúdio Dialético 2 Vozes)"]
-    A --> E["4. FastChunks (Treino Lexical de Idiomas)"]
-    A --> F["5. Vozes Neurais (Voice Library)"]
-    A --> G["Modal: Arquitetura & Governança"]
-    
+    A["Sidebar Persistente + Pílula Mobile"] --> P["1. Chat Poliglota (EN / IT / JA + Live Mic + YouTube)"]
+    A --> V["2. Configuração de Vozes (Catálogo, Leitura Solo & Debate 2x)"]
+    A --> E["3. FastChunks (Treino Lexical de Idiomas)"]
+    A --> S["4. Área de Estudo (Flashcards Anki/Brainscape + TTS)"]
+    A --> G["Popover Sessão / Modal Arquitetura & Ctrl+K"]
+
     P --> P1["Alinhamento Paralelo em 3 Colunas (EN · IT · JA)"]
-    P --> P2["Barra de Entrada Unificada + Anexo PDF/TXT/MD"]
-    P --> P3["Ditado Rápido + Atalho Direto Live Mic API"]
-    P --> P4["Controlador de Áudio Flutuante + Trilogia Sequencial"]
+    P --> P2["Barra de Entrada Unificada + Anexo PDF/TXT/MD + YouTube"]
+    P --> P3["Ditado Rápido + Live Mic + Trilogia Sequencial"]
 
-    B --> B1["Editor Focado (Colar / Upload PDF / MD / TXT / Ditado)"]
-    B --> B2["Alternância Ágil: Solo (1 Voz) vs Conversa (2 Vozes)"]
-    B --> B3["Micro-Pontuação de Auto-Prosódia (pt-BR)"]
-    B --> B4["Grade Tátil de Vozes Neurais com Preview 3s"]
-    
-    D --> D1["Ingestão de Artigo ou Ensaio"]
-    D --> D2["Roteirização Dramatúrgica Antagônica"]
-    D --> D3["Player Estéreo de Debate"]
-    
-    E --> E1["Seleção de Idioma (EN / IT / JA)"]
-    E --> E2["Treino por Shadowing Loop"]
-    E --> E3["Síntese Neural de Cada Bloco"]
+    V --> V1["Grade Tátil de Vozes Neurais com Preview 3s e Favoritas"]
+    V --> V2["Estúdio Solo (1 Voz) + Auto-Prosódia pt-BR"]
+    V --> V3["Estúdio de Debate & Diálogo (2 Vozes) + ScriptViewer"]
 
-    B --> H["Dock de Áudio Inferior (Thumb Zone)"]
-    D --> H
-    H --> H1["Scrubber & Preservação de Pitch"]
-    H --> H2["Trilhas Sonoras Procedurais (Lo-Fi, 432Hz, Cinemático, Tech)"]
-    H --> H3["Auto-Ducking Dinâmico (-8dB, -14dB, -20dB)"]
-    H --> H4["Exportação de Master WAV RIFF Estéreo"]
+    E --> E1["Seleção de Idioma (EN / IT / JA) e Envio para Flashcards"]
+    E --> E2["Treino por Shadowing Loop + Síntese Neural"]
+
+    S --> S1["Baralhos · Estudar · Criar & Gerenciar (Importador JSON/CSV/MD/HTML)"]
+
+    V --> H["Dock de Áudio Inferior (Thumb Zone)"]
+    H --> H1["Scrubber & Preservação de Pitch (preservesPitch)"]
+    H --> H2["Trilhas Sonoras Procedurais + Auto-Ducking (-8dB, -14dB, -20dB)"]
+    H --> H3["Exportação de Master WAV RIFF Estéreo"]
 ```
 
 ---
@@ -63,8 +55,8 @@ sequenceDiagram
     participant UI as Frontend (React 19 + Tailwind v4)
     participant Engine as AudioEngine (Web Audio API)
     participant Server as Backend Express (Node 22 / Cloud Run)
-    participant GeminiTTS as Gemini 3.1 Flash TTS
-    participant GeminiLLM as Gemini 3.8 Flash
+    participant GeminiTTS as gemini-3.8-flash-tts
+    participant GeminiLLM as gemini-3.8-flash
     
     User->>UI: Cola texto, sobe arquivo ou dita por voz (Live Mic)
     opt Ditado / Áudio do Microfone
@@ -91,22 +83,21 @@ sequenceDiagram
 
 | Módulo / Tela | Componentes de UI | Comportamento e Regra de Negócio | Estados de Interface |
 | :--- | :--- | :--- | :--- |
-| **Sidebar Lateral & Topbar** | Brand Logo, 5 Botões de Módulo (`polyglot`, `reader`, `debate`, `chunks`, `voices`), Seletor de 4 Temas Soft UI, Busca `Ctrl+K` | Alterna instantaneamente o canvas ativo via View Transitions API com `#sidebar-active-tracker` em `surface-inset` | Active (`aria-current="page"`), Inactive, Hover, Mobile Drawer |
-| **Chat Poliglota IA (Home #1)** | `PolyglotChatStudio.tsx`, `ParallelMessageBlock.tsx`, `LanguageColumnCard.tsx`, `AgentInputDock.tsx`, `FloatingCardAudioController.tsx` | Traduz e alinha frases em EN, IT e JA lado a lado; voz individual por card; clique em qualquer bloco (`<button>`) abre menu de áudio/flashcard; inclui Live Mic direto | Empty (chips de sugestão), Translating, Ready, Playing Single Card, Playing Trilogy (`EN -> IT -> JA`) |
-| **Estúdio de Voz (`StudioWorkspace`)** | Central Unificada (`StudioWorkspace.tsx`), Editor de Texto (`StudioTextEditor.tsx`), Seletor de Modo (Solo vs Conversa), Presets Prosódicos e Ditado Integrado | Permite entrada rápida por digitação, drag-and-drop de PDFs/TXTs/MDs ou ditado por voz, com persistência total entre trocas de modo | Empty (placeholder receptivo), Typing, Synthesizing (pulsing wave), Playing, Error |
-| **Grade de Vozes (`VoiceCardGrid`)** | Grid com 5 cards táticos (Puck, Kore, Fenrir, Aoede, Enceladus), Botão preview de 3s no card, Indicador de timbre e gênero | Permite audição imediata de cada voz; suporte a acessibilidade (`tabIndex={0}`, `role="radio"`) e revogação atômica de URLs | Idle, Previewing (spinner/onda no card), Selected |
-| **Dock de Áudio Inferior** | Botão Play/Pause (56px touch target), Scrubber de progresso, Seletor de velocidade (0.8x a 2.0x), Gaveta expansível (Voz & Trilha Sonora), Exportador Master WAV | Persistente no Estúdio de Voz e Debate; controla grafo multitrack (voz + trilha procedural + auto-ducking dinâmico) | Idle, Buffering, Playing (ondas sonoras reativas), Paused |
-| **Estúdio Dialético** | Visualizador de roteiro em cards alternados com avatares dos 2 oradores, Painel de configuração de intensidade de debate | Roteiriza embates filosóficos e práticos a partir de qualquer PDF/texto com diretrizes anti-clichê | Empty, Script Generating, Audio Synthesizing, Ready |
-| **FastChunks** | Grid de blocos coloquiais, Seletor de idioma tátil (EN, IT, JA), Modo Drill (Shadowing Loop), Síntese neural Gemini | Treino auditivo de frases com entonação nativa, repetição espaçada e persistência no Firestore | Loading Chunks, Card Idle, Drilling, Neural Synthesizing |
+| **Sidebar Lateral & Topbar** | Brand Logo, 4 Botões de Módulo (`polyglot`, `voices`, `chunks`, `study`), Popover `UserSessionPopover` (2 temas foscos OKLCH), Busca `Ctrl+K`, Histórico `Ctrl+H` | Alterna o canvas ativo (preservando `PolyglotChatStudio` montado via `hidden`) com `#sidebar-active-tracker` e rail recolhível (`Ctrl+B`) | Active (`aria-current="page"`), Inactive, Hover, Collapsed Rail (`68px`), Mobile Drawer |
+| **Chat Poliglota IA (Home #1)** | `PolyglotChatStudio.tsx`, `ParallelMessageBlock.tsx`, `LanguageColumnCard.tsx`, `AgentInputDock.tsx`, `FloatingCardAudioController.tsx` | Traduz e alinha frases em EN, IT e JA lado a lado; voz individual por card; clique em qualquer bloco (`<button>`) abre menu de áudio/flashcard; inclui Live Mic e YouTube | Empty (chips de sugestão), Translating, Ready, Playing Single Card, Playing Trilogy (`EN -> IT -> JA`) |
+| **Configuração de Vozes (`VoiceConfigWorkspace`)** | Sub-abas (`Catálogo & Favoritas`, `Leitura Solo · 1 Voz`, `Debate & Diálogo · 2 Vozes`), `VoiceCardGrid`, `StudioWorkspace`, `DebateConfigPanel`, `ScriptViewer` | Centraliza escolha de vozes com preview 3s, leitura solo e debate 2 vozes com geração por PDF/texto/YouTube | Idle, Previewing, Script Generating, Synthesizing, Playing, Error |
+| **FastChunks** | `FastChunkAudioApp.tsx`, Grid de blocos coloquiais, Seletor EN/IT/JA, Modo Drill (Shadowing Loop), Botão `+ Flashcard` | Treino auditivo de frases com entonação nativa, exportação direta para baralhos de estudo e persistência no Firestore/local | Loading Chunks, Card Idle, Drilling, Neural Synthesizing |
+| **Área de Estudo (`StudyArenaView`)** | `StudyDeckOverview.tsx`, `FlashcardCreatorPanel.tsx`, `FlashcardImporterModal.tsx` | Baralhos estilo Anki/Brainscape (`Baralhos`, `Estudar`, `Criar & Gerenciar`), importação JSON/CSV/MD/HTML e áudio TTS na voz ativa | Deck List, Studying Front/Back, Creating/Editing, Error |
+| **Dock de Áudio Inferior** | `BottomAudioDock.tsx` (Botão Play/Pause, Scrubber, velocidade com `preservesPitch`, Trilha Procedural, Exportador WAV) | Controla reprodução multitrack e exportação Master WAV RIFF | Idle, Buffering, Playing, Paused |
 
 ---
 
-## 5. Design System e Identidade Visual (`DESIGN.md` `v8.0.0`)
+## 5. Design System e Identidade Visual (`DESIGN.md`)
 
-### 5.1. Paleta de Cores e Tokens Semânticos (60-30-10 & OKLCH)
-- **Superfície Primária (`60% --surface-canvas`)**: `#57545d` (Cinza Studio Monolítico no modo padrão), `#F3F3F5` no tema claro editorial (*Ad Lucem*), `#F4F3EC` no tema *Moss* e `#070709` no tema *Obsidian (Terminal IBM)*.
-- **Superfícies Secundárias e Elevadas (`30% --surface-flat` / `--surface-raised` / `--surface-inset`)**: `#49464f` / `#635f6a` / `#3e3b44` no Studio Monolítico e `#FFFFFF` puro para cards no *Ad Lucem*, com iluminação direcional de 135° e `1px` de luz especular superior (`--rim-light`).
-- **Acento Focal (`10% --accent-point` & Energia Vocal)**: Cerulean Sapphire (`#35acd8` / `#0284C7` — zero azul cobalto) e Âmbar Mineral (`#D97706` / `amber-500`) para ações de síntese e reprodução.
+### 5.1. Paleta de Cores e Tokens Semânticos (OKLCH · `Tactile Matte` & `Steadfast Stainless`)
+- **Preset Escuro — `obsidian` (`Tactile Matte`)**: `--surface-canvas: oklch(0.155 0.012 260)`, `--surface-flat: oklch(0.195 0.018 262)`, `--surface-raised: oklch(0.23 0.02 262)`, `--surface-inset: oklch(0.125 0.01 260)` com iluminação zenital radial (`120%`) e borda hairline `oklch(1 0 0 / 0.055)`.
+- **Preset Claro — `slate` (`Steadfast Stainless`)**: `--surface-canvas: oklch(0.93 0.01 250)`, `--surface-flat: oklch(0.955 0.006 250)`, `--surface-raised: oklch(0.975 0.005 250)`, `--surface-inset: oklch(0.89 0.012 250)` com borda hairline `oklch(0.2 0.02 255 / 0.075)`.
+- **Acento Focal (`10% --accent-point` & Energia Vocal)**: Azul Ciano Técnico (`#35acd8` / `#0284C7` — zero azul cobalto) e Âmbar Mineral (`amber-500`) para ações de síntese e reprodução.
 - **Acento Semântico (`Voz & Sucesso`)**: `emerald-500` (`#059669`) para status online, cache `0ms` e Live Mic ativo.
 - **Tipografia**: `Outfit` para títulos e botões táteis (`--font-display`); `Inter` / `Plus Jakarta Sans` para leitura contínua (`max-inline-size: 65ch`); `JetBrains Mono` com `font-variant-numeric: tabular-nums` para durações, frequências e indicadores técnicos.
 
@@ -134,6 +125,9 @@ sequenceDiagram
 * `POST /api/chunks` — Criação manual de chunk personalizado.
 * `DELETE /api/chunks/:id` — Remoção de chunk do usuário.
 * `POST /api/translate-parallel-chunks` — Tradução paralela e alinhamento de chunks EN/IT/JA (Chat Poliglota).
+* `POST /api/live-agent-turn` — Turno de áudio Live Mic com resposta alinhada + chamadas de ferramentas (`create_study_flashcard`, `switch_studio_voice`).
+* `POST /api/agent-explore` e `GET /api/youtube/metadata` — Exploração de temas/vídeos do YouTube com grounding e extração de metadados.
+* `GET / POST / DELETE /api/flashcards` — Persistência de baralhos e flashcards por usuário (Firestore + fallback `.data/flashcards.json`).
 * `POST /api/generate-flashcard` — Geração de flashcard para exportação Anki/Notion.
 
 > **Salvaguardas de segurança ativas**: rate limiting (300 req/15min geral, 120 req/15min em endpoints de IA), payloads de 2 MB por padrão (25 MB em `/api/transcribe-audio`, 50 MB em `/api/mix-audio`), truncamento de textos para síntese (20k caracteres), sanitização do header `X-User-Id`, headers Helmet e 404 JSON estruturado para rotas de API desconhecidas.

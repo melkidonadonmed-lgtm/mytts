@@ -94,3 +94,24 @@ export async function requestMixAudio(payload: {
   return postJson('/api/mix-audio', payload);
 }
 
+export interface ApiHealthSummary {
+  status: string;
+  modelTts: string;
+  storage: string;
+  geminiKeyConfigured: boolean;
+}
+
+export async function fetchHealthSummary(): Promise<Partial<ApiHealthSummary> | null> {
+  try {
+    const resp = await fetch('/api/health');
+    if (!resp.ok) return null;
+    return (await resp.json()) as Partial<ApiHealthSummary>;
+  } catch (err: unknown) {
+    console.debug(
+      '[ApiClient] Falha ao consultar /api/health:',
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  }
+}
+

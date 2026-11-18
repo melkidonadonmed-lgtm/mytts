@@ -28,78 +28,86 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Pilha de 4+1 Camadas Tonais (Escuro Fosco: obsidian) */
-  --surface-canvas: #1A1D24;
-  --surface-inset: #14171D;
-  --surface-flat: #21252E;
-  --surface-raised: #272C37;
-  --surface-contrast: #111419;
+  /* Pilha de 4+1 Camadas Tonais OKLCH (Tactile Matte: #0A0C10 / #13161F / #191D29 / #06070A) */
+  --surface-canvas: oklch(0.155 0.012 260);
+  --surface-inset: oklch(0.125 0.01 260);
+  --surface-flat: oklch(0.195 0.018 262);
+  --surface-raised: oklch(0.23 0.02 262);
+  --surface-contrast: oklch(0.258 0.022 262);
 
   /* Camada 2: Tokens Semânticos Adaptativos (OKLCH + light-dark + color-mix + 60-30-10) */
   --bg-app: var(--surface-canvas);
   --bg-surface: var(--surface-flat);
-  --bg-card: var(--surface-raised);
+  --bg-card: var(--surface-flat);
   --surface-sunken: var(--surface-inset);
 
-  --ink-primary: light-dark(oklch(0.18 0.01 285), oklch(0.97 0.005 285));
-  --ink-secondary: light-dark(oklch(0.36 0.01 285), oklch(0.90 0.01 285));
-  --border-semantic: color-mix(in oklab, var(--ink-primary) 16%, transparent);
+  --ink-primary: light-dark(oklch(0.19 0.02 255), oklch(0.968 0.005 255));
+  --ink-secondary: light-dark(oklch(0.44 0.02 255), oklch(0.715 0.018 255));
+  --border-semantic: oklch(1 0 0 / 0.055);
   --border-subtle: var(--border-semantic);
 
-  --text-primary: #E8ECF2;
-  --text-secondary: #9AA4B6;
-  --text-muted: #717D91;
+  --text-primary: oklch(0.968 0.005 255);
+  --text-secondary: oklch(0.715 0.018 255);
+  --text-muted: oklch(0.515 0.018 255);
   --text-main: var(--text-primary);
 
-  /* Barra de Menu em Pílula Fosca */
-  --nav-shell-bg: #21252E;
-  --nav-shell-ink: #E8ECF2;
-  --nav-active-bg: #14171D;
-  --nav-active-ink: #E8ECF2;
+  /* Barra de Menu em Cavidade Segmentada (Segmented Well) */
+  --nav-shell-bg: var(--surface-inset);
+  --nav-shell-ink: var(--text-secondary);
+  --nav-active-bg: var(--surface-contrast);
+  --nav-active-ink: var(--text-primary);
 
   /* Destaque Focal Único — 60-30-10 & 98/2 Rule */
-  --accent-point: #35acd8;
-  --accent-sapphire: #0284C7;
-  --accent-soft-bg: rgba(53, 172, 216, 0.14);
+  --accent-point: oklch(0.71 0.13 225);
+  --accent-sapphire: oklch(0.57 0.15 240);
+  --accent-soft-bg: color-mix(in oklab, var(--accent-point) 14%, transparent);
   --brand-primary: var(--accent-point);
   --brand-accent: var(--primitive-amber-500);
-  --border-focus: var(--accent-point);
+  --border-focus: color-mix(in oklab, var(--accent-point) 65%, transparent);
 
-  /* Camada 3: Tokens de Componentes */
+  /* Camada 3: Tokens de Componentes & Iluminação Zenital (Tactile Matte) */
   --btn-primary-bg: var(--accent-point);
   --btn-primary-hover: color-mix(in oklab, var(--accent-point) 88%, black);
   --btn-primary-active: color-mix(in oklab, var(--accent-point) 78%, black);
-  --card-radius: var(--radius-lg);
+  --card-radius: 18px;
   --card-padding: var(--space-6);
 
-  /* Sombra Esculpida Fosca (Zero Brilho Especular Superior) */
-  --rim-light: rgba(148, 163, 184, 0.14);
-  --catch-light: 0 0 0 0 transparent;
-  --specular-rim: 0 0 0 0 transparent;
+  --light-zenith: radial-gradient(120% 90% at 50% 0%, oklch(1 0 0 / 0.065) 0%, oklch(1 0 0 / 0) 65%);
+  --light-zenith-hover: radial-gradient(120% 100% at 50% 0%, oklch(1 0 0 / 0.11) 0%, oklch(1 0 0 / 0) 70%);
+  --light-key: linear-gradient(180deg, oklch(1 0 0 / 0.09) 0%, oklch(1 0 0 / 0.01) 100%);
+  --rim-light: oklch(1 0 0 / 0.14);
+  --rim-light-strong: oklch(1 0 0 / 0.24);
+  --catch-light: inset 0 1px 0 0 var(--rim-light);
+  --specular-rim: var(--catch-light);
   --shadow-elevation-1:
-    0 1px 2px rgba(0, 0, 0, 0.18),
-    0 2px 6px rgba(0, 0, 0, 0.22);
+    0 1px 2px oklch(0.05 0.01 260 / 0.45),
+    0 4px 10px -2px oklch(0.05 0.01 260 / 0.55),
+    inset 0 1px 0 0 var(--rim-light);
   --shadow-elevation-2:
-    0 2px 6px rgba(0, 0, 0, 0.22),
-    0 8px 16px -2px rgba(0, 0, 0, 0.26);
+    0 2px 4px oklch(0.05 0.01 260 / 0.45),
+    0 12px 26px -4px oklch(0.05 0.01 260 / 0.68),
+    inset 0 1px 0 0 var(--rim-light);
   --shadow-elevation-3:
-    0 4px 12px rgba(0, 0, 0, 0.28),
-    0 12px 24px -4px rgba(0, 0, 0, 0.32);
+    0 6px 14px oklch(0.05 0.01 260 / 0.55),
+    0 24px 44px -6px oklch(0.05 0.01 260 / 0.85),
+    inset 0 1px 0 0 var(--rim-light-strong);
   --elevation-low: var(--shadow-elevation-1);
   --elevation-medium: var(--shadow-elevation-2);
   --elevation-high: var(--shadow-elevation-3);
   --shadow-card: var(--shadow-elevation-2);
   --shadow-float: var(--shadow-elevation-3);
   --shadow-inset:
-    inset 1px 1px 3px rgba(0, 0, 0, 0.35);
+    inset 0 2px 5px oklch(0 0 0 / 0.78),
+    inset 0 1px 2px oklch(0 0 0 / 0.6),
+    0 1px 0 oklch(1 0 0 / 0.05);
   --sunken-recess: var(--shadow-inset);
 
-  --soft-shadow-main: 0 2px 6px rgba(0, 0, 0, 0.22);
-  --soft-shadow-light: 0 0 0 0 transparent;
+  --soft-shadow-main: var(--shadow-elevation-1);
+  --soft-shadow-light: var(--catch-light);
   --soft-shadow-inset: var(--shadow-inset);
 
-  --radius-lg: 20px;
-  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-md: 12px;
   --radius-sm: 8px;
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
@@ -109,39 +117,56 @@
 }
 
 [data-theme="light"] {
-  /* Claro Fosco Editorial (slate: papel-slate sem branco puro) */
-  --surface-canvas: #E6E9EE;
-  --surface-inset: #DCE0E6;
-  --surface-flat: #EEF0F4;
-  --surface-raised: #F4F5F7;
-  --surface-contrast: #1B2028;
+  /* Claro Metálico Sofisticado (Steadfast Stainless: #E4E9EF / #EEF2F6 / #F5F7FA / #D5DCE4) */
+  --surface-canvas: oklch(0.93 0.01 250);
+  --surface-inset: oklch(0.89 0.012 250);
+  --surface-flat: oklch(0.955 0.006 250);
+  --surface-raised: oklch(0.975 0.005 250);
+  --surface-contrast: oklch(0.19 0.02 255);
 
-  --text-primary: #1A2029;
-  --text-secondary: #525E70;
-  --text-muted: #64748B;
+  --border-semantic: oklch(0.2 0.02 255 / 0.075);
+  --border-subtle: var(--border-semantic);
 
-  --nav-shell-bg: #EEF0F4;
-  --nav-shell-ink: #1A2029;
-  --nav-active-bg: #DCE0E6;
-  --nav-active-ink: #1A2029;
+  --text-primary: oklch(0.19 0.02 255);
+  --text-secondary: oklch(0.44 0.02 255);
+  --text-muted: oklch(0.60 0.02 255);
 
-  --accent-point: #0284C7;
-  --accent-sapphire: #1E6091;
-  --accent-soft-bg: rgba(2, 132, 199, 0.12);
+  --nav-shell-bg: var(--surface-inset);
+  --nav-shell-ink: var(--text-secondary);
+  --nav-active-bg: var(--surface-raised);
+  --nav-active-ink: var(--text-primary);
 
-  /* Sombra Esculpida Fosca (Claro Fosco) */
-  --rim-light: rgba(30, 41, 59, 0.12);
-  --shadow-card:
-    0 1px 3px rgba(15, 23, 42, 0.06),
-    0 4px 12px -2px rgba(15, 23, 42, 0.08);
-  --shadow-float:
-    0 2px 8px rgba(15, 23, 42, 0.08),
-    0 8px 20px -4px rgba(15, 23, 42, 0.1);
+  --accent-point: oklch(0.57 0.15 240);
+  --accent-sapphire: oklch(0.46 0.11 242);
+  --accent-soft-bg: color-mix(in oklab, var(--accent-point) 12%, transparent);
+
+  /* Iluminação Zenital 3 Camadas (Steadfast Stainless) */
+  --light-zenith: radial-gradient(120% 90% at 50% 0%, oklch(1 0 0 / 0.85) 0%, oklch(1 0 0 / 0) 65%);
+  --light-zenith-hover: radial-gradient(120% 100% at 50% 0%, oklch(1 0 0 / 1) 0%, oklch(1 0 0 / 0.2) 70%);
+  --light-key: linear-gradient(180deg, oklch(1 0 0 / 0.96) 0%, oklch(0.96 0.006 250) 100%);
+  --rim-light: oklch(1 0 0 / 0.95);
+  --rim-light-strong: oklch(1 0 0 / 1);
+  --shadow-elevation-1:
+    0 1px 3px oklch(0.2 0.02 255 / 0.05),
+    0 4px 10px -2px oklch(0.2 0.02 255 / 0.08),
+    inset 0 1px 0 0 var(--rim-light);
+  --shadow-elevation-2:
+    0 2px 5px oklch(0.2 0.02 255 / 0.05),
+    0 12px 24px -6px oklch(0.2 0.02 255 / 0.10),
+    inset 0 1px 0 0 var(--rim-light);
+  --shadow-elevation-3:
+    0 8px 18px oklch(0.2 0.02 255 / 0.08),
+    0 22px 40px -8px oklch(0.2 0.02 255 / 0.16),
+    inset 0 1px 0 0 var(--rim-light-strong);
+  --shadow-card: var(--shadow-elevation-2);
+  --shadow-float: var(--shadow-elevation-3);
   --shadow-inset:
-    inset 1px 1px 3px rgba(15, 23, 42, 0.06);
+    inset 0 2px 4px oklch(0.2 0.02 255 / 0.12),
+    inset 0 1px 2px oklch(0.2 0.02 255 / 0.08),
+    0 1px 0 oklch(1 0 0 / 0.8);
 
-  --soft-shadow-main: 0 1px 3px rgba(15, 23, 42, 0.06);
-  --soft-shadow-light: 0 0 0 0 transparent;
+  --soft-shadow-main: var(--shadow-elevation-1);
+  --soft-shadow-light: var(--catch-light);
   --soft-shadow-inset: var(--shadow-inset);
 }
 
@@ -212,16 +237,18 @@ a:active {
   clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 0 100%);
 }
 
-/* Card Bento Tátil sem Bordas Duras (Iluminação 135° + Isolation + @container) */
+/* Card Bento Tátil com Luz Zenital Radial + Isolation + @container */
 .ui-card-soft,
 .bento-card-soft {
-  background-color: var(--surface-raised);
+  background-color: var(--surface-flat);
+  background-image: var(--light-zenith);
   color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   padding-block: 24px;
   padding-inline: 24px;
-  transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
+  transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring), background-color 0.22s ease;
   position: relative;
   isolation: isolate;
   container-type: inline-size;
@@ -230,6 +257,8 @@ a:active {
 
 .ui-card-soft:hover,
 .bento-card-soft:hover {
+  background-color: var(--surface-raised);
+  background-image: var(--light-zenith-hover);
   transform: translateY(-2px);
   box-shadow: var(--shadow-float);
 }

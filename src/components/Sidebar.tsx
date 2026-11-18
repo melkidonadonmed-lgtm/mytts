@@ -61,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'voices',
       label: 'Configuração de Vozes',
-      badge: 'Estúdio & Vozes',
+      badge: 'Estúdio',
       iconName: 'record_voice_over',
       description: 'Catálogo, Leitura Solo & Debate 2x',
     },
@@ -77,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Área de Estudo',
       badge: flashcardCount > 0 ? `${flashcardCount} Cards` : 'Flashcards',
       iconName: 'school',
-      description: 'Importação rápida e repetição com TTS',
+      description: 'Importação e repetição com TTS',
     },
   ];
 
@@ -115,19 +115,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
         data-state="idle"
         data-collapsed={effectiveCollapsed ? 'true' : 'false'}
         aria-busy="false"
-        className={`fixed top-0 bottom-0 left-0 z-50 h-dvh max-h-dvh bg-slate-950 border-r border-slate-800 flex flex-col transition-[width,transform] duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)] lg:translate-x-0 w-[280px] ${
+        className={`fixed top-0 bottom-0 left-0 z-50 h-dvh max-h-dvh surface-flat border-r border-[var(--border-subtle)] flex flex-col transition-[width,transform] duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)] lg:translate-x-0 w-[280px] ${
           effectiveCollapsed ? 'lg:w-[68px]' : 'lg:w-[280px]'
-        } ${isOpenMobile ? 'translate-x-0' : '-translate-x-full'}`}
+        } ${
+          isOpenMobile
+            ? 'translate-x-0 visible pointer-events-auto'
+            : '-translate-x-full invisible pointer-events-none lg:visible lg:pointer-events-auto'
+        }`}
       >
         {/* Brand Header Compacto + Gatilho Rail Mode */}
         <div
-          className={`h-14 border-b border-slate-800 flex items-center shrink-0 ${
+          className={`h-14 border-b border-[var(--border-subtle)] flex items-center shrink-0 ${
             effectiveCollapsed ? 'px-2 justify-center' : 'px-3.5 justify-between'
           }`}
         >
           {!effectiveCollapsed && (
             <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
-              <div className="w-8 h-8 rounded-xl btn-matte-amber flex items-center justify-center text-white font-bold shadow-md shadow-amber-500/20 shrink-0">
+              <div className="w-8 h-8 rounded-xl btn-matte-amber flex items-center justify-center text-white font-bold shadow-sm shrink-0">
                 <GoogleIcon name="auto_awesome" size={18} filled className="text-white" />
               </div>
               <div className="min-w-0 overflow-hidden whitespace-nowrap">
@@ -135,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className="font-extrabold text-sm tracking-tight text-primary font-display">
                     MyTTS
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md surface-inset-pill border border-[var(--border-subtle)] text-amber-400 font-semibold tracking-wide">
                     Studio
                   </span>
                 </div>
@@ -160,10 +164,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? 'Expandir barra lateral (Ctrl + B)'
                   : 'Recolher barra lateral (Ctrl + B)'
               }
-              className={`rail-tooltip-host hidden lg:flex items-center justify-center rounded-xl text-secondary hover:text-primary hover:bg-slate-800/70 transition-colors cursor-pointer shrink-0 ${
+              className={`rail-tooltip-host hidden lg:flex items-center justify-center rounded-xl text-secondary hover:text-primary transition-colors cursor-pointer shrink-0 ${
                 effectiveCollapsed
-                  ? 'w-10 h-10 border border-slate-800 bg-slate-900/80'
-                  : 'p-1.5'
+                  ? 'w-10 h-10 btn-matte-dark'
+                  : 'p-1.5 hover:bg-white/[0.06]'
               }`}
             >
               <GoogleIcon
@@ -179,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={onToggleMobile}
-            className="btn-compact-touch p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-slate-900 lg:hidden cursor-pointer shrink-0"
+            className="btn-compact-touch p-1.5 rounded-lg text-secondary hover:text-primary lg:hidden cursor-pointer shrink-0"
             aria-label="Fechar navegação"
           >
             <GoogleIcon name="close" size={18} />
@@ -221,7 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                         isActive
                           ? 'btn-matte-amber text-white font-bold'
-                          : 'bg-slate-900/90 text-secondary border border-slate-800/80'
+                          : 'surface-inset text-secondary border border-[var(--border-subtle)]'
                       }`}
                     >
                       <GoogleIcon
@@ -255,15 +259,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={`btn-matte w-full flex items-start gap-2.5 p-2 rounded-xl text-left transition-colors overflow-hidden ${
                     isActive
                       ? 'card-matte-active'
-                      : 'text-secondary hover:text-primary hover:bg-slate-500/10 border border-transparent'
+                      : 'text-secondary hover:text-primary hover:bg-white/[0.04] border border-transparent'
                   }`}
                 >
                   <div
                     id={isActive ? 'sidebar-active-tracker' : undefined}
                     className={`mt-0.5 p-1.5 rounded-xl transition-colors shrink-0 ${
                       isActive
-                        ? 'surface-inset btn-matte-amber text-white font-bold shadow-md shadow-amber-900/20'
-                        : 'bg-slate-900 text-secondary border border-slate-800'
+                        ? 'btn-matte-amber text-white font-bold shadow-sm'
+                        : 'surface-inset text-secondary border border-[var(--border-subtle)]'
                     }`}
                   >
                     <GoogleIcon
@@ -283,10 +287,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {item.label}
                       </span>
                       <span
-                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors shrink-0 tabular-nums ${
+                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md border transition-colors shrink-0 tabular-nums ${
                           isActive
-                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30 font-bold'
-                            : 'bg-white/[0.04] text-secondary border-white/[0.08]'
+                            ? 'surface-inset-pill text-amber-400 border-[var(--border-subtle)] font-semibold'
+                            : 'surface-inset-pill text-secondary border-[var(--border-subtle)]'
                         }`}
                       >
                         {item.badge}
@@ -334,7 +338,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Rodapé Fixo: Card de Sessão + Popover de Conta e Preferências (Temas Desacoplados) */}
         <div
-          className={`border-t border-slate-800 shrink-0 ${
+          className={`border-t border-[var(--border-subtle)] shrink-0 ${
             effectiveCollapsed ? 'p-2 flex justify-center' : 'p-2.5'
           }`}
         >

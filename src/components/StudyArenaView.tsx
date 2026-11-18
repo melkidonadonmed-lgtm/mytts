@@ -193,7 +193,7 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
           </span>
         </div>
 
-        <nav role="tablist" aria-label="Navegação de Modos da Área de Estudo" className="flex items-center gap-2 border-b border-slate-800/80 pb-px">
+        <div role="tablist" aria-label="Navegação de Modos da Área de Estudo" className="flex items-center gap-2 border-b border-slate-800/80 pb-px">
           {[
             { id: 'decks' as const, label: 'Baralhos', icon: 'school' },
             { id: 'review' as const, label: 'Estudar', icon: 'auto_awesome' },
@@ -218,7 +218,7 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
               )}
             </button>
           ))}
-        </nav>
+        </div>
       </header>
 
       {studySubTab === 'decks' && (
