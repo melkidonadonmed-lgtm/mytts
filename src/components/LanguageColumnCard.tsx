@@ -167,7 +167,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
               }}
               disabled={isLoadingCard}
               title={isPlayingCard ? `Pausar ${languageTitle}` : `Ouvir ${languageTitle} com voz ${cardVoice}`}
-              className={`btn-compact-touch h-8 px-3.5 rounded-xl text-[11px] font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0 btn-anti-squish ${
+              className={`btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-3.5 rounded-xl text-[11px] font-bold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 btn-anti-squish ${
                 isPlayingCard
                   ? 'btn-matte-amber text-white shadow-sm'
                   : 'btn-matte-dark text-secondary hover:text-primary'

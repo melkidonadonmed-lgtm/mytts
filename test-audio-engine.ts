@@ -343,6 +343,7 @@ test('Suite 08: Exportador Multi-Formato de Interação Poliglota (Anki, MD, JSO
 });
 
 import { runContractTests } from './tests/audio-engine.test';
+import { runFlashcardOrganizerTests } from './tests/flashcard-organizer.test';
 
 async function runAllTests(): Promise<void> {
   console.log('[TEST] Iniciando Verificação Determinística de Engenharia de Áudio (mytts — Nível 4)...\n');
@@ -353,7 +354,8 @@ async function runAllTests(): Promise<void> {
     console.log(`  ✓ [PASS] ${t.name}`);
   }
   const contractPassed = await runContractTests();
-  const totalPassed = passed + contractPassed;
+  const organizerPassed = await runFlashcardOrganizerTests();
+  const totalPassed = passed + contractPassed + organizerPassed;
   console.log(`\n[PASS] ${totalPassed}/${totalPassed} suítes concluídas com 100% de conformidade Nível 4!`);
 }
 

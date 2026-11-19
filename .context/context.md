@@ -1,35 +1,42 @@
-# CONTEXT.md — Regras de Negócio, Fronteiras e Restrições do MyTTS Studio
+# CONTEXT.md — Business Rules, Boundaries, and Constraints (`mytts`)
 
-> Documento canônico de contexto. Detalhes arquiteturais em `AGENTS.md`, design system em `DESIGN.md` e `design/design.md`, estado de sessão em `.context/CURRENT_STATE.md`.
+> Canonical context document. Repository delta rules live in [`AGENTS.md`](../AGENTS.md), design tokens in [`DESIGN.md`](../DESIGN.md) and [`design/design.md`](../design/design.md), and session handoff notes in [`.context/CURRENT_STATE.md`](./CURRENT_STATE.md).
 
-## 1. Identidade e Propósito
-O **MyTTS Studio** é uma estação de trabalho de áudio neural (síntese TTS, debates dual-speaker, ditado inteligente, treino de idiomas FastChunks e Chat Poliglota) construída sobre os modelos Gemini (`gemini-3.8-flash-tts` + `gemini-3.8-flash`), com processamento de áudio Web Audio API no cliente e FFmpeg no backend.
+## 1. Identity and Purpose
+**MyTTS Studio** is a neural voice workstation (TTS synthesis, dual-speaker debates, smart dictation, FastChunks lexical training, Polyglot Chat, and SRS Flashcards) powered by active Gemini models (`gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts`, `gemini-3.8-flash`, `gemini-3.8-live`), client-side Web Audio API processing, and server-side FFmpeg audio mixing.
 
-## 2. Fronteiras do MVP Atual
-- Acesso **híbrido** (Google OAuth / Contas Google Salvas / Visitante Local): identidade de sessão via `authService.ts` (`UserSessionPopover` + `AuthModal` `<dialog closedby="any">`) e header `X-User-Id` (`[a-zA-Z0-9_-]{1,64}`, sanitizado no servidor).
-- Persistência dual por `userId` (`southamerica-east1`): Firestore (`fastchunks_chunks`, `mytts_conversations` e `mytts_flashcards`) com fallback local (`.data/chunks.json`, `.data/conversations.json` e `.data/flashcards.json`) + stores reativos locais (`flashcardDeckStorage.ts`, `sessionHistoryStorage.ts`).
-- 4 módulos principais em SPA (`Chat Poliglota` com persistência de sessão/Novo Chat em `conversationSessionState.ts`, `Configuração de Vozes` unificando Catálogo & Favoritas + Leitura Solo 1 Voz + Debate & Diálogo 2 Vozes em `VoiceConfigWorkspace.tsx`, `FastChunks`, e `Área de Estudo` estilo Anki/Brainscape em `StudyArenaView.tsx` com `StudyDeckOverview.tsx`, `FlashcardCreatorPanel.tsx` e `FlashcardImporterModal.tsx` multi-formato JSON/CSV/MD/HTML) + 2 temas foscos (`Escuro Fosco / obsidian` e `Claro Fosco / slate`) + Sidebar Esquerda Colapsável (`Icon Rail Mode` `280px` ↔ `68px`, `Ctrl+B`) + Gaveta Direita de Histórico (`HistorySidebar` `320px` ↔ `0px`, `Ctrl+H`) + modais (`Arquitetura`, `Paleta de Comandos Ctrl+K`).
+## 2. Current MVP Boundaries
+- **Hybrid Session Access** (Google OAuth / Saved Google Accounts / Local Guest): session identity managed by `authService.ts` (`UserSessionPopover` + `AuthModal` `<dialog closedby="any">`) and sanitized `X-User-Id` (`^[a-zA-Z0-9_-]{1,64}$`).
+- **Dual Persistence by `userId` (`southamerica-east1`):** Firestore (`fastchunks_chunks`, `mytts_conversations`, `mytts_flashcards`) with local JSON fallback (`.data/chunks.json`, `.data/conversations.json`, `.data/flashcards.json`) plus user-scoped reactive browser stores (`flashcardDeckStorage.ts`, `sessionHistoryStorage.ts`).
+- **4 Primary SPA Modules (`src/App.tsx`):**
+  1. `polyglot` (`PolyglotChatStudio.tsx` + `AgentInputDock.tsx` + `conversationSessionState.ts` + `FlashcardDeckDrawer.tsx`): parallel EN/IT/JA translation, per-card voices, Quick Dictation, Gemini Live Mic, Web/YouTube exploration, and language/date-organized flashcard saving.
+  2. `voices` (`VoiceConfigWorkspace.tsx` + `VoiceLibraryModal.tsx` + `StudioWorkspace.tsx` + `DebateConfigPanel.tsx` + `ScriptViewer.tsx` + `BottomAudioDock.tsx`): unified hub with neural voice catalog (`Puck`, `Kore`, `Aoede`, `Fenrir`, `Enceladus`), 1-voice Solo Reader (`0.8x`–`1.5x` with `preservesPitch`), and 2-voice Debate Studio with procedural soundtracks and 44.1 kHz WAV export.
+  3. `chunks` (`FastChunkAudioApp.tsx`): FastChunks lexical drill with Gemini generation, cached TTS pronunciation, and 1-click flashcard export honoring user separation preferences.
+  4. `study` (`StudyArenaView.tsx` + `StudyDeckOverview.tsx` + `FlashcardCreatorPanel.tsx` + `FlashcardCatalogManager.tsx` + `FlashcardImporterModal.tsx`): Anki/Brainscape-style SRS arena supporting single & trilingual (`EN · IT · JA`) AI flashcard generation, multi-format batch import (`JSON`, `CSV/TSV`, `Markdown`, `HTML`), timezone-safe calendar date bucketing (`createdDateKey` in `src/utils/flashcardOrganizer.ts`), deck organization modes (`custom`, `by_language`, `by_date`, `by_language_and_date`), and immutable `Object.groupBy`/`.toSorted()` catalog grouping.
+- **UI Themes & Chrome:** 2 matte themes (`obsidian` dark and `slate` light), collapsible left sidebar (`280px` <-> `68px`, `Ctrl+B`), right `HistorySidebar` (`320px` <-> `0px`, `Ctrl+H`), and global Command Palette (`Ctrl+K`).
 
-## 3. Restrições de Segurança (hard rules)
-- `GEMINI_API_KEY` via `.env` com failover automático para Vertex AI Application Default Credentials (`project: agent-md-506215, location: global`) quando a chave estiver ausente ou inativa (`401 ACCOUNT_STATE_INVALID`).
-- Rate limiting obrigatório em todos os endpoints de IA (120 req/15min/IP) e geral (300 req/15min/IP).
-- Payloads: máx. 2 MB por padrão; 25 MB em `/api/transcribe-audio`, `/api/extract-text` e `/api/live-agent-turn`; 50 MB apenas em `/api/mix-audio`.
-- Textos para síntese truncados em 20.000 caracteres (chunks/live em 2.000, agente explore em 3.000, turnos em 5.000).
-- Todo áudio retornado DEVE passar por `ensureWavContainer` (cabeçalho WAV RIFF canônico de 44 bytes).
-- FFmpeg somente via `execFile` (sem shell); parâmetros numéricos sempre clampados; arquivos temporários limpos em `finally`.
+## 3. Hard Security Constraints
+- `GEMINI_API_KEY` loaded solely from `.env`, with automatic Vertex AI ADC failover (`project: agent-md-506215`, `location: global`) on missing/invalid API keys (`401 ACCOUNT_STATE_INVALID`).
+- Mandatory IP rate limiting: 120 req/15min on AI endpoints (`aiLimiter`) and 300 req/15min on `/api` (`apiLimiter`).
+- Request body limits: `2mb` default; `25mb` on `/api/transcribe-audio`, `/api/extract-text`, and `/api/live-agent-turn`; `50mb` exclusively on `/api/mix-audio`.
+- Synthesis text caps (`capText`): `20,000` chars default (`5,000` on `/api/synthesize-turn`, `3,000` on `/api/agent-explore`, `2,000` on `/api/synthesize-chunk` and `/api/live-agent-turn`).
+- All returned audio MUST pass through `ensureWavContainer` (canonical 44-byte RIFF WAV header).
+- FFmpeg invoked strictly via `execFile` (never shell interpolation) with clamped numeric parameters and `finally` temp-file cleanup.
+- Strict payload allowlists (`validateStrictPayload` / `ROUTE_ALLOWED_KEYS`) on REST routes rejecting unknown keys (`400`) to block mass assignment.
 
-## 4. Limitações Conhecidas (aceitas nesta fase)
-- **Sem autenticação real**: o header `X-User-Id` é spoofável (IDOR mitigado apenas por sanitização). Autenticação Firebase Auth com ID token é o próximo passo planejado — exige mudança de UX e aprovação de design.
-- O modelo de dados `ChunkItem` não possui campo de idioma; o parâmetro `lang` dos adapters de storage é contrato reservado para uso futuro.
-- `count` de geração de chunks é clampado a 1–20 no servidor.
+## 4. Known Accepted Limitations
+- **No server-verified auth tokens yet:** `X-User-Id` is sanitized to prevent path/ID injection, but true Firebase Auth ID-token enforcement on every API call remains planned for a dedicated auth upgrade.
+- `ChunkItem` schema does not persist a language column yet; `lang` in `chunkStorage` remains a reserved contract parameter.
+- Server-side `count` in `/api/generate-chunks` is clamped to `1..20`.
 
-## 5. Convenções Inegociáveis de Código
-- TypeScript `strict` + `noUnusedLocals` + `noUnusedParameters` (verificados por `npm run lint`).
-- `catch` com `unknown` + narrowing `instanceof Error` — proibido `catch (e: any)`.
-- Design tokens: paleta **slate** (`slate-950` fundo, `slate-900` cards, `slate-800` bordas, `amber-400/500` destaque). Nunca reintroduzir escala zinc.
-- Fontes: Outfit (display/títulos via utility `font-display`), Inter/Plus Jakarta Sans (corpo), JetBrains Mono (métricas).
-- Todo botão interativo deve ser `<button>` semântico com handler real; proibido `onClick` vazio.
-- Ao alterar o motor de áudio, executar `npm test` (conformidade matemática de ganhos dB e cabeçalho WAV).
-- `package.json` mantém `@google/genai: "^2.4.0"` sincronizado com `package-lock.json` (`2.25.0`) para garantir `npm ci` determinístico sem erro `EALLOWREMOTE`.
-- `[2026-11-16]` Atualizados `vite` (`^8.3.8`), `@tailwindcss/vite` (`^4.3.5`), `tailwindcss` (`^4.3.5`), `tsx` (`^4.23.15`), `playwright` (`^1.65.1`), adicionado script `typecheck` e `overrides` de segurança (`body-parser`, `glob`, `google-gax`, `ip-address`, `minimatch`, `qs`, `rimraf`), zerando as 8 vulnerabilidades do `npm audit` (`found 0 vulnerabilities`) com `npm run typecheck` e `npm test` (`20/20` suítes PASS).
-
+## 5. Non-Negotiable Code Conventions & Changelog
+- TypeScript `strict` + `noUnusedLocals` + `noUnusedParameters` (`npm run lint`), target `"lib": ["ES2024", "DOM", "DOM.Iterable"]`.
+- `catch (err: unknown)` with `instanceof Error` narrowing — never `catch (e: any)`.
+- Semantic `<button type="button">` controls (never clickable `<div>`); slate + amber palette (`DESIGN.md`).
+- Calendar date keys (`YYYY-MM-DD`) MUST be computed via `toLocalCalendarDateKey` / `calendarDateKeyToEpochMs` in `src/utils/flashcardOrganizer.ts` (never UTC `.toISOString().slice(0, 10)` or `new Date("YYYY-MM-DD")`) to prevent timezone drift.
+- `[2026-11-16]` Upgraded `vite` (`^8.3.8`), `@tailwindcss/vite` (`^4.3.5`), `tailwindcss` (`^4.3.5`), `tsx` (`^4.23.15`), `playwright` (`^1.65.1`), added `typecheck` script and security overrides (`npm audit` 0 vulnerabilities).
+- `[2026-11-18]` Upgraded flashcard creation and language/date separation: added `src/utils/flashcardOrganizer.ts`, `src/components/study/FlashcardCatalogManager.tsx`, trilingual `POST /api/generate-flashcard` (`trilingual: true`), timezone-safe `createdDateKey` (`YYYY-MM-DD`), deck naming preference (`custom`, `by_language`, `by_date`, `by_language_and_date`), and expanded deterministic suite to `23/23` PASS (`npm run lint && npm test && npm run build`).
+- `[2026-11-18]` Audited and optimized SPA navigation & spatial organization (`/ui-frontend-analyst` + `modern-web-guidance` `breadcrumbs`/`tabs`): added `src/utils/navigationOrganizer.ts`, 2 functional sidebar groups with contextual sub-trees & `Ctrl+H` trigger (`Sidebar.tsx`), 3-level hierarchical breadcrumbs with empty-alt CSS dividers & `Alt+1..4` shortcuts (`App.tsx`, `globals.css`), roving-tabindex arrow-key `tablist` navigation (`VoiceConfigWorkspace.tsx`, `StudyArenaView.tsx`), mobile contextual sub-module strip (`MobileAppHeader.tsx`), 1440px Bento grid & bridge controls in `FastChunkAudioApp.tsx`, Study deep-linking in `CommandPaletteModal.tsx`, and Suite 24 (`24/24` PASS).
+- `[2026-11-18]` Completed EGM Design Review remediation (`/agent-0meia` `TRIGGER_2_TRIO_WAVE_DAG`): rewrote `DESIGN.md` (`v8.0.0` SSOT with YAML frontmatter, 2 presets `obsidian`/`slate`, OKLCH tokens, `@container`, Top-Layer `<dialog>`, LVHA, 5-state FSM, Addenda H & I); pruned dead CSS/tokens (`globals.css`, `index.css`, `tokens.ts`), replaced light-mode `#ffffff !important` background overrides with `--surface-raised`/`--surface-flat`; added shared `src/utils/nativeDialog.ts` and converted `CommandPaletteModal`/`ArchitectureModal`/`AuthModal` to `<dialog>.showModal()` with `closedby="any"` and rect pointer fallback; replaced clickable `<div>`/`<span>` and Unicode glyphs in `VoiceCardGrid` and `BottomAudioDock` with sibling `<button type="button">` triggers and dynamic `--left-sidebar-w`/`--right-sidebar-w` offsets; hardened Blob URL revocation (`FastChunkAudioApp`, `VoiceCardGrid`), image dimensions/fallbacks, touch targets (`AgentInputDock`), `arrow_back` vector icon (`GoogleIcon`), theme storage sync (`App.tsx`), and updated Suite 13 + Suite 25 static design audit.
+- `[2026-11-18]` Remediated remaining Fitts touch-target (`>= 40px`), pure-black (`OPTICS-NO-BLACK`), and dashed-wireframe (`ANTI-SLOP-WIREFRAME`) defects across `AgentInputDock.tsx`, `BottomAudioDock.tsx`, `DebateConfigPanel.tsx`, `FloatingCardAudioController.tsx`, `LanguageColumnCard.tsx`, `ParallelMessageBlock.tsx`, `PolyglotChatStudio.tsx`, `UserSessionPopover.tsx`, `FlashcardDeckDrawer.tsx`, `DocumentInputSection.tsx`, `FlashcardCatalogManager.tsx`, and standardized `ExportInteractionModal.tsx` + `FlashcardImporterModal.tsx` on `useNativeDialog` (`DESIGN.md` & `Suite 25` expanded, `25/25` PASS, `tsc --noEmit` & `vite build` exit 0, scanner 0 target/black/dashed hits); verified live on `http://localhost:3002` via Playwright MCP (`Desktop 1440x900` + `Mobile 390x844`, `obsidian`/`slate` themes, all 5 modules, 5 `<dialog>` modals, sidebar/history layout dynamics, `scrollWidth === clientWidth`, 0 console errors/warnings, 10/10 API calls `200 OK`).
+- `[2026-11-18]` Applied final mobile/sidebar/a11y polish from Playwright audit: deduplicated mobile `< 1024px` sub-tab bars (`VoiceConfigWorkspace`, `StudyArenaView`), enforced `>= 40px` mobile header action buttons & clean single `aria-label` pills (`MobileAppHeader`), prevented truncation on `Sidebar` ("Configuração de Vozes") & `UserSessionPopover` ("Steadfast Stainless"), removed duplicate `+` text prefixes and bumped action heights to `40px` (`StudyDeckOverview`), and added `inert` isolation to hidden `PolyglotChatStudio` container (`App.tsx`).

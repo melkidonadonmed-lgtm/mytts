@@ -1,4 +1,5 @@
 import type { FlashcardItem } from '../types/polyglot';
+import { toLocalCalendarDateKey } from './flashcardOrganizer';
 
 /**
  * Converte uma lista de flashcards para formato CSV estruturado e sanitizado,
@@ -13,6 +14,8 @@ export function formatFlashcardsToCsv(cards: FlashcardItem[]): string {
     'Exemplo',
     'Tradução do Exemplo',
     'Idioma',
+    'Baralho',
+    'Data de Criação',
   ];
 
   const escapeCsv = (str: string = ''): string => {
@@ -30,6 +33,8 @@ export function formatFlashcardsToCsv(cards: FlashcardItem[]): string {
       escapeCsv(card.example),
       escapeCsv(card.exampleTranslation),
       escapeCsv(card.language),
+      escapeCsv(card.deckName || 'Baralho Principal'),
+      escapeCsv(card.createdDateKey || toLocalCalendarDateKey(card.createdAt || Date.now())),
     ].join(';')
   );
 

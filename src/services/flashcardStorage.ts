@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { Firestore } from '@google-cloud/firestore';
 import type { FlashcardItem } from '../types/polyglot.ts';
+import { toLocalCalendarDateKey } from '../utils/flashcardOrganizer.ts';
 
 export interface FlashcardStorageAdapter {
   readonly mode: 'firestore' | 'local';
@@ -30,6 +31,15 @@ function sanitizeFlashcardItem(raw: Partial<FlashcardItem>, fallbackIndex = 0): 
       ? (raw.status as FlashcardItem['status'])
       : 'new';
 
+  const createdAt =
+    typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt)
+      ? raw.createdAt
+      : Date.now();
+  const rawDateKey = typeof raw.createdDateKey === 'string' ? raw.createdDateKey.trim() : '';
+  const createdDateKey = /^\d{4}-\d{2}-\d{2}$/.test(rawDateKey)
+    ? rawDateKey
+    : toLocalCalendarDateKey(createdAt);
+
   return {
     id: String(raw.id || `fc_${Date.now()}_${fallbackIndex}`).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80),
     chunkText: String(raw.chunkText || front).trim().slice(0, 600),
@@ -40,7 +50,8 @@ function sanitizeFlashcardItem(raw: Partial<FlashcardItem>, fallbackIndex = 0): 
     pronunciation: raw.pronunciation ? String(raw.pronunciation).trim().slice(0, 300) : undefined,
     example: String(raw.example || '').trim().slice(0, 600),
     exampleTranslation: String(raw.exampleTranslation || '').trim().slice(0, 600),
-    createdAt: typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
+    createdAt,
+    createdDateKey,
     deckName: raw.deckName ? String(raw.deckName).trim().slice(0, 80) : 'Baralho Principal',
     status,
     nextReviewAt: typeof raw.nextReviewAt === 'number' ? raw.nextReviewAt : undefined,

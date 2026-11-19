@@ -124,7 +124,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
           type="button"
           aria-label="Fechar gaveta de histórico"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/75 lg:hidden cursor-pointer"
+          className="fixed inset-0 z-40 bg-slate-950/80 lg:hidden cursor-pointer"
         />
       )}
 

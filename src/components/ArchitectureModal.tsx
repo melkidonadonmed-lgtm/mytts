@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Layers,
   Cpu,
@@ -8,6 +8,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { EXTERNAL_LINKS } from '../config/constants';
+import { useNativeDialog } from '../utils/nativeDialog';
 import { BentoGridShell } from './layout/BentoGridShell';
 import { BentoStudioCard } from './bento/BentoStudioCard';
 
@@ -17,6 +18,9 @@ interface ArchitectureModalProps {
 
 export const ArchitectureModal: React.FC<ArchitectureModalProps> = ({ onClose }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useNativeDialog(dialogRef, true, onClose);
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text).catch((e) => console.warn('Clipboard indisponível:', e));
@@ -86,22 +90,34 @@ LEIS INVIOLÁVEIS:
    - Cada fala deve soar como fala humana real improvisada em estúdio.`;
 
   return (
-    <div data-state={copiedKey ? 'pressed' : 'idle'} aria-busy="false" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col gap-6 my-8 max-h-[90vh] overflow-y-auto">
+    <dialog
+      ref={dialogRef}
+      {...({ closedby: 'any' } as Record<string, string>)}
+      aria-labelledby="architecture-modal-title"
+      className="m-auto w-[calc(100%-2rem)] max-w-4xl max-h-[90vh] rounded-2xl card-matte p-0 text-primary shadow-2xl border border-slate-800 backdrop:bg-slate-950/85"
+    >
+      <div className="bg-slate-900 rounded-2xl w-full p-6 flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div>
-            <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <Layers className="w-5 h-5 text-amber-400" />
-              <span>Arquitetura Técnica & Contrato de Dados</span>
+            <h2 id="architecture-modal-title" className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+              <Layers className="w-5 h-5 text-amber-400" aria-hidden="true" />
+              <span>Arquitetura Técnica &amp; Contrato de Dados</span>
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               Especificação completa do pipeline de ingestão, roteirização dialética e síntese Web Audio.
             </p>
           </div>
           <button
-            onClick={onClose}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer"
+            type="button"
+            onClick={() => {
+              if (dialogRef.current?.open) {
+                dialogRef.current.close();
+              } else {
+                onClose();
+              }
+            }}
+            className="px-3.5 py-2 min-h-[40px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer"
           >
             Fechar
           </button>
@@ -110,7 +126,7 @@ LEIS INVIOLÁVEIS:
         {/* Section 1: End-to-End Pipeline Diagram via BentoGridShell + BentoStudioCard */}
         <div className="flex flex-col gap-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-            <Cpu className="w-4 h-4" />
+            <Cpu className="w-4 h-4" aria-hidden="true" />
             <span>01. Fluxo de Dados Ponta a Ponta</span>
           </h3>
           <BentoGridShell ariaLabel="Fluxo de Dados Ponta a Ponta">
@@ -126,7 +142,7 @@ LEIS INVIOLÁVEIS:
             </BentoStudioCard>
             <BentoStudioCard colSpan={6} title="Passo 3: Síntese Neural" badgeText="03 · 24kHz RIFF">
               <p className="text-xs text-slate-300">
-                Motor Gemini 3.1 Flash TTS com vozes nativas (Kore/Puck/Fenrir/Zephyr) gerando áudio WAV de 24kHz mono de 16-bit.
+                Motor Gemini 3.8 Flash TTS com vozes nativas (Puck/Kore/Aoede/Fenrir/Enceladus) gerando áudio WAV de 24kHz mono de 16-bit.
               </p>
             </BentoStudioCard>
             <BentoStudioCard colSpan={6} title="Passo 4: Web Audio Gapless" badgeText="04 · DUCKING">
@@ -141,14 +157,15 @@ LEIS INVIOLÁVEIS:
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-              <FileJson className="w-4 h-4" />
+              <FileJson className="w-4 h-4" aria-hidden="true" />
               <span>02. Contrato de Schema JSON do Roteiro</span>
             </h3>
             <button
+              type="button"
               onClick={() => copyToClipboard(schemaJson, 'schema')}
-              className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono"
+              className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono cursor-pointer"
             >
-              {copiedKey === 'schema' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedKey === 'schema' ? <Check className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" /> : <Copy className="w-3.5 h-3.5" aria-hidden="true" />}
               <span>{copiedKey === 'schema' ? 'Copiado!' : 'Copiar Schema'}</span>
             </button>
           </div>
@@ -161,14 +178,15 @@ LEIS INVIOLÁVEIS:
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-              <Terminal className="w-4 h-4" />
+              <Terminal className="w-4 h-4" aria-hidden="true" />
               <span>03. System Prompt do Roteirizador Dialético</span>
             </h3>
             <button
+              type="button"
               onClick={() => copyToClipboard(systemPromptMarkdown, 'prompt')}
-              className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono"
+              className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono cursor-pointer"
             >
-              {copiedKey === 'prompt' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedKey === 'prompt' ? <Check className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" /> : <Copy className="w-3.5 h-3.5" aria-hidden="true" />}
               <span>{copiedKey === 'prompt' ? 'Copiado!' : 'Copiar Prompt'}</span>
             </button>
           </div>
@@ -177,6 +195,6 @@ LEIS INVIOLÁVEIS:
           </pre>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

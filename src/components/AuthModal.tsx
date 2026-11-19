@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import type { GoogleUserSession } from '../types/polyglot';
+import { useNativeDialog } from '../utils/nativeDialog';
 
 declare global {
   interface Window {
@@ -75,53 +76,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     });
   }, []);
 
-  // Sincronização declarativa com <dialog>.showModal() e fallback light-dismiss por retângulo
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      if (!dialog.open) {
-        try {
-          dialog.showModal();
-        } catch {
-          dialog.setAttribute('open', '');
-        }
-      }
-    } else if (dialog.open) {
-      dialog.close();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const handleNativeClose = () => {
-      dialog.returnValue = '';
-      onClose();
-    };
-
-    const handleBackdropClick = (event: MouseEvent) => {
-      if (event.target !== dialog) return;
-      const rect = dialog.getBoundingClientRect();
-      const isDialogContent =
-        rect.top <= event.clientY &&
-        event.clientY <= rect.top + rect.height &&
-        rect.left <= event.clientX &&
-        event.clientX <= rect.left + rect.width;
-      if (!isDialogContent) {
-        dialog.close();
-      }
-    };
-
-    dialog.addEventListener('close', handleNativeClose);
-    dialog.addEventListener('click', handleBackdropClick);
-    return () => {
-      dialog.removeEventListener('close', handleNativeClose);
-      dialog.removeEventListener('click', handleBackdropClick);
-    };
-  }, [onClose]);
+  // Synchronize native <dialog>.showModal() with feature-detected closedby light-dismiss fallback
+  useNativeDialog(dialogRef, isOpen, onClose);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -222,7 +178,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       ref={dialogRef}
       {...({ closedby: 'any' } as Record<string, string>)}
       aria-labelledby="auth-modal-title"
-      className="m-auto w-full max-w-md rounded-3xl card-matte p-0 text-primary shadow-2xl border border-slate-700/80 bg-transparent backdrop:bg-black/75"
+      className="m-auto w-full max-w-md rounded-3xl card-matte p-0 text-primary shadow-2xl border border-slate-700/80 bg-transparent backdrop:bg-slate-950/80"
     >
       <div className="p-5 sm:p-6 flex flex-col gap-4">
         {/* Cabeçalho */}

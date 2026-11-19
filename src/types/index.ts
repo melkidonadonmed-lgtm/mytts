@@ -2,7 +2,7 @@ import React from 'react';
 
 export type TonalLayer = 0 | 1 | 2 | 3 | 4;
 
-export type ComponentFSMState = 'idle' | 'loading' | 'error' | 'pressed';
+export type ComponentFSMState = 'idle' | 'loading' | 'empty' | 'error' | 'pressed';
 
 export type SoftUIThemePreset = 'obsidian' | 'slate';
 

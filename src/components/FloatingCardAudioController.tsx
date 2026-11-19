@@ -86,7 +86,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
             type="button"
             onClick={onTogglePlay}
             disabled={isLoading}
-            className="btn-matte-amber h-9 px-3.5 rounded-full text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
+            className="btn-matte-amber h-10 min-h-[40px] px-3.5 rounded-full text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
             title={
               isPlaying
                 ? 'Pausar reprodução'
@@ -121,7 +121,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                   type="button"
                   aria-pressed={isActive}
                   onClick={() => onSelectLanguage(lang)}
-                  className={`btn-compact-touch h-7 px-2.5 rounded-full text-[11px] font-bold inline-flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                  className={`btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-2.5 rounded-full text-[11px] font-bold inline-flex items-center justify-center gap-1 transition-all cursor-pointer ${
                     isActive
                       ? 'btn-matte-amber text-white shadow-xs'
                       : 'text-secondary hover:text-primary'
@@ -174,7 +174,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 onClick={onPlaySequence}
                 disabled={isLoading}
                 title="Tocar os 3 idiomas em sequência (EN → IT → JA)"
-                className={`btn-compact-touch h-8 px-2.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition-all ${
+                className={`btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-3 rounded-full text-[11px] font-semibold inline-flex items-center justify-center gap-1 cursor-pointer transition-all ${
                   isPlayingSequence
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 animate-pulse font-bold'
                     : 'btn-matte-dark text-secondary hover:text-primary'
@@ -194,7 +194,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               type="button"
               aria-expanded={isExpanded}
               onClick={() => setIsExpanded((prev) => !prev)}
-              className="btn-compact-touch h-8 px-2.5 rounded-full btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+              className="btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-3 rounded-full btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
               title={isExpanded ? 'Recolher para Linha Animada' : 'Expandir controles de Produtor'}
             >
               <GoogleIcon name={isExpanded ? 'expand_less' : 'tune'} size={15} className="text-amber-400" />
@@ -238,7 +238,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 type="button"
                 onClick={onReplay}
                 disabled={duration <= 0}
-                className="btn-matte-dark h-8 px-2.5 rounded-xl text-xs text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+                className="btn-matte-dark h-10 min-h-[40px] px-3 rounded-xl text-xs text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
                 title="Reiniciar áudio"
               >
                 <GoogleIcon name="replay" size={15} />
@@ -249,7 +249,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 <button
                   type="button"
                   onClick={onDownloadFocusedWav}
-                  className="btn-matte-dark h-8 px-2.5 rounded-xl text-xs text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+                  className="btn-matte-dark h-10 min-h-[40px] px-3 rounded-xl text-xs text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
                 >
                   <GoogleIcon name="graphic_eq" size={15} className="text-sky-400" />
                   <span>Baixar WAV</span>
@@ -260,7 +260,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
                 <button
                   type="button"
                   onClick={onOpenExport}
-                  className="btn-matte-dark h-8 px-3 rounded-xl text-xs text-amber-300 hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+                  className="btn-matte-dark h-10 min-h-[40px] px-3 rounded-xl text-xs text-amber-300 hover:text-primary inline-flex items-center gap-1 cursor-pointer"
                 >
                   <GoogleIcon name="download" size={15} className="text-amber-400" />
                   <span>Exportar (CSV / MD / WAV)</span>

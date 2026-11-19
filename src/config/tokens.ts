@@ -17,7 +17,7 @@ export interface DesignTokenPalette {
   accentEmerald: string;
 }
 
-export const DESIGN_SYSTEM_VERSION = '4.5-soft' as const;
+export const DESIGN_SYSTEM_VERSION = '8.0.0' as const;
 
 export const SOFT_UI_PRESETS: Record<SoftUIThemePreset, DesignTokenPalette> = {
   obsidian: {
@@ -57,7 +57,7 @@ export const TONAL_LAYER_CLASSES: Record<TonalLayer, string> = {
   1: 'surface-inset',
   2: 'surface-flat',
   3: 'ui-card-soft',
-  4: 'surface-contrast terrixa-notched',
+  4: 'surface-contrast',
 };
 
 export function normalizeThemePreset(raw: string | null | undefined): SoftUIThemePreset {
@@ -76,11 +76,11 @@ export function resolvePresetTokens(preset?: string | null): DesignTokenPalette 
 
 export function getBentoSpanClass(colSpan: 3 | 4 | 6 | 8 | 12 = 4): string {
   const spanMap: Record<3 | 4 | 6 | 8 | 12, string> = {
-    3: 'col-span-3',
-    4: 'col-span-4',
-    6: 'col-span-6',
-    8: 'col-span-8',
-    12: 'col-span-12',
+    3: 'col-span-1 md:col-span-3',
+    4: 'col-span-1 md:col-span-4',
+    6: 'col-span-1 md:col-span-6',
+    8: 'col-span-1 md:col-span-8',
+    12: 'col-span-1 md:col-span-12',
   };
   return spanMap[colSpan];
 }

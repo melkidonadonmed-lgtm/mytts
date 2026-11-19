@@ -27,6 +27,10 @@ Estúdio de voz neural de altíssima fidelidade e usabilidade imediata baseado n
 6. **Chat Poliglota Multimodal (EN / IT / JA)**:
    - Conversas paralelas em 3 idiomas com tradução alinhada de chunks e flashcards exportáveis (Anki/Notion via CSV).
    - Controlador de áudio flutuante com reprodução isolada por idioma e modo Trilogia Sequencial (EN → IT → JA).
+7. **Área de Estudo & Flashcards SRS por Língua e Data**:
+   - Criação manual, autocompletar via Gemini IA e geração em lote **Trio `EN · IT · JA`** a partir de uma única expressão (`POST /api/generate-flashcard`).
+   - Importação multi-formato (`JSON`, `CSV/TSV` Anki, `Markdown`, `HTML`) com definição de idioma padrão, data do lote e modo de separação.
+   - Visão geral, fila de revisão SRS, gaveta lateral e catálogo hierárquico (`src/utils/flashcardOrganizer.ts`, `src/components/study/FlashcardCatalogManager.tsx`) com separação e filtragem por **Língua (`EN`, `IT`, `JA`)** e **Data de Criação (`YYYY-MM-DD`, Hoje, Ontem, 7d, 30d, Data personalizada)** sem drift de fuso horário.
 
 ---
 
@@ -101,7 +105,8 @@ gcloud run deploy mytts `
 
 ## 📄 Documentação Adicional
 
-- [CONTEXT.md](./CONTEXT.md): Regras de negócio, fronteiras do MVP e restrições de segurança inegociáveis.
-- [GEMINI.md](./GEMINI.md): Especificação técnica central e diretrizes de engenharia de áudio.
-- [design/design.md](./design/design.md): Especificação arquitetural, fluxos de navegabilidade e design system.
+- [AGENTS.md](./AGENTS.md): Regras operacionais do repositório, mapa de módulos e comandos de verificação (`npm run lint`, `npm test`, `npm run build`).
+- [.context/context.md](./.context/context.md): Fronteiras de negócio, segurança, modelo de dados e changelog técnico.
+- [.context/spec.md](./.context/spec.md): Contratos funcionais da interface SPA e especificação dos endpoints REST (`/api/*`).
+- [DESIGN.md](./DESIGN.md) e [design/design.md](./design/design.md): Especificação arquitetural, fluxos de navegabilidade e design system (Dark/Light fosco).
 

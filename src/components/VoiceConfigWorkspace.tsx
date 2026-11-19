@@ -1,7 +1,7 @@
 /**
  * VoiceConfigWorkspace — Unifica Criação de Vozes, Biblioteca/Favoritas e Debate em "Configuração de Vozes".
  */
-import React from 'react';
+import React, { useRef } from 'react';
 import { VoiceProfile } from '../types/voices';
 import {
   ConversationFormat,
@@ -18,8 +18,9 @@ import { DocumentInputSection } from './DocumentInputSection';
 import { DebateConfigPanel } from './DebateConfigPanel';
 import { ScriptViewer } from './ScriptViewer';
 import { GoogleIcon } from './GoogleIcon';
+import { computeNextTablistIndex, type VoiceConfigSubTab } from '../utils/navigationOrganizer';
 
-export type VoiceConfigSubTab = 'catalog' | 'solo' | 'debate';
+export type { VoiceConfigSubTab };
 
 export interface VoiceConfigWorkspaceProps {
   activeSubTab: VoiceConfigSubTab;
@@ -91,10 +92,23 @@ export const VoiceConfigWorkspace: React.FC<VoiceConfigWorkspaceProps> = ({
   onUpdateTurnVoice,
   onOpenPolyglotTab,
 }) => {
+  const voiceTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const handleTabKeyDown = (idx: number, e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const nextIdx = computeNextTablistIndex(idx, SUB_TABS.length, e.key);
+    if (nextIdx === null) return;
+    e.preventDefault();
+    const nextTab = SUB_TABS[nextIdx];
+    onChangeSubTab(nextTab.id);
+    const targetBtn = voiceTabRefs.current[nextIdx];
+    targetBtn?.focus();
+    targetBtn?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  };
+
   return (
     <div className="flex-1 flex flex-col w-full min-w-0">
-      {/* Sub-header de Navegação Horizontal das Vozes */}
-      <div className="w-full border-b border-slate-800/80 bg-slate-950/40 sticky top-0 z-20">
+      {/* Sub-header de Navegação Horizontal das Vozes (Mobile já usa faixa contextual no MobileAppHeader) */}
+      <div className="hidden lg:block w-full border-b border-slate-800/80 bg-slate-950/40 sticky top-0 z-20">
         <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             {onOpenPolyglotTab && (
@@ -116,20 +130,27 @@ export const VoiceConfigWorkspace: React.FC<VoiceConfigWorkspaceProps> = ({
           <div
             role="tablist"
             aria-label="Sub-módulos de Configuração de Vozes"
-            className="flex items-center gap-1.5 p-1 rounded-2xl surface-inset border border-slate-800 overflow-x-auto no-scrollbar"
+            className="tabsOverflowContainer items-center p-1 rounded-2xl surface-inset border border-slate-800 no-scrollbar"
           >
-            {SUB_TABS.map((tab) => {
+            {SUB_TABS.map((tab, idx) => {
               const isActive = activeSubTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  ref={(el) => {
+                    voiceTabRefs.current[idx] = el;
+                  }}
                   type="button"
                   role="tab"
                   id={`tab-${tab.id}`}
+                  tabIndex={isActive ? 0 : -1}
                   aria-selected={isActive}
-                  aria-controls={`panel-${tab.id}`}
-                  onClick={() => onChangeSubTab(tab.id)}
-                  className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap shrink-0 border-b-2 ${
+                  onClick={() => {
+                    onChangeSubTab(tab.id);
+                    voiceTabRefs.current[idx]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                  }}
+                  onKeyDown={(e) => handleTabKeyDown(idx, e)}
+                  className={`min-h-[44px] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap shrink-0 border-b-2 ${
                     isActive
                       ? 'border-amber-400 bg-amber-500/15 text-amber-300 shadow-sm'
                       : 'border-transparent text-secondary hover:text-primary hover:bg-slate-800/40'

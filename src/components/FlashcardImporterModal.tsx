@@ -5,7 +5,9 @@ import {
   candidatesToFlashcardItems,
   type ParsedFlashcardCandidate,
 } from '../utils/flashcardParser';
-import type { FlashcardItem } from '../types/polyglot';
+import { toLocalCalendarDateKey } from '../utils/flashcardOrganizer';
+import { useNativeDialog } from '../utils/nativeDialog';
+import type { DeckNamingMode, FlashcardItem } from '../types/polyglot';
 
 interface FlashcardImporterModalProps {
   isOpen: boolean;
@@ -36,6 +38,8 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
 
   const [rawInput, setRawInput] = useState('');
   const [deckName, setDeckName] = useState('Baralho Poliglota');
+  const [deckMode, setDeckMode] = useState<DeckNamingMode>('custom');
+  const [customDateKey, setCustomDateKey] = useState<string>(() => toLocalCalendarDateKey(Date.now()));
   const [defaultLanguage, setDefaultLanguage] = useState<'EN' | 'IT' | 'JA'>('EN');
   const [detectedFormat, setDetectedFormat] = useState<string>('markdown');
   const [candidates, setCandidates] = useState<ParsedFlashcardCandidate[]>([]);
@@ -43,23 +47,8 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
-  // Sincroniza estado nativo do <dialog>
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      if (!dialog.open) {
-        try {
-          dialog.showModal();
-        } catch {
-          dialog.setAttribute('open', 'true');
-        }
-      }
-    } else if (dialog.open) {
-      dialog.close();
-    }
-  }, [isOpen]);
+  // Synchronize native <dialog>.showModal() with pointer light-dismiss fallback
+  useNativeDialog(dialogRef, isOpen, onClose);
 
   // Re-analisa automaticamente quando o texto ou idioma padrão mudam
   useEffect(() => {
@@ -68,25 +57,11 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
       setWarnings([]);
       return;
     }
-    const result = parseFlashcardsInput(rawInput, { deckName });
+    const result = parseFlashcardsInput(rawInput, { deckName, defaultLanguage });
     setDetectedFormat(result.detectedFormat);
     setCandidates(result.cards);
     setWarnings(result.warnings);
   }, [rawInput, defaultLanguage, deckName]);
-
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
-    const dialog = dialogRef.current;
-    if (!dialog || e.target !== dialog) return;
-    const rect = dialog.getBoundingClientRect();
-    const clickedInDialog =
-      e.clientX >= rect.left &&
-      e.clientX <= rect.right &&
-      e.clientY >= rect.top &&
-      e.clientY <= rect.bottom;
-    if (!clickedInDialog) {
-      onClose();
-    }
-  };
 
   const handleFileLoad = async (file: File) => {
     if (file.size > 1_000_000) {
@@ -120,7 +95,10 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
   const handleConfirmImport = () => {
     const valid = candidates.filter((c) => c.front.trim().length > 0);
     if (valid.length === 0) return;
-    const items = candidatesToFlashcardItems(valid, deckName).map((item) => ({
+    const items = candidatesToFlashcardItems(valid, deckName, {
+      deckMode,
+      customDateKey: customDateKey || undefined,
+    }).map((item) => ({
       ...item,
       voiceId: defaultVoiceId || item.voiceId,
     }));
@@ -134,11 +112,9 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
   return (
     <dialog
       ref={dialogRef}
-      closedby="any"
+      {...({ closedby: 'any' } as Record<string, string>)}
       aria-labelledby="flashcard-importer-title"
-      onClose={onClose}
-      onClick={handleBackdropClick}
-      className="m-auto w-[calc(100%-1.5rem)] max-w-4xl rounded-3xl bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-0 backdrop:bg-black/75 open:flex open:flex-col overflow-hidden max-h-[90dvh]"
+      className="m-auto w-[calc(100%-1.5rem)] max-w-4xl rounded-3xl bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-0 backdrop:bg-slate-950/80 open:flex open:flex-col overflow-hidden max-h-[90dvh]"
     >
       {/* Cabeçalho */}
       <div className="px-6 py-4 border-b border-slate-800/90 flex items-center justify-between bg-slate-900/60 shrink-0">
@@ -218,6 +194,52 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
           </div>
         </div>
 
+        {/* Separação Automática do Lote por Língua / Data */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-2xl bg-slate-900/50 border border-slate-800/80">
+          <div className="sm:col-span-2">
+            <span className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold mb-1">
+              Separação na Importação
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              {([
+                { id: 'custom' as const, label: 'Baralho Único' },
+                { id: 'by_language' as const, label: 'Por Língua' },
+                { id: 'by_date' as const, label: 'Por Data' },
+                { id: 'by_language_and_date' as const, label: 'Língua + Data' },
+              ]).map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  aria-pressed={deckMode === mode.id}
+                  onClick={() => setDeckMode(mode.id)}
+                  className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-colors cursor-pointer ${
+                    deckMode === mode.id
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label
+              htmlFor="flashcard-import-date"
+              className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold mb-1"
+            >
+              Data do Lote
+            </label>
+            <input
+              id="flashcard-import-date"
+              type="date"
+              value={customDateKey}
+              onChange={(e) => setCustomDateKey(e.target.value)}
+              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700/80 text-xs font-mono text-white"
+            />
+          </div>
+        </div>
+
         {/* Dropzone + Textarea de Colagem Instantânea */}
         <div
           onDragOver={(e) => {
@@ -231,10 +253,10 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
             const file = e.dataTransfer.files?.[0];
             if (file) void handleFileLoad(file);
           }}
-          className={`p-4 rounded-2xl border-2 border-dashed transition-colors space-y-3 ${
+          className={`p-4 rounded-2xl border transition-colors space-y-3 ${
             isDragging
               ? 'border-amber-400 bg-amber-500/10'
-              : 'border-slate-800 bg-slate-900/40'
+              : 'surface-inset border-slate-800'
           }`}
         >
           <div className="flex flex-wrap items-center justify-between gap-2">

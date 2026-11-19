@@ -27,25 +27,6 @@
   --color-amber-200: #FDE68A;
 }
 
-/* Material Symbols Rounded Google Font */
-.material-symbols-rounded {
-  font-family: 'Material Symbols Rounded', sans-serif;
-  font-weight: normal;
-  font-style: normal;
-  font-size: 20px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'liga';
-}
-
 /* ==========================================================================
    DESIGN SYSTEM TÁTIL MELKI — TEMA BINÁRIO (DARK & LIGHT)
    ========================================================================== */
@@ -273,7 +254,7 @@
     background-color 0.2s ease;
 }
 
-:root .card-matte:hover {
+:root .card-matte:not(dialog):not([role="dialog"]):hover {
   transform: translateY(-2px);
   background-color: var(--bg-card-hover);
   background-image: var(--light-zenith-hover);
@@ -288,7 +269,7 @@
   box-shadow: var(--shadow-elevation-2) !important;
 }
 
-[data-theme="light"] .card-matte:hover {
+[data-theme="light"] .card-matte:not(dialog):not([role="dialog"]):hover {
   transform: translateY(-2px);
   background-image: var(--light-zenith-hover) !important;
   border-color: var(--border-hover) !important;
@@ -535,8 +516,8 @@ textarea:focus-visible:not(.dock-composer-textarea) {
 }
 
 [data-theme="light"] .dock-matte {
-  background: #ffffff !important;
-  border: 1px solid #cbd5e1 !important;
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--border-subtle) !important;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
 }
 
@@ -594,7 +575,7 @@ textarea:focus-visible:not(.dock-composer-textarea) {
 [data-theme="light"] .bg-slate-950\/80,
 [data-theme="light"] .bg-slate-950\/70,
 [data-theme="light"] .bg-slate-950\/60 {
-  background-color: #ffffff !important;
+  background-color: var(--surface-flat) !important;
   background-image: none !important;
 }
 
@@ -605,7 +586,7 @@ textarea:focus-visible:not(.dock-composer-textarea) {
 [data-theme="light"] .bg-slate-900\/60,
 [data-theme="light"] .bg-slate-900\/50,
 [data-theme="light"] .bg-slate-900\/40 {
-  background-color: #ffffff !important;
+  background-color: var(--surface-raised) !important;
   background-image: none !important;
 }
 
@@ -778,7 +759,7 @@ textarea:focus-visible:not(.dock-composer-textarea) {
 }
 
 [data-theme="light"] select option {
-  background-color: #ffffff !important;
+  background-color: var(--surface-raised) !important;
   color: #0f172a !important;
 }
 

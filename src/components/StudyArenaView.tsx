@@ -2,8 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GoogleIcon } from './GoogleIcon';
 import { FlashcardImporterModal } from './FlashcardImporterModal';
 import { StudyDeckOverview } from './study/StudyDeckOverview';
-import { FlashcardCreatorPanel } from './study/FlashcardCreatorPanel';
+import { FlashcardCreatorPanel, type CreatorLanguageMode } from './study/FlashcardCreatorPanel';
+import { FlashcardCatalogManager } from './study/FlashcardCatalogManager';
 import { normalizeLanguageBadge } from '../utils/flashcardParser';
+import {
+  formatCalendarDateLabelPtBr,
+  resolveCardDateKey,
+  toLocalCalendarDateKey,
+} from '../utils/flashcardOrganizer';
 import {
   readFlashcardDeck,
   subscribeFlashcardDeck,
@@ -12,17 +18,31 @@ import {
   rateFlashcardRetention,
   computeDeckSummaries,
   filterStudyQueue,
+  reorganizeFlashcardDeck,
 } from '../services/flashcardDeckStorage';
 import { downloadFlashcardsCsv } from '../utils/csvExporter';
 import { generateAudioCacheKey, synthesizeWithCache } from '../utils/audioCache';
 import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback, stopBrowserSpeech } from '../utils/audio';
-import type { FlashcardItem } from '../types/polyglot';
+import { computeNextTablistIndex, type StudySubTab } from '../utils/navigationOrganizer';
+import type { DateFilterPreset, FlashcardItem } from '../types/polyglot';
 import type { VoiceProfile } from '../types/voices';
+
+export type { StudySubTab };
 
 interface StudyArenaViewProps {
   selectedVoice: VoiceProfile;
   initialCardId?: string | null;
+  activeSubTab?: StudySubTab;
+  onChangeSubTab?: (subTab: StudySubTab) => void;
+  onOpenPolyglotTab?: () => void;
+  onOpenChunksTab?: () => void;
 }
+
+const STUDY_TABS: ReadonlyArray<{ id: StudySubTab; label: string; icon: string }> = [
+  { id: 'decks', label: 'Baralhos', icon: 'school' },
+  { id: 'review', label: 'Estudar', icon: 'auto_awesome' },
+  { id: 'create', label: 'Criar & Gerenciar', icon: 'add' },
+];
 
 function mapLanguageBadgeToBcp47(lang: string): string {
   const upper = (lang || '').toUpperCase();
@@ -31,12 +51,30 @@ function mapLanguageBadgeToBcp47(lang: string): string {
   return 'en-US';
 }
 
-export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, initialCardId }) => {
+export const StudyArenaView: React.FC<StudyArenaViewProps> = ({
+  selectedVoice,
+  initialCardId,
+  activeSubTab,
+  onChangeSubTab,
+  onOpenPolyglotTab,
+  onOpenChunksTab,
+}) => {
   const [cards, setCards] = useState<FlashcardItem[]>(() => readFlashcardDeck());
   const [customDecks, setCustomDecks] = useState<string[]>([]);
-  const [studySubTab, setStudySubTab] = useState<'decks' | 'review' | 'create'>('decks');
+  const [internalSubTab, setInternalSubTab] = useState<StudySubTab>(activeSubTab ?? 'decks');
+  const studySubTab = activeSubTab ?? internalSubTab;
+  const setStudySubTab = useCallback(
+    (next: StudySubTab) => {
+      setInternalSubTab(next);
+      onChangeSubTab?.(next);
+    },
+    [onChangeSubTab]
+  );
+  const studyTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [selectedDeck, setSelectedDeck] = useState<string>('Baralho Principal');
   const [selectedLang, setSelectedLang] = useState<'ALL' | 'EN' | 'IT' | 'JA'>('ALL');
+  const [selectedDatePreset, setSelectedDatePreset] = useState<DateFilterPreset>('ALL');
+  const [customDateKey, setCustomDateKey] = useState<string>(() => toLocalCalendarDateKey(Date.now()));
   const [dueOnly, setDueOnly] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -44,7 +82,10 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [editingCard, setEditingCard] = useState<FlashcardItem | null>(null);
-  const [tableQuery, setTableQuery] = useState('');
+  const [creatorLangPreset, setCreatorLangPreset] = useState<CreatorLanguageMode>('auto');
+  const [creatorDatePreset, setCreatorDatePreset] = useState<string>(() =>
+    toLocalCalendarDateKey(Date.now())
+  );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
@@ -78,8 +119,15 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
   }, [cards, totalCards]);
 
   const reviewQueue = useMemo(
-    () => filterStudyQueue(cards, { deckName: selectedDeck, language: selectedLang, dueOnly }),
-    [cards, selectedDeck, selectedLang, dueOnly]
+    () =>
+      filterStudyQueue(cards, {
+        deckName: selectedDeck,
+        language: selectedLang,
+        dueOnly,
+        datePreset: selectedDatePreset,
+        customDateKey,
+      }),
+    [cards, selectedDeck, selectedLang, dueOnly, selectedDatePreset, customDateKey]
   );
 
   useEffect(() => {
@@ -90,7 +138,7 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
     if (!initialCardId) return;
     const idx = reviewQueue.findIndex((c) => c.id === initialCardId);
     if (idx >= 0) { setCurrentIndex(idx); setIsFlipped(false); setStudySubTab('review'); }
-  }, [initialCardId, reviewQueue]);
+  }, [initialCardId, reviewQueue, setStudySubTab]);
 
   const currentCard = reviewQueue[currentIndex] || null;
 
@@ -166,15 +214,6 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
     };
   }, [currentCard]);
 
-  const filteredTableCards = useMemo(() => {
-    const q = tableQuery.trim().toLowerCase();
-    return cards.filter((c) => {
-      if (selectedDeck !== 'ALL' && (c.deckName || 'Baralho Principal') !== selectedDeck) return false;
-      if (!q) return true;
-      return c.front.toLowerCase().includes(q) || c.back.toLowerCase().includes(q) || (c.nuance && c.nuance.toLowerCase().includes(q));
-    });
-  }, [cards, selectedDeck, tableQuery]);
-
   return (
     <section aria-label="Área de Estudo e Flashcards" className="w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
       <header className="space-y-4">
@@ -188,79 +227,202 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
               <p className="text-xs text-secondary">Repetição espaçada Anki/Brainscape com síntese neural de voz</p>
             </div>
           </div>
-          <span className="text-xs font-mono px-2.5 py-1 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold self-start sm:self-auto">
-            Voz: {selectedVoice.name}
-          </span>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            {onOpenPolyglotTab && (
+              <button
+                type="button"
+                onClick={onOpenPolyglotTab}
+                className="min-h-[40px] px-3 py-1.5 rounded-xl btn-matte-dark text-xs font-semibold text-secondary hover:text-primary border border-[var(--border-subtle)] flex items-center gap-1.5 cursor-pointer"
+              >
+                <GoogleIcon name="translate" size={15} className="text-amber-400" />
+                <span>Chat Poliglota</span>
+              </button>
+            )}
+            {onOpenChunksTab && (
+              <button
+                type="button"
+                onClick={onOpenChunksTab}
+                className="min-h-[40px] px-3 py-1.5 rounded-xl btn-matte-dark text-xs font-semibold text-secondary hover:text-primary border border-[var(--border-subtle)] flex items-center gap-1.5 cursor-pointer"
+              >
+                <GoogleIcon name="bolt" size={15} className="text-amber-400" />
+                <span>FastChunks</span>
+              </button>
+            )}
+            <span className="text-xs font-mono px-2.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
+              Voz: {selectedVoice.name}
+            </span>
+          </div>
         </div>
 
-        <div role="tablist" aria-label="Navegação de Modos da Área de Estudo" className="flex items-center gap-2 border-b border-slate-800/80 pb-px">
-          {[
-            { id: 'decks' as const, label: 'Baralhos', icon: 'school' },
-            { id: 'review' as const, label: 'Estudar', icon: 'auto_awesome' },
-            { id: 'create' as const, label: 'Criar & Gerenciar', icon: 'add' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              id={`tab-${tab.id}`}
-              role="tab"
-              type="button"
-              aria-selected={studySubTab === tab.id}
-              aria-controls={`panel-${tab.id}`}
-              onClick={() => { setStudySubTab(tab.id); if (tab.id !== 'create') setEditingCard(null); }}
-              className={`min-h-[44px] px-4 py-2.5 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
-                studySubTab === tab.id ? 'text-amber-300 border-b-2 border-amber-400 font-extrabold' : 'text-secondary hover:text-primary border-b-2 border-transparent'
-              }`}
-            >
-              <GoogleIcon name={tab.icon} size={16} />
-              <span>{tab.label}</span>
-              {tab.id === 'review' && totalDueToday > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300">{totalDueToday}</span>
-              )}
-            </button>
-          ))}
+        <div className="hidden lg:block">
+          <div
+            role="tablist"
+            aria-label="Navegação de Modos da Área de Estudo"
+            className="tabsOverflowContainer items-center pb-px"
+          >
+          {STUDY_TABS.map((tab, idx) => {
+            const isSelected = studySubTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                ref={(el) => {
+                  studyTabRefs.current[idx] = el;
+                }}
+                id={`tab-${tab.id}`}
+                role="tab"
+                type="button"
+                tabIndex={isSelected ? 0 : -1}
+                aria-selected={isSelected}
+                onClick={() => {
+                  setStudySubTab(tab.id);
+                  if (tab.id !== 'create') setEditingCard(null);
+                  studyTabRefs.current[idx]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }}
+                onKeyDown={(e) => {
+                  const nextIdx = computeNextTablistIndex(idx, STUDY_TABS.length, e.key);
+                  if (nextIdx === null) return;
+                  e.preventDefault();
+                  const nextTab = STUDY_TABS[nextIdx];
+                  setStudySubTab(nextTab.id);
+                  if (nextTab.id !== 'create') setEditingCard(null);
+                  const btn = studyTabRefs.current[nextIdx];
+                  btn?.focus();
+                  btn?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }}
+                className={`min-h-[44px] px-4 py-2.5 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shrink-0 ${
+                  isSelected
+                    ? 'text-amber-300 border-b-2 border-amber-400 font-extrabold'
+                    : 'text-secondary hover:text-primary border-b-2 border-transparent'
+                }`}
+              >
+                <GoogleIcon name={tab.icon} size={16} />
+                <span>{tab.label}</span>
+                {tab.id === 'review' && totalDueToday > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 tabular-nums">
+                    {totalDueToday}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+          </div>
         </div>
       </header>
 
       {studySubTab === 'decks' && (
         <div id="panel-decks" role="tabpanel" aria-labelledby="tab-decks">
           <StudyDeckOverview
+            cards={cards}
             summaries={summaries}
             totalCards={totalCards}
             totalDueToday={totalDueToday}
             overallMastery={overallMastery}
-            onStudyDeck={(d) => { setSelectedDeck(d); setDueOnly(true); setStudySubTab('review'); }}
-            onCreateCard={(d) => { if (d) setSelectedDeck(d); setEditingCard(null); setStudySubTab('create'); }}
+            onStudyDeck={(d) => {
+              setSelectedDeck(d);
+              setSelectedLang('ALL');
+              setSelectedDatePreset('ALL');
+              setDueOnly(true);
+              setCurrentIndex(0);
+              setIsFlipped(false);
+              setStudySubTab('review');
+            }}
+            onStudyFilter={(filter) => {
+              setSelectedDeck(filter.deckName || 'ALL');
+              setSelectedLang(filter.language || 'ALL');
+              setSelectedDatePreset(filter.datePreset || 'ALL');
+              if (filter.customDateKey) setCustomDateKey(filter.customDateKey);
+              setDueOnly(false);
+              setCurrentIndex(0);
+              setIsFlipped(false);
+              setStudySubTab('review');
+            }}
+            onCreateCard={(d) => {
+              if (d) setSelectedDeck(d);
+              setCreatorLangPreset('auto');
+              setCreatorDatePreset(toLocalCalendarDateKey(Date.now()));
+              setEditingCard(null);
+              setStudySubTab('create');
+            }}
+            onCreateCardWithPreset={(preset) => {
+              if (preset.deckName) setSelectedDeck(preset.deckName);
+              setCreatorLangPreset(preset.language || 'auto');
+              setCreatorDatePreset(preset.dateKey || toLocalCalendarDateKey(Date.now()));
+              setEditingCard(null);
+              setStudySubTab('create');
+            }}
             onCreateDeck={(d) => { setCustomDecks((p) => Array.from(new Set([...p, d]))); setSelectedDeck(d); setStudySubTab('create'); }}
             onOpenImporter={() => setIsImporterOpen(true)}
             onExportCsv={() => downloadFlashcardsCsv(cards)}
+            onExportFilteredCsv={(subset, filename) => downloadFlashcardsCsv(subset, filename)}
+            onReorganizeDecks={(mode) => {
+              reorganizeFlashcardDeck(mode);
+              setSelectedDeck('ALL');
+            }}
           />
         </div>
       )}
 
       {studySubTab === 'review' && (
         <div id="panel-review" role="tabpanel" aria-labelledby="tab-review" className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl card-matte border border-slate-800 text-xs">
-            <div className="flex items-center gap-2">
-              <label htmlFor="deck-filter" className="text-secondary font-bold">Baralho:</label>
-              <select id="deck-filter" value={selectedDeck} onChange={(e) => { setSelectedDeck(e.target.value); setCurrentIndex(0); setIsFlipped(false); }} className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-primary focus:outline-none cursor-pointer">
-                <option value="ALL">Todos os Baralhos</option>
-                {allDeckNames.map((d) => (<option key={d} value={d}>{d}</option>))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-900 border border-slate-800">
-                {(['ALL', 'EN', 'IT', 'JA'] as const).map((l) => (
-                  <button key={l} type="button" onClick={() => { setSelectedLang(l); setCurrentIndex(0); setIsFlipped(false); }} className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold cursor-pointer ${selectedLang === l ? 'bg-amber-500/20 text-amber-300 border border-amber-500/35' : 'text-secondary hover:text-primary'}`}>
-                    {l === 'ALL' ? 'TODOS' : l}
-                  </button>
-                ))}
+          <div className="flex flex-col gap-3 p-3.5 rounded-2xl card-matte border border-slate-800 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <label htmlFor="deck-filter" className="text-secondary font-bold">Baralho:</label>
+                <select id="deck-filter" value={selectedDeck} onChange={(e) => { setSelectedDeck(e.target.value); setCurrentIndex(0); setIsFlipped(false); }} className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-primary focus:outline-none cursor-pointer">
+                  <option value="ALL">Todos os Baralhos</option>
+                  {allDeckNames.map((d) => (<option key={d} value={d}>{d}</option>))}
+                </select>
               </div>
-              <button type="button" onClick={() => setDueOnly((p) => !p)} className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${dueOnly ? 'bg-amber-500/15 text-amber-300 border-amber-500/35' : 'bg-slate-900 text-secondary border-slate-800'}`}>
-                {dueOnly ? 'Somente pendentes hoje' : 'Todos do baralho'}
-              </button>
-              <button type="button" onClick={() => setAutoPlayTts((p) => !p)} className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${autoPlayTts ? 'bg-amber-500/15 text-amber-300 border-amber-500/35' : 'bg-slate-900 text-secondary border-slate-800'}`}>
-                Auto-TTS {autoPlayTts ? 'On' : 'Off'}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-900 border border-slate-800">
+                  {(['ALL', 'EN', 'IT', 'JA'] as const).map((l) => (
+                    <button key={l} type="button" onClick={() => { setSelectedLang(l); setCurrentIndex(0); setIsFlipped(false); }} className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold cursor-pointer ${selectedLang === l ? 'bg-amber-500/20 text-amber-300 border border-amber-500/35' : 'text-secondary hover:text-primary'}`}>
+                      {l === 'ALL' ? 'TODOS' : l}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setDueOnly((p) => !p)} className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${dueOnly ? 'bg-amber-500/15 text-amber-300 border-amber-500/35' : 'bg-slate-900 text-secondary border-slate-800'}`}>
+                  {dueOnly ? 'Somente pendentes hoje' : 'Todos do baralho'}
+                </button>
+                <button type="button" onClick={() => setAutoPlayTts((p) => !p)} className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${autoPlayTts ? 'bg-amber-500/15 text-amber-300 border-amber-500/35' : 'bg-slate-900 text-secondary border-slate-800'}`}>
+                  Auto-TTS {autoPlayTts ? 'On' : 'Off'}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/80">
+              <span className="text-[10px] font-mono uppercase text-secondary font-bold mr-1">Data de criação:</span>
+              {([
+                { id: 'ALL' as const, label: 'Todas' },
+                { id: 'TODAY' as const, label: 'Hoje' },
+                { id: 'YESTERDAY' as const, label: 'Ontem' },
+                { id: 'LAST_7D' as const, label: '7d' },
+                { id: 'LAST_30D' as const, label: '30d' },
+                { id: 'CUSTOM' as const, label: 'Data' },
+              ]).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={selectedDatePreset === p.id}
+                  onClick={() => { setSelectedDatePreset(p.id); setCurrentIndex(0); setIsFlipped(false); }}
+                  className={`min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                    selectedDatePreset === p.id
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/35'
+                      : 'bg-slate-900 text-secondary border-slate-800 hover:text-primary'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+              {selectedDatePreset === 'CUSTOM' && (
+                <input
+                  type="date"
+                  value={customDateKey}
+                  onChange={(e) => { setCustomDateKey(e.target.value); setCurrentIndex(0); setIsFlipped(false); }}
+                  aria-label="Selecionar data de estudo para revisão"
+                  className="min-h-[32px] px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-700 text-[11px] font-mono text-primary"
+                />
+              )}
             </div>
           </div>
 
@@ -293,11 +455,14 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
 
               <div className="rounded-3xl card-matte border border-slate-700/80 p-6 sm:p-8 shadow-2xl space-y-5">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono text-xs font-extrabold">
                       {normalizeLanguageBadge(currentCard.language)}
                     </span>
                     <span className="text-xs font-semibold text-secondary">{currentCard.deckName || 'Baralho Principal'}</span>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-secondary">
+                      {formatCalendarDateLabelPtBr(resolveCardDateKey(currentCard))}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => void playCardTts(currentCard, false)} className="min-h-[44px] px-3.5 py-2 rounded-xl btn-matte-amber text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
@@ -364,57 +529,32 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({ selectedVoice, i
           <FlashcardCreatorPanel
             initialCard={editingCard}
             availableDecks={allDeckNames}
+            existingCards={cards}
             defaultDeckName={selectedDeck === 'ALL' ? 'Baralho Principal' : selectedDeck}
+            defaultLanguage={creatorLangPreset}
+            defaultDateKey={creatorDatePreset}
             onSaveCard={(saved) => { addFlashcardsToDeck(saved); setEditingCard(null); }}
+            onSaveCards={(saved) => { addFlashcardsToDeck(saved); setEditingCard(null); }}
             onCancelEdit={() => setEditingCard(null)}
             onOpenImporter={() => setIsImporterOpen(true)}
           />
 
-          <div className="p-5 rounded-3xl card-matte border border-slate-800 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <h3 className="text-sm font-extrabold text-primary font-display">
-                Flashcards do Baralho ({filteredTableCards.length})
-              </h3>
-              <input
-                type="text"
-                value={tableQuery}
-                onChange={(e) => setTableQuery(e.target.value)}
-                placeholder="Buscar por frente, tradução ou nuance..."
-                className="min-h-[40px] px-3.5 py-1.5 rounded-xl input-sunken text-xs text-primary border border-slate-800 sm:w-72"
-              />
-            </div>
-
-            <div className="divide-y divide-slate-800/80 border border-slate-800 rounded-2xl overflow-hidden bg-slate-900/50">
-              {filteredTableCards.length === 0 ? (
-                <p className="p-4 text-xs text-secondary text-center">Nenhum flashcard encontrado.</p>
-              ) : (
-                filteredTableCards.slice(0, 50).map((card) => (
-                  <div key={card.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-800/30">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">{normalizeLanguageBadge(card.language)}</span>
-                        <span className="text-xs font-bold text-primary">{card.front}</span>
-                        <span className="text-xs text-emerald-300">— {card.back}</span>
-                      </div>
-                      <p className="text-[11px] text-secondary">{card.deckName || 'Baralho Principal'} · Status: {card.status || 'new'}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button type="button" onClick={() => void playCardTts(card, false)} aria-label={`Ouvir ${card.front}`} className="min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer">
-                        <GoogleIcon name="volume_up" size={14} />
-                      </button>
-                      <button type="button" onClick={() => { setEditingCard(card); window.scrollTo({ top: 0, behavior: 'smooth' }); }} aria-label={`Editar ${card.front}`} className="min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-secondary hover:text-primary border border-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer">
-                        <GoogleIcon name="edit" size={14} />
-                        <span>Editar</span>
-                      </button>
-                      <button type="button" onClick={() => deleteFlashcardFromDeck(card.id)} aria-label={`Excluir ${card.front}`} className="min-h-[36px] px-2 rounded-lg bg-slate-900 hover:bg-rose-950/40 text-rose-400 border border-slate-800 text-xs cursor-pointer">
-                        <GoogleIcon name="delete" size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <FlashcardCatalogManager
+            cards={cards}
+            availableDecks={allDeckNames}
+            selectedDeck={selectedDeck}
+            onChangeDeck={setSelectedDeck}
+            selectedLang={selectedLang}
+            onChangeLang={setSelectedLang}
+            datePreset={selectedDatePreset}
+            onChangeDatePreset={setSelectedDatePreset}
+            customDateKey={customDateKey}
+            onChangeCustomDateKey={setCustomDateKey}
+            onPlayCardTts={(card) => void playCardTts(card, false)}
+            onEditCard={(card) => { setEditingCard(card); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            onDeleteCard={(cardId) => deleteFlashcardFromDeck(cardId)}
+            onExportCsv={(subset) => downloadFlashcardsCsv(subset)}
+          />
         </div>
       )}
 

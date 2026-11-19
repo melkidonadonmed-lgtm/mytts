@@ -1,90 +1,60 @@
-# SPEC — Contratos Funcionais e Endpoints (`mytts`)
+# SPEC — Functional Contracts and REST Endpoints (`mytts`)
 
-## 1. Módulos Funcionais da Interface (`src/App.tsx`)
+## 1. SPA UI Functional Modules (`src/App.tsx`)
 
-| Aba / Modal (`ActiveTab`) | Componente Principal | Contrato Funcional |
+| Tab / Modal (`ActiveTab`) | Primary Components & Services | Functional Contract |
 | :--- | :--- | :--- |
-| `polyglot` | `src/components/PolyglotChatStudio.tsx` + `AgentInputDock.tsx` + `conversationSessionState.ts` | Estúdio Poliglota principal (#1): tradução paralela EN/IT/JA com voz independente por card, persistência de Novo Chat ao trocar de aba, Ditado Rápido e Gemini Live Mic integrados no dock, Busca Web / YouTube e deck Anki |
-| `voices` | `src/components/VoiceConfigWorkspace.tsx` (`VoiceLibraryModal.tsx`, `StudioWorkspace.tsx`, `DebateConfigPanel.tsx`, `ScriptViewer.tsx`, `BottomAudioDock.tsx`) | Hub unificado **Configuração de Vozes** em 3 sub-abas (`catalog`: Catálogo das 5 vozes neurais + Vozes Favoritas EN/IT/JA; `solo`: Leitura Solo 1 voz `0.8x`–`1.5x` com `preservesPitch` e ingestão `.txt`/`.md`/`.pdf`; `debate`: Debate & Diálogo 2 vozes em formatos `debate`, `podcast`, `bar_chat`, `dinner`, trilha sonora procedural e exportação Master WAV 44.1 kHz) |
-| `chunks` | `src/components/FastChunkAudioApp.tsx` | Treinador Lexical FastChunks com geração via Gemini, síntese neural por chunk, envio rápido para Flashcards e persistência Firestore/JSON |
-| `study` | `src/components/StudyArenaView.tsx` + `StudyDeckOverview.tsx` + `FlashcardCreatorPanel.tsx` + `FlashcardImporterModal.tsx` | **Área de Estudo** estilo Anki/Brainscape em 3 sub-abas (`Baralhos` com métricas Novos/Revisar/Dominados e barra de domínio %, `Estudar` com fila SRS focada e áudio TTS, e `Criar & Gerenciar` com criador manual, autocompletar por IA e importação multi-formato JSON/CSV/MD/HTML) |
-| Modal `architecture` | `src/components/ArchitectureModal.tsx` | Especificação técnica da arquitetura de áudio, modelos Gemini e grafo Web Audio API |
-| Modal `Ctrl+K` | `src/components/CommandPaletteModal.tsx` | Paleta de comandos global (`Ctrl+K` / `Cmd+K`) para navegação instantânea sem mouse |
+| Global Shell & Navigation | `src/App.tsx`, `src/utils/navigationOrganizer.ts`, `src/components/Sidebar.tsx`, `src/components/MobileAppHeader.tsx` | Grouped navigation (`studio` vs. `retention`), contextual sub-trees (`voices` & `study`), 2/3-level clickable breadcrumbs with empty-alt CSS dividers, `Alt+1..4` / `Ctrl+K` / `Ctrl+B` / `Ctrl+H` shortcuts, and mobile 1-tap sub-tab strip |
+| `polyglot` | `src/components/PolyglotChatStudio.tsx` + `AgentInputDock.tsx` + `FlashcardDeckDrawer.tsx` + `src/services/conversationSessionState.ts` | Parallel EN/IT/JA translation with per-card voices, Quick Dictation, Gemini Live Mic, Web/YouTube exploration, language/date-filtered deck drawer, and persistent flashcard saving respecting `readDeckNamingPreference()` |
+| `voices` | `src/components/VoiceConfigWorkspace.tsx` (`VoiceLibraryModal.tsx`, `StudioWorkspace.tsx`, `DebateConfigPanel.tsx`, `ScriptViewer.tsx`, `BottomAudioDock.tsx`) | Unified Voice Configuration hub across 3 WAI-ARIA keyboard-navigable sub-tabs: `catalog` (5 neural voices + favorite voices by EN/IT/JA), `solo` (1-voice reader `0.8x`–`1.5x` with `preservesPitch` and `.txt`/`.md`/`.pdf` ingestion), and `debate` (2-voice studio in `debate`, `podcast`, `bar_chat`, `dinner` formats with procedural soundtracks & 44.1 kHz WAV export) |
+| `chunks` | `src/components/FastChunkAudioApp.tsx` | FastChunks lexical trainer on canonical `1440px` Bento Grid with 12-col control bar, Gemini chunk extraction, cached neural pronunciation, 1-click flashcard export, and quick bridges to `study` and `polyglot` |
+| `study` | `src/components/StudyArenaView.tsx` + `StudyDeckOverview.tsx` + `FlashcardCreatorPanel.tsx` + `FlashcardCatalogManager.tsx` + `FlashcardImporterModal.tsx` + `src/utils/flashcardOrganizer.ts` | Anki/Brainscape-inspired Study Arena across 3 controlled WAI-ARIA keyboard-navigable sub-tabs (`decks`, `review`, `create`) with Overview by Deck/Language/Date, SRS queue, trilingual AI generation, batch importer, and hierarchical catalog |
+| Modal `architecture` | `src/components/ArchitectureModal.tsx` | Technical specification of Web Audio API graph, FFmpeg sidechain mixing, and Gemini models |
+| Modal `Ctrl+K` | `src/components/CommandPaletteModal.tsx` | Global keyboard command palette (`Ctrl+K` / `Cmd+K`) with deep-links to Voices & Study sub-modules |
 
 ---
 
-## 2. Endpoints REST (`server.ts`)
+## 2. REST Endpoints (`server.ts` + `src/server/routes/*`)
 
-Limites de proteção:
-- **Rate limit:** `aiLimiter` = 120 req / 15 min por IP nas rotas de IA; `apiLimiter` = 300 req / 15 min por IP em `/api`.
-- **Body size:** `50mb` em `/api/mix-audio`, `25mb` em `/api/transcribe-audio`, `/api/extract-text` e `/api/live-agent-turn`, `2mb` nas demais rotas.
-- **Truncamento de texto (`capText`):** 20.000 caracteres padrão (`5.000` em `/api/synthesize-turn`, `3.000` em `/api/agent-explore`, `2.000` em `/api/synthesize-chunk` e `/api/live-agent-turn`).
+Protection limits:
+- **Rate limit:** `aiLimiter` = 120 req / 15 min per IP on AI routes; `apiLimiter` = 300 req / 15 min per IP on `/api`.
+- **Body size:** `50mb` on `/api/mix-audio`, `25mb` on `/api/transcribe-audio`, `/api/extract-text`, and `/api/live-agent-turn`, `2mb` elsewhere.
+- **Text truncation (`capText`):** `20,000` chars default (`5,000` on `/api/synthesize-turn`, `3,000` on `/api/agent-explore`, `2,000` on `/api/synthesize-chunk` and `/api/live-agent-turn`).
 
 ### 2.1. `POST /api/extract-text`
-Extrai e higieniza texto puro ou documento PDF (base64) via `gemini-3.8-flash`.
-- **Request (`application/json`, até 25 MB):**
-  ```json
-  {
-    "text": "Texto bruto opcional",
-    "fileData": "JVBERi0xLjQK... (base64 sem prefixo data URI)",
-    "mimeType": "application/pdf",
-    "fileName": "documento.pdf"
-  }
-  ```
-- **Response (`200 OK`):** `{ "success": true, "text": "...", "fileName": "documento.pdf", "wordCount": 240 }`
+Extracts and sanitizes plain text or PDF documents (base64) via `gemini-3.8-flash`.
+- **Request (`application/json`, up to 25 MB):** `{ "text"?: "...", "fileData"?: "<base64>", "mimeType"?: "application/pdf", "fileName"?: "document.pdf" }`
+- **Response (`200 OK`):** `{ "success": true, "text": "...", "fileName": "document.pdf", "wordCount": 240 }`
 
 ### 2.2. `POST /api/generate-script`
-Roteiriza conversa/debate entre 2 oradores via `gemini-3.8-flash` com schema JSON estruturado e tags vocais canônicas (`<breath>`, `<sigh>`, `<laugh>`, `<chuckle>`, `<short pause>`).
-- **Request (`application/json`):**
-  ```json
-  {
-    "documentText": "Texto base do debate...",
-    "language": "pt-BR",
-    "audienceLevel": "intermediate",
-    "tensionIntensity": "provocative",
-    "format": "debate",
-    "speakers": [
-      { "name": "Sofia", "voiceId": "Kore", "roleTitle": "Analista Teórica & Fundamentada" },
-      { "name": "Lucas", "voiceId": "Puck", "roleTitle": "Provocador Pragmático & Cético" }
-    ],
-    "maxTurns": 6
-  }
-  ```
+Generates dual-speaker conversation/debate scripts via `gemini-3.8-flash` using structured JSON schema and canonical vocal tags (`<breath>`, `<sigh>`, `<laugh>`, `<chuckle>`, `<short pause>`).
+- **Request:** `{ "documentText": "...", "language": "pt-BR", "audienceLevel": "intermediate", "tensionIntensity": "provocative", "format": "debate", "speakers": [...], "maxTurns": 6 }`
 - **Response (`200 OK`):** `{ "success": true, "script": { "id": "...", "title": "...", "turns": [...] } }`
 
-### 2.3. `POST /api/synthesize-speech`
-Síntese neural de leitura rápida com *Director's Chair* (`gemini-3.8-flash-tts`, `speechMetadata: { speaker, style }` em camelCase e 42 tags vocais canônicas via `buildExpressiveTtsTranscript`) e cabeçalho RIFF WAV 24 kHz mono garantido por `ensureWavContainer`.
-- **Request:** `{ "text": "...", "voiceId": "Puck", "emotion": "natural", "speed": 1.0, "autoProsody": true, "language": "pt-BR" }`
-- **Response (`200 OK`):** `{ "success": true, "audioBase64": "UklGR...", "mimeType": "audio/wav", "durationSec": 4.2, "wordCount": 18 }`
+### 2.3. `POST /api/synthesize-speech` & `POST /api/synthesize-turn`
+- `POST /api/synthesize-speech`: neural TTS synthesis via `gemini-3.8-flash-tts` (`speechMetadata: { speaker, style }` in camelCase + 42 canonical vocal tags via `buildExpressiveTtsTranscript`) and 24 kHz mono RIFF WAV header enforced by `ensureWavContainer`.
+- `POST /api/synthesize-turn`: synthesizes an individual debate turn (`{ turn, speakerName, voiceId, language }`) returning `{ success: true, turnNumber, audioBase64, mimeType: "audio/wav", durationSec }`.
 
-### 2.4. `POST /api/synthesize-turn`
-- `/api/synthesize-turn`: sintetiza um turno individual do roteiro (`{ turn, speakerName, voiceId, language }`) usando `gemini-3.8-flash-tts` com `speechMetadata` em camelCase e tags vocais inline, retornando `{ success: true, turnNumber, audioBase64, mimeType: "audio/wav", durationSec }`.
+### 2.4. `POST /api/mix-audio`
+Server-side broadcast mixing via `execFile('ffmpeg', ...)` using `sidechaincompress` and `amix` (up to 50 MB payload).
 
-### 2.5. `POST /api/mix-audio`
-Mixagem broadcast server-side via `execFile('ffmpeg', ...)` com `sidechaincompress` e `amix`.
-- **Request (até 50 MB):** `{ "voiceAudioBase64": "...", "soundtrackPreset": "lofi-warmth", "musicVolume": 0.2, "duckingDepthDb": -14, "voiceBoostDb": 3, "customMusicBase64": "..." }`
-- **Response (`200 OK`):** `{ "success": true, "audioBase64": "UklGR...", "mimeType": "audio/wav" }`
+### 2.5. `POST /api/preview-voice`, `POST /api/synthesize-chunk` & `POST /api/transcribe-audio`
+- `/api/preview-voice`: persona-calibrated 3-second voice sample (`{ voiceId, speakerName, language }`).
+- `/api/synthesize-chunk`: native pronunciation WAV for a lexical chunk (`{ text, language, voiceId }`).
+- `/api/transcribe-audio`: punctuated microphone audio transcription via `gemini-3.8-flash` (up to 25 MB).
 
-### 2.6. `POST /api/preview-voice` & `POST /api/synthesize-chunk`
-- `/api/preview-voice`: amostra vocal expressiva personalizada por persona e idioma (`{ voiceId, speakerName, language }`) -> `{ success: true, audioBase64, mimeType: "audio/wav", durationSec }`.
-- `/api/synthesize-chunk`: pronúncia neural nativa de um chunk lexical (`{ text, language, voiceId }`) -> `{ success: true, audioBase64, mimeType: "audio/wav" }`.
+### 2.6. FastChunks, Polyglot Studio, Flashcards & Live/YouTube Agent
+- `POST /api/generate-chunks` (`1..20` chunks) + `GET /api/chunks` / `POST /api/chunks` / `DELETE /api/chunks/:id` (per sanitized `X-User-Id`).
+- `POST /api/translate-parallel-chunks`: semantic trilingual chunk alignment (`en`, `it`, `ja`, `jaPronunciation`).
+- `POST /api/generate-flashcard`: validated by `ROUTE_ALLOWED_KEYS.generateFlashcard` (`chunkText`, `language`, `contextSentence`, `trilingual`).
+  - Single mode (`trilingual` false/omitted): generates a pedagogical Anki flashcard (`{ success: true, card }`) with normalized `language` (`en-US` | `it-IT` | `ja-JP`) and timezone-safe `createdDateKey` (`YYYY-MM-DD`).
+  - Trilingual mode (`trilingual: true`): generates 3 parallel flashcards across `en-US`, `it-IT`, and `ja-JP` from a single expression (`{ success: true, cards, card: cards[0] }`).
+- `GET /api/flashcards` / `POST /api/flashcards` / `DELETE /api/flashcards/:id` / `DELETE /api/flashcards`: user-scoped dual persistence (Firestore `mytts_flashcards` + `.data/flashcards.json`) preserving `createdDateKey`, `deckName`, and SRS fields.
+- `POST /api/live-agent-turn` (up to 25 MB) with `NON_BLOCKING` function calling (`create_study_flashcard`, `switch_studio_voice`).
+- `GET /api/youtube/metadata` & `POST /api/agent-explore`: grounded web search (`googleSearch`), YouTube search, and multimodal YouTube video analysis (`ask_intent`, `translate_video`, `summary_dialogue`, `extract_expressions`, `custom_prompt`, optional `clipRange`).
 
-### 2.7. `POST /api/transcribe-audio`
-Transcrição pontuada de áudio capturado no microfone via `gemini-3.8-flash`.
-- **Request (até 25 MB):** `{ "audioData": "base64...", "mimeType": "audio/webm" }`
-- **Response (`200 OK`):** `{ "success": true, "transcript": "...", "wordCount": 12 }`
-
-### 2.8. FastChunks, Estúdio Poliglota, Agente Live & Busca/YouTube
-- `POST /api/generate-chunks`: extrai de 1 a 20 chunks coloquiais (`{ textOrPrompt, language, count }`) e persiste em `chunkStorage`.
-- `GET /api/chunks` / `POST /api/chunks` / `DELETE /api/chunks/:id`: CRUD de chunks por `X-User-Id` sanitizado (`^[a-zA-Z0-9_-]{1,64}$`).
-- `POST /api/translate-parallel-chunks`: alinhamento semântico trilingue (`en`, `it`, `ja` + `jaPronunciation`) -> `{ success: true, chunks: [...], fullText: { en, it, ja } }`.
-- `POST /api/generate-flashcard`: gera flashcard pedagógico Anki (`front`, `back`, `nuance`, `pronunciation`, `example`, `exampleTranslation`) -> `{ success: true, card: {...} }`.
-- `POST /api/live-agent-turn` (até 25 MB): turno conversacional por voz/texto com personas (`tutor_conversational`, `practice_partner`, `polyglot_translator`) e Function Calling `NON_BLOCKING` (`create_study_flashcard`, `switch_studio_voice`).
-- `GET /api/youtube/metadata`: retorna metadados reais do vídeo (`videoId`, `canonicalUrl`, `title`, `authorName`, `thumbnailUrl`) via YouTube oEmbed.
-- `POST /api/agent-explore`: pesquisa web fundamentada (`googleSearch`), busca no catálogo do YouTube (`youtubeSearchResults`) e análise multimodal de vídeos do YouTube (`fileData` com URL canônica) suportando modos de ação pós-link (`ask_intent`, `translate_video`, `summary_dialogue`, `extract_expressions`, `custom_prompt`) e intervalo opcional de tempo (`clipRange`).
-
-### 2.9. Autenticação Google, Histórico de Conversas e `GET /api/health`
-- `GET /api/auth/config` & `POST /api/auth/google`: configuração Google Identity Services e autenticação de sessão (`{ success: true, user }`).
-- `GET /api/conversations` / `POST /api/conversations` / `DELETE /api/conversations/:id`: histórico persistente de conversas por usuário (Firestore `mytts_conversations` + fallback `.data/conversations.json`).
-- `GET /api/health`: `{ status: "online", service: "DialecticPod & FastChunks API", modelTts: "gemini-3.8-flash-tts", modelGen: "gemini-3.8-flash", geminiKeyConfigured: true, storage: "local-fallback" | "firestore", uptimeSec }`.
-- Qualquer rota `/api/*` inexistente retorna `404 JSON` estruturado (`{ success: false, error: "Endpoint não encontrado: ..." }`).
+### 2.7. Auth, Conversation History & Health
+- `GET /api/auth/config` & `POST /api/auth/google`
+- `GET /api/conversations` / `POST /api/conversations` / `DELETE /api/conversations/:id`
+- `GET /api/health`: `{ status: "online", service: "DialecticPod & FastChunks API", modelTts: "gemini-3.8-flash-tts", modelGen: "gemini-3.8-flash", geminiKeyConfigured: true, storage: "local-fallback" | "firestore", uptimeSec }`
+- Unknown `/api/*` routes return structured `404 JSON` (`{ success: false, error: "Endpoint não encontrado: ..." }`).

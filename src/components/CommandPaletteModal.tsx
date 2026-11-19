@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { AppTab } from './Sidebar';
+import type { AppTab, StudySubTab, VoiceConfigSubTab } from '../utils/navigationOrganizer';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { GoogleIcon } from './GoogleIcon';
 import { persistBrowserState } from '../services/polyglotClient';
+import { useNativeDialog } from '../utils/nativeDialog';
 import type { UnifiedHistoryItem } from '../types/polyglot';
 
 export interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTab: (tab: AppTab, subTab?: 'catalog' | 'solo' | 'debate') => void;
+  onSelectTab: (tab: AppTab, subTab?: VoiceConfigSubTab | StudySubTab) => void;
   onSelectVoice: (voice: VoiceProfile) => void;
   currentVoice: VoiceProfile;
   onOpenDeck?: () => void;
@@ -44,8 +45,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useNativeDialog(dialogRef, isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {
@@ -118,14 +122,38 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
         },
       },
       {
-        id: 'tab-study',
-        title: 'Área de Estudo & Flashcards Deck',
-        subtitle: 'Importação rápida (JSON/CSV/MD) e repetição espaçada com TTS',
+        id: 'tab-study-decks',
+        title: 'Área de Estudo · Visão Geral de Baralhos',
+        subtitle: 'Resumo por baralho, idioma (EN/IT/JA) e data de criação',
         category: 'Navegação',
-        icon: 'school',
+        icon: 'style',
         shortcut: '6',
         action: () => {
-          onSelectTab('study');
+          onSelectTab('study', 'decks');
+          onClose();
+        },
+      },
+      {
+        id: 'tab-study-review',
+        title: 'Área de Estudo · Fila de Revisão SRS',
+        subtitle: 'Treinar flashcards pendentes com repetição espaçada e TTS',
+        category: 'Navegação',
+        icon: 'auto_awesome',
+        shortcut: '7',
+        action: () => {
+          onSelectTab('study', 'review');
+          onClose();
+        },
+      },
+      {
+        id: 'tab-study-create',
+        title: 'Área de Estudo · Criar Flashcard & Catálogo',
+        subtitle: 'Criação manual/IA trilíngue, importador em lote e catálogo',
+        category: 'Navegação',
+        icon: 'school',
+        shortcut: '8',
+        action: () => {
+          onSelectTab('study', 'create');
           onClose();
         },
       },
@@ -257,7 +285,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
     list.push({
       id: 'preset-obsidian',
       title: 'Ativar Escuro Fosco',
-      subtitle: 'Superfícies slate-carvão foscas (#1A1D24 / #21252E / #272C37)',
+      subtitle: 'Superfícies carvão-ardósia foscas (#0A0C10 / #13161F / #191D29)',
       category: 'Ações Rápidas',
       icon: 'dark_mode',
       action: () => applyPresetCommand('obsidian', 'dark'),
@@ -266,7 +294,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
     list.push({
       id: 'preset-slate',
       title: 'Ativar Claro Fosco',
-      subtitle: 'Superfícies papel-slate sem branco puro (#E6E9EE / #EEF0F4 / #F4F5F7)',
+      subtitle: 'Superfícies papel-ardósia sem branco puro (#E4E9EF / #EEF2F6 / #F5F7FA)',
       category: 'Ações Rápidas',
       icon: 'light_mode',
       action: () => applyPresetCommand('slate', 'light'),
@@ -321,34 +349,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
   }, [commands, query]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % (filteredCommands.length || 1));
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + filteredCommands.length) % (filteredCommands.length || 1));
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        if (filteredCommands[selectedIndex]) {
-          filteredCommands[selectedIndex].action();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, filteredCommands, selectedIndex, onClose]);
-
-  useEffect(() => {
     if (listRef.current) {
       const activeEl = listRef.current.querySelector('[data-selected="true"]');
       if (activeEl) {
@@ -357,22 +357,33 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
     }
   }, [selectedIndex]);
 
+  const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDialogElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % (filteredCommands.length || 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + (filteredCommands.length || 1)) % (filteredCommands.length || 1));
+    } else if (e.key === 'Enter') {
+      if (e.target instanceof HTMLButtonElement) return;
+      e.preventDefault();
+      if (filteredCommands[selectedIndex]) {
+        filteredCommands[selectedIndex].action();
+      }
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div
-      data-state="idle"
-      aria-busy="false"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      {...({ closedby: 'any' } as Record<string, string>)}
       aria-label="Paleta de Comandos e Busca Rápida"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/80 transition-opacity"
-      onClick={onClose}
+      onKeyDown={handleDialogKeyDown}
+      className="mx-auto mt-16 sm:mt-24 mb-auto w-[calc(100%-2rem)] max-w-2xl p-0 bg-transparent border-0 rounded-2xl shadow-2xl overflow-visible backdrop:bg-slate-950/80"
     >
-      <div
-        className="relative w-full max-w-2xl card-matte rounded-2xl overflow-hidden flex flex-col max-h-[80vh] transition-all"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="relative w-full card-matte rounded-2xl overflow-hidden flex flex-col max-h-[80vh] transition-all">
         {/* Barra de Busca Sunken */}
         <div className="p-4 border-b border-slate-800 flex items-center gap-3 bg-slate-950/60">
           <GoogleIcon name="search" size={22} className="text-amber-400 shrink-0" />
@@ -475,9 +486,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
               <span>Fechar</span>
             </span>
           </div>
-          <span className="font-mono text-amber-400 font-semibold">MyTTS Studio · Tactile Matte &amp; Steadfast Stainless</span>
+          <span className="font-mono text-amber-400 font-semibold">MyTTS Studio · Obsidian &amp; Slate</span>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

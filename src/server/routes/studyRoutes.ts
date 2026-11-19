@@ -3,7 +3,9 @@ import { randomUUID } from 'crypto';
 import { Type } from '@google/genai';
 import { chunkStorage } from '../../services/chunkStorage';
 import type { ChunkItem } from '../../types/chunks';
-import type { AgentPersona, AlignedChunk } from '../../types/polyglot';
+import type { AgentPersona, AlignedChunk, FlashcardItem } from '../../types/polyglot';
+import { detectFlashcardLanguage } from '../../utils/flashcardParser';
+import { toLocalCalendarDateKey } from '../../utils/flashcardOrganizer';
 import { formatGeminiError, sanitizeUserId } from '../audioContainer';
 import { ai } from '../geminiClient';
 import { ROUTE_ALLOWED_KEYS, validateStrictPayload } from '../validators';
@@ -63,6 +65,120 @@ export function buildFallbackPolyglotReply(
       ja: chunks.map((c) => c.ja).join(' '),
     },
   };
+}
+
+function normalizeGeneratedCard(
+  item: Record<string, string>,
+  fallbackFront: string,
+  explicitLang: string | undefined,
+  now: number,
+  idx = 0
+): FlashcardItem {
+  const front = (item.front || fallbackFront).trim();
+  const resolvedLang = detectFlashcardLanguage(front, explicitLang || item.language);
+  return {
+    id: `card_${now}_${idx}_${randomUUID().slice(0, 6)}`,
+    chunkText: front,
+    language: resolvedLang,
+    front,
+    back: item.back || '',
+    nuance: item.nuance || '',
+    pronunciation: item.pronunciation || '',
+    example: item.example || front,
+    exampleTranslation: item.exampleTranslation || item.back || '',
+    createdAt: now - idx,
+    createdDateKey: toLocalCalendarDateKey(now),
+  };
+}
+
+async function generateTrilingualFlashcards(
+  chunkText: string,
+  contextSentence?: string
+): Promise<FlashcardItem[]> {
+  const systemPrompt = `Você é um professor poliglota especialista na metodologia Anki de repetição espaçada.
+A partir de uma expressão ou frase (em Português, Inglês, Italiano ou Japonês), gere exatamente 3 flashcards paralelos e equivalentes para estudo em Inglês ('en-US'), Italiano ('it-IT') e Japonês ('ja-JP').
+Use 'en-US', 'it-IT' e 'ja-JP' em "language"; expressão idiomática no idioma alvo em "front" (kanji/kana + romaji para japonês); tradução natural em pt-BR em "back"; nuance em pt-BR; guia fonético em "pronunciation"; e exemplo real + tradução pt-BR.`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3.8-flash',
+    contents: [{ role: 'user', parts: [{ text: `Entrada: "${chunkText}"\nContexto: "${contextSentence || chunkText}"` }] }],
+    config: {
+      systemInstruction: systemPrompt,
+      temperature: 0.45,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          cards: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                language: { type: Type.STRING },
+                front: { type: Type.STRING },
+                back: { type: Type.STRING },
+                nuance: { type: Type.STRING },
+                pronunciation: { type: Type.STRING },
+                example: { type: Type.STRING },
+                exampleTranslation: { type: Type.STRING },
+              },
+              required: ['language', 'front', 'back', 'nuance', 'pronunciation', 'example', 'exampleTranslation'],
+            },
+          },
+        },
+        required: ['cards'],
+      },
+    },
+  });
+
+  const parsed = JSON.parse(response.text || '{}') as { cards?: Array<Record<string, string>> };
+  const rawList = Array.isArray(parsed.cards) ? parsed.cards.slice(0, 3) : [];
+  const now = Date.now();
+  return rawList.map((item, idx) => normalizeGeneratedCard(item, chunkText, item.language, now, idx));
+}
+
+async function generateSingleFlashcard(
+  chunkText: string,
+  language: string,
+  contextSentence?: string
+): Promise<FlashcardItem> {
+  const requestedLang = (language || '').trim();
+  const isAuto = !requestedLang || requestedLang.toLowerCase() === 'auto';
+  const systemPrompt = `Você é um professor poliglota especialista na metodologia Anki de repetição espaçada.
+A partir de uma frase ou chunk ${isAuto ? 'detectando o idioma alvo (en-US, it-IT ou ja-JP)' : `em ${requestedLang}`}, elabore um Flashcard pedagógico em Português do Brasil (pt-BR).
+Se a entrada estiver em português e o idioma alvo for EN/IT/JA, traduza para "front" no idioma alvo e coloque o significado pt-BR em "back".
+Inclua "language" ('en-US' | 'it-IT' | 'ja-JP'), "front", "back", "nuance", "pronunciation", "example" e "exampleTranslation".`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3.8-flash',
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: `Chunk: "${chunkText}"\nIdioma alvo: ${isAuto ? 'auto' : requestedLang}\nContexto: "${contextSentence || chunkText}"` }],
+      },
+    ],
+    config: {
+      systemInstruction: systemPrompt,
+      temperature: 0.45,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          language: { type: Type.STRING },
+          front: { type: Type.STRING },
+          back: { type: Type.STRING },
+          nuance: { type: Type.STRING },
+          pronunciation: { type: Type.STRING },
+          example: { type: Type.STRING },
+          exampleTranslation: { type: Type.STRING },
+        },
+        required: ['language', 'front', 'back', 'nuance', 'pronunciation', 'example', 'exampleTranslation'],
+      },
+    },
+  });
+
+  const parsed = JSON.parse(response.text || '{}') as Record<string, string>;
+  return normalizeGeneratedCard(parsed, chunkText, isAuto ? undefined : requestedLang, Date.now(), 0);
 }
 
 export function createStudyRouter(): Router {
@@ -286,71 +402,24 @@ Regras Invioláveis:
         chunkText?: string;
         language?: string;
         contextSentence?: string;
+        trilingual?: boolean;
       }>(req.body, ROUTE_ALLOWED_KEYS.generateFlashcard);
       if (!check.ok) {
         return res.status(400).json({ error: check.error });
       }
 
-      const { chunkText, language, contextSentence } = check.data;
-      if (!chunkText || typeof chunkText !== 'string') {
+      const { chunkText, language = 'auto', contextSentence, trilingual = false } = check.data;
+      if (!chunkText || typeof chunkText !== 'string' || !chunkText.trim()) {
         return res.status(400).json({ error: 'Texto da expressão (chunk) é obrigatório.' });
       }
 
-      const systemPrompt = `Você é um professor poliglota e especialista na metodologia Anki de repetição espaçada.
-A partir de uma frase ou chunk em ${language} extraído de um contexto de conversa real, elabore um Flashcard pedagógico de altíssima fidelidade com explicações claras em Português do Brasil (pt-BR).
+      if (trilingual) {
+        const cards = await generateTrilingualFlashcards(chunkText.trim(), contextSentence);
+        return res.json({ success: true, cards, card: cards[0] });
+      }
 
-Regras de Estrutura:
-1. "front": O chunk original exatamente como selecionado pelo estudante.
-2. "back": Tradução precisa e natural em português do Brasil (pt-BR).
-3. "nuance": Explicação concisa (1 a 2 frases) sobre tom, formalidade, contexto social ou nuances culturais de uso.
-4. "pronunciation": Guia fonético simplificado aproximado em português (ex: "de-vo da-vé-ro", "na-ru-ho-do-ne").
-5. "example": Frase curta de exemplo da vida real utilizando a expressão.
-6. "exampleTranslation": Tradução da frase de exemplo para português do Brasil.`;
-
-      const userPrompt = `Chunk selecionado: "${chunkText}"
-Idioma: ${language}
-Contexto da conversa: "${contextSentence || chunkText}"`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-        config: {
-          systemInstruction: systemPrompt,
-          temperature: 0.5,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              front: { type: Type.STRING },
-              back: { type: Type.STRING },
-              nuance: { type: Type.STRING },
-              pronunciation: { type: Type.STRING },
-              example: { type: Type.STRING },
-              exampleTranslation: { type: Type.STRING },
-            },
-            required: ['front', 'back', 'nuance', 'pronunciation', 'example', 'exampleTranslation'],
-          },
-        },
-      });
-
-      const parsed = JSON.parse(response.text || '{}');
-      const cardId = `card_${Date.now()}_${randomUUID().slice(0, 6)}`;
-
-      return res.json({
-        success: true,
-        card: {
-          id: cardId,
-          chunkText,
-          language: language || 'en',
-          front: parsed.front || chunkText,
-          back: parsed.back || '',
-          nuance: parsed.nuance || '',
-          pronunciation: parsed.pronunciation || '',
-          example: parsed.example || '',
-          exampleTranslation: parsed.exampleTranslation || '',
-          createdAt: Date.now(),
-        },
-      });
+      const card = await generateSingleFlashcard(chunkText.trim(), language, contextSentence);
+      return res.json({ success: true, card });
     } catch (error: unknown) {
       console.error('Error in /api/generate-flashcard:', error);
       return res.status(500).json({

@@ -322,7 +322,7 @@ export const DebateConfigPanel: React.FC<DebateConfigPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => handlePreviewSpeaker(idx)}
-                  className={`h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0 transition-all ${
+                  className={`h-10 min-h-[40px] px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0 transition-all ${
                     previewingSlot === idx
                       ? 'btn-matte-amber text-white'
                       : 'btn-matte-dark text-secondary hover:text-primary'

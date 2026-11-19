@@ -5,16 +5,18 @@ import { getBentoSpanClass, TONAL_LAYER_CLASSES } from '../../config/tokens';
 export function resolveCardFSMState(params: {
   isLoading?: boolean;
   error?: string | null;
+  isEmpty?: boolean;
   isPressed?: boolean;
 }): ComponentFSMState {
   if (params.error) return 'error';
   if (params.isLoading) return 'loading';
+  if (params.isEmpty) return 'empty';
   if (params.isPressed) return 'pressed';
   return 'idle';
 }
 
 export function sanitizeCardTitle(rawTitle: string): string {
-  return rawTitle.trim();
+  return rawTitle.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
 export const SoftCard: React.FC<SoftCardProps> = ({
@@ -30,7 +32,7 @@ export const SoftCard: React.FC<SoftCardProps> = ({
   className = '',
 }) => {
   const [isPressed, setIsPressed] = useState(false);
-  const fsmState = resolveCardFSMState({ isLoading, error, isPressed });
+  const fsmState = resolveCardFSMState({ isLoading, error, isEmpty, isPressed });
   const spanClass = getBentoSpanClass(colSpan);
   const layerClass = TONAL_LAYER_CLASSES[layer];
   const safeTitle = title ? sanitizeCardTitle(title) : '';

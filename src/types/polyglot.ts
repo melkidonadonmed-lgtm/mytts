@@ -8,6 +8,18 @@ export interface AlignedChunk {
 
 export type FlashcardRetentionStatus = 'new' | 'learning' | 'review' | 'mastered';
 
+export type FlashcardLanguageBadge = 'EN' | 'IT' | 'JA';
+export type DeckNamingMode = 'custom' | 'by_language' | 'by_date' | 'by_language_and_date';
+export type DateFilterPreset = 'ALL' | 'TODAY' | 'YESTERDAY' | 'LAST_7D' | 'LAST_30D' | 'CUSTOM';
+export type FlashcardGroupByMode =
+  | 'date_then_lang'
+  | 'lang_then_date'
+  | 'language'
+  | 'date'
+  | 'deck'
+  | 'none';
+export type FlashcardSortOrder = 'newest' | 'oldest' | 'az';
+
 export interface FlashcardItem {
   id: string;
   chunkText: string;
@@ -19,6 +31,7 @@ export interface FlashcardItem {
   example: string;
   exampleTranslation: string;
   createdAt: number;
+  createdDateKey?: string;
   deckName?: string;
   status?: FlashcardRetentionStatus;
   nextReviewAt?: number;

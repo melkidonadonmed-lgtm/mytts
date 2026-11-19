@@ -252,12 +252,23 @@ export async function requestClearUserFlashcards(): Promise<boolean> {
 
 export async function requestGenerateFlashcard(
   chunkText: string,
-  language: string
-): Promise<{ ok: boolean; success?: boolean; card?: FlashcardItem; error?: string }> {
+  language: string,
+  options?: { contextSentence?: string; trilingual?: boolean }
+): Promise<{
+  ok: boolean;
+  success?: boolean;
+  card?: FlashcardItem;
+  cards?: FlashcardItem[];
+  error?: string;
+}> {
+  const payload: Record<string, unknown> = { chunkText, language };
+  if (options?.contextSentence) payload.contextSentence = options.contextSentence;
+  if (options?.trilingual !== undefined) payload.trilingual = options.trilingual;
+
   const resp = await fetch('/api/generate-flashcard', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify({ chunkText, language }),
+    body: JSON.stringify(payload),
   });
   return parseApiJson(resp);
 }

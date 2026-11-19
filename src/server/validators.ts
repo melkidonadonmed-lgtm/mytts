@@ -70,7 +70,7 @@ export const ROUTE_ALLOWED_KEYS = {
   generateChunks: new Set(['textOrPrompt', 'language', 'count']),
   createChunk: new Set(['id', 'chunk', 'literalOrNuance', 'meaning', 'context', 'pronunciationHint']),
   translateParallelChunks: new Set(['text', 'sourceLanguage']),
-  generateFlashcard: new Set(['chunkText', 'language', 'contextSentence']),
+  generateFlashcard: new Set(['chunkText', 'language', 'contextSentence', 'trilingual']),
   authGoogle: new Set(['credential', 'email', 'name']),
   conversationUpsert: new Set([
     'id',

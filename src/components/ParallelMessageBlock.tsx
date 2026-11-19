@@ -97,6 +97,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
     language: string;
     position: { top: number; left: number };
   } | null>(null);
+  const [failedThumbs, setFailedThumbs] = useState<Record<string, true>>({});
 
   const handleClickChunk = (chunkText: string, language: string, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -130,7 +131,6 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
 
   return (
     <div
-      data-state="idle"
       aria-busy={message.status === 'loading'}
       className="flex flex-col gap-3.5 pb-6 border-b border-slate-800/40 last:border-b-0 transition-all"
     >
@@ -176,7 +176,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsStudioPickerOpen((prev) => !prev)}
-                      className="btn-compact-touch btn-matte-dark h-7 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300 hover:text-primary rounded-full inline-flex items-center gap-1 cursor-pointer transition-all"
+                      className="btn-compact-touch btn-matte-dark h-10 min-h-[40px] px-3 py-1 text-[11px] font-semibold text-amber-300 hover:text-primary rounded-full inline-flex items-center gap-1 cursor-pointer transition-all"
                       title="Enviar este conteúdo para o Estúdio de Criação (Debate, Podcast, Conversa de Bar, Jantar ou Solo)"
                     >
                       <Plus className="w-3.5 h-3.5 text-amber-400" />
@@ -216,7 +216,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
                   <button
                     type="button"
                     onClick={() => onOpenExport(message)}
-                    className="btn-compact-touch btn-matte-dark h-7 px-2.5 py-0.5 text-[11px] text-secondary hover:text-primary rounded-full inline-flex items-center gap-1 transition-all cursor-pointer"
+                    className="btn-compact-touch btn-matte-dark h-10 min-h-[40px] px-3 py-1 text-[11px] text-secondary hover:text-primary rounded-full inline-flex items-center gap-1 transition-all cursor-pointer"
                     title="Exportar Chunks e Áudio desta interação (Anki CSV, Markdown, JSON, WAV ou Deck)"
                   >
                     <GoogleIcon name="download" size={13} className="text-amber-400" />
@@ -285,12 +285,31 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
           {/* Metadados + Player Embarcado do YouTube */}
           {message.youtubeMeta && (
             <div className="flex items-center gap-2.5 p-2 rounded-xl surface-inset">
-              <img
-                src={message.youtubeMeta.thumbnailUrl}
-                alt={message.youtubeMeta.title}
-                className="w-16 h-10 rounded-lg object-cover border border-rose-500/30 shrink-0"
-                referrerPolicy="no-referrer"
-              />
+              {!failedThumbs[message.youtubeMeta.thumbnailUrl] ? (
+                <img
+                  src={message.youtubeMeta.thumbnailUrl}
+                  alt={message.youtubeMeta.title}
+                  width={64}
+                  height={40}
+                  loading="lazy"
+                  decoding="async"
+                  onError={() =>
+                    setFailedThumbs((prev) => ({
+                      ...prev,
+                      [message.youtubeMeta!.thumbnailUrl]: true,
+                    }))
+                  }
+                  className="w-16 h-10 rounded-lg object-cover border border-rose-500/30 shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div
+                  className="w-16 h-10 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0"
+                  aria-hidden="true"
+                >
+                  <span className="text-[10px] font-mono font-bold text-rose-300">YT</span>
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-primary truncate">
                   {message.youtubeMeta.title}
@@ -305,7 +324,7 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
           )}
 
           {showYoutubeEmbed && resolvedYoutubeId && (
-            <div className="w-full aspect-video max-h-[320px] rounded-xl overflow-hidden border border-slate-700/70 bg-black">
+            <div className="w-full aspect-video max-h-[320px] rounded-xl overflow-hidden border border-slate-700/70 bg-slate-950">
               <iframe
                 title={message.youtubeMeta?.title || 'Player do YouTube'}
                 src={`https://www.youtube-nocookie.com/embed/${resolvedYoutubeId}`}
@@ -447,12 +466,31 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
                     className="rounded-xl surface-inset p-2 flex flex-col justify-between gap-2 border border-white/[0.06]"
                   >
                     <div className="flex items-start gap-2.5">
-                      <img
-                        src={yt.thumbnailUrl}
-                        alt={yt.title}
-                        className="w-20 h-12 rounded-lg object-cover border border-rose-500/30 shrink-0"
-                        referrerPolicy="no-referrer"
-                      />
+                      {!failedThumbs[yt.thumbnailUrl] ? (
+                        <img
+                          src={yt.thumbnailUrl}
+                          alt={yt.title}
+                          width={80}
+                          height={48}
+                          loading="lazy"
+                          decoding="async"
+                          onError={() =>
+                            setFailedThumbs((prev) => ({
+                              ...prev,
+                              [yt.thumbnailUrl]: true,
+                            }))
+                          }
+                          className="w-20 h-12 rounded-lg object-cover border border-rose-500/30 shrink-0"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div
+                          className="w-20 h-12 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0"
+                          aria-hidden="true"
+                        >
+                          <span className="text-[10px] font-mono font-bold text-rose-300">YT</span>
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <a
                           href={yt.canonicalUrl}
@@ -582,10 +620,10 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
         </div>
       )}
 
-      {/* 4. Canvas dos 3 Cards Paralelos com Enquadramento Amplo e Espaçamento Confortável */}
+      {/* 4. Canvas dos 3 Cards Paralelos com Container Query Responsiva */}
       {message.status === 'ready' && (
-        <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5 items-stretch">
+        <div className="@container flex flex-col gap-3 min-w-0">
+          <div className="grid grid-cols-1 @min-[720px]:grid-cols-3 gap-4 lg:gap-5 items-stretch">
             <LanguageColumnCard
               languageCode="en"
               languageTitle="Inglês"

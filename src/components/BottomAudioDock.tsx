@@ -476,13 +476,13 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
       <aside
         id="BottomAudioDock"
         aria-label="Pílula de Produtor e Linha Animada"
-        className="fixed bottom-3 left-0 lg:left-72 right-0 z-30 px-4 pointer-events-none"
+        className="fixed bottom-3 left-0 right-0 lg:left-[var(--left-sidebar-w)] lg:right-[var(--right-sidebar-w)] z-30 px-4 pointer-events-none"
       >
         <div className="max-w-3xl mx-auto card-matte rounded-full px-3.5 py-2 shadow-2xl border border-amber-400/30 flex items-center justify-between gap-3 pointer-events-auto">
           <button
             type="button"
             onClick={onTogglePlay}
-            className="btn-matte-amber h-9 px-3.5 rounded-full text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
+            className="btn-matte-amber h-10 min-h-[40px] px-3.5 rounded-full text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
           >
             {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
             <span>{isPlaying ? 'Pausar' : currentSpeaker?.name || 'Ouvir'}</span>
@@ -518,7 +518,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                 setActiveDrawerTab('soundtrack');
                 setIsExpanded(true);
               }}
-              className="btn-compact-touch h-8 px-2.5 rounded-full btn-matte-dark text-[11px] font-semibold text-amber-300 hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+              className="btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-3 rounded-full btn-matte-dark text-[11px] font-semibold text-amber-300 hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
               title="Abrir Mixer de Trilha Sonora & Auto-Ducking"
             >
               <Music className="w-3.5 h-3.5 text-amber-400" />
@@ -528,7 +528,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
             <button
               type="button"
               onClick={() => setIsCompactPill(false)}
-              className="btn-compact-touch h-8 px-2.5 rounded-full btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+              className="btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-3 rounded-full btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
               title="Expandir Pílula de Produtor"
             >
               <Sliders className="w-3.5 h-3.5 text-amber-400" />
@@ -544,7 +544,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
     <aside 
       id="BottomAudioDock"
       aria-label="Controles de Reprodução de Áudio"
-      className="fixed bottom-0 left-0 lg:left-72 right-0 z-30 dock-matte transition-all shadow-[0_-10px_30px_rgba(0,0,0,0.6)]"
+      className="fixed bottom-0 left-0 right-0 lg:left-[var(--left-sidebar-w)] lg:right-[var(--right-sidebar-w)] z-30 dock-matte transition-all shadow-[0_-10px_30px_rgba(0,0,0,0.6)]"
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)' }}
     >
       <input
@@ -999,123 +999,131 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
         {/* 2. Barra de Controle Principal (Thumb Zone) */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           
-          {/* Bloco Esquerdo: Identificador Visual do Orador e Pílula da Trilha */}
-          <div 
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-2.5 min-w-0 flex-1 max-w-[48%] sm:max-w-xs cursor-pointer select-none py-1 group"
-            title={isExpanded ? 'Recolher Painel de Áudio' : 'Expandir Perfil e Trilha Sonora'}
-          >
-            <div className="relative shrink-0">
-              {isPlaying && (
-                <motion.span
-                  className="absolute inset-0 rounded-xl pointer-events-none"
-                  animate={{
-                    scale: [1, 1.28, 1.45],
-                    opacity: [0.65, 0.3, 0],
-                  }}
+          {/* Bloco Esquerdo: Botão de Expansão do Orador + Botão Irmão da Trilha */}
+          <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[48%] sm:max-w-xs">
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? 'Recolher Painel de Áudio' : 'Expandir Perfil e Trilha Sonora'}
+              title={isExpanded ? 'Recolher Painel de Áudio' : 'Expandir Perfil e Trilha Sonora'}
+              className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer select-none py-1 group rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <div className="relative shrink-0">
+                {isPlaying && (
+                  <motion.span
+                    className="absolute inset-0 rounded-xl pointer-events-none"
+                    animate={{
+                      scale: [1, 1.28, 1.45],
+                      opacity: [0.65, 0.3, 0],
+                    }}
+                    transition={{
+                      duration: 1.4,
+                      repeat: Infinity,
+                      ease: 'easeOut',
+                    }}
+                    style={{
+                      border: `1.5px solid ${currentSpeaker?.color || '#f59e0b'}`,
+                    }}
+                  />
+                )}
+
+                <motion.div
+                  className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl border font-bold text-sm shadow-inner transition-transform group-active:translate-y-px"
+                  animate={
+                    isPlaying
+                      ? {
+                          scale: [1, 1.04, 0.99, 1.07, 1.02, 1],
+                          borderColor: [
+                            `${currentSpeaker?.color || '#f59e0b'}60`,
+                            `${currentSpeaker?.color || '#f59e0b'}ff`,
+                            `${currentSpeaker?.color || '#f59e0b'}70`,
+                            `${currentSpeaker?.color || '#f59e0b'}ee`,
+                            `${currentSpeaker?.color || '#f59e0b'}60`,
+                          ],
+                        }
+                      : {
+                          scale: 1,
+                          borderColor: `${currentSpeaker?.color || '#f59e0b'}40`,
+                        }
+                  }
                   transition={{
                     duration: 1.4,
-                    repeat: Infinity,
-                    ease: 'easeOut',
+                    repeat: isPlaying ? Infinity : 0,
+                    ease: 'easeInOut',
                   }}
                   style={{
-                    border: `1.5px solid ${currentSpeaker?.color || '#f59e0b'}`,
+                    backgroundColor: `${currentSpeaker?.color || '#f59e0b'}15`,
+                    color: currentSpeaker?.color || '#f59e0b',
                   }}
-                />
-              )}
-
-              <motion.div 
-                className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl border font-bold text-sm shadow-inner transition-transform group-active:translate-y-px"
-                animate={
-                  isPlaying
-                    ? {
-                        scale: [1, 1.04, 0.99, 1.07, 1.02, 1],
-                        borderColor: [
-                          `${currentSpeaker?.color || '#f59e0b'}60`,
-                          `${currentSpeaker?.color || '#f59e0b'}ff`,
-                          `${currentSpeaker?.color || '#f59e0b'}70`,
-                          `${currentSpeaker?.color || '#f59e0b'}ee`,
-                          `${currentSpeaker?.color || '#f59e0b'}60`,
-                        ],
-                      }
-                    : {
-                        scale: 1,
-                        borderColor: `${currentSpeaker?.color || '#f59e0b'}40`,
-                      }
-                }
-                transition={{
-                  duration: 1.4,
-                  repeat: isPlaying ? Infinity : 0,
-                  ease: 'easeInOut',
-                }}
-                style={{ 
-                  backgroundColor: `${currentSpeaker?.color || '#f59e0b'}15`,
-                  color: currentSpeaker?.color || '#f59e0b'
-                }}
-              >
-                {currentSpeaker ? currentSpeaker.name.charAt(0) : 'D'}
-                {isPlaying && (
-                  <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-                  </span>
-                )}
-              </motion.div>
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-xs sm:text-sm font-bold text-slate-100 truncate">
-                  {currentSpeaker?.name || 'DialecticPod'}
-                </p>
-
-                {/* Pílula Dinâmica da Trilha Sonora & Ducking */}
-                {soundtrackConfig.preset !== 'none' ? (
-                  <span 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveDrawerTab('soundtrack');
-                      setIsExpanded(true);
-                    }}
-                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono border transition-all ${
-                      isDucking
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-400/40 ring-1 ring-amber-400/30'
-                        : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                    }`}
-                    title={isDucking ? 'Auto-Ducking ativo na fala' : 'Trilha sonora ativa'}
-                  >
-                    <span>{currentPresetMeta.icon}</span>
-                    <span className="truncate max-w-[64px] sm:max-w-none">{currentPresetMeta.ptName.split(' ')[0]}</span>
-                    {isDucking && <span className="text-[10px] text-amber-400 font-bold hidden sm:inline">-14dB</span>}
-                  </span>
-                ) : (
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveDrawerTab('soundtrack');
-                      setIsExpanded(true);
-                    }}
-                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-900 text-slate-400 hover:text-amber-300 border border-slate-800 hover:border-amber-400/30 transition-all"
-                  >
-                    <Music className="w-2.5 h-2.5 text-slate-500" />
-                    <span className="hidden sm:inline">+ Trilha</span>
-                  </span>
-                )}
-
-                {isExpanded ? (
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                ) : (
-                  <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                )}
+                >
+                  {currentSpeaker ? currentSpeaker.name.charAt(0) : 'D'}
+                  {isPlaying && (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3" aria-hidden="true">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                    </span>
+                  )}
+                </motion.div>
               </div>
-              <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                <span>{currentSpeaker?.roleTitle?.split(' ')[0] || 'Studio'}</span>
-                <span>•</span>
-                <span className="font-mono text-slate-500">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
-              </p>
-            </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs sm:text-sm font-bold text-slate-100 truncate">
+                    {currentSpeaker?.name || 'DialecticPod'}
+                  </p>
+                  {isExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
+                  <span>{currentSpeaker?.roleTitle?.split(' ')[0] || 'Studio'}</span>
+                  <span aria-hidden="true">•</span>
+                  <span className="font-mono text-slate-500 tabular-nums">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </span>
+                </p>
+              </div>
+            </button>
+
+            {/* Botão Irmão da Trilha Sonora & Ducking */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveDrawerTab('soundtrack');
+                setIsExpanded(true);
+              }}
+              aria-label={soundtrackConfig.preset !== 'none' ? 'Configurar trilha sonora ativa' : 'Adicionar trilha sonora'}
+              title={
+                soundtrackConfig.preset !== 'none'
+                  ? isDucking
+                    ? 'Auto-Ducking ativo na fala'
+                    : 'Trilha sonora ativa'
+                  : 'Configurar trilha sonora'
+              }
+              className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 min-h-[32px] rounded-md text-[10px] font-mono border transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                soundtrackConfig.preset !== 'none'
+                  ? isDucking
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/40 ring-1 ring-amber-400/30'
+                    : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                  : 'bg-slate-900 text-slate-400 hover:text-amber-300 border-slate-800 hover:border-amber-400/30'
+              }`}
+            >
+              {soundtrackConfig.preset !== 'none' ? (
+                <>
+                  <span aria-hidden="true">{currentPresetMeta.icon}</span>
+                  <span className="truncate max-w-[64px] sm:max-w-none">{currentPresetMeta.ptName.split(' ')[0]}</span>
+                  {isDucking && <span className="text-[10px] text-amber-400 font-bold hidden sm:inline">-14dB</span>}
+                </>
+              ) : (
+                <>
+                  <Music className="w-3 h-3 text-slate-500" aria-hidden="true" />
+                  <span className="hidden sm:inline">+ Trilha</span>
+                </>
+              )}
+            </button>
           </div>
 
           {/* Bloco Central: Controles de Áudio com Touch Targets Amplos e Sotaque Ativo */}

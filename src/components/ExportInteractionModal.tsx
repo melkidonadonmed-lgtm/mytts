@@ -1,9 +1,10 @@
 /**
  * Modal de exportação de interação poliglota com Preview Ao Vivo do formato e exportação WAV 24kHz.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { PolyglotMessage, FlashcardItem } from '../types/polyglot';
 import { GoogleIcon } from './GoogleIcon';
+import { useNativeDialog } from '../utils/nativeDialog';
 import {
   generateInteractionAnkiCsv,
   generateInteractionMarkdown,
@@ -36,16 +37,9 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('anki-csv');
   const [isExportingWav, setIsExportingWav] = useState(false);
   const [copiedPreview, setCopiedPreview] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  useNativeDialog(dialogRef, Boolean(isOpen && message), onClose);
 
   const messageWithVoices: PolyglotMessage | null = useMemo(() => {
     if (!message) return null;
@@ -197,19 +191,14 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
   ];
 
   return (
-    <div
-      data-state="idle"
+    <dialog
+      ref={dialogRef}
+      {...({ closedby: 'any' } as Record<string, string>)}
       aria-busy={isExportingWav}
-      role="dialog"
-      aria-modal="true"
       aria-labelledby="modal-export-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-in fade-in duration-200"
-      onClick={onClose}
+      className="m-auto w-[calc(100%-2rem)] max-w-2xl p-0 bg-transparent border-0 rounded-3xl shadow-2xl overflow-visible backdrop:bg-slate-950/80"
     >
-      <div
-        className="relative w-full max-w-2xl card-matte rounded-3xl p-5 sm:p-6 shadow-2xl overflow-y-auto max-h-[90vh] flex flex-col gap-4 animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="relative w-full card-matte rounded-3xl p-5 sm:p-6 overflow-y-auto max-h-[90vh] flex flex-col gap-4 animate-in zoom-in-95 duration-200">
         {/* Header do Modal */}
         <div className="flex items-start justify-between gap-3 border-b border-slate-800/80 pb-3.5">
           <div className="flex items-center gap-3">
@@ -340,6 +329,6 @@ export const ExportInteractionModal: React.FC<ExportInteractionModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

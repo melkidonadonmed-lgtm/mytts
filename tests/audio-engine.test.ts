@@ -100,37 +100,43 @@ test('Suite 12: Calibração Prosódica Multilíngue e Sanitização com AutoPro
   assert.ok(japaneseStyle.includes('native Japanese'));
 });
 
-// Suite 13: Auditoria Determinística Soft UI v4.5-soft (FSM, Tokens Anti-Cobalto & Sanitização)
+// Suite 13: Deterministic Soft UI v8.0.0 Audit (FSM, Anti-Cobalt Tokens & Sanitization)
+import fs from 'fs';
+import path from 'path';
 import { resolveCardFSMState, sanitizeCardTitle } from '../src/components/ui/SoftCard';
 import {
+  DESIGN_SYSTEM_VERSION,
   SOFT_UI_PRESETS,
   resolvePresetTokens,
   getBentoSpanClass,
   normalizeThemePreset,
 } from '../src/config/tokens';
 
-test('Suite 13: Soft UI v4.5-soft — FSM Determinística (AUDIT-STATE-01/02) e Tokens Anti-Cobalto (AUDIT-VIS-01)', () => {
+test('Suite 13: Soft UI v8.0.0 — FSM Determinística (AUDIT-STATE-01/02) e Tokens Anti-Cobalto (AUDIT-VIS-01)', () => {
   // 1. ARRANGE
   const forbiddenCobaltHexes = ['#0044ff', '#0057ff', '#1d4ed8', '#233dff'];
   const allPresets = Object.values(SOFT_UI_PRESETS);
 
   // 2. ACT
-  const stateIdle = resolveCardFSMState({ isLoading: false, error: null, isPressed: false });
-  const stateLoading = resolveCardFSMState({ isLoading: true, error: null, isPressed: false });
-  const stateError = resolveCardFSMState({ isLoading: true, error: 'Falha HTTP 502', isPressed: true });
-  const statePressed = resolveCardFSMState({ isLoading: false, error: null, isPressed: true });
+  const stateIdle = resolveCardFSMState({ isLoading: false, error: null, isEmpty: false, isPressed: false });
+  const stateEmpty = resolveCardFSMState({ isLoading: false, error: null, isEmpty: true, isPressed: true });
+  const stateLoading = resolveCardFSMState({ isLoading: true, error: null, isEmpty: true, isPressed: false });
+  const stateError = resolveCardFSMState({ isLoading: true, error: 'Falha HTTP 502', isEmpty: true, isPressed: true });
+  const statePressed = resolveCardFSMState({ isLoading: false, error: null, isEmpty: false, isPressed: true });
   const sanitizedTitle = sanitizeCardTitle('  Estúdio Neural <img src=x onerror=void(0)>  ');
   const slateTokens = resolvePresetTokens('slate');
   const span8 = getBentoSpanClass(8);
 
   // 3. ASSERT
+  assert.strictEqual(DESIGN_SYSTEM_VERSION, '8.0.0');
   assert.strictEqual(stateIdle, 'idle');
+  assert.strictEqual(stateEmpty, 'empty');
   assert.strictEqual(stateLoading, 'loading');
   assert.strictEqual(stateError, 'error');
   assert.strictEqual(statePressed, 'pressed');
-  assert.strictEqual(sanitizedTitle, 'Estúdio Neural <img src=x onerror=void(0)>');
+  assert.strictEqual(sanitizedTitle, 'Estúdio Neural');
   assert.strictEqual(slateTokens.accentPoint, '#0284C7');
-  assert.strictEqual(span8, 'col-span-8');
+  assert.strictEqual(span8, 'col-span-1 md:col-span-8');
 
   // Validação dos 2 únicos presets foscos ('obsidian' e 'slate') e migração legada
   assert.deepStrictEqual(Object.keys(SOFT_UI_PRESETS).sort(), ['obsidian', 'slate'].sort());
@@ -957,6 +963,179 @@ test('Suite 20: Validadores Estritos de Fronteira REST — Rejeição Adversaria
   }
   assert.strictEqual(arrayBody.ok, false);
   assert.strictEqual(nullBody.ok, false);
+});
+
+// Suite 24: Organizador Puro de Navegação, Breadcrumbs, Atalhos e Tablists Acessíveis
+import {
+  buildBreadcrumbTrail,
+  computeNextTablistIndex,
+  getSidebarNavGroups,
+  resolveNavigationTarget,
+  resolveShortcutNavigation,
+} from '../src/utils/navigationOrganizer';
+
+test('Suite 24: Organizador de Navegação — Rotas Seguras, Breadcrumbs 3 Níveis, Grupos, Atalhos e Tablist', () => {
+  // 1. resolveNavigationTarget (aliases legados, sub-abas válidas e rejeição adversarial)
+  assert.deepStrictEqual(resolveNavigationTarget('reader'), { tab: 'voices', voiceSubTab: 'solo' });
+  assert.deepStrictEqual(resolveNavigationTarget('debate'), { tab: 'voices', voiceSubTab: 'debate' });
+  assert.deepStrictEqual(resolveNavigationTarget('study', 'review'), {
+    tab: 'study',
+    studySubTab: 'review',
+  });
+  // Adversarial: rota desconhecida ou sub-aba inválida não pode quebrar ou injetar estado
+  assert.deepStrictEqual(resolveNavigationTarget('__proto__'), { tab: 'polyglot' });
+  assert.deepStrictEqual(resolveNavigationTarget('study', 'evil_subtab'), { tab: 'study' });
+
+  // 2. buildBreadcrumbTrail (2 níveis em módulos simples vs. 3 níveis em Vozes/Estudo)
+  const polyglotTrail = buildBreadcrumbTrail({
+    activeTab: 'polyglot',
+    voiceSubTab: 'catalog',
+    studySubTab: 'decks',
+  });
+  assert.strictEqual(polyglotTrail.length, 2);
+  assert.strictEqual(polyglotTrail[0].isCurrent, false);
+  assert.strictEqual(polyglotTrail[1].isCurrent, true);
+
+  const studyReviewTrail = buildBreadcrumbTrail({
+    activeTab: 'study',
+    voiceSubTab: 'catalog',
+    studySubTab: 'review',
+  });
+  assert.strictEqual(studyReviewTrail.length, 3);
+  assert.strictEqual(studyReviewTrail[1].isCurrent, false);
+  assert.strictEqual(studyReviewTrail[1].studySubTab, 'decks');
+  assert.strictEqual(studyReviewTrail[2].isCurrent, true);
+  assert.strictEqual(studyReviewTrail[2].studySubTab, 'review');
+
+  // 3. getSidebarNavGroups (2 grupos funcionais com sub-itens e contadores)
+  const groups = getSidebarNavGroups({ flashcardCount: 14, dueCount: 3 });
+  assert.strictEqual(groups.length, 2);
+  assert.strictEqual(groups[0].id, 'studio');
+  assert.strictEqual(groups[1].id, 'retention');
+  assert.strictEqual(groups[0].items[1].subItems?.length, 3);
+  assert.strictEqual(groups[1].items[1].badge, '14 Cards');
+  assert.strictEqual(groups[1].items[1].subItems?.[1].badge, '3');
+
+  // 4. resolveShortcutNavigation (Alt+1..4 e bloqueio em inputs editáveis / modificadores extras)
+  assert.deepStrictEqual(resolveShortcutNavigation({ altKey: true, key: '3' }), { tab: 'chunks' });
+  assert.deepStrictEqual(resolveShortcutNavigation({ altKey: true, key: '4' }), {
+    tab: 'study',
+    studySubTab: 'decks',
+  });
+  assert.strictEqual(
+    resolveShortcutNavigation({ altKey: true, key: '1', targetTagName: 'INPUT' }),
+    null
+  );
+  assert.strictEqual(
+    resolveShortcutNavigation({ altKey: true, key: '2', targetTagName: 'textarea' }),
+    null
+  );
+  assert.strictEqual(
+    resolveShortcutNavigation({ altKey: true, key: '2', isContentEditable: true }),
+    null
+  );
+  assert.strictEqual(resolveShortcutNavigation({ altKey: true, ctrlKey: true, key: '1' }), null);
+
+  // 5. computeNextTablistIndex (circular ArrowRight/ArrowLeft, Home/End e proteção de limite)
+  assert.strictEqual(computeNextTablistIndex(0, 3, 'ArrowRight'), 1);
+  assert.strictEqual(computeNextTablistIndex(2, 3, 'ArrowRight'), 0);
+  assert.strictEqual(computeNextTablistIndex(0, 3, 'ArrowLeft'), 2);
+  assert.strictEqual(computeNextTablistIndex(1, 3, 'Home'), 0);
+  assert.strictEqual(computeNextTablistIndex(0, 3, 'End'), 2);
+  assert.strictEqual(computeNextTablistIndex(0, 3, 'Enter'), null);
+  assert.strictEqual(computeNextTablistIndex(0, 0, 'ArrowRight'), null);
+});
+
+function collectSrcFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectSrcFiles(fullPath, out);
+    } else if (/\.(ts|tsx|css)$/.test(entry.name)) {
+      out.push(fullPath);
+    }
+  }
+  return out;
+}
+
+function stripCodeComments(content: string, isCss: boolean): string {
+  const withoutBlockComments = content.replace(/\/\*[\s\S]*?\*\//g, '');
+  if (isCss) return withoutBlockComments;
+  return withoutBlockComments.replace(/(^|\s)\/\/.*$/gm, '');
+}
+
+test('Suite 25: Auditoria Estática SSOT v8.0.0 — Zero Blur, Anti-Cobalto, Anti-Whiteout, Zero XSS & A11y Semântica', () => {
+  const srcDir = path.resolve(process.cwd(), 'src');
+  const files = collectSrcFiles(srcDir);
+  assert.ok(files.length > 0, 'src directory must contain source files');
+
+  const forbiddenCobalt = ['#0044ff', '#0057ff', '#1d4ed8', '#233dff'];
+
+  for (const filePath of files) {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const isCss = filePath.endsWith('.css');
+    const stripped = stripCodeComments(raw, isCss);
+    const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+
+    // AUDIT-VIS-01: Zero glassmorphism blur and zero forbidden cobalt hexes
+    assert.strictEqual(
+      /backdrop-blur|backdrop-filter\s*:\s*blur/i.test(stripped),
+      false,
+      `Forbidden blur found in ${relPath}`
+    );
+    const lower = stripped.toLowerCase();
+    for (const hex of forbiddenCobalt) {
+      assert.strictEqual(lower.includes(hex), false, `Forbidden cobalt ${hex} found in ${relPath}`);
+    }
+
+    // OPTICS-NO-BLACK: Zero bg-black or #000000 in src/**/*.{ts,tsx,css}
+    assert.strictEqual(
+      /\bbg-black\b|#000000/i.test(stripped),
+      false,
+      `Forbidden pure black surface/color found in ${relPath}`
+    );
+
+    if (!isCss) {
+      // ANTI-SLOP-WIREFRAME: Zero border-dashed wireframes in src/components/**/*.{ts,tsx}
+      if (relPath.startsWith('src/components/')) {
+        assert.strictEqual(
+          /\bborder-dashed\b/.test(stripped),
+          false,
+          `Forbidden border-dashed wireframe found in ${relPath}`
+        );
+      }
+      // AUDIT-SEC-01: Zero dangerouslySetInnerHTML
+      assert.strictEqual(
+        /dangerouslySetInnerHTML/.test(stripped),
+        false,
+        `Forbidden dangerouslySetInnerHTML found in ${relPath}`
+      );
+      // AUDIT-A11Y-01: Zero order-* flex/grid classes on interactive elements
+      assert.strictEqual(
+        /<(?:button|a|input|select|textarea)\b[^>]*\b(?:sm:|md:|lg:|xl:)?order-(?:first|last|none|\d+)\b/.test(stripped),
+        false,
+        `Focus-disrupting order-* utility found on interactive control in ${relPath}`
+      );
+    }
+  }
+
+  // AUDIT-VIS-01: Zero #ffffff !important background overrides in src/index.css
+  const indexCss = fs.readFileSync(path.join(srcDir, 'index.css'), 'utf-8');
+  assert.strictEqual(
+    /background(?:-color)?\s*:\s*#fff(?:fff)?\s*!important/i.test(stripCodeComments(indexCss, true)),
+    false,
+    'Pure white #ffffff !important background override must not exist in src/index.css'
+  );
+
+  // AUDIT-A11Y-01: Zero clickable <div onClick> or <span onClick> in VoiceCardGrid.tsx and BottomAudioDock.tsx
+  for (const relTarget of ['components/VoiceCardGrid.tsx', 'components/BottomAudioDock.tsx']) {
+    const content = fs.readFileSync(path.join(srcDir, relTarget), 'utf-8');
+    assert.strictEqual(
+      /<(?:div|span)\b[^>]*\bonClick\s*=/s.test(content),
+      false,
+      `Non-semantic clickable div/span found in src/${relTarget}`
+    );
+  }
 });
 
 export async function runContractTests(): Promise<number> {

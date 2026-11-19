@@ -30,6 +30,13 @@ import {
   addFlashcardsToDeck,
   chunkItemToFlashcard,
 } from '../services/flashcardDeckStorage';
+import { GoogleIcon } from './GoogleIcon';
+
+export interface FastChunkAudioAppProps {
+  onOpenStudyTab?: () => void;
+  onOpenPolyglotTab?: () => void;
+  flashcardCount?: number;
+}
 
 // Banco inicial offline para teste imediato de alta fluência
 const CHUNK_PRESETS: Record<TargetLang, Record<string, ChunkItem[]>> = {
@@ -143,7 +150,11 @@ const CHUNK_PRESETS: Record<TargetLang, Record<string, ChunkItem[]>> = {
   }
 };
 
-export const FastChunkAudioApp: React.FC = () => {
+export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
+  onOpenStudyTab,
+  onOpenPolyglotTab,
+  flashcardCount = 0,
+}) => {
   const [selectedLang, setSelectedLang] = useState<TargetLang>('en-US');
   const [searchTerm, setSearchTerm] = useState('');
   const [playbackRate, setPlaybackRate] = useState<number>(1.0);
@@ -165,10 +176,11 @@ export const FastChunkAudioApp: React.FC = () => {
   const [customChunks, setCustomChunks] = useState<ChunkItem[]>([]);
   const [isLoadingBackend, setIsLoadingBackend] = useState(false);
 
-  // Cache e estado de síntese neural Gemini (Director's Chair TTS com IndexedDB)
+  // Cache and neural synthesis state (IndexedDB + WAV Blob URL lifecycle)
   const [cachedChunkIds, setCachedChunkIds] = useState<Set<string>>(new Set());
   const [loadingNeuralId, setLoadingNeuralId] = useState<string | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const activeBlobUrlRef = useRef<string | null>(null);
 
   // Modal de Ingestão / Geração por IA
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -195,13 +207,25 @@ export const FastChunkAudioApp: React.FC = () => {
     { code: 'ja-JP', label: 'Japonês', flag: 'JA' },
   ];
 
-  // Interrompe o áudio caso o componente desmonte ou mude de idioma
+  const stopAndRevokeChunkAudio = useCallback(() => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current = null;
+    }
+    if (activeBlobUrlRef.current) {
+      revokeAudioUrl(activeBlobUrlRef.current);
+      activeBlobUrlRef.current = null;
+    }
+  }, []);
+
+  // Stop speech/audio playback on language change or unmount
   useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
       if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
+      stopAndRevokeChunkAudio();
     };
-  }, [selectedLang]);
+  }, [selectedLang, stopAndRevokeChunkAudio]);
 
   // Modern Web Guidance: Pré-carregamento assíncrono de vozes do sintetizador
   useEffect(() => {
@@ -293,31 +317,36 @@ export const FastChunkAudioApp: React.FC = () => {
 
   // Reproduz áudio WAV a partir do Base64 com ciclo de vida seguro de memória
   const playAudioBase64 = useCallback(async (base64Audio: string, id: string): Promise<void> => {
+    stopAndRevokeChunkAudio();
     const blobUrl = base64ToBlobUrl(base64Audio, 'audio/wav');
+    activeBlobUrlRef.current = blobUrl;
     const audio = new Audio(blobUrl);
     audio.preservesPitch = true;
     audio.playbackRate = playbackRate;
     audioPlayerRef.current = audio;
     setSpeakingId(id);
 
-    audio.onended = () => {
+    const releaseCurrentBlob = () => {
       setSpeakingId(null);
       revokeAudioUrl(blobUrl);
+      if (activeBlobUrlRef.current === blobUrl) {
+        activeBlobUrlRef.current = null;
+      }
+      if (audioPlayerRef.current === audio) {
+        audioPlayerRef.current = null;
+      }
     };
-    audio.onerror = () => {
-      setSpeakingId(null);
-      revokeAudioUrl(blobUrl);
-    };
+
+    audio.onended = releaseCurrentBlob;
+    audio.onerror = releaseCurrentBlob;
 
     await audio.play();
-  }, [playbackRate]);
+  }, [playbackRate, stopAndRevokeChunkAudio]);
 
-  // Reprodução de Áudio Ultra-Realista via Gemini 3.1 Flash TTS (Director's Chair) com Cache Local (0ms)
+  // Reprodução de Áudio Ultra-Realista via Gemini 3.8 Flash TTS (Director's Chair) com Cache Local (0ms)
   const speakNeuralChunk = async (text: string, id: string): Promise<void> => {
     window.speechSynthesis?.cancel();
-    if (audioPlayerRef.current) {
-      audioPlayerRef.current.pause();
-    }
+    stopAndRevokeChunkAudio();
 
     const cacheKey = generateAudioCacheKey({
       type: 'chunk',
@@ -470,95 +499,127 @@ export const FastChunkAudioApp: React.FC = () => {
   }, [selectedLang, filteredChunks]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-24 selection:bg-amber-500/20">
+    <div className="flex-1 flex flex-col font-sans pb-24 selection:bg-amber-500/20">
       
-      {/* 1. Header Focado e Rápido (Sticky apenas no desktop para evitar colisão com header mobile) */}
-      <header className="lg:sticky lg:top-0 z-20 dock-matte border-b border-slate-800/80 px-4 py-3.5 sm:px-6">
-        <div className="max-w-xl mx-auto flex items-center justify-between">
+      {/* 1. Header Focado e Rápido (Alinhado à Régua Canônica max-w-[1440px]) */}
+      <header className="lg:sticky lg:top-0 z-20 dock-matte border-b border-[var(--border-subtle)] px-3 sm:px-6 lg:px-8 py-3">
+        <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+              <h1 className="text-sm sm:text-base font-bold text-primary flex items-center gap-1.5 font-display">
                 FastChunks
                 <span className="text-[10px] font-mono bg-amber-400/10 text-amber-300 border border-amber-400/20 rounded-full px-2 py-0.5">
                   Áudio Direto
                 </span>
               </h1>
-              <p className="text-[11px] text-slate-400">Blocos de fala natural e treino auditivo</p>
+              <p className="text-[11px] text-secondary">Blocos de fala natural e treino auditivo</p>
             </div>
           </div>
 
-          {/* Seletor Rápido de Velocidade da Fala */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5">
-            {[0.8, 1.0, 1.25].map((rate) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {onOpenPolyglotTab && (
               <button
-                key={rate}
-                onClick={() => setPlaybackRate(rate)}
-                className={`min-h-[32px] px-2.5 rounded-md text-xs font-mono tabular-nums font-semibold transition-all cursor-pointer ${
-                  playbackRate === rate
-                    ? 'bg-amber-400 text-slate-950 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title={`Velocidade de reprodução: ${rate}x`}
+                type="button"
+                onClick={onOpenPolyglotTab}
+                className="min-h-[40px] px-3 py-1.5 rounded-xl btn-matte-dark border border-[var(--border-subtle)] text-xs font-semibold text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer"
               >
-                {rate}x
+                <GoogleIcon name="translate" size={15} className="text-amber-400" />
+                <span className="hidden sm:inline">Chat Poliglota</span>
               </button>
-            ))}
+            )}
+            {onOpenStudyTab && (
+              <button
+                type="button"
+                onClick={onOpenStudyTab}
+                className="min-h-[40px] px-3 py-1.5 rounded-xl btn-matte-dark border border-[var(--border-subtle)] text-xs font-semibold text-primary flex items-center gap-1.5 cursor-pointer"
+              >
+                <GoogleIcon name="school" size={15} className="text-amber-400" />
+                <span>Área de Estudo</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-mono text-[10px] font-extrabold tabular-nums">
+                  {flashcardCount}
+                </span>
+              </button>
+            )}
+
+            {/* Seletor Rápido de Velocidade da Fala */}
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-0.5">
+              {[0.8, 1.0, 1.25].map((rate) => (
+                <button
+                  key={rate}
+                  type="button"
+                  onClick={() => setPlaybackRate(rate)}
+                  className={`min-h-[40px] px-2.5 rounded-lg text-xs font-mono tabular-nums font-semibold transition-all cursor-pointer ${
+                    playbackRate === rate
+                      ? 'bg-amber-400 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={`Velocidade de reprodução: ${rate}x`}
+                >
+                  {rate}x
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* 2. Conteúdo Central Mobile-First */}
-      <main className="max-w-xl w-full mx-auto px-4 py-4 flex-1 flex flex-col gap-4">
+      {/* 2. Conteúdo Central em Régua Canônica 1440px */}
+      <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 flex-1 flex flex-col gap-5">
         
-        {/* Seletor de Idioma em Barra Horizontal Tátil */}
-        <div className="grid grid-cols-3 gap-2">
-          {languages.map((lang) => {
-            const isSelected = selectedLang === lang.code;
-            return (
-              <button
-                key={lang.code}
-                onClick={() => {
-                  setSelectedLang(lang.code);
-                  setLoopDrillId(null);
-                  window.speechSynthesis?.cancel();
-                }}
-                className={`min-h-[44px] flex items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
-                  isSelected
-                    ? 'border-amber-400/60 bg-amber-400/10 text-amber-200 shadow-sm shadow-amber-500/10'
-                    : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                }`}
-              >
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/25 border border-white/10">
-                  {lang.flag}
-                </span>
-                <span>{lang.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Barra de Controles em 12 Colunas (Idiomas + Busca + Gerador Gemini) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+          <div className="lg:col-span-4 grid grid-cols-3 gap-2">
+            {languages.map((lang) => {
+              const isSelected = selectedLang === lang.code;
+              return (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => {
+                    setSelectedLang(lang.code);
+                    setLoopDrillId(null);
+                    window.speechSynthesis?.cancel();
+                  }}
+                  className={`min-h-[44px] flex items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
+                    isSelected
+                      ? 'border-amber-400/60 bg-amber-400/10 text-amber-200 shadow-sm shadow-amber-500/10'
+                      : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-950/60 border border-white/10">
+                    {lang.flag}
+                  </span>
+                  <span>{lang.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Botão de Destaque: Gerar com IA / Extrair Chunks */}
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="min-h-[48px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Extrair ou Criar Chunks com Gemini AI</span>
-        </button>
+          <div className="lg:col-span-5 relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por situação (ex: topo, relaxa, resumindo)..."
+              aria-label="Buscar chunk por situação ou expressão"
+              className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 pl-10 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-400/70 focus:outline-none transition-colors"
+            />
+            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
 
-        {/* Campo de Busca Rápida de Situação / Expressão */}
-        <div className="relative">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por situação (ex: topo, relaxa, resumindo)..."
-            className="min-h-[48px] w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 pl-10 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-400/70 focus:outline-none transition-colors"
-          />
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <div className="lg:col-span-3">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="min-h-[44px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs px-4 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 shrink-0" />
+              <span>Extrair ou Criar Chunks IA</span>
+            </button>
+          </div>
         </div>
 
         {/* Status de Sincronização */}
@@ -583,15 +644,16 @@ export const FastChunkAudioApp: React.FC = () => {
           </div>
         )}
 
-        {/* Lista de Cartões de Chunks */}
-        <div className="flex flex-col gap-3">
+        {/* Grade Bento de Cartões de Chunks */}
+        <div className={filteredChunks.length === 0 ? 'flex flex-col' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch'}>
           {filteredChunks.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl p-6">
-              <BookOpen className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-              <p className="text-xs text-slate-400">Nenhum chunk encontrado para essa busca.</p>
+            <div className="card-outlined border border-[var(--border-subtle)] text-center py-12 rounded-2xl p-6 max-w-xl mx-auto w-full">
+              <BookOpen className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+              <p className="text-xs text-secondary">Nenhum chunk encontrado para essa busca.</p>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="mt-3 text-xs text-amber-400 hover:underline"
+                className="mt-3 min-h-[40px] px-4 py-1.5 rounded-xl btn-matte-amber text-white text-xs font-bold cursor-pointer"
               >
                 Criar novo chunk com IA agora
               </button>
@@ -604,92 +666,96 @@ export const FastChunkAudioApp: React.FC = () => {
               return (
                 <article
                   key={item.id}
-                  className={`relative rounded-2xl border p-4 transition-all duration-200 ${
+                  className={`relative rounded-2xl border p-4 transition-all duration-200 flex flex-col justify-between gap-3 ${
                     isDrilling
                       ? 'border-amber-400/70 bg-gradient-to-b from-amber-500/10 to-slate-900/90 shadow-lg shadow-amber-500/10'
                       : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700/80'
                   }`}
                 >
-                  {/* Cabeçalho do Card: Contexto, Tag de Custom, Badge de Cache e Botão Copiar */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">
-                        {item.context}
-                      </span>
-                      {cachedChunkIds.has(item.id) && (
-                        <span
-                          className="text-[9px] font-mono tabular-nums font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/25 flex items-center gap-0.5"
-                          title="Áudio persistido no cache local IndexedDB (0ms de latência)"
-                        >
-                          <span>CACHE 0ms</span>
+                  <div>
+                    {/* Cabeçalho do Card: Contexto, Tag de Custom, Badge de Cache e Botão Copiar */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">
+                          {item.context}
                         </span>
-                      )}
-                      {item.isCustom && (
-                        <span className="text-[9px] font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
-                          Salvo na Nuvem
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleSendChunkToFlashcard(item)}
-                        className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                          addedFlashcardId === item.id
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                            : 'bg-slate-950 hover:bg-amber-500/15 text-amber-300 border-slate-800 hover:border-amber-500/35'
-                        }`}
-                        title="Enviar este bloco para a Área de Estudo (Flashcards Deck)"
-                      >
-                        <BookOpen className="w-3 h-3" />
-                        <span>{addedFlashcardId === item.id ? 'No Baralho!' : '+ Flashcard'}</span>
-                      </button>
-                      {item.isCustom && (
-                        <button
-                          onClick={() => handleDeleteCustomChunk(item.id)}
-                          className="text-slate-500 hover:text-rose-400 transition-colors p-1"
-                          title="Remover chunk salvo"
-                          aria-label="Remover chunk salvo"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleCopy(item.chunk, item.id)}
-                        className="text-slate-500 hover:text-slate-300 transition-colors p-1"
-                        aria-label="Copiar chunk"
-                        title="Copiar texto"
-                      >
-                        {copiedId === item.id ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
+                        {cachedChunkIds.has(item.id) && (
+                          <span
+                            className="text-[9px] font-mono tabular-nums font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/25 flex items-center gap-0.5"
+                            title="Áudio persistido no cache local IndexedDB (0ms de latência)"
+                          >
+                            <span>CACHE 0ms</span>
+                          </span>
                         )}
-                      </button>
+                        {item.isCustom && (
+                          <span className="text-[9px] font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                            Salvo na Nuvem
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleSendChunkToFlashcard(item)}
+                          className={`min-h-[32px] px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                            addedFlashcardId === item.id
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-slate-950 hover:bg-amber-500/15 text-amber-300 border-slate-800 hover:border-amber-500/35'
+                          }`}
+                          title="Enviar este bloco para a Área de Estudo (Flashcards Deck)"
+                        >
+                          <BookOpen className="w-3 h-3" />
+                          <span>{addedFlashcardId === item.id ? 'No Baralho!' : '+ Flashcard'}</span>
+                        </button>
+                        {item.isCustom && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustomChunk(item.id)}
+                            className="text-slate-500 hover:text-rose-400 transition-colors p-1.5 cursor-pointer"
+                            title="Remover chunk salvo"
+                            aria-label="Remover chunk salvo"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(item.chunk, item.id)}
+                          className="text-slate-500 hover:text-slate-300 transition-colors p-1.5 cursor-pointer"
+                          aria-label="Copiar chunk"
+                          title="Copiar texto"
+                        >
+                          {copiedId === item.id ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Frase / Expressão Nativa em Destaque */}
-                  <h2 className="text-lg font-bold text-slate-100 tracking-tight leading-snug mb-1">
-                    {item.chunk}
-                  </h2>
+                    {/* Frase / Expressão Nativa em Destaque */}
+                    <h2 className="text-lg font-bold text-slate-100 tracking-tight leading-snug mb-1">
+                      {item.chunk}
+                    </h2>
 
-                  {/* Guia Fonético */}
-                  {item.pronunciationHint && (
-                    <p className="text-xs font-mono text-amber-400/80 mb-2 flex items-center gap-1.5">
-                      <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span>/{item.pronunciationHint}/</span>
-                    </p>
-                  )}
+                    {/* Guia Fonético */}
+                    {item.pronunciationHint && (
+                      <p className="text-xs font-mono text-amber-400/80 mb-2 flex items-center gap-1.5">
+                        <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>/{item.pronunciationHint}/</span>
+                      </p>
+                    )}
 
-                  {/* Equivalência da Vida Real & Explicação */}
-                  <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800/60 mb-3 space-y-1">
-                    <p className="text-xs font-bold text-emerald-300">
-                      → {item.literalOrNuance}
-                    </p>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      {item.meaning}
-                    </p>
+                    {/* Equivalência da Vida Real & Explicação */}
+                    <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800/60 space-y-1">
+                      <p className="text-xs font-bold text-emerald-300">
+                        → {item.literalOrNuance}
+                      </p>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        {item.meaning}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Barra de Ação de Áudio com suporte a Voz Neural Ultra-Realista */}
@@ -761,7 +827,7 @@ export const FastChunkAudioApp: React.FC = () => {
             })
           )}
         </div>
-      </main>
+      </div>
 
       {/* Modal / Gaveta de Ingestão com Gemini (Modern Web: Light-Dismiss e ARIA) */}
       {isModalOpen && (
@@ -771,7 +837,7 @@ export const FastChunkAudioApp: React.FC = () => {
               setIsModalOpen(false);
             }
           }}
-          className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-50 bg-slate-950/80 flex items-end sm:items-center justify-center p-0 sm:p-4"
           role="presentation"
         >
           <div

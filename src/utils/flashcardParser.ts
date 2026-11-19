@@ -2,7 +2,12 @@
  * Parser Multi-Formato Zero-Trust para Importação Rápida de Flashcards (JSON, CSV/TSV Anki, Markdown e HTML).
  * Opera com isolamento estrito (zero dangerouslySetInnerHTML, bloqueio de __proto__/constructor e teto de 500 cards / 1 MB).
  */
-import type { FlashcardItem } from '../types/polyglot';
+import type { DeckNamingMode, FlashcardItem } from '../types/polyglot';
+import {
+  calendarDateKeyToEpochMs,
+  resolveOrganizedDeckName,
+  toLocalCalendarDateKey,
+} from './flashcardOrganizer';
 
 export type FlashcardImportFormat = 'auto' | 'json' | 'csv' | 'markdown' | 'html';
 
@@ -39,12 +44,20 @@ function cleanTextField(val: unknown, maxLen = MAX_FIELD_LEN): string {
     .slice(0, maxLen);
 }
 
+export function resolveFallbackBcp47(tag?: string): 'en-US' | 'it-IT' | 'ja-JP' {
+  const clean = (tag || '').trim().toLowerCase();
+  if (clean.startsWith('ja') || clean === 'jp' || clean.includes('japon')) return 'ja-JP';
+  if (clean.startsWith('it') || clean.includes('ital')) return 'it-IT';
+  return 'en-US';
+}
+
 /**
  * Classifica automaticamente o idioma ('en-US' | 'it-IT' | 'ja-JP') a partir de tag explícita ou heurística lexical/Unicode.
  */
 export function detectFlashcardLanguage(
   frontText: string,
-  explicitTag?: string
+  explicitTag?: string,
+  fallbackLang: 'en-US' | 'it-IT' | 'ja-JP' = 'en-US'
 ): 'en-US' | 'it-IT' | 'ja-JP' {
   const tag = (explicitTag || '').trim().toLowerCase();
   if (tag.startsWith('ja') || tag === 'jp' || tag.includes('japon')) return 'ja-JP';
@@ -79,7 +92,7 @@ export function detectFlashcardLanguage(
     return 'it-IT';
   }
 
-  return 'en-US';
+  return fallbackLang;
 }
 
 export function normalizeLanguageBadge(lang: string): 'EN' | 'IT' | 'JA' {
@@ -100,13 +113,18 @@ function makeCandidate(
     language?: unknown;
   },
   idx: number,
-  deckName: string
+  deckName: string,
+  fallbackLang: 'en-US' | 'it-IT' | 'ja-JP' = 'en-US'
 ): ParsedFlashcardCandidate | null {
   const front = cleanTextField(partial.front);
   const back = cleanTextField(partial.back);
   if (!front || !back) return null;
 
-  const language = detectFlashcardLanguage(front, cleanTextField(partial.language, 24));
+  const language = detectFlashcardLanguage(
+    front,
+    cleanTextField(partial.language, 24),
+    fallbackLang
+  );
   return {
     id: `imp_${Date.now()}_${idx}`,
     front,
@@ -120,7 +138,11 @@ function makeCandidate(
   };
 }
 
-function parseJsonFlashcards(raw: string, deckName: string): ParsedFlashcardCandidate[] {
+function parseJsonFlashcards(
+  raw: string,
+  deckName: string,
+  fallbackLang: 'en-US' | 'it-IT' | 'ja-JP' = 'en-US'
+): ParsedFlashcardCandidate[] {
   const parsed: unknown = JSON.parse(raw, (key, value) => {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
       return undefined;
@@ -154,7 +176,8 @@ function parseJsonFlashcards(raw: string, deckName: string): ParsedFlashcardCand
         language: obj.language ?? obj.lang ?? obj.idioma,
       },
       i,
-      typeof obj.deckName === 'string' ? obj.deckName : deckName
+      typeof obj.deckName === 'string' ? obj.deckName : deckName,
+      fallbackLang
     );
     if (candidate) results.push(candidate);
   }
@@ -216,7 +239,11 @@ function isHeaderRow(cells: string[]): boolean {
   return headerKeywords.has(c0) && backKeywords.has(c1);
 }
 
-function parseMarkdownFlashcards(raw: string, deckName: string): ParsedFlashcardCandidate[] {
+function parseMarkdownFlashcards(
+  raw: string,
+  deckName: string,
+  fallbackLang: 'en-US' | 'it-IT' | 'ja-JP' = 'en-US'
+): ParsedFlashcardCandidate[] {
   const lines = raw.split(/\r?\n/);
   const results: ParsedFlashcardCandidate[] = [];
 
@@ -241,7 +268,8 @@ function parseMarkdownFlashcards(raw: string, deckName: string): ParsedFlashcard
           language: cells[3] || '',
         },
         results.length,
-        deckName
+        deckName,
+        fallbackLang
       );
       if (candidate) results.push(candidate);
     }
@@ -267,7 +295,8 @@ function parseMarkdownFlashcards(raw: string, deckName: string): ParsedFlashcard
           language: langMatch?.[1] || '',
         },
         results.length,
-        deckName
+        deckName,
+        fallbackLang
       );
       if (candidate) results.push(candidate);
     }
@@ -290,7 +319,8 @@ function parseMarkdownFlashcards(raw: string, deckName: string): ParsedFlashcard
           back: backRaw,
         },
         results.length,
-        deckName
+        deckName,
+        fallbackLang
       );
       if (candidate) results.push(candidate);
     }
@@ -299,7 +329,11 @@ function parseMarkdownFlashcards(raw: string, deckName: string): ParsedFlashcard
   return results;
 }
 
-function parseHtmlFlashcards(raw: string, deckName: string): ParsedFlashcardCandidate[] {
+function parseHtmlFlashcards(
+  raw: string,
+  deckName: string,
+  fallbackLang: 'en-US' | 'it-IT' | 'ja-JP' = 'en-US'
+): ParsedFlashcardCandidate[] {
   const sanitizedHtml = raw
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '');
@@ -326,7 +360,8 @@ function parseHtmlFlashcards(raw: string, deckName: string): ParsedFlashcardCand
           language: cells[3] || '',
         },
         results.length,
-        deckName
+        deckName,
+        fallbackLang
       );
       if (candidate) results.push(candidate);
     }
@@ -343,7 +378,8 @@ function parseHtmlFlashcards(raw: string, deckName: string): ParsedFlashcardCand
         back: dlMatch[2],
       },
       results.length,
-      deckName
+      deckName,
+      fallbackLang
     );
     if (candidate) results.push(candidate);
   }
@@ -351,7 +387,11 @@ function parseHtmlFlashcards(raw: string, deckName: string): ParsedFlashcardCand
   return results;
 }
 
-function parseCsvFlashcards(raw: string, deckName: string): ParsedFlashcardCandidate[] {
+function parseCsvFlashcards(
+  raw: string,
+  deckName: string,
+  fallbackLang: 'en-US' | 'it-IT' | 'ja-JP' = 'en-US'
+): ParsedFlashcardCandidate[] {
   const lines = raw
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -391,7 +431,8 @@ function parseCsvFlashcards(raw: string, deckName: string): ParsedFlashcardCandi
         language: cells[5] || cells[3] || '',
       },
       results.length,
-      deckName
+      deckName,
+      fallbackLang
     );
     if (candidate) results.push(candidate);
   }
@@ -401,10 +442,11 @@ function parseCsvFlashcards(raw: string, deckName: string): ParsedFlashcardCandi
 
 export function parseFlashcardsInput(
   rawInput: string,
-  options?: { format?: FlashcardImportFormat; deckName?: string }
+  options?: { format?: FlashcardImportFormat; deckName?: string; defaultLanguage?: string }
 ): FlashcardParseResult {
   const warnings: string[] = [];
   const deckName = options?.deckName?.trim() || 'Baralho Importado';
+  const fallbackLang = resolveFallbackBcp47(options?.defaultLanguage);
   const trimmed = (rawInput || '').slice(0, MAX_RAW_INPUT_BYTES).trim();
 
   if (!trimmed) {
@@ -420,7 +462,7 @@ export function parseFlashcardsInput(
   // 1. JSON
   if (forcedFormat === 'json' || (forcedFormat === 'auto' && (trimmed.startsWith('[') || trimmed.startsWith('{')))) {
     try {
-      const cards = parseJsonFlashcards(trimmed, deckName);
+      const cards = parseJsonFlashcards(trimmed, deckName, fallbackLang);
       return { detectedFormat: 'json', cards, warnings };
     } catch {
       if (forcedFormat === 'json') {
@@ -435,7 +477,7 @@ export function parseFlashcardsInput(
     forcedFormat === 'html' ||
     (forcedFormat === 'auto' && /<(table|tr|td|dt|dd|div|html|body)\b/i.test(trimmed))
   ) {
-    const cards = parseHtmlFlashcards(trimmed, deckName);
+    const cards = parseHtmlFlashcards(trimmed, deckName, fallbackLang);
     if (cards.length > 0 || forcedFormat === 'html') {
       return { detectedFormat: 'html', cards, warnings };
     }
@@ -449,20 +491,20 @@ export function parseFlashcardsInput(
         /(?:^|\n)(?:Q|Frente|Front)\s*:/i.test(trimmed) ||
         /(?:^|\n)[-*]\s+.+(?:::|→|\s-\s)/.test(trimmed)))
   ) {
-    const cards = parseMarkdownFlashcards(trimmed, deckName);
+    const cards = parseMarkdownFlashcards(trimmed, deckName, fallbackLang);
     if (cards.length > 0 || forcedFormat === 'markdown') {
       return { detectedFormat: 'markdown', cards, warnings };
     }
   }
 
   // 4. CSV / TSV / Linhas "Frente - Verso"
-  const csvCards = parseCsvFlashcards(trimmed, deckName);
+  const csvCards = parseCsvFlashcards(trimmed, deckName, fallbackLang);
   if (csvCards.length > 0) {
     return { detectedFormat: 'csv', cards: csvCards, warnings };
   }
 
   // Fallback Markdown se CSV não encontrou pares
-  const mdFallback = parseMarkdownFlashcards(trimmed, deckName);
+  const mdFallback = parseMarkdownFlashcards(trimmed, deckName, fallbackLang);
   return {
     detectedFormat: mdFallback.length > 0 ? 'markdown' : 'csv',
     cards: mdFallback,
@@ -472,11 +514,16 @@ export function parseFlashcardsInput(
 
 export function candidatesToFlashcardItems(
   candidates: ParsedFlashcardCandidate[],
-  overrideDeckName?: string
+  overrideDeckName?: string,
+  options?: { deckMode?: DeckNamingMode; customDateKey?: string }
 ): FlashcardItem[] {
-  const now = Date.now();
+  const baseEpoch = options?.customDateKey
+    ? calendarDateKeyToEpochMs(options.customDateKey)
+    : Date.now();
+  const dateKey = options?.customDateKey?.trim() || toLocalCalendarDateKey(baseEpoch);
+
   return candidates.map((c, idx) => ({
-    id: c.id || `fc_${now}_${idx}`,
+    id: c.id || `fc_${baseEpoch}_${idx}`,
     chunkText: c.front,
     language: c.language,
     front: c.front,
@@ -485,8 +532,14 @@ export function candidatesToFlashcardItems(
     pronunciation: c.pronunciation || undefined,
     example: c.example || c.front,
     exampleTranslation: c.exampleTranslation || c.back,
-    createdAt: now - idx,
-    deckName: overrideDeckName?.trim() || c.deckName || 'Baralho Importado',
+    createdAt: baseEpoch - idx,
+    createdDateKey: dateKey,
+    deckName: resolveOrganizedDeckName({
+      mode: options?.deckMode || 'custom',
+      customDeckName: overrideDeckName?.trim() || c.deckName || 'Baralho Importado',
+      language: c.language,
+      dateKey,
+    }),
     status: 'new',
     intervalDays: 0,
     repetitions: 0,

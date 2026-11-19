@@ -55,6 +55,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
   const [session, setSession] = useState<GoogleUserSession>(() => getActiveSession());
   const [isOpen, setIsOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
   const [preferredLang, setPreferredLang] = useState<'en' | 'it' | 'ja'>(() => {
     const saved = readBrowserState('mytts_preferred_target_lang');
     return saved === 'it' || saved === 'ja' ? saved : 'en';
@@ -242,7 +243,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                   {SOFT_UI_PRESETS[activePreset]?.label ?? (theme === 'dark' ? 'Escuro Fosco' : 'Claro Fosco')}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-1 bg-black/20 dark:bg-black/40 p-1 rounded-lg">
+              <div className="grid grid-cols-2 gap-1 surface-inset border border-[var(--border-subtle)] p-1 rounded-lg">
                 {(Object.keys(SOFT_UI_PRESETS) as SoftUIThemePreset[]).map((presetKey) => {
                   const presetObj = SOFT_UI_PRESETS[presetKey];
                   const isSelected = activePreset === presetKey;
@@ -253,7 +254,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                       type="button"
                       aria-pressed={isSelected}
                       onClick={() => onSelectPreset(presetKey)}
-                      className={`btn-compact-touch min-h-[34px] px-2 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                      className={`btn-compact-touch min-h-[40px] px-1.5 py-1.5 rounded-md text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
                         isSelected
                           ? 'card-matte-active text-primary font-bold shadow-xs'
                           : 'text-secondary hover:text-primary hover:bg-white/5'
@@ -370,10 +371,15 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="relative shrink-0">
-            {session.picture ? (
+            {session.picture && failedAvatarUrl !== session.picture ? (
               <img
                 src={session.picture}
                 alt={session.name}
+                width={32}
+                height={32}
+                loading="lazy"
+                decoding="async"
+                onError={() => setFailedAvatarUrl(session.picture ?? null)}
                 className="w-8 h-8 rounded-full border border-amber-500/40 object-cover"
                 referrerPolicy="no-referrer"
               />

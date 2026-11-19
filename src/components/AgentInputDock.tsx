@@ -85,6 +85,8 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isLiveApiMode, setIsLiveApiMode] = useState(false);
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [failedThumbUrl, setFailedThumbUrl] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   const [isCollapsedLine, setIsCollapsedLine] = useState(false);
@@ -224,6 +226,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     if (!file) return;
 
     setAttachedFileName(file.name);
+    setFileError(null);
     setIsPlusMenuOpen(false);
 
     if (file.type === 'text/plain' || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
@@ -234,12 +237,18 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
           setInputText((prev) => (prev ? `${prev}\n\n${content}` : content));
         }
       };
+      reader.onerror = () => {
+        setFileError('Não foi possível ler o arquivo de texto selecionado.');
+      };
       reader.readAsText(file);
     } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64Data = (event.target?.result as string)?.split(',')[1];
-        if (!base64Data) return;
+        if (!base64Data) {
+          setFileError('Não foi possível ler o PDF selecionado.');
+          return;
+        }
         try {
           const data = await requestExtractTextJson({
             fileData: base64Data,
@@ -248,10 +257,16 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
           });
           if (data.ok && data.success && data.text) {
             setInputText((prev) => (prev ? `${prev}\n\n${data.text}` : data.text!));
+          } else {
+            setFileError(data.error || 'Falha ao extrair texto do PDF.');
           }
         } catch (err: unknown) {
           console.error('Falha ao extrair texto do PDF:', err);
+          setFileError('Falha ao extrair texto do PDF. Tente outro arquivo.');
         }
+      };
+      reader.onerror = () => {
+        setFileError('Não foi possível carregar o arquivo PDF.');
       };
       reader.readAsDataURL(file);
     }
@@ -406,7 +421,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               setIsLiveApiMode(true);
               toggleRecording(true);
             }}
-            className="h-8 w-8 rounded-full btn-matte-dark flex items-center justify-center cursor-pointer shrink-0"
+            className="h-10 w-10 min-h-[40px] min-w-[40px] rounded-full btn-matte-dark flex items-center justify-center cursor-pointer shrink-0"
             title="Iniciar conversa por voz no Gemini Live"
           >
             <GeminiLiveSymbol active={isLiveApiMode || isRecording} />
@@ -571,10 +586,15 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
           <div className="rounded-2xl card-matte border border-rose-500/40 p-3 flex flex-col gap-2.5 shadow-lg">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
-                {previewYoutubeMeta?.thumbnailUrl ? (
+                {previewYoutubeMeta?.thumbnailUrl && failedThumbUrl !== previewYoutubeMeta.thumbnailUrl ? (
                   <img
                     src={previewYoutubeMeta.thumbnailUrl}
                     alt={previewYoutubeMeta.title}
+                    width={48}
+                    height={32}
+                    loading="lazy"
+                    decoding="async"
+                    onError={() => setFailedThumbUrl(previewYoutubeMeta.thumbnailUrl)}
                     className="w-12 h-8 rounded-lg object-cover border border-rose-500/30 shrink-0"
                     referrerPolicy="no-referrer"
                   />
@@ -705,7 +725,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               ) : (
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               )}
-              <span className="font-bold text-primary text-[11px] sm:text-xs">
+              <span className="font-bold text-primary text-[11px] sm:text-xs tabular-nums">
                 {isRecording
                   ? `Ouvindo (${formatTimer(recordingSeconds)}) · Envia ao pausar`
                   : isTranscribing
@@ -727,6 +747,12 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               </button>
             )}
           </div>
+        )}
+
+        {fileError && (
+          <p role="alert" className="text-xs font-medium text-rose-400 px-2 pb-1">
+            {fileError}
+          </p>
         )}
 
         {/* COMPOSITOR FLEX BAR (Linha 1: Texto 100% largura | Linha 2: Barra Flex de Ações com DOM Order === Visual Order) */}
@@ -790,7 +816,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                 aria-label="Abrir menu de serviços e Estúdio de Criação"
                 onClick={() => setIsPlusMenuOpen((prev) => !prev)}
                 title="Adicionar ao Estúdio de Criação (Debate, Podcast, Bar, Jantar), trocar serviço ou anexar arquivo"
-                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all ${
+                className={`min-h-[40px] min-w-[40px] h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all ${
                   isPlusMenuOpen
                     ? 'btn-matte-amber text-white rotate-45'
                     : 'btn-matte-dark text-primary hover:border-amber-400/50'
@@ -803,7 +829,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               <button
                 type="button"
                 onClick={() => setIsPlusMenuOpen((prev) => !prev)}
-                className="btn-compact-touch inline-flex items-center gap-1 h-8 px-2.5 rounded-full surface-inset text-[11px] font-bold text-amber-300 hover:text-primary shrink-0 cursor-pointer transition-colors"
+                className="btn-compact-touch inline-flex items-center gap-1 min-h-[40px] px-3 rounded-full surface-inset text-[11px] font-bold text-amber-300 hover:text-primary shrink-0 cursor-pointer transition-colors"
                 title="Serviço ativo (toque para mudar ou enviar ao Estúdio de Criação)"
               >
                 <span className="truncate max-w-[110px] sm:max-w-none">{activeServiceLabel}</span>
@@ -817,7 +843,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                 aria-pressed={isRecording && !isLiveApiMode}
                 onClick={() => toggleRecording(false)}
                 title="Ditar pelo microfone"
-                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                className={`min-h-[40px] min-w-[40px] h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer ${
                   isRecording && !isLiveApiMode
                     ? 'bg-emerald-500 text-slate-950 font-bold shadow-md'
                     : 'btn-matte-dark text-secondary hover:text-primary'
@@ -842,7 +868,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                   }
                 }}
                 title="Gemini Live (Conversa por voz em tempo real com detecção automática de fala)"
-                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer border ${
+                className={`min-h-[40px] min-w-[40px] h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer border ${
                   isLiveApiMode
                     ? 'bg-emerald-500/20 border-emerald-400/60 shadow-md ring-2 ring-emerald-400/30'
                     : 'btn-matte-dark hover:border-amber-400/50'
@@ -856,7 +882,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                 type="submit"
                 disabled={!inputText.trim() || isLoading}
                 title="Enviar mensagem (Enter)"
-                className="btn-matte-amber h-9 sm:h-10 px-3.5 sm:px-4 rounded-full text-xs font-bold text-white shrink-0 disabled:opacity-45 transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
+                className="btn-matte-amber min-h-[40px] h-10 sm:h-11 px-3.5 sm:px-4 rounded-full text-xs font-bold text-white shrink-0 disabled:opacity-45 transition-all cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
               >
                 {isLoading ? (
                   <GoogleIcon name="progress_activity" size={18} className="animate-spin text-white" />
@@ -880,7 +906,7 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
                 onClick={() => setIsCollapsedLine(true)}
                 title="Recolher Pílula de Chat para Linha Animada"
                 aria-label="Recolher Pílula de Chat para Linha Animada"
-                className="btn-compact-touch h-8 w-8 rounded-full text-secondary hover:text-primary flex items-center justify-center shrink-0 cursor-pointer"
+                className="btn-compact-touch min-h-[40px] min-w-[40px] h-10 w-10 rounded-full text-secondary hover:text-primary flex items-center justify-center shrink-0 cursor-pointer"
               >
                 <GoogleIcon name="minimize" size={16} />
               </button>

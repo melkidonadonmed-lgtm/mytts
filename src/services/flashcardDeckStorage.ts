@@ -3,7 +3,12 @@
  * Sincroniza em tempo real entre Chat Poliglota, FastChunks, Área de Estudo e HistorySidebar.
  */
 import type { ChunkItem } from '../types/chunks';
-import type { FlashcardItem, FlashcardRetentionStatus } from '../types/polyglot';
+import type {
+  DateFilterPreset,
+  DeckNamingMode,
+  FlashcardItem,
+  FlashcardRetentionStatus,
+} from '../types/polyglot';
 import { getActiveSession, subscribeAuthChanges } from './authService';
 import {
   persistBrowserState,
@@ -14,6 +19,14 @@ import {
   requestSaveUserFlashcards,
 } from './polyglotClient';
 import { detectFlashcardLanguage, normalizeLanguageBadge } from '../utils/flashcardParser';
+import {
+  calendarDateKeyToEpochMs,
+  matchesDateFilter,
+  reorganizeExistingCardsIntoDecks,
+  resolveCardDateKey,
+  resolveOrganizedDeckName,
+  toLocalCalendarDateKey,
+} from '../utils/flashcardOrganizer';
 
 export interface DeckSummary {
   deckName: string;
@@ -24,6 +37,8 @@ export interface DeckSummary {
   masteredCount: number;
   masteryPercent: number;
   languages: string[];
+  latestDateKey?: string;
+  distinctDatesCount?: number;
 }
 
 export function computeDeckSummaries(cards: FlashcardItem[], now = Date.now()): DeckSummary[] {
@@ -45,6 +60,7 @@ export function computeDeckSummaries(cards: FlashcardItem[], now = Date.now()): 
     let masteredCount = 0;
     let dueCount = 0;
     const langSet = new Set<string>();
+    const dateSet = new Set<string>();
 
     for (const card of deckCards) {
       const status = card.status || 'new';
@@ -62,11 +78,13 @@ export function computeDeckSummaries(cards: FlashcardItem[], now = Date.now()): 
 
       const badge = normalizeLanguageBadge(card.language);
       langSet.add(badge);
+      dateSet.add(resolveCardDateKey(card));
     }
 
     const total = deckCards.length;
     const masteryPercent = total > 0 ? Math.round((masteredCount / total) * 100) : 0;
     const languages = (['EN', 'IT', 'JA'] as const).filter((l) => langSet.has(l));
+    const sortedDates = Array.from(dateSet).toSorted((a, b) => b.localeCompare(a));
 
     summaries.push({
       deckName,
@@ -77,10 +95,12 @@ export function computeDeckSummaries(cards: FlashcardItem[], now = Date.now()): 
       masteredCount,
       masteryPercent,
       languages,
+      latestDateKey: sortedDates[0],
+      distinctDatesCount: sortedDates.length,
     });
   }
 
-  return summaries.sort((a, b) => {
+  return summaries.toSorted((a, b) => {
     if (a.deckName === 'Baralho Principal' && b.deckName !== 'Baralho Principal') return -1;
     if (b.deckName === 'Baralho Principal' && a.deckName !== 'Baralho Principal') return 1;
     return a.deckName.localeCompare(b.deckName, 'pt-BR');
@@ -89,7 +109,15 @@ export function computeDeckSummaries(cards: FlashcardItem[], now = Date.now()): 
 
 export function filterStudyQueue(
   cards: FlashcardItem[],
-  options: { deckName: string; language: string; dueOnly: boolean; now?: number }
+  options: {
+    deckName: string;
+    language: string;
+    dueOnly: boolean;
+    now?: number;
+    datePreset?: DateFilterPreset;
+    customDateKey?: string;
+    timeZone?: string;
+  }
 ): FlashcardItem[] {
   const now = options.now ?? Date.now();
   const filterDeck = options.deckName.trim();
@@ -109,6 +137,16 @@ export function filterStudyQueue(
       }
     }
 
+    if (options.datePreset && options.datePreset !== 'ALL') {
+      const inDate = matchesDateFilter(card.createdAt, {
+        preset: options.datePreset,
+        customDateKey: options.customDateKey,
+        now,
+        timeZone: options.timeZone,
+      });
+      if (!inDate) return false;
+    }
+
     if (options.dueOnly) {
       const isDue = card.status === 'new' || !card.nextReviewAt || card.nextReviewAt <= now;
       if (!isDue) return false;
@@ -121,6 +159,7 @@ export function filterStudyQueue(
 export interface BuildManualFlashcardInput {
   id?: string;
   deckName: string;
+  deckMode?: DeckNamingMode;
   language?: string;
   front: string;
   back: string;
@@ -129,14 +168,13 @@ export interface BuildManualFlashcardInput {
   exampleTranslation?: string;
   nuance?: string;
   createdAt?: number;
+  createdDateKey?: string;
   existing?: Partial<FlashcardItem>;
 }
 
 export function buildManualFlashcardItem(input: BuildManualFlashcardInput): FlashcardItem {
   const front = input.front.trim();
   const back = input.back.trim();
-  const deckName =
-    input.deckName.trim() || input.existing?.deckName?.trim() || 'Baralho Principal';
 
   const rawLang = input.language?.trim() || input.existing?.language?.trim() || '';
   const detectedLang = detectFlashcardLanguage(front, rawLang || undefined);
@@ -167,12 +205,31 @@ export function buildManualFlashcardItem(input: BuildManualFlashcardInput): Flas
     `fc_manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const now = Date.now();
-  const createdAt =
-    typeof input.createdAt === 'number'
-      ? input.createdAt
-      : typeof input.existing?.createdAt === 'number'
+  const requestedDateKey = input.createdDateKey?.trim() || '';
+  let createdAt: number;
+  if (typeof input.createdAt === 'number') {
+    createdAt = input.createdAt;
+  } else if (requestedDateKey) {
+    const existingDateKey =
+      typeof input.existing?.createdAt === 'number'
+        ? toLocalCalendarDateKey(input.existing.createdAt)
+        : '';
+    createdAt =
+      existingDateKey === requestedDateKey && typeof input.existing?.createdAt === 'number'
         ? input.existing.createdAt
-        : now;
+        : calendarDateKeyToEpochMs(requestedDateKey, now);
+  } else {
+    createdAt = typeof input.existing?.createdAt === 'number' ? input.existing.createdAt : now;
+  }
+
+  const dateKey = requestedDateKey || toLocalCalendarDateKey(createdAt);
+  const deckName = resolveOrganizedDeckName({
+    mode: input.deckMode || 'custom',
+    customDeckName:
+      input.deckName.trim() || input.existing?.deckName?.trim() || 'Baralho Principal',
+    language: detectedLang,
+    dateKey,
+  });
 
   const status = input.existing?.status || 'new';
   const intervalDays =
@@ -191,6 +248,7 @@ export function buildManualFlashcardItem(input: BuildManualFlashcardInput): Flas
     example,
     exampleTranslation,
     createdAt,
+    createdDateKey: dateKey,
     deckName,
     status,
     intervalDays,
@@ -213,6 +271,12 @@ function getDeckStorageKey(userId?: string): string {
 }
 
 function normalizeFlashcard(card: FlashcardItem): FlashcardItem {
+  const createdAt = typeof card.createdAt === 'number' ? card.createdAt : Date.now();
+  const rawDateKey = typeof card.createdDateKey === 'string' ? card.createdDateKey.trim() : '';
+  const createdDateKey = /^\d{4}-\d{2}-\d{2}$/.test(rawDateKey)
+    ? rawDateKey
+    : toLocalCalendarDateKey(createdAt);
+
   return {
     ...card,
     language: detectFlashcardLanguage(card.front || card.chunkText, card.language),
@@ -220,8 +284,45 @@ function normalizeFlashcard(card: FlashcardItem): FlashcardItem {
     status: card.status || 'new',
     intervalDays: typeof card.intervalDays === 'number' ? card.intervalDays : 0,
     repetitions: typeof card.repetitions === 'number' ? card.repetitions : 0,
-    createdAt: typeof card.createdAt === 'number' ? card.createdAt : Date.now(),
+    createdAt,
+    createdDateKey,
   };
+}
+
+const VALID_DECK_MODES = new Set<DeckNamingMode>([
+  'custom',
+  'by_language',
+  'by_date',
+  'by_language_and_date',
+]);
+
+function getOrgPrefStorageKey(userId?: string): string {
+  const uid = (userId || getActiveSession().uid || 'guest_local').replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `mytts_flashcard_org_mode_${uid}`;
+}
+
+export function readDeckNamingPreference(userId?: string): DeckNamingMode {
+  const raw = readBrowserState(getOrgPrefStorageKey(userId));
+  if (raw && VALID_DECK_MODES.has(raw as DeckNamingMode)) {
+    return raw as DeckNamingMode;
+  }
+  return 'custom';
+}
+
+export function saveDeckNamingPreference(mode: DeckNamingMode, userId?: string): void {
+  persistBrowserState(getOrgPrefStorageKey(userId), mode);
+}
+
+export function reorganizeFlashcardDeck(
+  mode: Exclude<DeckNamingMode, 'custom'>,
+  userId?: string
+): FlashcardItem[] {
+  const uid = userId || getActiveSession().uid;
+  const current = readFlashcardDeck(uid);
+  const reorganized = reorganizeExistingCardsIntoDecks(current, mode);
+  const saved = saveFlashcardDeckLocal(reorganized, uid);
+  void requestSaveUserFlashcards(saved);
+  return saved;
 }
 
 export function readFlashcardDeck(userId?: string): FlashcardItem[] {
@@ -410,18 +511,27 @@ export function chunkItemToFlashcard(
   language: string,
   voiceId?: string
 ): FlashcardItem {
+  const now = Date.now();
+  const dateKey = toLocalCalendarDateKey(now);
+  const resolvedLang = detectFlashcardLanguage(chunk.chunk, language);
   return normalizeFlashcard({
-    id: `fc_chunk_${chunk.id}_${Date.now()}`,
+    id: `fc_chunk_${chunk.id}_${now}`,
     chunkText: chunk.chunk,
-    language: detectFlashcardLanguage(chunk.chunk, language),
+    language: resolvedLang,
     front: chunk.chunk,
     back: chunk.literalOrNuance,
     nuance: `${chunk.meaning} (${chunk.context})`,
     pronunciation: chunk.pronunciationHint,
     example: chunk.chunk,
     exampleTranslation: chunk.literalOrNuance,
-    createdAt: Date.now(),
-    deckName: 'FastChunks',
+    createdAt: now,
+    createdDateKey: dateKey,
+    deckName: resolveOrganizedDeckName({
+      mode: readDeckNamingPreference(),
+      customDeckName: 'FastChunks',
+      language: resolvedLang,
+      dateKey,
+    }),
     status: 'new',
     intervalDays: 0,
     repetitions: 0,

@@ -157,7 +157,7 @@ export const DocumentInputSection: React.FC<DocumentInputSectionProps> = ({
           )}
         </div>
       ) : (
-        <label className="relative flex flex-col items-center justify-center min-h-[120px] rounded-xl border-2 border-dashed border-slate-700 hover:border-amber-400/50 surface-inset p-6 text-center transition-all cursor-pointer group">
+        <label className="relative flex flex-col items-center justify-center min-h-[120px] rounded-xl border border-slate-700/80 hover:border-amber-400/50 surface-inset p-6 text-center transition-all cursor-pointer group">
           <input
             type="file"
             accept=".pdf,.txt,.md,.json"

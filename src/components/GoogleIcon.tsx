@@ -67,6 +67,7 @@ import {
   Cloud,
   Plus,
   FlipHorizontal,
+  ArrowLeft,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -150,6 +151,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   cloud_done: Cloud,
   add: Plus,
   flip: FlipHorizontal,
+  arrow_back: ArrowLeft,
 };
 
 /**
@@ -172,14 +174,15 @@ export const GoogleIcon: React.FC<GoogleIconProps> = ({
     <span
       className={`inline-flex items-center justify-center select-none shrink-0 leading-none align-middle ${boxClass} ${className}`.trim()}
       title={title}
-      data-state="idle"
-      aria-busy="false"
+      role={title ? 'img' : undefined}
+      aria-label={title}
       aria-hidden={title ? undefined : 'true'}
     >
       <IconComponent
         size={canonicalSize}
         strokeWidth={1.75}
         className={shouldFill ? 'fill-current' : undefined}
+        aria-hidden="true"
       />
     </span>
   );

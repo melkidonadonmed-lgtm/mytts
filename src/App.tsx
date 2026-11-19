@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Sidebar, AppTab } from './components/Sidebar';
-import { VoiceConfigWorkspace, VoiceConfigSubTab } from './components/VoiceConfigWorkspace';
+import { Sidebar } from './components/Sidebar';
+import { VoiceConfigWorkspace } from './components/VoiceConfigWorkspace';
 import { PolyglotChatStudio } from './components/PolyglotChatStudio';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { FastChunkAudioApp } from './components/FastChunkAudioApp';
@@ -10,6 +10,14 @@ import { AuthModal } from './components/AuthModal';
 import { MobileAppHeader } from './components/MobileAppHeader';
 import { BottomAudioDock } from './components/BottomAudioDock';
 import { ArchitectureModal } from './components/ArchitectureModal';
+import {
+  buildBreadcrumbTrail,
+  resolveNavigationTarget,
+  resolveShortcutNavigation,
+  type AppTab,
+  type StudySubTab,
+  type VoiceConfigSubTab,
+} from './utils/navigationOrganizer';
 import {
   ConversationFormat,
   DebateConfig,
@@ -60,18 +68,11 @@ import { SOFT_UI_PRESETS, normalizeThemePreset } from './config/tokens';
 import type { SoftUIThemePreset } from './types';
 import { GoogleIcon } from './components/GoogleIcon';
 
-const TAB_BREADCRUMB_LABELS: Record<AppTab, string> = {
-  polyglot: 'Chat Poliglota Multimodal',
-  voices: 'Configuração de Vozes',
-  chunks: 'FastChunks (Treino Lexical)',
-  study: 'Área de Estudo & Flashcards Deck',
-  architecture: 'Arquitetura & Governança',
-};
-
 // Orquestrador principal do MyTTS Studio (3 Colunas Responsivas: Rail Sidebar + Canvas Central + History Sidebar)
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('polyglot');
   const [voiceConfigSubTab, setVoiceConfigSubTab] = useState<VoiceConfigSubTab>('catalog');
+  const [studySubTab, setStudySubTab] = useState<StudySubTab>('decks');
   const [favoriteVoicesByLang, setFavoriteVoicesByLang] = useState<Record<'en' | 'it' | 'ja', string>>(() =>
     readFavoriteVoicesByLanguage()
   );
@@ -201,44 +202,6 @@ export default function App() {
     persistBrowserState('mytts_theme', theme);
     persistBrowserState('mytts_preset', activePreset);
   }, [theme, activePreset]);
-
-  // Listener para sincronizar tema e atalhos globais (Ctrl+K, Ctrl+B, Ctrl+H)
-  useEffect(() => {
-    const syncThemeFromStorage = () => {
-      const savedPreset = readBrowserState('mytts_preset');
-      const normalizedPreset = normalizeThemePreset(savedPreset);
-      setActivePreset(normalizedPreset);
-
-      const saved = readBrowserState('mytts_theme');
-      if (saved === 'light' || saved === 'dark') {
-        setTheme(saved);
-      } else {
-        setTheme(SOFT_UI_PRESETS[normalizedPreset].mode);
-      }
-    };
-    const onGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsCommandPaletteOpen((prev) => !prev);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        handleToggleLeftSidebar();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
-        e.preventDefault();
-        handleToggleRightHistory();
-      }
-    };
-    window.addEventListener('storage', syncThemeFromStorage);
-    window.addEventListener('mytts-theme-change', syncThemeFromStorage);
-    window.addEventListener('mytts-theme-changed', syncThemeFromStorage);
-    window.addEventListener('keydown', onGlobalKeyDown);
-    return () => {
-      window.removeEventListener('storage', syncThemeFromStorage);
-      window.removeEventListener('mytts-theme-change', syncThemeFromStorage);
-      window.removeEventListener('mytts-theme-changed', syncThemeFromStorage);
-      window.removeEventListener('keydown', onGlobalKeyDown);
-    };
-  }, [handleToggleLeftSidebar, handleToggleRightHistory]);
 
   // Debate Studio State
   const [documentText, setDocumentText] = useState<string>(SAMPLE_DOCUMENTS[0].content);
@@ -610,22 +573,17 @@ export default function App() {
   }, []);
 
   const handleNavigateTab = useCallback(
-    (tab: AppTab | 'reader' | 'debate', subTab?: VoiceConfigSubTab): void => {
-      let targetTab: AppTab = 'polyglot';
-      if (tab === 'reader') {
-        targetTab = 'voices';
-        setVoiceConfigSubTab('solo');
-      } else if (tab === 'debate') {
-        targetTab = 'voices';
-        setVoiceConfigSubTab('debate');
-      } else {
-        targetTab = tab;
-        if (tab === 'voices' && subTab) {
-          setVoiceConfigSubTab(subTab);
-        }
+    (tab: AppTab | 'reader' | 'debate', subTab?: VoiceConfigSubTab | StudySubTab): void => {
+      const resolved = resolveNavigationTarget(tab, subTab);
+      const targetTab = resolved.tab;
+      if (resolved.voiceSubTab) {
+        setVoiceConfigSubTab(resolved.voiceSubTab);
+      }
+      if (resolved.studySubTab) {
+        setStudySubTab(resolved.studySubTab);
       }
 
-      if (isPlaying && (targetTab !== 'voices' || subTab === 'solo')) {
+      if (isPlaying && (targetTab !== 'voices' || resolved.voiceSubTab === 'solo')) {
         player.pause();
       }
       const docWithTransition = document as Document & {
@@ -660,6 +618,81 @@ export default function App() {
       }
     },
     [isPlaying, player]
+  );
+
+  // Listener para sincronizar tema e atalhos globais (Ctrl+K, Ctrl+B, Ctrl+H, Alt+1..4)
+  useEffect(() => {
+    const syncThemeFromStorage = () => {
+      const savedPreset = readBrowserState('mytts_preset');
+      const savedTheme = readBrowserState('mytts_theme');
+      if (savedPreset) {
+        const normalizedPreset = normalizeThemePreset(savedPreset);
+        setActivePreset(normalizedPreset);
+        setTheme(SOFT_UI_PRESETS[normalizedPreset].mode);
+        return;
+      }
+
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        const mappedPreset = savedTheme === 'light' ? 'slate' : 'obsidian';
+        setActivePreset(mappedPreset);
+        setTheme(SOFT_UI_PRESETS[mappedPreset].mode);
+      } else {
+        const fallbackPreset = normalizeThemePreset(null);
+        setActivePreset(fallbackPreset);
+        setTheme(SOFT_UI_PRESETS[fallbackPreset].mode);
+      }
+    };
+    const onGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        handleToggleLeftSidebar();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        handleToggleRightHistory();
+        return;
+      }
+      const targetEl = e.target as HTMLElement | null;
+      const shortcutTarget = resolveShortcutNavigation({
+        altKey: e.altKey,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        shiftKey: e.shiftKey,
+        key: e.key,
+        targetTagName: targetEl?.tagName,
+        isContentEditable: targetEl?.isContentEditable,
+      });
+      if (shortcutTarget) {
+        e.preventDefault();
+        handleNavigateTab(shortcutTarget.tab, shortcutTarget.voiceSubTab ?? shortcutTarget.studySubTab);
+      }
+    };
+    window.addEventListener('storage', syncThemeFromStorage);
+    window.addEventListener('mytts-theme-change', syncThemeFromStorage);
+    window.addEventListener('mytts-theme-changed', syncThemeFromStorage);
+    window.addEventListener('keydown', onGlobalKeyDown);
+    return () => {
+      window.removeEventListener('storage', syncThemeFromStorage);
+      window.removeEventListener('mytts-theme-change', syncThemeFromStorage);
+      window.removeEventListener('mytts-theme-changed', syncThemeFromStorage);
+      window.removeEventListener('keydown', onGlobalKeyDown);
+    };
+  }, [handleToggleLeftSidebar, handleToggleRightHistory, handleNavigateTab]);
+
+  const breadcrumbTrail = useMemo(
+    () =>
+      buildBreadcrumbTrail({
+        activeTab,
+        voiceSubTab: voiceConfigSubTab,
+        studySubTab,
+      }),
+    [activeTab, voiceConfigSubTab, studySubTab]
   );
 
   // Handlers da HistorySidebar Direita
@@ -777,12 +810,18 @@ export default function App() {
       <Sidebar
         activeTab={activeTab}
         onSelectTab={handleNavigateTab}
+        voiceSubTab={voiceConfigSubTab}
+        studySubTab={studySubTab}
+        onNavigate={handleNavigateTab}
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen((prev) => !prev)}
         isCollapsed={isLeftSidebarCollapsed}
         onToggleCollapse={handleToggleLeftSidebar}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        isHistoryOpen={isRightHistoryOpen}
+        historyCount={unifiedHistoryItems.length}
+        onToggleHistory={handleToggleRightHistory}
         flashcardCount={flashcards.length}
         theme={theme}
         onToggleTheme={handleToggleBinaryTheme}
@@ -794,6 +833,9 @@ export default function App() {
       <div className="flex-1 flex flex-col lg:pl-[var(--left-sidebar-w)] lg:pr-[var(--right-sidebar-w)] transition-[padding] duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)] min-h-screen min-w-0 max-w-full overflow-x-clip">
         <MobileAppHeader
           activeTab={activeTab}
+          voiceSubTab={voiceConfigSubTab}
+          studySubTab={studySubTab}
+          flashcardCount={flashcards.length}
           selectedVoice={selectedVoice}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
@@ -825,24 +867,88 @@ export default function App() {
         <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none">
           <nav
             aria-label="Caminho de navegação"
-            className="hidden sm:flex w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-3 pb-1 items-center justify-between text-xs text-secondary"
+            className="hidden sm:flex w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-3 pb-1 items-center justify-between gap-3 text-xs text-secondary"
           >
             <ol role="list" className="breadcrumb-list">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => handleNavigateTab('polyglot')}
-                  className="hover:text-primary transition-colors cursor-pointer font-medium"
-                >
-                  MyTTS Studio
-                </button>
-              </li>
-              <li aria-current="page" className="text-primary font-semibold">
-                {TAB_BREADCRUMB_LABELS[activeTab]}
-              </li>
+              {breadcrumbTrail.map((seg) => (
+                <li key={seg.id}>
+                  <button
+                    type="button"
+                    aria-current={seg.isCurrent ? 'page' : undefined}
+                    onClick={() => handleNavigateTab(seg.tab, seg.voiceSubTab ?? seg.studySubTab)}
+                    className={`transition-colors cursor-pointer ${
+                      seg.isCurrent
+                        ? 'text-primary font-semibold'
+                        : 'hover:text-primary font-medium underline-offset-4 hover:underline'
+                    }`}
+                  >
+                    {seg.label}
+                  </button>
+                </li>
+              ))}
             </ol>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 shrink-0">
+              {activeTab === 'voices' && (
+                <div
+                  role="group"
+                  aria-label="Atalho de sub-módulos de vozes"
+                  className="hidden xl:flex items-center gap-1 p-0.5 rounded-xl surface-inset border border-[var(--border-subtle)]"
+                >
+                  {(
+                    [
+                      { id: 'catalog', label: 'Catálogo' },
+                      { id: 'solo', label: 'Solo' },
+                      { id: 'debate', label: 'Debate' },
+                    ] as const
+                  ).map((sub) => (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      aria-pressed={voiceConfigSubTab === sub.id}
+                      onClick={() => handleNavigateTab('voices', sub.id)}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                        voiceConfigSubTab === sub.id
+                          ? 'card-matte-active text-amber-300'
+                          : 'text-secondary hover:text-primary'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'study' && (
+                <div
+                  role="group"
+                  aria-label="Atalho de sub-módulos de estudo"
+                  className="hidden xl:flex items-center gap-1 p-0.5 rounded-xl surface-inset border border-[var(--border-subtle)]"
+                >
+                  {(
+                    [
+                      { id: 'decks', label: 'Baralhos' },
+                      { id: 'review', label: 'Estudar' },
+                      { id: 'create', label: 'Criar' },
+                    ] as const
+                  ).map((sub) => (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      aria-pressed={studySubTab === sub.id}
+                      onClick={() => handleNavigateTab('study', sub.id)}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+                        studySubTab === sub.id
+                          ? 'card-matte-active text-amber-300'
+                          : 'text-secondary hover:text-primary'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <span className="font-mono text-xs text-secondary hidden md:inline tabular-nums">
                 Voz Ativa: <strong className="text-primary">{selectedVoice.name}</strong>
               </span>
@@ -875,6 +981,7 @@ export default function App() {
           <div
             hidden={activeTab !== 'polyglot'}
             aria-hidden={activeTab !== 'polyglot'}
+            inert={activeTab !== 'polyglot'}
             className={activeTab === 'polyglot' ? 'contents' : 'hidden'}
           >
             <PolyglotChatStudio
@@ -933,13 +1040,23 @@ export default function App() {
           )}
 
           {/* Módulo 3: FastChunks (Treinamento Lexical de Idiomas) */}
-          {activeTab === 'chunks' && <FastChunkAudioApp />}
+          {activeTab === 'chunks' && (
+            <FastChunkAudioApp
+              onOpenStudyTab={() => handleNavigateTab('study')}
+              onOpenPolyglotTab={() => handleNavigateTab('polyglot')}
+              flashcardCount={flashcards.length}
+            />
+          )}
 
           {/* Módulo 4: Área de Estudo & Flashcards Deck (Zero-Friction Import + Arena 3D TTS) */}
           {activeTab === 'study' && (
             <StudyArenaView
               selectedVoice={selectedVoice}
               initialCardId={selectedStudyCardId}
+              activeSubTab={studySubTab}
+              onChangeSubTab={setStudySubTab}
+              onOpenPolyglotTab={() => handleNavigateTab('polyglot')}
+              onOpenChunksTab={() => handleNavigateTab('chunks')}
             />
           )}
         </main>
@@ -1000,7 +1117,7 @@ export default function App() {
 
       {/* Modal de Arquitetura e Inspeção */}
       {activeTab === 'architecture' && (
-        <ArchitectureModal onClose={() => setActiveTab('polyglot')} />
+        <ArchitectureModal onClose={() => handleNavigateTab('polyglot')} />
       )}
 
       {/* Command Palette Modal Tátil (Ctrl + K) */}

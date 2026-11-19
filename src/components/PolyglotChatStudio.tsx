@@ -20,7 +20,10 @@ import {
   addFlashcardsToDeck,
   deleteFlashcardFromDeck,
   clearFlashcardDeck,
+  readDeckNamingPreference,
 } from '../services/flashcardDeckStorage';
+import { detectFlashcardLanguage, normalizeLanguageBadge } from '../utils/flashcardParser';
+import { resolveOrganizedDeckName, toLocalCalendarDateKey } from '../utils/flashcardOrganizer';
 import { base64ToBlobUrl, revokeAudioUrl, speakBrowserFallback, stopBrowserSpeech } from '../utils/audio';
 import { concatenateWavBuffers } from '../utils/audioEngine';
 import {
@@ -1060,27 +1063,42 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         };
 
         if (exploreData.toolCallsExecuted && exploreData.toolCallsExecuted.length > 0) {
+          const toolCards: FlashcardItem[] = [];
+          const prefMode = readDeckNamingPreference();
           for (const tool of exploreData.toolCallsExecuted) {
             if (tool.name === 'create_study_flashcard') {
               const firstChunk = exploreData.chunks[0];
-              const newCard: FlashcardItem = {
+              const frontText = tool.args.frontPhrase || firstChunk?.en || text;
+              const now = Date.now();
+              const dateKey = toLocalCalendarDateKey(now);
+              const detectedLang = detectFlashcardLanguage(frontText, tool.args.language);
+              toolCards.push({
                 id: tool.id,
-                chunkText: tool.args.frontPhrase || firstChunk?.en || text,
-                language: 'en-US',
-                front: tool.args.frontPhrase || firstChunk?.en || text,
+                chunkText: frontText,
+                language: detectedLang,
+                front: frontText,
                 back: tool.args.backTranslation || firstChunk?.it || '',
                 nuance: 'Expressão extraída do vídeo do YouTube.',
                 pronunciation: firstChunk?.jaPronunciation,
-                example: firstChunk?.en || '',
+                example: firstChunk?.en || frontText,
                 exampleTranslation: firstChunk?.ja || '',
-                createdAt: Date.now(),
-              };
-              setDeck((prev) => [newCard, ...prev]);
+                createdAt: now,
+                createdDateKey: dateKey,
+                deckName: resolveOrganizedDeckName({
+                  mode: prefMode,
+                  customDeckName: 'YouTube & Web',
+                  language: detectedLang,
+                  dateKey,
+                }),
+              });
             }
           }
-          showToast(
-            `${exploreData.toolCallsExecuted.length} expressões do vídeo salvas no seu Deck!`
-          );
+          if (toolCards.length > 0) {
+            addFlashcardsToDeck(toolCards);
+            showToast(
+              `${toolCards.length} expressões do vídeo salvas na Área de Estudo!`
+            );
+          }
         }
       } else if (originMode === 'live_agent') {
         const recentHistory = messages
@@ -1115,22 +1133,34 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         };
 
         if (liveData.toolCallsExecuted && liveData.toolCallsExecuted.length > 0) {
+          const prefMode = readDeckNamingPreference();
           for (const tool of liveData.toolCallsExecuted) {
             if (tool.name === 'create_study_flashcard') {
               const firstChunk = liveData.chunks[0];
+              const frontText = tool.args.frontPhrase || firstChunk?.en || text;
+              const now = Date.now();
+              const dateKey = toLocalCalendarDateKey(now);
+              const detectedLang = detectFlashcardLanguage(frontText, tool.args.language);
               const newCard: FlashcardItem = {
                 id: tool.id,
-                chunkText: tool.args.frontPhrase || firstChunk?.en || text,
-                language: 'en-US',
-                front: tool.args.frontPhrase || firstChunk?.en || text,
+                chunkText: frontText,
+                language: detectedLang,
+                front: frontText,
                 back: tool.args.backTranslation || firstChunk?.it || '',
                 nuance: 'Gerado automaticamente via Function Calling do Agente Live.',
                 pronunciation: firstChunk?.jaPronunciation,
-                example: firstChunk?.en || '',
+                example: firstChunk?.en || frontText,
                 exampleTranslation: firstChunk?.ja || '',
-                createdAt: Date.now(),
+                createdAt: now,
+                createdDateKey: dateKey,
+                deckName: resolveOrganizedDeckName({
+                  mode: prefMode,
+                  customDeckName: 'Agente Live',
+                  language: detectedLang,
+                  dateKey,
+                }),
               };
-              setDeck((prev) => [newCard, ...prev]);
+              addFlashcardsToDeck([newCard]);
               showToast(tool.summaryPtBr);
             } else if (tool.name === 'switch_studio_voice' && tool.args.targetVoice) {
               const vId = tool.args.targetVoice;
@@ -1299,21 +1329,33 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
       }
 
       if (exploreData.toolCallsExecuted && exploreData.toolCallsExecuted.length > 0) {
+        const prefMode = readDeckNamingPreference();
         const addedCards: FlashcardItem[] = exploreData.toolCallsExecuted
           .filter((t) => t.name === 'create_study_flashcard')
           .map((tool, idx) => {
             const chunk = exploreData.chunks?.[idx] || exploreData.chunks?.[0];
+            const frontText = tool.args.frontPhrase || chunk?.en || youtubeUrl;
+            const now = Date.now();
+            const dateKey = toLocalCalendarDateKey(now);
+            const detectedLang = detectFlashcardLanguage(frontText, tool.args.language);
             return {
               id: tool.id,
-              chunkText: tool.args.frontPhrase || chunk?.en || youtubeUrl,
-              language: 'en-US',
-              front: tool.args.frontPhrase || chunk?.en || youtubeUrl,
+              chunkText: frontText,
+              language: detectedLang,
+              front: frontText,
               back: tool.args.backTranslation || chunk?.it || '',
               nuance: 'Expressão extraída do vídeo do YouTube.',
               pronunciation: chunk?.jaPronunciation,
-              example: chunk?.en || '',
+              example: chunk?.en || frontText,
               exampleTranslation: chunk?.ja || '',
-              createdAt: Date.now(),
+              createdAt: now - idx,
+              createdDateKey: dateKey,
+              deckName: resolveOrganizedDeckName({
+                mode: prefMode,
+                customDeckName: 'YouTube & Web',
+                language: detectedLang,
+                dateKey,
+              }),
             };
           });
         if (addedCards.length > 0) {
@@ -1367,8 +1409,24 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     try {
       const data = await requestGenerateFlashcard(chunkText, language);
       if (data.ok && data.success && data.card) {
-        addFlashcardsToDeck([data.card]);
-        showToast(`Flashcard "${chunkText}" enviado para a Área de Estudo!`);
+        const now = data.card.createdAt || Date.now();
+        const dateKey = data.card.createdDateKey || toLocalCalendarDateKey(now);
+        const resolvedLang = detectFlashcardLanguage(data.card.front, data.card.language || language);
+        const badgeLower = normalizeLanguageBadge(resolvedLang).toLowerCase() as 'en' | 'it' | 'ja';
+        const organizedCard: FlashcardItem = {
+          ...data.card,
+          language: resolvedLang,
+          createdDateKey: dateKey,
+          voiceId: data.card.voiceId || defaultVoiceByLang[badgeLower],
+          deckName: resolveOrganizedDeckName({
+            mode: readDeckNamingPreference(),
+            customDeckName: 'Chat Poliglota',
+            language: resolvedLang,
+            dateKey,
+          }),
+        };
+        addFlashcardsToDeck([organizedCard]);
+        showToast(`Flashcard "${chunkText}" enviado para ${organizedCard.deckName}!`);
       } else {
         throw new Error(data.error || 'Falha ao criar flashcard.');
       }
@@ -1413,7 +1471,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
               <button
                 type="button"
                 onClick={handleNewConversation}
-                className="btn-matte btn-matte-dark btn-compact-touch h-8 px-2.5 py-1 text-xs text-primary font-medium cursor-pointer"
+                className="btn-matte btn-matte-dark btn-compact-touch h-10 min-h-[40px] px-3 py-1.5 text-xs text-primary font-medium cursor-pointer"
                 title="Iniciar nova conversa limpa"
               >
                 <GoogleIcon name="add" size={15} className="text-amber-400" />
@@ -1422,7 +1480,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
               <button
                 type="button"
                 onClick={() => (onOpenStudyTab ? onOpenStudyTab() : setIsDeckDrawerOpen(true))}
-                className="btn-matte btn-matte-dark btn-compact-touch h-8 px-2.5 py-1 text-xs text-primary font-medium cursor-pointer"
+                className="btn-matte btn-matte-dark btn-compact-touch h-10 min-h-[40px] px-3 py-1.5 text-xs text-primary font-medium cursor-pointer"
                 title="Abrir Área de Estudo (Flashcards)"
               >
                 <GoogleIcon name="school" size={15} className="text-amber-400" />
@@ -1582,7 +1640,24 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         message={exportingMessage}
         cardVoices={exportingMessage ? getCardVoicesForMessage(exportingMessage.id) : undefined}
         onAddCardsToDeck={(newCards) => {
-          addFlashcardsToDeck(newCards);
+          const prefMode = readDeckNamingPreference();
+          const organized = newCards.map((card) => {
+            const dateKey = card.createdDateKey || toLocalCalendarDateKey(card.createdAt || Date.now());
+            return {
+              ...card,
+              createdDateKey: dateKey,
+              deckName:
+                prefMode === 'custom' && card.deckName
+                  ? card.deckName
+                  : resolveOrganizedDeckName({
+                      mode: prefMode,
+                      customDeckName: card.deckName || 'Chat Poliglota',
+                      language: card.language,
+                      dateKey,
+                    }),
+            };
+          });
+          addFlashcardsToDeck(organized);
         }}
         onExportTrilogyWav={handleExportTrilogyWav}
         onShowToast={showToast}
