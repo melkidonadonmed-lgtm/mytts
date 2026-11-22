@@ -87,7 +87,7 @@ function FlashcardRowCard({
           type="button"
           onClick={() => onPlayCardTts(card)}
           aria-label={`Ouvir ${card.front}`}
-          className="min-h-[38px] px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
+          className="min-h-11 min-w-11 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-800 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
         >
           <GoogleIcon name="volume_up" size={14} />
         </button>
@@ -95,7 +95,7 @@ function FlashcardRowCard({
           type="button"
           onClick={() => onEditCard(card)}
           aria-label={`Editar ${card.front}`}
-          className="min-h-[38px] px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-secondary hover:text-primary border border-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
+          className="min-h-11 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-secondary hover:text-primary border border-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
         >
           <GoogleIcon name="edit" size={14} />
           <span>Editar</span>
@@ -104,7 +104,7 @@ function FlashcardRowCard({
           type="button"
           onClick={() => onDeleteCard(card.id)}
           aria-label={`Excluir ${card.front}`}
-          className="min-h-[38px] px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-rose-950/40 text-rose-400 border border-slate-800 text-xs cursor-pointer"
+          className="min-h-11 min-w-11 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-rose-950/40 text-rose-400 border border-slate-800 text-xs flex items-center justify-center cursor-pointer"
         >
           <GoogleIcon name="delete" size={14} />
         </button>
@@ -196,13 +196,13 @@ export const FlashcardCatalogManager: React.FC<FlashcardCatalogManagerProps> = (
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Buscar flashcards por frente, tradução ou baralho"
             placeholder="Buscar frente, tradução ou baralho..."
-            className="min-h-[40px] px-3.5 py-1.5 rounded-xl input-sunken text-xs text-primary border border-slate-800 sm:w-64"
+            className="min-h-11 px-3.5 py-1.5 rounded-xl input-sunken text-xs text-primary border border-slate-800 sm:w-64"
           />
           {filteredCards.length > 0 && (
             <button
               type="button"
               onClick={() => onExportCsv(filteredCards)}
-              className="min-h-[40px] px-3 py-1.5 rounded-xl btn-matte-dark text-secondary hover:text-primary text-xs font-bold flex items-center gap-1.5 border border-slate-800 cursor-pointer"
+              className="min-h-11 px-3 py-1.5 rounded-xl btn-matte-dark text-secondary hover:text-primary text-xs font-bold flex items-center gap-1.5 border border-slate-800 cursor-pointer"
             >
               <GoogleIcon name="download" size={14} className="text-emerald-400" />
               <span>Exportar Filtro (CSV)</span>
@@ -221,7 +221,7 @@ export const FlashcardCatalogManager: React.FC<FlashcardCatalogManagerProps> = (
               type="button"
               aria-pressed={selectedLang === lang}
               onClick={() => onChangeLang(lang)}
-              className={`min-h-[34px] px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-colors cursor-pointer ${
+              className={`min-h-11 px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-colors cursor-pointer ${
                 selectedLang === lang
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                   : 'bg-slate-950/60 text-secondary border-slate-800 hover:text-primary'
@@ -240,7 +240,7 @@ export const FlashcardCatalogManager: React.FC<FlashcardCatalogManagerProps> = (
               type="button"
               aria-pressed={datePreset === p.id}
               onClick={() => onChangeDatePreset(p.id)}
-              className={`min-h-[34px] px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+              className={`min-h-11 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
                 datePreset === p.id
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                   : 'bg-slate-950/60 text-secondary border-slate-800 hover:text-primary'
@@ -255,7 +255,7 @@ export const FlashcardCatalogManager: React.FC<FlashcardCatalogManagerProps> = (
               value={customDateKey}
               onChange={(e) => onChangeCustomDateKey(e.target.value)}
               aria-label="Filtrar flashcards por data específica"
-              className="min-h-[34px] px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-[11px] font-mono text-primary"
+              className="min-h-11 px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-[11px] font-mono text-primary"
             />
           )}
         </div>
@@ -265,7 +265,7 @@ export const FlashcardCatalogManager: React.FC<FlashcardCatalogManagerProps> = (
             value={selectedDeck}
             onChange={(e) => onChangeDeck(e.target.value)}
             aria-label="Filtrar catálogo por baralho"
-            className="min-h-[34px] px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-bold text-primary cursor-pointer max-w-[160px]"
+            className="min-h-11 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-bold text-primary cursor-pointer max-w-[160px]"
           >
             <option value="ALL">Todos Baralhos</option>
             {availableDecks.map((d) => (
@@ -277,7 +277,7 @@ export const FlashcardCatalogManager: React.FC<FlashcardCatalogManagerProps> = (
             value={groupBy}
             onChange={(e) => setGroupBy(e.target.value as FlashcardGroupByMode)}
             aria-label="Modo de agrupamento dos flashcards"
-            className="min-h-[34px] px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-bold text-amber-300 cursor-pointer"
+            className="min-h-11 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-bold text-amber-300 cursor-pointer"
           >
             {GROUP_MODES.map((m) => (
               <option key={m.id} value={m.id}>Agrupar: {m.label}</option>
@@ -288,7 +288,7 @@ export const FlashcardCatalogManager: React.FC<FlashcardCatalogManagerProps> = (
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as FlashcardSortOrder)}
             aria-label="Ordenação dos flashcards"
-            className="min-h-[34px] px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-bold text-secondary cursor-pointer"
+            className="min-h-11 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-bold text-secondary cursor-pointer"
           >
             <option value="newest">Mais recentes</option>
             <option value="oldest">Mais antigos</option>

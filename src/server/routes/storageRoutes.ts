@@ -6,10 +6,15 @@ import { getFlashcardStorage } from '../../services/flashcardStorage';
 import type { ChunkItem, TargetLang } from '../../types/chunks';
 import type {
   FlashcardItem,
-  GoogleUserSession,
   SavedConversation,
 } from '../../types/polyglot';
-import { sanitizeUserId } from '../audioContainer';
+import {
+  clearSessionCookie,
+  getVerifiedSessionFromRequest,
+  resolveRequestUserId,
+  setSessionCookie,
+  verifyGoogleIdToken,
+} from '../authSession';
 import { ROUTE_ALLOWED_KEYS, validateStrictPayload } from '../validators';
 
 const conversationStorage = getConversationStorage();
@@ -20,7 +25,11 @@ export function createStorageRouter(): Router {
 
   router.get('/api/chunks', async (req, res) => {
     try {
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
       const lang = req.query.lang as TargetLang | undefined;
       const userChunks = await chunkStorage.listUserChunks(userId, lang);
       return res.json({ success: true, chunks: userChunks });
@@ -34,6 +43,10 @@ export function createStorageRouter(): Router {
 
   router.post('/api/chunks', async (req, res) => {
     try {
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
       const check = validateStrictPayload<{
         id?: string;
         chunk?: string;
@@ -46,7 +59,7 @@ export function createStorageRouter(): Router {
         return res.status(400).json({ error: check.error });
       }
 
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const userId = identity.userId;
       const { id, chunk, literalOrNuance, meaning, context, pronunciationHint } = check.data;
 
       if (!chunk || !literalOrNuance || !meaning) {
@@ -77,7 +90,11 @@ export function createStorageRouter(): Router {
 
   router.delete('/api/chunks/:id', async (req, res) => {
     try {
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
       const deleted = await chunkStorage.deleteUserChunk(userId, req.params.id);
       return res.json({ success: true, deleted });
     } catch (error: unknown) {
@@ -96,105 +113,48 @@ export function createStorageRouter(): Router {
     });
   });
 
+  router.get('/api/auth/me', (req, res) => {
+    const session = getVerifiedSessionFromRequest(req);
+    if (session) {
+      return res.json({
+        success: true,
+        authenticated: true,
+        user: session,
+      });
+    }
+    return res.json({
+      success: true,
+      authenticated: false,
+      user: null,
+    });
+  });
+
+  router.post('/api/auth/logout', (_req, res) => {
+    clearSessionCookie(res);
+    return res.json({ success: true });
+  });
+
   router.post('/api/auth/google', async (req, res) => {
     try {
       const check = validateStrictPayload<{
-        credential?: string;
-        email?: string;
-        name?: string;
+        credential?: unknown;
       }>(req.body, ROUTE_ALLOWED_KEYS.authGoogle);
       if (!check.ok) {
         return res.status(400).json({ error: check.error });
       }
 
-      const { credential, email, name } = check.data;
-
-      if (credential && typeof credential === 'string') {
-        const parts = credential.split('.');
-        if (parts.length !== 3) {
-          return res.status(400).json({ error: 'Token Google inválido.' });
-        }
-        const payloadRaw = Buffer.from(parts[1], 'base64url').toString('utf-8');
-        const payload = JSON.parse(payloadRaw) as {
-          iss?: string;
-          sub?: string;
-          email?: string;
-          name?: string;
-          picture?: string;
-          exp?: number;
-        };
-
-        if (
-          !payload.sub ||
-          (payload.iss !== 'https://accounts.google.com' && payload.iss !== 'accounts.google.com')
-        ) {
-          return res.status(401).json({ error: 'Emissor do token Google inválido.' });
-        }
-
-        if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now() - 60_000) {
-          return res.status(401).json({ error: 'Token Google expirado. Faça login novamente.' });
-        }
-
-        const expectedClientId = (
-          process.env.GOOGLE_CLIENT_ID ||
-          process.env.VITE_GOOGLE_CLIENT_ID ||
-          ''
-        ).trim();
-        if (expectedClientId) {
-          try {
-            const verifyResp = await fetch(
-              `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`
-            );
-            if (!verifyResp.ok) {
-              return res.status(401).json({ error: 'Assinatura do token Google recusada.' });
-            }
-            const verifiedData = (await verifyResp.json()) as { aud?: string };
-            if (verifiedData.aud && verifiedData.aud !== expectedClientId) {
-              return res.status(401).json({ error: 'Client ID do token Google não corresponde.' });
-            }
-          } catch (verifyErr: unknown) {
-            console.debug(
-              '[Auth] Verificação online tokeninfo indisponível:',
-              verifyErr instanceof Error ? verifyErr.message : String(verifyErr)
-            );
-          }
-        }
-
-        const canonicalEmail = (payload.email || '').trim().toLowerCase();
-        const rawIdentifier = canonicalEmail
-          ? canonicalEmail.replace(/[^a-z0-9]/g, '_').slice(0, 56)
-          : String(payload.sub).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 56);
-        const safeUid = sanitizeUserId(`google_${rawIdentifier}`);
-        const user: GoogleUserSession = {
-          uid: safeUid,
-          name: payload.name || payload.email?.split('@')[0] || 'Usuário Google',
-          email: canonicalEmail || payload.email || '',
-          picture: payload.picture,
-          idToken: credential,
-          isGoogleAuthenticated: true,
-        };
-        return res.json({ success: true, user });
+      const { credential } = check.data;
+      if (typeof credential !== 'string' || credential.trim().length === 0) {
+        return res.status(400).json({ error: 'Credencial Google obrigatória.' });
       }
 
-      if (email && typeof email === 'string' && email.includes('@')) {
-        const cleanEmail = email.trim().toLowerCase();
-        const safeEmailSlug = cleanEmail.replace(/[^a-z0-9]/g, '_').slice(0, 56);
-        const safeUid = sanitizeUserId(`google_${safeEmailSlug}`);
-        const displayName =
-          typeof name === 'string' && name.trim().length > 0
-            ? name.trim().slice(0, 60)
-            : cleanEmail.split('@')[0];
-
-        const user: GoogleUserSession = {
-          uid: safeUid,
-          name: displayName,
-          email: cleanEmail,
-          isGoogleAuthenticated: true,
-        };
-        return res.json({ success: true, user });
+      const verified = await verifyGoogleIdToken(credential.trim());
+      if (!verified.ok) {
+        return res.status(verified.status).json({ error: verified.error });
       }
 
-      return res.status(400).json({ error: 'Credencial ou e-mail Google obrigatório.' });
+      setSessionCookie(res, verified.user);
+      return res.json({ success: true, user: verified.user });
     } catch (error: unknown) {
       return res.status(500).json({
         error: error instanceof Error ? error.message : 'Falha ao autenticar conta Google.',
@@ -204,7 +164,11 @@ export function createStorageRouter(): Router {
 
   router.get('/api/conversations', async (req, res) => {
     try {
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
       const conversations = await conversationStorage.listByUser(userId);
       return res.json({
         success: true,
@@ -220,6 +184,10 @@ export function createStorageRouter(): Router {
 
   router.post('/api/conversations', async (req, res) => {
     try {
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
       const check = validateStrictPayload<Partial<SavedConversation>>(
         req.body,
         ROUTE_ALLOWED_KEYS.conversationUpsert
@@ -228,7 +196,7 @@ export function createStorageRouter(): Router {
         return res.status(400).json({ error: check.error });
       }
 
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const userId = identity.userId;
       const body = check.data;
       if (!body.id || !Array.isArray(body.messages)) {
         return res
@@ -261,7 +229,11 @@ export function createStorageRouter(): Router {
 
   router.delete('/api/conversations/:id', async (req, res) => {
     try {
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
       const convId = String(req.params.id || '').slice(0, 80);
       const deleted = await conversationStorage.remove(userId, convId);
       return res.json({ success: true, deleted });
@@ -274,7 +246,11 @@ export function createStorageRouter(): Router {
 
   router.delete('/api/conversations', async (req, res) => {
     try {
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
       const removedCount = await conversationStorage.clearUnpinned(userId);
       return res.json({ success: true, removedCount });
     } catch (error: unknown) {
@@ -286,7 +262,11 @@ export function createStorageRouter(): Router {
 
   router.get('/api/flashcards', async (req, res) => {
     try {
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
       const cards = await flashcardStorage.listByUser(userId);
       return res.json({
         success: true,
@@ -302,6 +282,10 @@ export function createStorageRouter(): Router {
 
   router.post('/api/flashcards', async (req, res) => {
     try {
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
       const check = validateStrictPayload<{ cards?: FlashcardItem[]; card?: FlashcardItem }>(
         req.body,
         ROUTE_ALLOWED_KEYS.flashcardsUpsert
@@ -310,7 +294,7 @@ export function createStorageRouter(): Router {
         return res.status(400).json({ error: check.error });
       }
 
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const userId = identity.userId;
       const body = check.data;
       const incoming: FlashcardItem[] = Array.isArray(body.cards)
         ? body.cards.slice(0, 500)
@@ -337,7 +321,11 @@ export function createStorageRouter(): Router {
 
   router.delete('/api/flashcards/:id', async (req, res) => {
     try {
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
       const cardId = String(req.params.id || '').slice(0, 80);
       const deleted = await flashcardStorage.remove(userId, cardId);
       return res.json({ success: true, deleted });
@@ -350,7 +338,11 @@ export function createStorageRouter(): Router {
 
   router.delete('/api/flashcards', async (req, res) => {
     try {
-      const userId = sanitizeUserId(req.headers['x-user-id']);
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
       const clearedCount = await flashcardStorage.clearByUser(userId);
       return res.json({ success: true, clearedCount });
     } catch (error: unknown) {

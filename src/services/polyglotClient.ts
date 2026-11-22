@@ -58,6 +58,7 @@ export const saveFavoriteVoicesByLanguage = (
 export async function requestYoutubeMetadata(url: string): Promise<YoutubeVideoMetadata | null> {
   try {
     const resp = await fetch(`/api/youtube/metadata?url=${encodeURIComponent(url)}`, {
+      credentials: 'include',
       headers: { ...getAuthHeaders() },
     });
     if (!resp.ok) return null;
@@ -77,6 +78,7 @@ export async function requestTranslateParallelChunks(text: string): Promise<{
 }> {
   const resp = await fetch('/api/translate-parallel-chunks', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ text }),
   });
@@ -104,6 +106,7 @@ export async function requestLiveAgentTurn(params: {
 }> {
   const resp = await fetch('/api/live-agent-turn', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(params),
   });
@@ -136,6 +139,7 @@ export async function requestAgentExplore(params: {
 }> {
   const resp = await fetch('/api/agent-explore', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(params),
   });
@@ -145,6 +149,7 @@ export async function requestAgentExplore(params: {
 export async function requestListUserConversations(): Promise<SavedConversation[]> {
   try {
     const resp = await fetch('/api/conversations', {
+      credentials: 'include',
       headers: { ...getAuthHeaders() },
     });
     if (!resp.ok) return [];
@@ -161,6 +166,7 @@ export async function requestSaveUserConversation(
   try {
     const resp = await fetch('/api/conversations', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(conversation),
     });
@@ -176,6 +182,7 @@ export async function requestDeleteUserConversation(conversationId: string): Pro
   try {
     const resp = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: { ...getAuthHeaders() },
     });
     return resp.ok;
@@ -188,6 +195,7 @@ export async function requestClearUnpinnedConversations(): Promise<number> {
   try {
     const resp = await fetch('/api/conversations', {
       method: 'DELETE',
+      credentials: 'include',
       headers: { ...getAuthHeaders() },
     });
     if (!resp.ok) return 0;
@@ -201,6 +209,7 @@ export async function requestClearUnpinnedConversations(): Promise<number> {
 export async function requestListUserFlashcards(): Promise<FlashcardItem[]> {
   try {
     const resp = await fetch('/api/flashcards', {
+      credentials: 'include',
       headers: { ...getAuthHeaders() },
     });
     if (!resp.ok) return [];
@@ -215,6 +224,7 @@ export async function requestSaveUserFlashcards(cards: FlashcardItem[]): Promise
   try {
     const resp = await fetch('/api/flashcards', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ cards }),
     });
@@ -230,6 +240,7 @@ export async function requestDeleteUserFlashcard(cardId: string): Promise<boolea
   try {
     const resp = await fetch(`/api/flashcards/${encodeURIComponent(cardId)}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: { ...getAuthHeaders() },
     });
     return resp.ok;
@@ -242,6 +253,7 @@ export async function requestClearUserFlashcards(): Promise<boolean> {
   try {
     const resp = await fetch('/api/flashcards', {
       method: 'DELETE',
+      credentials: 'include',
       headers: { ...getAuthHeaders() },
     });
     return resp.ok;
@@ -267,10 +279,19 @@ export async function requestGenerateFlashcard(
 
   const resp = await fetch('/api/generate-flashcard', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(payload),
   });
   return parseApiJson(resp);
+}
+
+function buildGuestSafeHeaders(userId?: string): Record<string, string> {
+  const headers: Record<string, string> = { ...getAuthHeaders() };
+  if (!headers['X-User-Id'] && userId && !userId.startsWith('google_')) {
+    headers['X-User-Id'] = userId;
+  }
+  return headers;
 }
 
 export async function requestFetchUserChunks(
@@ -278,7 +299,8 @@ export async function requestFetchUserChunks(
   userId: string
 ): Promise<ChunkItem[]> {
   const res = await fetch(`/api/chunks?lang=${lang}`, {
-    headers: { ...getAuthHeaders(), 'X-User-Id': userId },
+    credentials: 'include',
+    headers: buildGuestSafeHeaders(userId),
   });
   if (!res.ok) return [];
   const data = await parseApiJson<{ chunks?: ChunkItem[] }>(res);
@@ -288,7 +310,8 @@ export async function requestFetchUserChunks(
 export async function requestDeleteUserChunk(id: string, userId: string): Promise<boolean> {
   const res = await fetch(`/api/chunks/${id}`, {
     method: 'DELETE',
-    headers: { ...getAuthHeaders(), 'X-User-Id': userId },
+    credentials: 'include',
+    headers: buildGuestSafeHeaders(userId),
   });
   return res.ok;
 }
@@ -301,10 +324,10 @@ export async function requestGenerateChunks(payload: {
 }): Promise<{ ok: boolean; success?: boolean; chunks?: ChunkItem[]; error?: string }> {
   const res = await fetch('/api/generate-chunks', {
     method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-      'X-User-Id': payload.userId,
+      ...buildGuestSafeHeaders(payload.userId),
     },
     body: JSON.stringify({
       textOrPrompt: payload.textOrPrompt,

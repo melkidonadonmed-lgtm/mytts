@@ -216,7 +216,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                   key={lang.id}
                   type="button"
                   onClick={() => handleSelectTargetLang(lang.id)}
-                  className={`btn-compact-touch py-1 px-1.5 rounded-lg text-[10px] font-mono font-bold transition-colors cursor-pointer ${
+                  className={`min-h-11 py-1 px-1.5 rounded-lg text-[10px] font-mono font-bold transition-colors cursor-pointer ${
                     preferredLang === lang.id
                       ? 'card-matte-active text-primary'
                       : 'text-secondary hover:text-primary'
@@ -254,7 +254,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                       type="button"
                       aria-pressed={isSelected}
                       onClick={() => onSelectPreset(presetKey)}
-                      className={`btn-compact-touch min-h-[40px] px-1.5 py-1.5 rounded-md text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+                      className={`min-h-11 px-1.5 py-1.5 rounded-md text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
                         isSelected
                           ? 'card-matte-active text-primary font-bold shadow-xs'
                           : 'text-secondary hover:text-primary hover:bg-white/5'
@@ -276,7 +276,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
             <button
               type="button"
               onClick={onToggleTheme}
-              className="btn-compact-touch w-full min-h-[36px] px-3 py-1.5 rounded-xl btn-matte-dark flex items-center justify-between text-xs font-semibold cursor-pointer transition-colors"
+              className="w-full min-h-11 px-3 py-1.5 rounded-xl btn-matte-dark flex items-center justify-between text-xs font-semibold cursor-pointer transition-colors"
             >
               <div className="flex items-center gap-2">
                 <GoogleIcon
@@ -295,7 +295,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
           ) : null}
 
           {/* 5. Ações de Conta / Login e Links de Governança */}
-          <div className="pt-1 border-t border-slate-800/80 flex flex-col gap-1.5">
+          <div className="pt-1 border-t border-[var(--border-subtle)] flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -303,7 +303,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                   setIsOpen(false);
                   onOpenAuthModal();
                 }}
-                className="flex-1 btn-matte btn-matte-amber min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 btn-matte btn-matte-amber min-h-11 px-3 py-1.5 rounded-xl text-xs font-bold text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>{session.isGoogleAuthenticated ? 'Trocar Conta' : 'Entrar com Google'}</span>
@@ -313,7 +313,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmSignOut}
-                  className={`btn-compact-touch min-h-[36px] px-2.5 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1 transition-colors cursor-pointer ${
+                  className={`min-h-11 px-2.5 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1 transition-colors cursor-pointer ${
                     confirmSignOut
                       ? 'bg-rose-600 text-white border border-rose-400'
                       : 'btn-matte-dark text-secondary hover:text-rose-300'
@@ -334,7 +334,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                     setIsOpen(false);
                     onSelectArchitecture();
                   }}
-                  className="hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+                  className="min-h-11 px-2 hover:text-primary inline-flex items-center gap-1 cursor-pointer"
                 >
                   <GoogleIcon name="terminal" size={14} />
                   <span>Arquitetura</span>
@@ -344,7 +344,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
                 href={EXTERNAL_LINKS.GITHUB_REPO}
                 target="_blank"
                 rel="noreferrer"
-                className="hover:text-primary inline-flex items-center gap-1"
+                className="min-h-11 px-2 hover:text-primary inline-flex items-center gap-1"
               >
                 <GoogleIcon name="code" size={14} />
                 <span>GitHub</span>
@@ -365,7 +365,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
             ? `${session.name} (${session.email || 'Modo Local'}) — Preferências e Tema`
             : 'Abrir menu de conta, sincronização e temas'
         }
-        className={`rail-tooltip-host w-full rounded-2xl card-matte transition-all cursor-pointer flex items-center ${
+        className={`rail-tooltip-host w-full min-h-11 rounded-2xl card-matte transition-all cursor-pointer flex items-center ${
           isCollapsed ? 'justify-center p-2' : 'justify-between gap-2 px-3 py-2'
         }`}
       >

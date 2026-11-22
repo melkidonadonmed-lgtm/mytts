@@ -1,50 +1,45 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  RotateCw, 
-  Gauge, 
-  Volume2, 
-  VolumeX, 
-  ChevronUp, 
+import React, { useState, useEffect } from 'react';
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  RotateCw,
+  Gauge,
+  Volume2,
+  VolumeX,
+  ChevronUp,
   ChevronDown,
-  Sparkles,
-  MessageSquare,
-  Tag,
   Sliders,
-  Wind,
-  Clock,
-  Check,
   Music,
   Download,
-  Radio,
-  Layers,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { SpeakerProfile, DebateTurn, TurnEmotion, LanguageCode, DebateScript } from '../types/debate';
-import { 
-  getAudioContext, 
-  base64ToArrayBuffer, 
-  concatenateWavBuffers,
-  GaplessAudioPlayer, 
-  SOUNDTRACK_PRESETS, 
-  SoundtrackPreset, 
-  SoundtrackConfig 
+import { SpeakerProfile, DebateTurn, LanguageCode, DebateScript } from '../types/debate';
+import {
+  GaplessAudioPlayer,
+  SOUNDTRACK_PRESETS,
+  SoundtrackConfig,
 } from '../utils/audioEngine';
-import { requestPreviewVoice, requestMixAudio } from '../services/apiClient';
-import { AUDIO_CONSTANTS } from '../config/constants';
+import {
+  formatAudioTime,
+  resolveEmotionMeta,
+  resolveSpeakerAccent,
+} from './audio/audioDockShared';
+import { CompactAudioPill } from './audio/CompactAudioPill';
+import { VoiceProfileDrawerTab } from './audio/VoiceProfileDrawerTab';
+import { SoundtrackDrawerTab } from './audio/SoundtrackDrawerTab';
+import { useAudioDockActions } from './audio/useAudioDockActions';
 
 interface BottomAudioDockProps {
   player?: GaplessAudioPlayer;
   script?: DebateScript | null;
   isPlaying: boolean;
   onTogglePlay: () => void;
-  currentTime: number; // em segundos
-  duration: number; // em segundos
+  currentTime: number;
+  duration: number;
   onSeek: (newTime: number) => void;
-  playbackRate: number; // 1.0, 1.25, 1.5, 1.75, 2.0
+  playbackRate: number;
   onChangePlaybackRate: (rate: number) => void;
   currentSpeaker?: SpeakerProfile;
   currentTurn?: DebateTurn;
@@ -54,56 +49,7 @@ interface BottomAudioDockProps {
   language?: LanguageCode;
 }
 
-const EMOTIONS_MAP: Record<TurnEmotion | string, { label: string; ptLabel: string; bg: string; text: string; border: string; icon: string }> = {
-  thoughtful: {
-    label: 'Thoughtful',
-    ptLabel: 'Reflexivo',
-    bg: 'bg-white/[0.04]',
-    text: 'text-slate-300',
-    border: 'border-white/[0.08]',
-    icon: '~',
-  },
-  inquisitive: {
-    label: 'Inquisitive',
-    ptLabel: 'Inquisitivo',
-    bg: 'bg-white/[0.04]',
-    text: 'text-slate-300',
-    border: 'border-white/[0.08]',
-    icon: '?',
-  },
-  skeptical: {
-    label: 'Skeptical',
-    ptLabel: 'Cético',
-    bg: 'bg-white/[0.04]',
-    text: 'text-slate-300',
-    border: 'border-white/[0.08]',
-    icon: '!',
-  },
-  ironic: {
-    label: 'Ironic',
-    ptLabel: 'Irônico',
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-300',
-    border: 'border-amber-500/25',
-    icon: '≠',
-  },
-  passionate: {
-    label: 'Passionate',
-    ptLabel: 'Apaixonado',
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-300',
-    border: 'border-amber-500/25',
-    icon: '+',
-  },
-  resolute: {
-    label: 'Resolute',
-    ptLabel: 'Resoluto',
-    bg: 'bg-white/[0.04]',
-    text: 'text-slate-300',
-    border: 'border-white/[0.08]',
-    icon: '→',
-  },
-};
+const AVAILABLE_RATES = [1.0, 1.25, 1.5, 1.75, 2.0];
 
 export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   player,
@@ -127,7 +73,6 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   const [activeDrawerTab, setActiveDrawerTab] = useState<'voice' | 'soundtrack'>('voice');
   const [isMuted, setIsMuted] = useState(false);
 
-  // Estado da Trilha Sonora & Auto-Ducking sincronizado com o player
   const [soundtrackConfig, setSoundtrackConfig] = useState<SoundtrackConfig>(
     player?.getState().soundtrack || {
       preset: 'none',
@@ -139,21 +84,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
   );
   const [isDucking, setIsDucking] = useState<boolean>(player?.getState().isDucking || false);
   const [isExportingMaster, setIsExportingMaster] = useState<boolean>(false);
-  const [exportFeedback, setExportFeedback] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Estados do Preview de Áudio (amostra de 3 segundos para confirmar seleção)
-  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewSecondsLeft, setPreviewSecondsLeft] = useState(3);
-  const [isConfirmed, setIsConfirmed] = useState(false);
-
-  const previewSourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Assinar atualizações de estado do player para refletir ducking e configurações
   useEffect(() => {
     if (!player) return;
     const unsub = player.subscribe((state) => {
@@ -164,105 +95,10 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
     return () => unsub();
   }, [player]);
 
-  const stopPreview = (): void => {
-    if (previewSourceRef.current) {
-      try {
-        previewSourceRef.current.stop();
-      } catch {
-        // Fonte de áudio já interrompida
-      }
-      previewSourceRef.current = null;
-    }
-    if (previewTimerRef.current) {
-      clearTimeout(previewTimerRef.current);
-      previewTimerRef.current = null;
-    }
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    setIsPlayingPreview(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      stopPreview();
-    };
-  }, []);
-
-  // Ciclo rápido de velocidades para toque único com o polegar
-  const availableRates = [1.0, 1.25, 1.5, 1.75, 2.0];
-  const handleCycleSpeed = (): void => {
-    const currentIndex = availableRates.indexOf(playbackRate);
-    const nextIndex = (currentIndex + 1) % availableRates.length;
-    onChangePlaybackRate(availableRates[nextIndex]);
-  };
-
-  const handleSkip = (seconds: number): void => {
-    const target = Math.min(Math.max(currentTime + seconds, 0), duration || 0);
-    onSeek(target);
-  };
-
-  const formatTime = (secs: number): string => {
-    if (isNaN(secs) || secs < 0) return '00:00';
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  // Destaca marcadores prosódicos no texto
-  const renderProsodicText = (text?: string): React.ReactNode => {
-    if (!text) return 'Aguardando inicialização do debate...';
-    const parts = text.split(/(<[^>]+>|\|[^|]+\||—|\.\.\.)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('<') && part.endsWith('>')) {
-        return (
-          <span
-            key={i}
-            className="text-[11px] font-mono px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 mx-0.5 inline-block"
-            title="Marcador vocal neural"
-          >
-            {part}
-          </span>
-        );
-      }
-      if (part.startsWith('|') && part.endsWith('|')) {
-        return (
-          <span
-            key={i}
-            className="text-[11px] font-mono px-1 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 mx-0.5 inline-block"
-            title="Escuta ativa (backchanneling)"
-          >
-            {part}
-          </span>
-        );
-      }
-      if (part === '—' || part === '...') {
-        return (
-          <span key={i} className="text-amber-400 font-bold mx-0.5">
-            {part}
-          </span>
-        );
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
   const voiceId = currentTurn?.voice_id || currentSpeaker?.voiceId || 'Puck';
-  const emotionKey = currentTurn?.emotion || 'thoughtful';
-  const emotionMeta = EMOTIONS_MAP[emotionKey] || {
-    label: emotionKey,
-    ptLabel: emotionKey,
-    bg: 'bg-slate-800',
-    text: 'text-slate-300',
-    border: 'border-slate-700',
-    icon: '•',
-  };
+  const emotionMeta = resolveEmotionMeta(currentTurn?.emotion || 'thoughtful');
+  const speakerAccent = resolveSpeakerAccent(currentSpeaker?.color);
 
   const prosody = currentTurn?.prosody || {
     speech_rate: 1.0,
@@ -271,277 +107,52 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
     volume_gain: 1.0,
   };
 
-  // Alteração de Trilha Sonora
-  const handleSelectSoundtrack = async (presetId: SoundtrackPreset): Promise<void> => {
-    if (presetId === 'custom') {
-      fileInputRef.current?.click();
-      return;
-    }
-    if (player) {
-      await player.setSoundtrackPreset(presetId);
-    }
+  const actions = useAudioDockActions({
+    player,
+    script,
+    currentSpeaker,
+    currentTurn,
+    voiceId,
+    language,
+    soundtrackConfig,
+    setIsExportingMaster,
+  });
+
+  const handleCycleSpeed = (): void => {
+    const currentIndex = AVAILABLE_RATES.indexOf(playbackRate);
+    const nextIndex = (currentIndex + 1) % AVAILABLE_RATES.length;
+    onChangePlaybackRate(AVAILABLE_RATES[nextIndex]);
   };
 
-  // Upload de arquivo de áudio do usuário para trilha de fundo
-  const handleCustomAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const file = e.target.files?.[0];
-    if (!file || !player) return;
-
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const ctx = getAudioContext();
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      await player.setSoundtrackPreset('custom', audioBuffer, file.name);
-    } catch (err: unknown) {
-      console.error('Falha ao decodificar arquivo customizado:', err);
-    }
+  const handleSkip = (seconds: number): void => {
+    const target = Math.min(Math.max(currentTime + seconds, 0), duration || 0);
+    onSeek(target);
   };
 
-  const blobToBase64 = (blob: Blob): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const res = typeof reader.result === 'string' ? reader.result : '';
-        const b64 = res.includes(',') ? res.split(',')[1] : res;
-        resolve(b64);
-      };
-      reader.onerror = () => reject(new Error('Falha ao converter Blob em base64.'));
-      reader.readAsDataURL(blob);
-    });
-
-  // Exportação Híbrida do Master do Debate Completo (FFmpeg Sidechain Broadcast -> Fallback Web Audio Offline)
-  const handleExportMasterMix = async (): Promise<void> => {
-    if (!player) return;
-    try {
-      setIsExportingMaster(true);
-      const cleanTitle = (script?.title || 'debate').toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const readyTurns = (script?.turns || []).filter((t) => Boolean(t.audioBase64));
-
-      if (readyTurns.length > 0 && soundtrackConfig.preset !== 'none' && soundtrackConfig.preset !== 'custom') {
-        try {
-          setExportFeedback('Mixando Master Broadcast via FFmpeg Sidechain...');
-          const concatenatedVoiceBlob = concatenateWavBuffers(
-            readyTurns.map((t) => t.audioBase64!)
-          );
-          const voiceAudioBase64 = await blobToBase64(concatenatedVoiceBlob);
-          const mixResp = await requestMixAudio({
-            voiceAudioBase64,
-            soundtrackPreset: soundtrackConfig.preset,
-            musicVolume: soundtrackConfig.musicVolume,
-            duckingDepthDb: soundtrackConfig.duckingEnabled ? soundtrackConfig.duckingDepthDb : 0,
-            voiceBoostDb: soundtrackConfig.voiceBoostDb,
-          });
-
-          if (mixResp.ok && mixResp.success && mixResp.audioBase64 && !mixResp.warning) {
-            const binary = window.atob(mixResp.audioBase64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            const serverBlob = new Blob([bytes], { type: 'audio/wav' });
-            const url = URL.createObjectURL(serverBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `dialecticpod-${cleanTitle}-broadcast-${Date.now()}.wav`;
-            a.click();
-            URL.revokeObjectURL(url);
-            setExportFeedback('Master Broadcast FFmpeg exportado com sucesso!');
-            setTimeout(() => setExportFeedback(null), 3500);
-            return;
-          }
-        } catch (serverErr: unknown) {
-          console.warn('Fallback para OfflineAudioContext local:', serverErr);
-        }
-      }
-
-      setExportFeedback('Renderizando Master com Web Audio Offline...');
-      const blob = await player.exportMasterMixWav(script?.turns);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dialecticpod-${cleanTitle}-master-${Date.now()}.wav`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setExportFeedback('Master WAV exportado com sucesso!');
-      setTimeout(() => setExportFeedback(null), 3500);
-    } catch (err: unknown) {
-      console.error('Erro na exportação:', err);
-      setExportFeedback(err instanceof Error ? err.message : 'Erro ao exportar o master.');
-      setTimeout(() => setExportFeedback(null), 4000);
-    } finally {
-      setIsExportingMaster(false);
-    }
-  };
-
-  // Reproduz amostra de áudio de 3 segundos da voz selecionada para confirmação
-  const handleTogglePreviewAudio = async (): Promise<void> => {
-    if (isPlayingPreview) {
-      stopPreview();
-      return;
-    }
-
-    setPreviewLoading(true);
-    setIsConfirmed(false);
-
-    try {
-      let audioBase64 = currentTurn?.audioBase64;
-
-      if (!audioBase64) {
-        const data = await requestPreviewVoice({
-          voiceId,
-          speakerName: currentSpeaker?.name || 'Orador',
-          language: language || 'pt-BR',
-        });
-
-        if (data.ok && data.audioBase64) {
-          audioBase64 = data.audioBase64;
-        }
-      }
-
-      const ctx = getAudioContext();
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-
-      if (audioBase64) {
-        const arrayBuf = base64ToArrayBuffer(audioBase64);
-        const audioBuffer = await ctx.decodeAudioData(arrayBuf.slice(0));
-
-        stopPreview();
-
-        const source = ctx.createBufferSource();
-        source.buffer = audioBuffer;
-
-        const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(1.0, ctx.currentTime);
-        gainNode.gain.setValueAtTime(1.0, ctx.currentTime + AUDIO_CONSTANTS.PREVIEW_FADE_START_SEC);
-        gainNode.gain.linearRampToValueAtTime(0.001, ctx.currentTime + AUDIO_CONSTANTS.PREVIEW_DURATION_SEC);
-
-        source.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        source.start(0);
-        source.stop(ctx.currentTime + AUDIO_CONSTANTS.PREVIEW_DURATION_SEC);
-        previewSourceRef.current = source;
-
-        setIsPlayingPreview(true);
-        setPreviewSecondsLeft(3);
-
-        countdownIntervalRef.current = setInterval(() => {
-          setPreviewSecondsLeft((prev) => {
-            if (prev <= 1) {
-              if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-
-        previewTimerRef.current = setTimeout(() => {
-          stopPreview();
-          setIsConfirmed(true);
-          setTimeout(() => setIsConfirmed(false), 2500);
-        }, 3000);
-      } else {
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          const sampleText = `${currentSpeaker?.name || 'Orador'}. Voz neural confirmada no estúdio.`;
-          const utterance = new SpeechSynthesisUtterance(sampleText);
-          utterance.lang = language || 'pt-BR';
-          utterance.rate = 1.05;
-          window.speechSynthesis.speak(utterance);
-
-          setIsPlayingPreview(true);
-          setPreviewSecondsLeft(3);
-
-          countdownIntervalRef.current = setInterval(() => {
-            setPreviewSecondsLeft((prev) => Math.max(0, prev - 1));
-          }, 1000);
-
-          previewTimerRef.current = setTimeout(() => {
-            stopPreview();
-            setIsConfirmed(true);
-            setTimeout(() => setIsConfirmed(false), 2500);
-          }, 3000);
-        }
-      }
-    } catch (err: unknown) {
-      console.warn('Erro na reprodução da amostra:', err);
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const currentPresetMeta = SOUNDTRACK_PRESETS.find((p) => p.id === soundtrackConfig.preset) || SOUNDTRACK_PRESETS[0];
+  const currentPresetMeta =
+    SOUNDTRACK_PRESETS.find((p) => p.id === soundtrackConfig.preset) || SOUNDTRACK_PRESETS[0];
 
   if (isCompactPill && !isExpanded) {
     return (
-      <aside
-        id="BottomAudioDock"
-        aria-label="Pílula de Produtor e Linha Animada"
-        className="fixed bottom-3 left-0 right-0 lg:left-[var(--left-sidebar-w)] lg:right-[var(--right-sidebar-w)] z-30 px-4 pointer-events-none"
-      >
-        <div className="max-w-3xl mx-auto card-matte rounded-full px-3.5 py-2 shadow-2xl border border-amber-400/30 flex items-center justify-between gap-3 pointer-events-auto">
-          <button
-            type="button"
-            onClick={onTogglePlay}
-            className="btn-matte-amber h-10 min-h-[40px] px-3.5 rounded-full text-xs font-bold text-white inline-flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
-          >
-            {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-            <span>{isPlaying ? 'Pausar' : currentSpeaker?.name || 'Ouvir'}</span>
-          </button>
-
-          {/* Linha Animada de Progresso / Onda */}
-          <button
-            type="button"
-            onClick={() => setIsCompactPill(false)}
-            className="flex-1 flex items-center gap-2.5 min-w-0 cursor-pointer text-left"
-            title="Expandir Pílula de Produtor (Trilha Sonora, Auto-Ducking e Vozes)"
-          >
-            <div className="flex-1 h-2 rounded-full surface-inset overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  isPlaying
-                    ? 'bg-gradient-to-r from-amber-500 via-emerald-400 to-amber-300 animate-pulse'
-                    : 'bg-amber-500/70'
-                }`}
-                style={{ width: `${Math.max(12, progressPercentage)}%` }}
-              />
-            </div>
-            <span className="text-[11px] font-mono tabular-nums text-secondary shrink-0">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-          </button>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                setIsCompactPill(false);
-                setActiveDrawerTab('soundtrack');
-                setIsExpanded(true);
-              }}
-              className="btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-3 rounded-full btn-matte-dark text-[11px] font-semibold text-amber-300 hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
-              title="Abrir Mixer de Trilha Sonora & Auto-Ducking"
-            >
-              <Music className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">+ Trilha</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsCompactPill(false)}
-              className="btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-3 rounded-full btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
-              title="Expandir Pílula de Produtor"
-            >
-              <Sliders className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Produtor</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <CompactAudioPill
+        isPlaying={isPlaying}
+        currentSpeaker={currentSpeaker}
+        currentTime={currentTime}
+        duration={duration}
+        progressPercentage={progressPercentage}
+        onTogglePlay={onTogglePlay}
+        onExpandFullDock={() => setIsCompactPill(false)}
+        onOpenSoundtrackDrawer={() => {
+          setIsCompactPill(false);
+          setActiveDrawerTab('soundtrack');
+          setIsExpanded(true);
+        }}
+      />
     );
   }
 
   return (
-    <aside 
+    <aside
       id="BottomAudioDock"
       aria-label="Controles de Reprodução de Áudio"
       className="fixed bottom-0 left-0 right-0 lg:left-[var(--left-sidebar-w)] lg:right-[var(--right-sidebar-w)] z-30 dock-matte transition-all shadow-[0_-10px_30px_rgba(0,0,0,0.6)]"
@@ -549,13 +160,13 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
     >
       <input
         type="file"
-        ref={fileInputRef}
-        onChange={handleCustomAudioUpload}
+        ref={actions.fileInputRef}
+        onChange={(e) => void actions.handleCustomAudioUpload(e)}
         accept="audio/*"
         className="hidden"
       />
 
-      {/* 1. Scrubber de Progresso Tátil */}
+      {/* 1. Tactile Progress Scrubber */}
       <div className="relative w-full h-3 group cursor-pointer -mt-1.5 flex items-center">
         <input
           type="range"
@@ -567,19 +178,18 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
           className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
         />
         <div className="w-full h-1 bg-slate-800 group-hover:h-1.5 transition-all">
-          <div 
+          <div
             className="h-full transition-all duration-100 ease-out"
-            style={{ 
+            style={{
               width: `${progressPercentage}%`,
-              backgroundColor: currentSpeaker?.color || '#f59e0b'
+              backgroundColor: speakerAccent,
             }}
           />
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-3 sm:px-6 pt-1">
-        
-        {/* Gaveta Expansível com Abas: Voice Profile vs Trilha Sonora & Ducking */}
+        {/* Expandable Drawer: Voice Profile vs Soundtrack & Ducking */}
         <AnimatePresence>
           {isExpanded && (
             <motion.div
@@ -587,15 +197,14 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="overflow-hidden mb-3 border-b border-slate-800/80 pb-3"
+              className="overflow-hidden mb-3 border-b border-[var(--border-subtle)] pb-3"
             >
-              {/* Barra de Abas da Gaveta */}
-              <div className="flex items-center justify-between border-b border-slate-800/60 pb-2 mb-3 pt-1">
-                <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-inner">
+              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2 mb-3 pt-1">
+                <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-[var(--border-subtle)] shadow-inner">
                   <button
                     type="button"
                     onClick={() => setActiveDrawerTab('voice')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
+                    className={`min-h-11 flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                       activeDrawerTab === 'voice'
                         ? 'btn-matte-primary text-white font-bold shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -607,7 +216,7 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveDrawerTab('soundtrack')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
+                    className={`min-h-11 flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold font-sans transition-all cursor-pointer ${
                       activeDrawerTab === 'soundtrack'
                         ? 'btn-matte-primary text-white font-bold shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -622,15 +231,19 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {exportFeedback && (
-                    <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 animate-fade-in">
-                      {exportFeedback}
+                  {actions.exportFeedback && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-primary surface-inset-pill px-2.5 py-1 rounded-full border border-[var(--border-subtle)] animate-fade-in">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: 'var(--status-success)' }}
+                      />
+                      <span>{actions.exportFeedback}</span>
                     </span>
                   )}
                   <button
                     type="button"
                     onClick={() => setIsExpanded(false)}
-                    className="text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer font-mono text-xs px-2 py-1 rounded hover:bg-slate-900"
+                    className="min-h-11 text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer font-mono text-xs px-3 rounded-lg hover:bg-slate-900"
                   >
                     <span>Recolher</span>
                     <ChevronDown className="w-3 h-3" />
@@ -638,368 +251,46 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                 </div>
               </div>
 
-              {/* ABA 1: VOZ & PROSÓDIA */}
               {activeDrawerTab === 'voice' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-                  {/* Área de Resumo 'Voice Profile' */}
-                  <div 
-                    className="lg:col-span-6 xl:col-span-5 bg-slate-900/90 rounded-xl p-3 border border-slate-800 shadow-inner flex flex-col justify-between gap-2.5"
-                    aria-label="Resumo do Perfil de Voz"
-                  >
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-800/60 pb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="p-1 rounded-md bg-amber-400/10 text-amber-400 border border-amber-400/20">
-                          <Sliders className="w-3.5 h-3.5" />
-                        </span>
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-                            <span>Voice Profile</span>
-                            <span className="text-[10px] text-slate-400 font-normal">
-                              ({currentSpeaker?.name || 'Orador'})
-                            </span>
-                          </h4>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                        <div 
-                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30 shrink-0 shadow-sm"
-                        >
-                          <Tag className="w-3 h-3 text-amber-400" />
-                          <span>Voice ID: <strong className="text-white font-semibold">{voiceId}</strong></span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={handleTogglePreviewAudio}
-                          disabled={previewLoading}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-all shadow-sm cursor-pointer select-none border ${
-                            isPlayingPreview
-                              ? 'bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-400/40 animate-pulse font-semibold'
-                              : isConfirmed
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold'
-                              : 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 hover:border-amber-400/50'
-                          }`}
-                        >
-                          {previewLoading ? (
-                            <span className="animate-spin w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full" />
-                          ) : isPlayingPreview ? (
-                            <>
-                              <Volume2 className="w-3 h-3 text-slate-950 animate-bounce" />
-                              <span>{previewSecondsLeft}s</span>
-                            </>
-                          ) : isConfirmed ? (
-                            <>
-                              <Check className="w-3 h-3 text-emerald-400" />
-                              <span>Confirmado</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-3 h-3 text-amber-400" />
-                              <span>Ouvir Voz</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Emoção Vocal do Orador */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/60 rounded-lg px-2.5 py-1.5 border border-slate-800/60">
-                      <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5">
-                        <span>Emoção Vocal:</span>
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border ${emotionMeta.bg} ${emotionMeta.text} ${emotionMeta.border}`}>
-                          <span>{emotionMeta.icon}</span>
-                          <span className="capitalize font-semibold">{emotionMeta.label}</span>
-                          <span className="text-slate-400 font-normal text-[10px]">({emotionMeta.ptLabel})</span>
-                        </span>
-                        {currentSpeaker?.archetype && (
-                          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider border border-slate-800 px-1.5 py-0.5 rounded bg-slate-900">
-                            {currentSpeaker.archetype}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Configurações Prosódicas */}
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
-                        <span>Configurações Prosódicas</span>
-                        <span className="text-[10px] font-mono text-slate-500">24kHz PCM RIFF</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                        <div className="bg-slate-950/80 rounded-lg p-2 border border-slate-800 flex flex-col justify-between">
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                            <Gauge className="w-3 h-3 text-sky-400" /> Ritmo
-                          </span>
-                          <span className="text-xs font-mono font-bold text-slate-100 mt-1">
-                            {(prosody.speech_rate || 1.0).toFixed(2)}x
-                          </span>
-                        </div>
-
-                        <div className="bg-slate-950/80 rounded-lg p-2 border border-slate-800 flex flex-col justify-between">
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-amber-400" /> Pré-Gap
-                          </span>
-                          <span className="text-xs font-mono font-bold text-slate-100 mt-1">
-                            +{prosody.pre_delay_ms ?? 0}ms
-                          </span>
-                        </div>
-
-                        <div className="bg-slate-950/80 rounded-lg p-2 border border-slate-800 flex flex-col justify-between">
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                            <Wind className="w-3 h-3 text-emerald-400" /> Respiração
-                          </span>
-                          <span className="text-xs font-mono font-semibold text-slate-100 mt-1 flex items-center gap-1">
-                            <span className={`w-1.5 h-1.5 rounded-full ${prosody.breath_sound ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                            {prosody.breath_sound ? 'Ativa' : 'Desat.'}
-                          </span>
-                        </div>
-
-                        <div className="bg-slate-950/80 rounded-lg p-2 border border-slate-800 flex flex-col justify-between">
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                            <Volume2 className="w-3 h-3 text-purple-400" /> Ganho
-                          </span>
-                          <span className="text-xs font-mono font-bold text-slate-100 mt-1">
-                            {prosody.volume_gain ? `${Math.round(prosody.volume_gain * 100)}%` : '100%'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Área de Transcrição do Turno Atual */}
-                  <div className="lg:col-span-6 xl:col-span-7 bg-slate-900/80 rounded-xl p-3 border border-slate-800 flex flex-col justify-between gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
-                        Transcrição em Tempo Real ({turnIndex + 1}/{totalTurns})
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-500 flex items-center gap-1.5">
-                        <span>{currentSpeaker?.roleTitle?.split(' ')[0] || 'Orador'}</span>
-                        <span>•</span>
-                        <span className="text-slate-400">{formatTime(currentTime)} / {formatTime(duration)}</span>
-                      </span>
-                    </div>
-
-                    <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80 flex-1 overflow-y-auto max-h-24">
-                      “{renderProsodicText(currentTurnText || currentTurn?.text)}”
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                      <span>Síntese neural com prosódia e pausas respiratórias</span>
-                      <span className="font-mono text-amber-400/80">Turno {turnIndex + 1} de {totalTurns}</span>
-                    </div>
-                  </div>
-                </div>
+                <VoiceProfileDrawerTab
+                  currentSpeaker={currentSpeaker}
+                  currentTurn={currentTurn}
+                  currentTurnText={currentTurnText}
+                  voiceId={voiceId}
+                  emotionMeta={emotionMeta}
+                  prosody={prosody}
+                  turnIndex={turnIndex}
+                  totalTurns={totalTurns}
+                  currentTime={currentTime}
+                  duration={duration}
+                  isPlayingPreview={actions.isPlayingPreview}
+                  previewLoading={actions.previewLoading}
+                  previewSecondsLeft={actions.previewSecondsLeft}
+                  isConfirmed={actions.isConfirmed}
+                  onTogglePreviewAudio={() => void actions.handleTogglePreviewAudio()}
+                />
               )}
 
-              {/* ABA 2: TRILHA SONORA & AUTO-DUCKING */}
               {activeDrawerTab === 'soundtrack' && (
-                <div className="space-y-3">
-                  {/* Seletor de Soundscapes Procedurais */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <Radio className="w-3.5 h-3.5 text-amber-400" />
-                        <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                          Selecione o Soundscape de Fundo
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-400 font-mono">
-                        Procedural Web Audio • Zero Download
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                      {SOUNDTRACK_PRESETS.map((preset) => {
-                        const isSelected = soundtrackConfig.preset === preset.id;
-                        return (
-                          <button
-                            key={preset.id}
-                            type="button"
-                            onClick={() => handleSelectSoundtrack(preset.id)}
-                            className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden group ${
-                              isSelected
-                                ? 'bg-slate-900 border-amber-400 shadow-md shadow-amber-500/10 ring-1 ring-amber-400/50'
-                                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
-                            }`}
-                          >
-                            {isSelected && (
-                              <div 
-                                className="absolute top-0 right-0 w-8 h-8 pointer-events-none opacity-20 rounded-bl-xl"
-                                style={{ backgroundColor: preset.color }}
-                              />
-                            )}
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 border border-slate-700/80">
-                                {preset.icon}
-                              </span>
-                              {isSelected && (
-                                <span className="flex h-2 w-2 relative">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-slate-100 truncate">
-                                {preset.ptName.split(' ')[0]} {preset.ptName.split(' ')[1] || ''}
-                              </p>
-                              <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">
-                                {preset.id === 'custom' && soundtrackConfig.customFileName
-                                  ? soundtrackConfig.customFileName
-                                  : preset.description}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Controles de Mixagem & Auto-Ducking */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-900/90 rounded-xl p-3 border border-slate-800 shadow-inner">
-                    {/* Volume da Trilha */}
-                    <div className="md:col-span-4 flex flex-col justify-between gap-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                          <Volume2 className="w-3.5 h-3.5 text-amber-400" />
-                          Volume da Trilha
-                        </span>
-                        <span className="text-xs font-mono font-bold text-amber-300">
-                          {Math.round(soundtrackConfig.musicVolume * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={soundtrackConfig.musicVolume}
-                        onChange={(e) => player?.setSoundtrackVolume(parseFloat(e.target.value))}
-                        disabled={soundtrackConfig.preset === 'none'}
-                        className="w-full accent-amber-400 cursor-pointer disabled:opacity-40"
-                      />
-                      <p className="text-[10px] text-slate-400">
-                        Ajusta a intensidade da ambiência sonora relativa à voz.
-                      </p>
-                    </div>
-
-                    {/* Auto-Ducking (Atenuação Dinâmica) */}
-                    <div className="md:col-span-4 flex flex-col justify-between gap-1.5 border-t md:border-t-0 md:border-l border-slate-800/80 md:pl-3 pt-2 md:pt-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                          <Radio className="w-3.5 h-3.5 text-sky-400" />
-                          Auto-Ducking Dinâmico
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => player?.setDuckingEnabled(!soundtrackConfig.duckingEnabled)}
-                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded cursor-pointer transition-all border ${
-                            soundtrackConfig.duckingEnabled
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                              : 'bg-slate-800 text-slate-400 border-slate-700'
-                          }`}
-                        >
-                          {soundtrackConfig.duckingEnabled ? 'ATIVO' : 'DESLIGADO'}
-                        </button>
-                      </div>
-
-                      {/* Nível de Atenuação */}
-                      <div className="grid grid-cols-3 gap-1">
-                        {[
-                          { label: 'Suave', db: -8 },
-                          { label: 'Studio', db: -14 },
-                          { label: 'Profundo', db: -20 },
-                        ].map((lvl) => (
-                          <button
-                            key={lvl.db}
-                            type="button"
-                            onClick={() => player?.setDuckingDepth(lvl.db)}
-                            disabled={!soundtrackConfig.duckingEnabled}
-                            className={`py-1 text-[11px] font-mono rounded border transition-all cursor-pointer ${
-                              soundtrackConfig.duckingDepthDb === lvl.db
-                                ? 'btn-matte-primary text-white font-bold border-sky-400/50 shadow-sm'
-                                : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
-                            } disabled:opacity-40`}
-                          >
-                            {lvl.label} ({lvl.db}dB)
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Status de Ducking em Tempo Real */}
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                        <span className={`w-2 h-2 rounded-full ${isDucking ? 'bg-sky-400 animate-ping' : 'bg-slate-600'}`} />
-                        <span className={isDucking ? 'text-sky-300 font-semibold' : 'text-slate-500'}>
-                          {isDucking ? `Ducking Ativo (${soundtrackConfig.duckingDepthDb}dB)` : 'Trilha em Volume Nominal'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Presença Vocal & Exportação Master */}
-                    <div className="md:col-span-4 flex flex-col justify-between gap-2 border-t md:border-t-0 md:border-l border-slate-800/80 md:pl-3 pt-2 md:pt-0">
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1 font-sans">
-                            <Layers className="w-3.5 h-3.5 text-purple-400" />
-                            Reforço Vocal
-                          </span>
-                          <span className="text-xs font-mono font-bold text-purple-300">
-                            +{soundtrackConfig.voiceBoostDb}dB
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-1">
-                          {[0, 3, 6].map((boost) => (
-                            <button
-                              key={boost}
-                              type="button"
-                              onClick={() => player?.setVoiceBoost(boost)}
-                              className={`py-1 text-[11px] font-mono rounded border transition-all cursor-pointer ${
-                                soundtrackConfig.voiceBoostDb === boost
-                                  ? 'bg-purple-600 text-white font-bold border-purple-400'
-                                  : 'bg-slate-950 text-slate-400 border-slate-800'
-                              }`}
-                            >
-                              +{boost}dB
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Botão Exportar Master Studio */}
-                      <button
-                        type="button"
-                        onClick={handleExportMasterMix}
-                        disabled={isExportingMaster}
-                        className="w-full py-2 px-3 rounded-xl btn-matte-primary text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg active:translate-y-px transition-all cursor-pointer disabled:opacity-50 font-sans"
-                      >
-                        {isExportingMaster ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin text-white" />
-                            <span>Renderizando Master 44.1kHz...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4 text-white" />
-                            <span>Exportar Master Studio (.wav)</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <SoundtrackDrawerTab
+                  soundtrackConfig={soundtrackConfig}
+                  isDucking={isDucking}
+                  isExportingMaster={isExportingMaster}
+                  onSelectSoundtrack={(presetId) => void actions.handleSelectSoundtrack(presetId)}
+                  onChangeSoundtrackVolume={(vol) => player?.setSoundtrackVolume(vol)}
+                  onToggleDucking={() => player?.setDuckingEnabled(!soundtrackConfig.duckingEnabled)}
+                  onChangeDuckingDepth={(db) => player?.setDuckingDepth(db)}
+                  onChangeVoiceBoost={(db) => player?.setVoiceBoost(db)}
+                  onExportMasterMix={() => void actions.handleExportMasterMix()}
+                />
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* 2. Barra de Controle Principal (Thumb Zone) */}
+        {/* 2. Main Control Bar (Thumb Zone) */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
-          
-          {/* Bloco Esquerdo: Botão de Expansão do Orador + Botão Irmão da Trilha */}
+          {/* Left Block: Speaker Drawer Toggle + Soundtrack Shortcut */}
           <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[48%] sm:max-w-xs">
             <button
               type="button"
@@ -1007,54 +298,26 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               aria-expanded={isExpanded}
               aria-label={isExpanded ? 'Recolher Painel de Áudio' : 'Expandir Perfil e Trilha Sonora'}
               title={isExpanded ? 'Recolher Painel de Áudio' : 'Expandir Perfil e Trilha Sonora'}
-              className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer select-none py-1 group rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              className="min-h-11 flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer select-none py-1 group rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             >
               <div className="relative shrink-0">
                 {isPlaying && (
                   <motion.span
                     className="absolute inset-0 rounded-xl pointer-events-none"
-                    animate={{
-                      scale: [1, 1.28, 1.45],
-                      opacity: [0.65, 0.3, 0],
-                    }}
-                    transition={{
-                      duration: 1.4,
-                      repeat: Infinity,
-                      ease: 'easeOut',
-                    }}
-                    style={{
-                      border: `1.5px solid ${currentSpeaker?.color || '#f59e0b'}`,
-                    }}
+                    animate={{ scale: [1, 1.28, 1.45], opacity: [0.65, 0.3, 0] }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
+                    style={{ border: `1.5px solid ${speakerAccent}` }}
                   />
                 )}
 
                 <motion.div
-                  className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl border font-bold text-sm shadow-inner transition-transform group-active:translate-y-px"
-                  animate={
-                    isPlaying
-                      ? {
-                          scale: [1, 1.04, 0.99, 1.07, 1.02, 1],
-                          borderColor: [
-                            `${currentSpeaker?.color || '#f59e0b'}60`,
-                            `${currentSpeaker?.color || '#f59e0b'}ff`,
-                            `${currentSpeaker?.color || '#f59e0b'}70`,
-                            `${currentSpeaker?.color || '#f59e0b'}ee`,
-                            `${currentSpeaker?.color || '#f59e0b'}60`,
-                          ],
-                        }
-                      : {
-                          scale: 1,
-                          borderColor: `${currentSpeaker?.color || '#f59e0b'}40`,
-                        }
-                  }
-                  transition={{
-                    duration: 1.4,
-                    repeat: isPlaying ? Infinity : 0,
-                    ease: 'easeInOut',
-                  }}
+                  className="relative flex h-11 w-11 items-center justify-center rounded-xl border font-bold text-sm shadow-inner transition-transform group-active:translate-y-px"
+                  animate={isPlaying ? { scale: [1, 1.04, 0.99, 1.07, 1.02, 1] } : { scale: 1 }}
+                  transition={{ duration: 1.4, repeat: isPlaying ? Infinity : 0, ease: 'easeInOut' }}
                   style={{
-                    backgroundColor: `${currentSpeaker?.color || '#f59e0b'}15`,
-                    color: currentSpeaker?.color || '#f59e0b',
+                    borderColor: `color-mix(in oklab, ${speakerAccent} ${isPlaying ? '85%' : '40%'}, transparent)`,
+                    backgroundColor: `color-mix(in oklab, ${speakerAccent} 15%, transparent)`,
+                    color: speakerAccent,
                   }}
                 >
                   {currentSpeaker ? currentSpeaker.name.charAt(0) : 'D'}
@@ -1082,13 +345,12 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                   <span>{currentSpeaker?.roleTitle?.split(' ')[0] || 'Studio'}</span>
                   <span aria-hidden="true">•</span>
                   <span className="font-mono text-slate-500 tabular-nums">
-                    {formatTime(currentTime)} / {formatTime(duration)}
+                    {formatAudioTime(currentTime)} / {formatAudioTime(duration)}
                   </span>
                 </p>
               </div>
             </button>
 
-            {/* Botão Irmão da Trilha Sonora & Ducking */}
             <button
               type="button"
               onClick={() => {
@@ -1103,14 +365,22 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                     : 'Trilha sonora ativa'
                   : 'Configurar trilha sonora'
               }
-              className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 min-h-[32px] rounded-md text-[10px] font-mono border transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 min-h-11 rounded-lg text-[10px] font-mono border border-[var(--border-subtle)] transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                 soundtrackConfig.preset !== 'none'
-                  ? isDucking
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/40 ring-1 ring-amber-400/30'
-                    : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                  : 'bg-slate-900 text-slate-400 hover:text-amber-300 border-slate-800 hover:border-amber-400/30'
+                  ? 'card-matte-active text-primary'
+                  : 'btn-matte-dark text-secondary hover:text-primary'
               }`}
             >
+              {soundtrackConfig.preset !== 'none' && (
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: isDucking
+                      ? 'var(--brand-accent)'
+                      : 'var(--status-success)',
+                  }}
+                />
+              )}
               {soundtrackConfig.preset !== 'none' ? (
                 <>
                   <span aria-hidden="true">{currentPresetMeta.icon}</span>
@@ -1126,20 +396,18 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
             </button>
           </div>
 
-          {/* Bloco Central: Controles de Áudio com Touch Targets Amplos e Sotaque Ativo */}
+          {/* Center Block: Transport Controls */}
           <div className="flex flex-col items-center gap-1 shrink-0">
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Voltar 10s */}
               <button
                 type="button"
                 onClick={() => handleSkip(-10)}
                 aria-label="Voltar 10 segundos"
-                className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-slate-300 hover:text-white active:translate-y-px hover:bg-slate-900 transition-all cursor-pointer"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-300 hover:text-white active:translate-y-px hover:bg-slate-900 transition-all cursor-pointer"
               >
                 <RotateCcw className="w-5 h-5" />
               </button>
 
-              {/* Botão Play/Pause Gigante Neutro com Alto Contraste */}
               <button
                 type="button"
                 onClick={onTogglePlay}
@@ -1153,22 +421,20 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                 )}
               </button>
 
-              {/* Avançar 10s */}
               <button
                 type="button"
                 onClick={() => handleSkip(10)}
                 aria-label="Avançar 10 segundos"
-                className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl text-slate-300 hover:text-white active:translate-y-px hover:bg-slate-900 transition-all cursor-pointer"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-300 hover:text-white active:translate-y-px hover:bg-slate-900 transition-all cursor-pointer"
               >
                 <RotateCw className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Pílula de Sotaque / Intenção Vocal em Tempo Real */}
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-[10px] font-sans font-medium text-slate-300 hover:text-white hover:border-slate-500 cursor-pointer transition-all active:translate-y-px"
+              className="min-h-11 flex items-center gap-1.5 px-3 rounded-full bg-slate-900/90 border border-[var(--border-subtle)] text-[10px] font-sans font-medium text-slate-300 hover:text-white hover:border-slate-500 cursor-pointer transition-all active:translate-y-px"
               title="Toque para abrir configurações de sotaque, prosódia e voz"
             >
               <span>{emotionMeta.icon}</span>
@@ -1177,26 +443,25 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
             </button>
           </div>
 
-          {/* Bloco Direito: Botão Seletor de Velocidade & Ação Master */}
+          {/* Right Block: Speed, Export, Mute, Compact Pill */}
           <div className="flex items-center justify-end gap-1.5 flex-1 max-w-[28%] sm:max-w-xs">
             <button
               type="button"
               onClick={handleCycleSpeed}
               aria-label={`Velocidade atual: ${playbackRate}x. Toque para alterar.`}
-              className="flex min-h-[44px] min-w-[44px] sm:min-w-[56px] items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-slate-200 hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm"
+              className="flex min-h-11 min-w-11 sm:min-w-[56px] items-center justify-center gap-1 rounded-xl border border-[var(--border-subtle)] bg-slate-900 px-2 py-1 text-xs font-mono font-bold text-slate-200 hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm"
             >
               <Gauge className="w-3.5 h-3.5 hidden sm:block text-slate-400" />
               <span>{playbackRate.toFixed(2).replace(/\.00$/, '')}x</span>
             </button>
 
-            {/* Botão de Exportação Master Rápida no Desktop */}
             <button
               type="button"
-              onClick={handleExportMasterMix}
+              onClick={() => void actions.handleExportMasterMix()}
               disabled={isExportingMaster}
               title="Baixar Master de Estúdio (WAV com Trilha e Ducking)"
               aria-label="Baixar Master de Estúdio"
-              className="hidden lg:flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              className="hidden lg:flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-slate-900 text-slate-300 hover:text-white hover:border-slate-700 hover:bg-slate-800 active:translate-y-px transition-all cursor-pointer shadow-sm disabled:opacity-50"
             >
               {isExportingMaster ? (
                 <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
@@ -1205,7 +470,6 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
               )}
             </button>
 
-            {/* Mudo */}
             <button
               type="button"
               onClick={() => {
@@ -1214,12 +478,11 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                 player?.setVolume(nextMuted ? 0 : 1.0);
               }}
               aria-label={isMuted ? 'Desativar mudo' : 'Ativar mudo'}
-              className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-all cursor-pointer"
+              className="hidden sm:flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-all cursor-pointer"
             >
               {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
             </button>
 
-            {/* Recolher para Linha Animada / Pílula Compacta */}
             <button
               type="button"
               onClick={() => {
@@ -1227,12 +490,11 @@ export const BottomAudioDock: React.FC<BottomAudioDockProps> = ({
                 setIsCompactPill(true);
               }}
               title="Recolher para Pílula de Produtor (Linha Animada)"
-              className="flex h-10 px-2.5 items-center justify-center rounded-xl btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary cursor-pointer"
+              className="flex min-h-11 px-3 items-center justify-center rounded-xl btn-matte-dark text-[11px] font-mono text-secondary hover:text-primary cursor-pointer"
             >
               <span>Linha</span>
             </button>
           </div>
-
         </div>
       </div>
     </aside>

@@ -1,12 +1,13 @@
 /* ==========================================================================
-   DESIGN TOKENS & ILUMINAÇÃO ZENITAL (DESIGN.md v8.0.0)
-   Zero Glassmorphism (sem backdrop-filter: blur) | Zero Azul Cobalto
+   MYTTS STUDIO — SSOT DESIGN TOKENS & PRIMITIVES (DESIGN.md v8.1.0)
+   5-Plane OKLCH Tactile Matte Mineral | light-dark() | Layered Cascade
+   Zero Glassmorphism (backdrop-filter: none) | Zero Cobalt | Zero Confetti
    ========================================================================== */
 
 :root {
   color-scheme: light dark;
 
-  /* Camada 1: Tokens Primitivos Perceptuais (OKLCH & Escala Modular Base-4 / Base-8) */
+  /* 1. Primitive Perceptual Scale (OKLCH, C <= 0.20) & Base-4/8 Spacing */
   --primitive-sky-500: oklch(0.71 0.13 225);
   --primitive-amber-500: oklch(0.68 0.16 65);
   --space-1: 4px;
@@ -18,84 +19,121 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Pilha de 4+1 Camadas Tonais OKLCH (Tactile Matte: #0A0C10 / #13161F / #191D29 / #06070A) */
-  --surface-canvas: oklch(0.155 0.012 260);
-  --surface-inset: oklch(0.125 0.01 260);
-  --surface-flat: oklch(0.195 0.018 262);
-  --surface-raised: oklch(0.23 0.02 262);
-  --surface-contrast: oklch(0.258 0.022 262);
+  /* 2. 5-Plane Tactile Matte Mineral Stack (light-dark SSOT) */
+  --surface-canvas: light-dark(oklch(0.93 0.01 250), oklch(0.155 0.012 260));
+  --surface-inset: light-dark(oklch(0.89 0.012 250), oklch(0.125 0.01 260));
+  --surface-flat: light-dark(oklch(0.955 0.006 250), oklch(0.195 0.018 262));
+  --surface-raised: light-dark(oklch(0.975 0.005 250), oklch(0.23 0.02 262));
+  --surface-contrast: light-dark(oklch(0.19 0.02 255), oklch(0.258 0.022 262));
 
-  /* Camada 2: Tokens Semânticos Adaptativos (OKLCH + light-dark + color-mix + 60-30-10) */
+  /* Semantic Surface Aliases */
   --bg-app: var(--surface-canvas);
+  --bg-canvas: var(--surface-canvas);
   --bg-surface: var(--surface-flat);
-  --bg-card: var(--surface-flat);
+  --bg-surface-0: light-dark(var(--surface-raised), var(--surface-flat));
+  --bg-surface-1: light-dark(var(--surface-raised), var(--surface-flat));
+  --bg-surface-2: light-dark(var(--surface-flat), var(--surface-raised));
+  --bg-surface-inset: var(--surface-inset);
   --surface-sunken: var(--surface-inset);
+  --bg-card: light-dark(var(--surface-raised), var(--surface-flat));
+  --bg-card-hover: light-dark(oklch(0.99 0.003 250), var(--surface-raised));
+  --canvas-dot-color: transparent;
 
-  --ink-primary: light-dark(oklch(0.19 0.02 255), oklch(0.968 0.005 255));
-  --ink-secondary: light-dark(oklch(0.44 0.02 255), oklch(0.715 0.018 255));
-  --border-semantic: oklch(1 0 0 / 0.055);
-  --border-subtle: var(--border-semantic);
-
-  --text-primary: oklch(0.968 0.005 255);
-  --text-secondary: oklch(0.715 0.018 255);
-  --text-muted: oklch(0.515 0.018 255);
+  /* 3. Adaptive Typography Hierarchy (WCAG AA/AAA) */
+  --text-primary: light-dark(oklch(0.19 0.02 255), oklch(0.968 0.005 255));
+  --text-secondary: light-dark(oklch(0.42 0.02 255), oklch(0.735 0.018 255));
+  --text-tertiary: light-dark(oklch(0.52 0.02 255), oklch(0.62 0.018 255));
+  --text-muted: var(--text-tertiary);
   --text-main: var(--text-primary);
+  --ink-primary: var(--text-primary);
+  --ink-secondary: var(--text-secondary);
+  --text-on-accent: oklch(0.99 0.003 255);
 
-  /* Barra de Menu em Cavidade Segmentada (Segmented Well) */
+  /* 4. Borders & >= 3.0:1 Control Contrast */
+  --border-control: light-dark(oklch(0.52 0.02 255), oklch(0.52 0.02 258));
+  --border-semantic: light-dark(oklch(0.2 0.02 255 / 0.12), oklch(1 0 0 / 0.08));
+  --border-subtle: var(--border-semantic);
+  --border-muted: light-dark(oklch(0.2 0.02 255 / 0.10), oklch(1 0 0 / 0.06));
+  --border-tactile: light-dark(oklch(0.2 0.02 255 / 0.15), oklch(1 0 0 / 0.10));
+  --border-hover: light-dark(oklch(0.57 0.15 240 / 0.40), oklch(1 0 0 / 0.18));
+  --border-rim-light: light-dark(oklch(1 0 0 / 0.95), oklch(1 0 0 / 0.14));
+  --rim-light: var(--border-rim-light);
+  --rim-light-strong: light-dark(oklch(1 0 0 / 1), oklch(1 0 0 / 0.24));
+
+  /* 5. Accents (60-30-10 & Focal Discipline) */
+  --accent-point: light-dark(oklch(0.57 0.15 240), oklch(0.71 0.13 225));
+  --accent: var(--accent-point);
+  --accent-sapphire: light-dark(oklch(0.46 0.11 242), oklch(0.57 0.15 240));
+  --accent-primary: var(--accent-point);
+  --accent-primary-hover: light-dark(oklch(0.46 0.11 242), oklch(0.50 0.14 240));
+  --accent-soft-bg: color-mix(in oklab, var(--accent-point) 13%, transparent);
+  --brand-primary: var(--accent-point);
+  --brand-accent: light-dark(oklch(0.52 0.15 55), oklch(0.68 0.16 65));
+  --accent-amber: var(--brand-accent);
+  --border-focus: color-mix(in oklab, var(--accent-point) 72%, transparent);
+
+  /* 6. Semantic Status Dot Tokens (Anti-Slop: Neutral Pill + 6px Dot) */
+  --status-info: var(--accent-point);
+  --status-success: light-dark(oklch(0.52 0.13 158), oklch(0.72 0.14 158));
+  --status-warning: var(--brand-accent);
+  --status-danger: light-dark(oklch(0.52 0.18 18), oklch(0.68 0.18 18));
+  --status-neutral: var(--text-secondary);
+
+  /* Code & Keyboard Tokens */
+  --code-color: light-dark(oklch(0.38 0.11 245), oklch(0.86 0.07 220));
+  --code-bg: light-dark(oklch(0.92 0.015 248), oklch(0.21 0.022 258));
+  --code-border: var(--border-subtle);
+
+  /* Segmented Navigation Well */
   --nav-shell-bg: var(--surface-inset);
   --nav-shell-ink: var(--text-secondary);
-  --nav-active-bg: var(--surface-contrast);
+  --nav-active-bg: light-dark(var(--surface-raised), var(--surface-contrast));
   --nav-active-ink: var(--text-primary);
 
-  /* Destaque Focal Único — 60-30-10 & 98/2 Rule */
-  --accent-point: oklch(0.71 0.13 225);
-  --accent-sapphire: oklch(0.57 0.15 240);
-  --accent-soft-bg: color-mix(in oklab, var(--accent-point) 14%, transparent);
-  --brand-primary: var(--accent-point);
-  --brand-accent: var(--primitive-amber-500);
-  --border-focus: color-mix(in oklab, var(--accent-point) 65%, transparent);
+  /* Button & Interactive Component Tokens */
+  --btn-primary-bg: light-dark(oklch(0.49 0.13 240), oklch(0.51 0.13 238));
+  --btn-primary-hover: light-dark(oklch(0.42 0.12 242), oklch(0.45 0.12 240));
+  --btn-primary-active: color-mix(in oklab, var(--btn-primary-bg) 82%, oklch(0.15 0.02 255));
+  --btn-amber-bg: light-dark(oklch(0.48 0.14 55), oklch(0.54 0.15 58));
+  --btn-amber-hover: light-dark(oklch(0.42 0.13 55), oklch(0.60 0.16 62));
 
-  /* Camada 3: Tokens de Componentes & Iluminação Zenital (Tactile Matte) */
-  --btn-primary-bg: var(--accent-point);
-  --btn-primary-hover: color-mix(in oklab, var(--accent-point) 88%, black);
-  --btn-primary-active: color-mix(in oklab, var(--accent-point) 78%, black);
-  --card-radius: 18px;
-  --card-padding: var(--space-6);
-
+  /* 7. Optical Lighting & 3-Layer Shadows (Dark Default, Light Override Below) */
   --light-zenith: radial-gradient(120% 90% at 50% 0%, oklch(1 0 0 / 0.065) 0%, oklch(1 0 0 / 0) 65%);
   --light-zenith-hover: radial-gradient(120% 100% at 50% 0%, oklch(1 0 0 / 0.11) 0%, oklch(1 0 0 / 0) 70%);
   --light-key: linear-gradient(180deg, oklch(1 0 0 / 0.09) 0%, oklch(1 0 0 / 0.01) 100%);
-  --rim-light: oklch(1 0 0 / 0.14);
-  --rim-light-strong: oklch(1 0 0 / 0.24);
   --catch-light: inset 0 1px 0 0 var(--rim-light);
   --specular-rim: var(--catch-light);
+
   --shadow-elevation-1:
-    0 1px 2px oklch(0.05 0.01 260 / 0.45),
-    0 4px 10px -2px oklch(0.05 0.01 260 / 0.55),
+    0 1px 2px oklch(0.06 0.01 260 / 0.36),
+    0 4px 10px -2px oklch(0.06 0.01 260 / 0.44),
     inset 0 1px 0 0 var(--rim-light);
   --shadow-elevation-2:
-    0 2px 4px oklch(0.05 0.01 260 / 0.45),
-    0 12px 26px -4px oklch(0.05 0.01 260 / 0.68),
+    0 2px 4px oklch(0.06 0.01 260 / 0.38),
+    0 12px 26px -4px oklch(0.06 0.01 260 / 0.56),
     inset 0 1px 0 0 var(--rim-light);
   --shadow-elevation-3:
-    0 6px 14px oklch(0.05 0.01 260 / 0.55),
-    0 24px 44px -6px oklch(0.05 0.01 260 / 0.85),
+    0 6px 14px oklch(0.06 0.01 260 / 0.46),
+    0 24px 44px -6px oklch(0.06 0.01 260 / 0.68),
     inset 0 1px 0 0 var(--rim-light-strong);
+  --shadow-inset:
+    inset 0 1px 3px oklch(0.06 0.01 260 / 0.36),
+    inset 0 1px 1px oklch(0.06 0.01 260 / 0.24),
+    0 1px 0 oklch(1 0 0 / 0.05);
+
   --elevation-low: var(--shadow-elevation-1);
   --elevation-medium: var(--shadow-elevation-2);
   --elevation-high: var(--shadow-elevation-3);
   --shadow-card: var(--shadow-elevation-2);
   --shadow-float: var(--shadow-elevation-3);
-  --shadow-inset:
-    inset 0 2px 5px oklch(0 0 0 / 0.78),
-    inset 0 1px 2px oklch(0 0 0 / 0.6),
-    0 1px 0 oklch(1 0 0 / 0.05);
   --sunken-recess: var(--shadow-inset);
-
   --soft-shadow-main: var(--shadow-elevation-1);
   --soft-shadow-light: var(--catch-light);
   --soft-shadow-inset: var(--shadow-inset);
 
+  /* Geometry, Typography Scale & Motion */
+  --card-radius: 18px;
+  --card-padding: var(--space-6);
   --radius-lg: 18px;
   --radius-md: 12px;
   --radius-sm: 8px;
@@ -104,40 +142,26 @@
   --left-sidebar-w: 280px;
   --right-sidebar-w: 0px;
   --sidebar-transition: 220ms cubic-bezier(0.2, 0, 0, 1);
+  --font-size-display: clamp(1.75rem, 2.5vw + 1rem, 2.5rem);
+  --font-size-h1: clamp(1.375rem, 1.8vw + 0.85rem, 1.875rem);
+  --font-size-h2: clamp(1.125rem, 1.2vw + 0.75rem, 1.375rem);
+  --font-size-body: clamp(0.875rem, 0.4vw + 0.75rem, 1rem);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 [data-theme="light"] {
-  /* Claro Metálico Sofisticado (Steadfast Stainless: #E4E9EF / #EEF2F6 / #F5F7FA / #D5DCE4) */
-  --surface-canvas: oklch(0.93 0.01 250);
-  --surface-inset: oklch(0.89 0.012 250);
-  --surface-flat: oklch(0.955 0.006 250);
-  --surface-raised: oklch(0.975 0.005 250);
-  --surface-contrast: oklch(0.19 0.02 255);
+  color-scheme: light;
 
-  --border-semantic: oklch(0.2 0.02 255 / 0.075);
-  --border-subtle: var(--border-semantic);
-
-  --text-primary: oklch(0.19 0.02 255);
-  --text-secondary: oklch(0.44 0.02 255);
-  --text-muted: oklch(0.60 0.02 255);
-
-  --nav-shell-bg: var(--surface-inset);
-  --nav-shell-ink: var(--text-secondary);
-  --nav-active-bg: var(--surface-raised);
-  --nav-active-ink: var(--text-primary);
-
-  --accent-point: oklch(0.57 0.15 240);
-  --accent-sapphire: oklch(0.46 0.11 242);
-  --accent-soft-bg: color-mix(in oklab, var(--accent-point) 12%, transparent);
-
-  /* Iluminação Zenital 3 Camadas (Steadfast Stainless) */
+  /* Light Mode 3-Layer Shadows & Zenith Lighting (Steadfast Stainless) */
   --light-zenith: radial-gradient(120% 90% at 50% 0%, oklch(1 0 0 / 0.85) 0%, oklch(1 0 0 / 0) 65%);
   --light-zenith-hover: radial-gradient(120% 100% at 50% 0%, oklch(1 0 0 / 1) 0%, oklch(1 0 0 / 0.2) 70%);
   --light-key: linear-gradient(180deg, oklch(1 0 0 / 0.96) 0%, oklch(0.96 0.006 250) 100%);
-  --rim-light: oklch(1 0 0 / 0.95);
-  --rim-light-strong: oklch(1 0 0 / 1);
+
   --shadow-elevation-1:
-    0 1px 3px oklch(0.2 0.02 255 / 0.05),
+    0 1px 2px oklch(0.2 0.02 255 / 0.05),
     0 4px 10px -2px oklch(0.2 0.02 255 / 0.08),
     inset 0 1px 0 0 var(--rim-light);
   --shadow-elevation-2:
@@ -148,290 +172,348 @@
     0 8px 18px oklch(0.2 0.02 255 / 0.08),
     0 22px 40px -8px oklch(0.2 0.02 255 / 0.16),
     inset 0 1px 0 0 var(--rim-light-strong);
-  --shadow-card: var(--shadow-elevation-2);
-  --shadow-float: var(--shadow-elevation-3);
   --shadow-inset:
-    inset 0 2px 4px oklch(0.2 0.02 255 / 0.12),
-    inset 0 1px 2px oklch(0.2 0.02 255 / 0.08),
-    0 1px 0 oklch(1 0 0 / 0.8);
-
-  --soft-shadow-main: var(--shadow-elevation-1);
-  --soft-shadow-light: var(--catch-light);
-  --soft-shadow-inset: var(--shadow-inset);
-}
-
-/* Espaçamento Editorial em Direção Única */
-.prose > * + * {
-  margin-block-start: 1rem;
-}
-
-/* Ordem Canônica de Estados de Links (LVHA — Seção 6.2 DESIGN.md v8.0.0) */
-a:link {
-  color: var(--accent-point);
-  text-decoration: none;
-}
-
-a:visited {
-  color: color-mix(in oklab, var(--accent-point) 80%, var(--text-secondary));
-}
-
-a:hover {
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-a:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-a:active {
-  color: var(--btn-primary-active);
-}
-
-/* Camadas de Superfície (4+1 Tonal Stack) */
-.surface-canvas {
-  background-color: var(--surface-canvas);
-  color: var(--text-primary);
-}
-
-.surface-flat {
-  background-color: var(--surface-flat);
-  border-radius: var(--radius-md);
-}
-
-.surface-inset {
-  background-color: var(--surface-inset);
-  box-shadow: var(--shadow-inset);
-  border-radius: var(--radius-md);
-}
-
-.surface-raised {
-  background-color: var(--surface-raised);
-  box-shadow: var(--shadow-card);
-  border-radius: var(--radius-lg);
-  isolation: isolate;
-}
-
-.surface-contrast {
-  background-color: var(--surface-contrast);
-  color: var(--surface-canvas);
-}
-
-/* Card Bento Tátil com Luz Zenital Radial + Isolation */
-.ui-card-soft,
-.bento-card-soft {
-  background-color: var(--surface-flat);
-  background-image: var(--light-zenith);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding-block: 24px;
-  padding-inline: 24px;
-  transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring), background-color 0.22s ease;
-  position: relative;
-  isolation: isolate;
-  container-type: inline-size;
-  container-name: cardComponent;
-}
-
-.ui-card-soft:hover,
-.bento-card-soft:hover {
-  background-color: var(--surface-raised);
-  background-image: var(--light-zenith-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-float);
-}
-
-/* As 4 Variantes Canônicas de Cards (Eixo 7: Elevated, Outlined, Filled/Subtle, Interactive) */
-.card-elevated {
-  background-color: var(--surface-raised);
-  box-shadow: var(--shadow-elevation-2);
-  border-radius: var(--radius-lg);
-  padding-block: 24px;
-  padding-inline: 24px;
-  isolation: isolate;
-}
-
-.card-outlined {
-  background-color: transparent;
-  border: 1px solid var(--border-semantic);
-  border-radius: var(--radius-lg);
-  padding-block: 24px;
-  padding-inline: 24px;
-  isolation: isolate;
-}
-
-.card-filled {
-  background-color: var(--surface-flat);
-  border-radius: var(--radius-md);
-  padding-block: 16px;
-  padding-inline: 16px;
-  isolation: isolate;
-}
-
-.card-interactive {
-  background-color: var(--surface-raised);
-  box-shadow: var(--shadow-elevation-1);
-  border-radius: var(--radius-lg);
-  padding-block: 16px;
-  padding-inline: 16px;
-  isolation: isolate;
-  cursor: pointer;
-  transition: transform 0.22s var(--ease-spring), box-shadow 0.22s var(--ease-spring), border-color 0.2s ease;
-}
-
-.card-interactive:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-elevation-2);
-}
-
-.card-interactive:active {
-  transform: translateY(0px);
-}
-
-.ui-card-soft:focus-visible {
-  outline: 2px solid var(--accent-point);
-  outline-offset: 3px;
-}
-
-/* Kit de Componentes Soft Tactile UI */
-.badge-soft {
-  display: inline-flex;
-  align-items: center;
-  padding-block: 4px;
-  padding-inline: 12px;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background-color: var(--surface-inset);
-  color: var(--accent-point);
-  box-shadow: var(--shadow-inset);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.surface-inset-pill {
-  background-color: var(--surface-inset);
-  box-shadow: var(--shadow-inset);
-  border-radius: 9999px;
-  padding-block: 8px;
-  padding-inline: 16px;
-}
-
-/* Navegação Estrutural Camada 3: Breadcrumbs (<nav aria-label="Caminho de navegação"><ol role="list">) */
-.breadcrumb-list {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.breadcrumb-list li + li::before {
-  content: "/";
-  content: "/" / "";
-  margin-inline-end: 8px;
-  opacity: 0.45;
-  font-family: var(--font-display, sans-serif);
-}
-
-/* Companion Sliding Tracker (#sidebar-active-tracker) */
-#sidebar-active-tracker {
-  transition: transform 0.35s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
+    inset 0 1px 3px oklch(0.2 0.02 255 / 0.12),
+    inset 0 1px 1px oklch(0.2 0.02 255 / 0.07),
+    0 1px 0 oklch(1 0 0 / 0.78);
 }
 
 /* ==========================================================================
-   ADENDOS TÉCNICOS DESIGN.md v8.0.0 (Tabs Overflow & Dialog Top-Layer)
+   BASE HYGIENE, LVHA LINKS & SKIP LINK
    ========================================================================== */
 
-.tabsOverflowContainer {
-  display: flex;
-  overflow-x: auto;
-  white-space: nowrap;
-  gap: var(--space-2);
-  border-block-end: 1px solid var(--border-subtle);
-  scrollbar-width: none;
-}
+@layer base {
+  html {
+    accent-color: var(--accent-point);
+    scrollbar-color: var(--text-muted) var(--surface-inset);
+    scrollbar-width: thin;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: auto;
+    font-synthesis: none;
+  }
 
-/* Dialog Top-Layer (Modern Web Guidance) */
-dialog:modal {
-  overscroll-behavior: contain;
-}
+  ::selection {
+    background-color: var(--accent-soft-bg);
+    color: var(--accent-point);
+  }
 
-dialog::backdrop {
-  overflow: hidden;
-  overscroll-behavior: contain;
-  background-color: rgba(9, 11, 14, 0.76);
-}
+  a:link {
+    color: var(--accent-point);
+    text-decoration: none;
+  }
 
-.rail-tooltip-host {
-  position: relative;
-}
+  a:visited {
+    color: color-mix(in oklab, var(--accent-point) 80%, var(--text-secondary));
+  }
 
-.rail-tooltip {
-  pointer-events: none;
-  position: fixed;
-  left: 76px;
-  z-index: 20;
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: opacity 150ms ease, transform 150ms ease;
-  white-space: nowrap;
-}
+  a:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
 
-.rail-tooltip-host:hover .rail-tooltip,
-.rail-tooltip-host:focus-visible .rail-tooltip {
-  opacity: 1;
-  transform: translateX(0);
+  a:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  a:active {
+    color: var(--btn-primary-active);
+  }
+
+  input:user-invalid,
+  textarea:user-invalid,
+  select:user-invalid {
+    outline: 2px solid var(--status-danger);
+    outline-offset: 2px;
+  }
+
+  dialog:modal {
+    overscroll-behavior: contain;
+  }
+
+  dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+    background-color: oklch(0.10 0.015 260 / 0.72);
+  }
 }
 
 /* ==========================================================================
-   MODERN WEB GUIDANCE (Browser UI Theming & Ergonomia Touch)
+   COMPONENT PRIMITIVES (5-Plane Surfaces, Neutral Status Pills, Skip Link)
    ========================================================================== */
 
-html {
-  accent-color: var(--accent-point);
-  scrollbar-color: var(--text-muted) var(--surface-inset);
-  scrollbar-width: thin;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  font-synthesis: none;
+@layer components {
+  /* GPU-friendly Skip Link (sr-only until :focus-visible) */
+  .skip-link {
+    position: fixed;
+    inset-block-start: 12px;
+    inset-inline-start: 12px;
+    z-index: 60;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-block-size: 44px;
+    padding-block: 10px;
+    padding-inline: 16px;
+    border-radius: 9999px;
+    background-color: var(--surface-contrast);
+    color: oklch(0.98 0.004 250);
+    border: 1px solid var(--border-control);
+    box-shadow: var(--shadow-elevation-3);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transform: translateY(-160%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 180ms var(--ease-spring), opacity 140ms ease;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    outline: 2px solid var(--accent-point);
+    outline-offset: 2px;
+  }
+
+  .prose {
+    display: flow-root;
+  }
+
+  .prose > * + * {
+    margin-block-start: 1rem;
+  }
+
+  .surface-canvas {
+    background-color: var(--surface-canvas);
+    color: var(--text-primary);
+  }
+
+  .surface-flat {
+    background-color: var(--surface-flat);
+    border-radius: var(--radius-md);
+  }
+
+  .surface-inset {
+    background-color: var(--surface-inset);
+    box-shadow: var(--shadow-inset);
+    border-radius: var(--radius-md);
+  }
+
+  .surface-raised {
+    background-color: var(--surface-raised);
+    box-shadow: var(--shadow-card);
+    border-radius: var(--radius-lg);
+    isolation: isolate;
+  }
+
+  .surface-contrast {
+    background-color: var(--surface-contrast);
+    color: var(--surface-canvas);
+  }
+
+  .ui-card-soft,
+  .bento-card-soft {
+    background-color: var(--surface-flat);
+    background-image: var(--light-zenith);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding-block: 24px;
+    padding-inline: 24px;
+    transition: transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring), background-color 0.22s ease;
+    position: relative;
+    isolation: isolate;
+    container-type: inline-size;
+    container-name: cardComponent;
+  }
+
+  .ui-card-soft:hover,
+  .bento-card-soft:hover {
+    background-color: var(--surface-raised);
+    background-image: var(--light-zenith-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-float);
+  }
+
+  .ui-card-soft:focus-visible {
+    outline: 2px solid var(--accent-point);
+    outline-offset: 3px;
+  }
+
+  .card-elevated {
+    background-color: var(--surface-raised);
+    box-shadow: var(--shadow-elevation-2);
+    border-radius: var(--radius-lg);
+    padding-block: 24px;
+    padding-inline: 24px;
+    isolation: isolate;
+  }
+
+  .card-outlined {
+    background-color: transparent;
+    border: 1px solid var(--border-semantic);
+    border-radius: var(--radius-lg);
+    padding-block: 24px;
+    padding-inline: 24px;
+    isolation: isolate;
+  }
+
+  .card-filled {
+    background-color: var(--surface-flat);
+    border-radius: var(--radius-md);
+    padding-block: 16px;
+    padding-inline: 16px;
+    isolation: isolate;
+  }
+
+  .card-interactive {
+    background-color: var(--surface-raised);
+    box-shadow: var(--shadow-elevation-1);
+    border-radius: var(--radius-lg);
+    padding-block: 16px;
+    padding-inline: 16px;
+    isolation: isolate;
+    cursor: pointer;
+    transition: transform 0.22s var(--ease-spring), box-shadow 0.22s var(--ease-spring), border-color 0.2s ease;
+  }
+
+  .card-interactive:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-elevation-2);
+  }
+
+  .card-interactive:active {
+    transform: translateY(0px);
+  }
+
+  /* Neutral Pill + 6px Semantic Status Dot (Anti-Slop Confetti Replacement) */
+  .badge-soft,
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-block: 4px;
+    padding-inline: 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: var(--surface-raised);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .status-dot {
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: 9999px;
+    background-color: var(--status-neutral);
+    flex-shrink: 0;
+  }
+
+  .status-dot-info {
+    background-color: var(--status-info);
+  }
+
+  .status-dot-success {
+    background-color: var(--status-success);
+  }
+
+  .status-dot-warning {
+    background-color: var(--status-warning);
+  }
+
+  .status-dot-danger {
+    background-color: var(--status-danger);
+  }
+
+  .surface-inset-pill {
+    background-color: var(--surface-inset);
+    box-shadow: var(--shadow-inset);
+    border-radius: 9999px;
+    padding-block: 8px;
+    padding-inline: 16px;
+  }
+
+  .breadcrumb-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .breadcrumb-list li + li::before {
+    content: "/";
+    content: "/" / "";
+    margin-inline-end: 8px;
+    opacity: 0.45;
+    font-family: var(--font-display, sans-serif);
+  }
+
+  #sidebar-active-tracker {
+    transition: transform 0.35s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
+  }
+
+  .tabsOverflowContainer {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    gap: var(--space-2);
+    border-block-end: 1px solid var(--border-subtle);
+    scrollbar-width: none;
+  }
+
+  .rail-tooltip-host {
+    position: relative;
+  }
+
+  .rail-tooltip {
+    pointer-events: none;
+    position: fixed;
+    left: 76px;
+    z-index: 20;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 150ms ease, transform 150ms ease;
+    white-space: nowrap;
+  }
+
+  .rail-tooltip-host:hover .rail-tooltip,
+  .rail-tooltip-host:focus-visible .rail-tooltip {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-::selection {
-  background-color: var(--accent-soft-bg);
-  color: var(--accent-point);
-}
+/* ==========================================================================
+   TOUCH ERGONOMICS (>= 44px Standard / >= 48px Primary) & REDUCED MOTION
+   ========================================================================== */
 
-input:user-invalid,
-textarea:user-invalid,
-select:user-invalid {
-  outline: 2px solid #f43f5e;
-  outline-offset: 2px;
-}
-
-/* Acessibilidade Motora para Dispositivos Touch (Seção 7: >= 48px primários / >= 40px utilitários) */
 @media (pointer: coarse), (any-pointer: coarse) {
   button:not(.chunk-inline-btn):not(.btn-compact-touch),
   [role="button"]:not(.chunk-inline-btn):not(.btn-compact-touch),
   [role="radio"]:not(.btn-compact-touch) {
-    min-block-size: 40px;
-    min-inline-size: 40px;
+    min-block-size: 44px;
+    min-inline-size: 44px;
   }
 
   .pill-nav-item {
-    min-block-size: 40px;
+    min-block-size: 44px;
     min-inline-size: 0;
   }
 
   .btn-compact-touch {
-    min-block-size: 40px;
-    min-inline-size: 40px;
+    min-block-size: 44px;
+    min-inline-size: 44px;
   }
 
   .btn-matte-amber,
@@ -443,12 +525,13 @@ select:user-invalid {
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms;
+    transition-duration: 0.01ms;
   }
+
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {
-    animation: none !important;
+    animation: none;
   }
 }

@@ -171,6 +171,17 @@ export function signOutGoogle(): GoogleUserSession {
   } catch {
     // ignore
   }
+  if (typeof window !== 'undefined' && typeof fetch === 'function') {
+    void fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    }).catch((err: unknown) => {
+      console.debug(
+        '[AuthService] Failed to clear server session cookie on sign out:',
+        err instanceof Error ? err.message : String(err)
+      );
+    });
+  }
   const guest = createDefaultGuestSession(false);
   listeners.forEach((fn) => fn(guest));
   return guest;
@@ -184,12 +195,13 @@ export function subscribeAuthChanges(listener: AuthListener): () => void {
 }
 
 /**
- * Decodifica um JWT ID Token retornado pelo Google Identity Services no cliente
- * e valida com o backend (/api/auth/google).
+ * Decodes and verifies a Google Identity Services ID Token with the backend
+ * (/api/auth/google), establishing a signed HttpOnly session cookie.
  */
 export async function authenticateWithGoogleCredential(credentialJwt: string): Promise<GoogleUserSession> {
   const res = await fetch('/api/auth/google', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ credential: credentialJwt }),
   });
@@ -203,42 +215,47 @@ export async function authenticateWithGoogleCredential(credentialJwt: string): P
 }
 
 /**
- * Login rápido por conta Google (e-mail @gmail.com ou Google Workspace)
- * para uso familiar imediato quando o popup OAuth não estiver configurado no domínio local.
+ * Synchronizes the active client session against the server-verified HttpOnly cookie (/api/auth/me).
  */
-export async function signInWithGoogleEmailDirect(
-  emailInput: string,
-  displayNameInput?: string
-): Promise<GoogleUserSession> {
-  const cleanEmail = emailInput.trim().toLowerCase();
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    throw new Error('Informe um e-mail Google válido.');
+export async function refreshSessionFromServer(): Promise<GoogleUserSession> {
+  try {
+    const resp = await fetch('/api/auth/me', {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (!resp.ok) {
+      return getActiveSession();
+    }
+    const data = (await resp.json()) as {
+      authenticated?: boolean;
+      user?: GoogleUserSession | null;
+    };
+    if (data.authenticated && data.user && typeof data.user.uid === 'string') {
+      return setActiveSession(data.user);
+    }
+    const current = getActiveSession();
+    if (current.isGoogleAuthenticated) {
+      removeStorage(SESSION_STORAGE_KEY);
+      const guest = createDefaultGuestSession(false);
+      listeners.forEach((fn) => fn(guest));
+      return guest;
+    }
+    return current;
+  } catch (err: unknown) {
+    console.debug(
+      '[AuthService] Falha ao sincronizar sessão com o servidor:',
+      err instanceof Error ? err.message : String(err)
+    );
+    return getActiveSession();
   }
-
-  const res = await fetch('/api/auth/google', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: cleanEmail,
-      name: displayNameInput?.trim() || cleanEmail.split('@')[0],
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error('Não foi possível autenticar a conta Google.');
-  }
-
-  const data = (await res.json()) as { user: GoogleUserSession };
-  return setActiveSession(data.user);
 }
 
 export function getAuthHeaders(): Record<string, string> {
   const session = getActiveSession();
-  const headers: Record<string, string> = {
-    'X-User-Id': session.uid,
-  };
-  if (session.email) {
-    headers['X-User-Email'] = session.email;
+  const headers: Record<string, string> = {};
+  // Zero-Trust: never send google_* in X-User-Id; server resolves Google identity exclusively from HttpOnly cookie.
+  if (!session.isGoogleAuthenticated && session.uid && !session.uid.startsWith('google_')) {
+    headers['X-User-Id'] = session.uid;
   }
   if (session.idToken) {
     headers['Authorization'] = `Bearer ${session.idToken}`;
@@ -248,7 +265,9 @@ export function getAuthHeaders(): Record<string, string> {
 
 export async function fetchGoogleAuthConfig(): Promise<{ googleClientId?: string } | null> {
   try {
-    const resp = await fetch('/api/auth/config');
+    const resp = await fetch('/api/auth/config', {
+      credentials: 'include',
+    });
     if (!resp.ok) return null;
     return (await resp.json()) as { googleClientId?: string };
   } catch (err: unknown) {

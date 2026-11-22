@@ -10,6 +10,7 @@ import { AuthModal } from './components/AuthModal';
 import { MobileAppHeader } from './components/MobileAppHeader';
 import { BottomAudioDock } from './components/BottomAudioDock';
 import { ArchitectureModal } from './components/ArchitectureModal';
+import { WorkspaceBreadcrumbBar } from './components/app/WorkspaceBreadcrumbBar';
 import {
   buildBreadcrumbTrail,
   resolveNavigationTarget,
@@ -18,57 +19,21 @@ import {
   type StudySubTab,
   type VoiceConfigSubTab,
 } from './utils/navigationOrganizer';
-import {
-  ConversationFormat,
-  DebateConfig,
-  DebateScript,
-  LanguageCode,
-  SpeakerProfile,
-  StudioRenderMode,
-} from './types/debate';
-import type {
-  FlashcardItem,
-  SavedConversation,
-  SavedDebateSession,
-  UnifiedHistoryItem,
-} from './types/polyglot';
-import { LANGUAGE_OPTIONS, SAMPLE_DOCUMENTS, INITIAL_PRESET_SCRIPTS } from './data/sampleDebates';
-import { GaplessAudioPlayer } from './utils/audioEngine';
-import { speakBrowserFallback, stopBrowserSpeech } from './utils/audio';
+import type { DebateScript, LanguageCode, StudioRenderMode } from './types/debate';
+import type { UnifiedHistoryItem } from './types/polyglot';
 import { VoiceProfile, GEMINI_VOICES } from './types/voices';
-import { requestDebateScript } from './services/apiClient';
-import { generateAudioCacheKey, synthesizeWithCache } from './utils/audioCache';
 import {
   persistBrowserState,
   readBrowserState,
-  requestListUserConversations,
-  requestSaveUserConversation,
-  requestDeleteUserConversation,
-  requestClearUnpinnedConversations,
   readFavoriteVoicesByLanguage,
   saveFavoriteVoicesByLanguage,
 } from './services/polyglotClient';
-import {
-  readFlashcardDeck,
-  subscribeFlashcardDeck,
-  deleteFlashcardFromDeck,
-} from './services/flashcardDeckStorage';
-import {
-  readDebateSessions,
-  subscribeSessionHistory,
-  saveDebateSessionFromScript,
-  togglePinDebateSession,
-  renameDebateSession,
-  deleteDebateSession,
-  clearUnpinnedDebateSessions,
-  buildUnifiedHistoryItems,
-} from './services/sessionHistoryStorage';
-import { getActiveSession, subscribeAuthChanges } from './services/authService';
-import { SOFT_UI_PRESETS, normalizeThemePreset } from './config/tokens';
-import type { SoftUIThemePreset } from './types';
 import { GoogleIcon } from './components/GoogleIcon';
+import { useThemeManager } from './hooks/useThemeManager';
+import { useAppHistory } from './hooks/useAppHistory';
+import { useDebateStudio } from './hooks/useDebateStudio';
 
-// Orquestrador principal do MyTTS Studio (3 Colunas Responsivas: Rail Sidebar + Canvas Central + History Sidebar)
+// Main orchestrator for MyTTS Studio (3 Responsive Columns: Rail Sidebar + Central Canvas + History Sidebar)
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('polyglot');
   const [voiceConfigSubTab, setVoiceConfigSubTab] = useState<VoiceConfigSubTab>('catalog');
@@ -82,7 +47,6 @@ export default function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  // Estados Colapsáveis Independentes (Sidebar Esquerda 280px <-> 68px e Histórico Direito 320px <-> 0px)
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState<boolean>(() => {
     return readBrowserState('mytts_sidebar_collapsed') === 'true';
   });
@@ -90,17 +54,15 @@ export default function App() {
     return readBrowserState('mytts_history_open') === 'true';
   });
 
-  // Dados Globais para a HistorySidebar e Contadores
-  const [userSession, setUserSession] = useState(() => getActiveSession());
-  const [conversations, setConversations] = useState<SavedConversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-  const [newConversationSignal, setNewConversationSignal] = useState<number>(0);
-  const [debateSessions, setDebateSessions] = useState<SavedDebateSession[]>(() =>
-    readDebateSessions()
-  );
-  const [flashcards, setFlashcards] = useState<FlashcardItem[]>(() => readFlashcardDeck());
-  const [selectedStudyCardId, setSelectedStudyCardId] = useState<string | null>(null);
+  const { activePreset, theme, handleSelectPreset, handleToggleBinaryTheme } = useThemeManager();
+  const history = useAppHistory();
+  const debate = useDebateStudio({
+    userId: history.userSession.uid,
+    selectedVoice,
+    onSelectVoice: setSelectedVoice,
+  });
+
+  const mainCanvasRef = useRef<HTMLElement | null>(null);
 
   const handleToggleLeftSidebar = useCallback(() => {
     setIsLeftSidebarCollapsed((prev) => {
@@ -114,7 +76,7 @@ export default function App() {
     setIsRightHistoryOpen((prev) => {
       const next = !prev;
       persistBrowserState('mytts_history_open', String(next));
-      // Regra responsiva (< 1440px): abrir o histórico direito recolhe automaticamente a sidebar esquerda para Icon Rail (68px)
+      // Responsive rule (< 1440px): opening right history collapses left sidebar to Icon Rail (68px)
       if (next && typeof window !== 'undefined' && window.innerWidth < 1440) {
         setIsLeftSidebarCollapsed(true);
         persistBrowserState('mytts_sidebar_collapsed', 'true');
@@ -122,446 +84,6 @@ export default function App() {
       return next;
     });
   }, []);
-
-  // Sincroniza Flashcards, Sessões de Debate e Conversas
-  useEffect(() => {
-    setFlashcards(readFlashcardDeck());
-    const unsubFlash = subscribeFlashcardDeck(setFlashcards);
-    const unsubDebate = subscribeSessionHistory(() => {
-      setDebateSessions(readDebateSessions());
-    });
-    const unsubAuth = subscribeAuthChanges((nextSession) => {
-      setUserSession(nextSession);
-      setDebateSessions(readDebateSessions(nextSession.uid));
-      void requestListUserConversations().then(setConversations);
-    });
-    void requestListUserConversations().then(setConversations);
-    return () => {
-      unsubFlash();
-      unsubDebate();
-      unsubAuth();
-    };
-  }, []);
-
-  const unifiedHistoryItems = useMemo(() => {
-    void flashcards.length;
-    return buildUnifiedHistoryItems(conversations, debateSessions, userSession.uid);
-  }, [conversations, debateSessions, flashcards.length, userSession.uid]);
-
-  // Preset Soft UI Fosco (obsidian: Escuro Fosco | slate: Claro Fosco) + Tema Binário sincronizado
-  const [activePreset, setActivePreset] = useState<SoftUIThemePreset>(() => {
-    const savedPreset = readBrowserState('mytts_preset');
-    if (savedPreset) {
-      return normalizeThemePreset(savedPreset);
-    }
-    const savedTheme = readBrowserState('mytts_theme');
-    return savedTheme === 'light' ? 'slate' : 'obsidian';
-  });
-
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    const saved = readBrowserState('mytts_theme');
-    if (saved === 'light' || saved === 'dark') {
-      return saved;
-    }
-    const savedPreset = readBrowserState('mytts_preset');
-    return normalizeThemePreset(savedPreset) === 'slate' ? 'light' : 'dark';
-  });
-
-  const handleSelectPreset = (nextPreset: SoftUIThemePreset): void => {
-    const normalized = normalizeThemePreset(nextPreset);
-    setActivePreset(normalized);
-    setTheme(SOFT_UI_PRESETS[normalized].mode);
-  };
-
-  const handleToggleBinaryTheme = (): void => {
-    if (theme === 'dark') {
-      setActivePreset('slate');
-      setTheme('light');
-    } else {
-      setActivePreset('obsidian');
-      setTheme('dark');
-    }
-  };
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.setAttribute('data-theme', theme);
-    document.documentElement.setAttribute('data-preset', activePreset);
-    document.body.setAttribute('data-preset', activePreset);
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.body.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.body.classList.remove('dark');
-    }
-    const metaColor = document.querySelector('meta[name="color-scheme"]');
-    if (metaColor) {
-      metaColor.setAttribute('content', theme);
-    }
-    persistBrowserState('mytts_theme', theme);
-    persistBrowserState('mytts_preset', activePreset);
-  }, [theme, activePreset]);
-
-  // Debate Studio State
-  const [documentText, setDocumentText] = useState<string>(SAMPLE_DOCUMENTS[0].content);
-  const [config, setConfig] = useState<DebateConfig>({
-    language: 'pt-BR',
-    audienceLevel: 'intermediate',
-    tensionIntensity: 'provocative',
-    speakers: LANGUAGE_OPTIONS[0].defaultSpeakers,
-    maxTurns: 6,
-  });
-
-  const [script, setScript] = useState<DebateScript>(INITIAL_PRESET_SCRIPTS['pt-BR']);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
-  const [globalError, setGlobalError] = useState<string | null>(null);
-
-  // Singleton Gapless Audio Player instance para o estúdio dialético
-  const player = useMemo(() => new GaplessAudioPlayer(), []);
-  const [playerCurrentTurn, setPlayerCurrentTurn] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
-  const [playbackRate, setPlaybackRate] = useState<number>(1.0);
-
-  // Assinatura do player
-  useEffect(() => {
-    const unsub = player.subscribe((state) => {
-      setPlayerCurrentTurn(state.currentTurnIndex);
-      setIsPlaying(state.isPlaying);
-      setCurrentTime(state.currentTime);
-      setDuration(state.duration);
-      setPlaybackRate(state.playbackRate);
-    });
-    return () => unsub();
-  }, [player]);
-
-  // Sincroniza a voz global com o turno de debate em foco quando estiver tocando
-  useEffect(() => {
-    if (!isPlaying) return;
-    const turnVoiceId = script?.turns?.[playerCurrentTurn]?.voice_id;
-    if (!turnVoiceId) return;
-    const matched = GEMINI_VOICES.find((v) => v.id === turnVoiceId);
-    if (matched && matched.id !== selectedVoice.id) {
-      setSelectedVoice(matched);
-    }
-  }, [playerCurrentTurn, isPlaying, script, selectedVoice.id]);
-
-  const syncTurnsToPlayer = (updatedScript: DebateScript): void => {
-    const readyTurns = updatedScript.turns
-      .filter((t) => Boolean(t.audioBase64))
-      .map((t) => ({
-        turnNumber: t.turn,
-        audioBase64: t.audioBase64!,
-        preDelayMs: t.prosody.pre_delay_ms,
-      }));
-
-    if (readyTurns.length > 0) {
-      player.setTurns(readyTurns);
-    }
-  };
-
-  const synthesizeTurns = async (targetScript: DebateScript): Promise<void> => {
-    setIsSynthesizing(true);
-    setGlobalError(null);
-
-    const updatedTurns = [...targetScript.turns];
-    const CONCURRENCY = 2;
-
-    for (let batchStart = 0; batchStart < targetScript.turns.length; batchStart += CONCURRENCY) {
-      const batchIndices = Array.from(
-        { length: Math.min(CONCURRENCY, targetScript.turns.length - batchStart) },
-        (_, offset) => batchStart + offset
-      );
-
-      await Promise.all(
-        batchIndices.map(async (i) => {
-          const turn = targetScript.turns[i];
-          try {
-            const cacheKey = generateAudioCacheKey({
-              type: 'turn',
-              text: turn.text || turn.clean_text || '',
-              language: targetScript.language,
-              voiceId: turn.voice_id,
-              speed: turn.prosody?.speech_rate || 1.0,
-              emotion: turn.emotion || 'thoughtful',
-            });
-
-            const cachedOrFresh = await synthesizeWithCache({
-              endpoint: '/api/synthesize-turn',
-              body: {
-                turn,
-                speakerName: turn.speaker,
-                voiceId: turn.voice_id,
-                language: targetScript.language,
-              },
-              cacheKey,
-              metadata: {
-                language: targetScript.language,
-                voiceId: turn.voice_id,
-                speed: turn.prosody?.speech_rate || 1.0,
-                emotion: turn.emotion || 'thoughtful',
-              },
-            });
-
-            updatedTurns[i] = {
-              ...turn,
-              audioBase64: cachedOrFresh.audioBase64,
-              audioDurationSec: cachedOrFresh.durationSec,
-              audioStatus: 'ready',
-            };
-          } catch (e: unknown) {
-            console.warn(`Turn ${turn.turn} synthesis error:`, e);
-            updatedTurns[i] = {
-              ...turn,
-              audioStatus: 'error',
-              errorMessage: e instanceof Error ? e.message : 'Erro na síntese do turno.',
-            };
-          }
-        })
-      );
-
-      const intermediateScript = { ...targetScript, turns: [...updatedTurns] };
-      setScript(intermediateScript);
-      syncTurnsToPlayer(intermediateScript);
-    }
-
-    setIsSynthesizing(false);
-  };
-
-  // Geração de Conversa / Debate (Unificada para Debate, Podcast, Conversa de Bar e Mesa de Jantar)
-  const handleGenerateDebateWithCustomSpeakers = async (
-    customSpeakers: [SpeakerProfile, SpeakerProfile] = config.speakers,
-    tensionIntensity: 'friendly' | 'balanced' | 'provocative' | 'reflective' = config.tensionIntensity,
-    format: ConversationFormat = config.format || 'debate',
-    language: LanguageCode = config.language
-  ): Promise<void> => {
-    setIsGenerating(true);
-    setGlobalError(null);
-    try {
-      const data = await requestDebateScript({
-        documentText,
-        language,
-        audienceLevel: config.audienceLevel,
-        tensionIntensity,
-        format,
-        speakers: customSpeakers,
-        maxTurns: config.maxTurns,
-      });
-
-      if (!data.ok || !data.success || !data.script) {
-        throw new Error(data.error || 'Falha na geração do roteiro.');
-      }
-
-      setScript(data.script);
-      saveDebateSessionFromScript(data.script, { format, documentText, userId: userSession.uid });
-      await synthesizeTurns(data.script);
-    } catch (err: unknown) {
-      console.error(err);
-      setGlobalError(err instanceof Error ? err.message : 'Erro ao gerar o debate dialético.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleSynthesizeSingleTurn = async (turnIndex: number): Promise<void> => {
-    const turn = script.turns[turnIndex];
-    try {
-      const cacheKey = generateAudioCacheKey({
-        type: 'turn',
-        text: turn.text || turn.clean_text || '',
-        language: script.language,
-        voiceId: turn.voice_id,
-        speed: turn.prosody?.speech_rate || 1.0,
-        emotion: turn.emotion || 'thoughtful',
-      });
-
-      const cachedOrFresh = await synthesizeWithCache({
-        endpoint: '/api/synthesize-turn',
-        body: {
-          turn,
-          speakerName: turn.speaker,
-          voiceId: turn.voice_id,
-          language: script.language,
-        },
-        cacheKey,
-        bypassCache: true,
-        metadata: {
-          language: script.language,
-          voiceId: turn.voice_id,
-          speed: turn.prosody?.speech_rate || 1.0,
-          emotion: turn.emotion || 'thoughtful',
-        },
-      });
-
-      const updatedTurns = [...script.turns];
-      updatedTurns[turnIndex] = {
-        ...turn,
-        audioBase64: cachedOrFresh.audioBase64,
-        audioDurationSec: cachedOrFresh.durationSec,
-        audioStatus: 'ready',
-      };
-      const updatedScript = { ...script, turns: updatedTurns };
-      setScript(updatedScript);
-      syncTurnsToPlayer(updatedScript);
-    } catch (e: unknown) {
-      setGlobalError(e instanceof Error ? e.message : 'Erro ao sintetizar áudio do turno.');
-      speakBrowserFallback(turn.clean_text || turn.text, {
-        lang: script.language || 'pt-BR',
-        rate: turn.prosody?.speech_rate || 1.0,
-        voiceId: turn.voice_id,
-      });
-    }
-  };
-
-  const handlePlayDebateTurn = async (
-    turnIndex: number,
-    overrideVoiceId?: string
-  ): Promise<void> => {
-    const rawTurn = script.turns[turnIndex];
-    if (!rawTurn) return;
-    const turn = overrideVoiceId
-      ? { ...rawTurn, voice_id: overrideVoiceId, audioBase64: undefined }
-      : rawTurn;
-    stopBrowserSpeech();
-    setPlayerCurrentTurn(turnIndex);
-
-    if (turn.audioBase64) {
-      const readyTurns = script.turns.filter((t) => Boolean(t.audioBase64));
-      const readyIdx = readyTurns.findIndex((t) => t.turn === turn.turn);
-      await player.play(readyIdx >= 0 ? readyIdx : 0);
-      return;
-    }
-
-    try {
-      const cacheKey = generateAudioCacheKey({
-        type: 'turn',
-        text: turn.text || turn.clean_text || '',
-        language: script.language,
-        voiceId: turn.voice_id,
-        speed: turn.prosody?.speech_rate || 1.0,
-        emotion: turn.emotion || 'thoughtful',
-      });
-
-      const cachedOrFresh = await synthesizeWithCache({
-        endpoint: '/api/synthesize-turn',
-        body: {
-          turn,
-          speakerName: turn.speaker,
-          voiceId: turn.voice_id,
-          language: script.language,
-        },
-        cacheKey,
-        metadata: {
-          language: script.language,
-          voiceId: turn.voice_id,
-          speed: turn.prosody?.speech_rate || 1.0,
-          emotion: turn.emotion || 'thoughtful',
-        },
-      });
-
-      const updatedTurns = [...script.turns];
-      updatedTurns[turnIndex] = {
-        ...turn,
-        audioBase64: cachedOrFresh.audioBase64,
-        audioDurationSec: cachedOrFresh.durationSec,
-        audioStatus: 'ready',
-      };
-      const updatedScript = { ...script, turns: updatedTurns };
-      setScript(updatedScript);
-      syncTurnsToPlayer(updatedScript);
-
-      const readyTurns = updatedTurns.filter((t) => Boolean(t.audioBase64));
-      const readyIdx = readyTurns.findIndex((t) => t.turn === turn.turn);
-      await player.play(readyIdx >= 0 ? readyIdx : 0);
-    } catch (e: unknown) {
-      setGlobalError(e instanceof Error ? e.message : 'Erro ao sintetizar turno (usando voz local do navegador).');
-      speakBrowserFallback(turn.clean_text || turn.text, {
-        lang: script.language || 'pt-BR',
-        rate: turn.prosody?.speech_rate || 1.0,
-        voiceId: turn.voice_id,
-      });
-    }
-  };
-
-  const handleUpdateTurnText = (turnIndex: number, newText: string): void => {
-    const updatedTurns = [...script.turns];
-    updatedTurns[turnIndex] = {
-      ...updatedTurns[turnIndex],
-      text: newText,
-      clean_text: newText.replace(/<[^>]+>/g, '').replace(/\|[^|]+\|/g, '').trim(),
-      audioBase64: undefined,
-      audioStatus: 'idle',
-    };
-    setScript({ ...script, turns: updatedTurns });
-  };
-
-  const handleUpdateTurnVoice = (turnIndex: number, newVoiceId: string): void => {
-    const updatedTurns = [...script.turns];
-    updatedTurns[turnIndex] = {
-      ...updatedTurns[turnIndex],
-      voice_id: newVoiceId,
-      audioBase64: undefined,
-      audioStatus: 'idle',
-    };
-    setScript({ ...script, turns: updatedTurns });
-
-    const matchedVoice = GEMINI_VOICES.find((v) => v.id === newVoiceId);
-    if (matchedVoice) {
-      setSelectedVoice(matchedVoice);
-    }
-    void handlePlayDebateTurn(turnIndex, newVoiceId);
-  };
-
-  const handleUpdateDebateConfig = (nextConfig: DebateConfig): void => {
-    setConfig(nextConfig);
-    setScript((prev) => {
-      if (!prev || !prev.turns) return prev;
-      const oldSpk0Name = prev.speakers[0]?.name;
-      const oldSpk1Name = prev.speakers[1]?.name;
-      const nextSpeakers: [SpeakerProfile, SpeakerProfile] = [
-        {
-          ...(prev.speakers[0] || nextConfig.speakers[0]),
-          name: nextConfig.speakers[0].name,
-          voiceId: nextConfig.speakers[0].voiceId,
-          roleTitle: nextConfig.speakers[0].roleTitle,
-        },
-        {
-          ...(prev.speakers[1] || nextConfig.speakers[1]),
-          name: nextConfig.speakers[1].name,
-          voiceId: nextConfig.speakers[1].voiceId,
-          roleTitle: nextConfig.speakers[1].roleTitle,
-        },
-      ];
-      const updatedTurns = prev.turns.map((t, idx) => {
-        const isSpeaker0 =
-          t.speaker === oldSpk0Name || (t.speaker !== oldSpk1Name && idx % 2 === 0);
-        const targetSpk = isSpeaker0 ? nextSpeakers[0] : nextSpeakers[1];
-        const voiceChanged = t.voice_id !== targetSpk.voiceId;
-        return {
-          ...t,
-          speaker: targetSpk.name,
-          voice_id: targetSpk.voiceId,
-          audioBase64: voiceChanged ? undefined : t.audioBase64,
-          audioStatus: voiceChanged ? ('idle' as const) : t.audioStatus,
-        };
-      });
-      return {
-        ...prev,
-        language: nextConfig.language,
-        speakers: nextSpeakers,
-        turns: updatedTurns,
-      };
-    });
-  };
-
-  const mainCanvasRef = useRef<HTMLElement | null>(null);
-  const activeTurn = script?.turns[playerCurrentTurn];
-  const activeSpeaker = activeTurn
-    ? script?.speakers.find((s) => s.name === activeTurn.speaker) || script?.speakers[0]
-    : script?.speakers[0];
 
   const handleChangeFavoriteVoice = useCallback((lang: 'en' | 'it' | 'ja', voiceId: string) => {
     setFavoriteVoicesByLang((prev) => {
@@ -583,8 +105,8 @@ export default function App() {
         setStudySubTab(resolved.studySubTab);
       }
 
-      if (isPlaying && (targetTab !== 'voices' || resolved.voiceSubTab === 'solo')) {
-        player.pause();
+      if (debate.isPlaying && (targetTab !== 'voices' || resolved.voiceSubTab === 'solo')) {
+        debate.player.pause();
       }
       const docWithTransition = document as Document & {
         startViewTransition?: (cb: () => void) => { finished?: Promise<void> };
@@ -617,31 +139,11 @@ export default function App() {
         }, 0);
       }
     },
-    [isPlaying, player]
+    [debate.isPlaying, debate.player]
   );
 
-  // Listener para sincronizar tema e atalhos globais (Ctrl+K, Ctrl+B, Ctrl+H, Alt+1..4)
+  // Global keyboard shortcuts (Ctrl+K, Ctrl+B, Ctrl+H, Alt+1..4)
   useEffect(() => {
-    const syncThemeFromStorage = () => {
-      const savedPreset = readBrowserState('mytts_preset');
-      const savedTheme = readBrowserState('mytts_theme');
-      if (savedPreset) {
-        const normalizedPreset = normalizeThemePreset(savedPreset);
-        setActivePreset(normalizedPreset);
-        setTheme(SOFT_UI_PRESETS[normalizedPreset].mode);
-        return;
-      }
-
-      if (savedTheme === 'light' || savedTheme === 'dark') {
-        const mappedPreset = savedTheme === 'light' ? 'slate' : 'obsidian';
-        setActivePreset(mappedPreset);
-        setTheme(SOFT_UI_PRESETS[mappedPreset].mode);
-      } else {
-        const fallbackPreset = normalizeThemePreset(null);
-        setActivePreset(fallbackPreset);
-        setTheme(SOFT_UI_PRESETS[fallbackPreset].mode);
-      }
-    };
     const onGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -670,17 +172,14 @@ export default function App() {
       });
       if (shortcutTarget) {
         e.preventDefault();
-        handleNavigateTab(shortcutTarget.tab, shortcutTarget.voiceSubTab ?? shortcutTarget.studySubTab);
+        handleNavigateTab(
+          shortcutTarget.tab,
+          shortcutTarget.voiceSubTab ?? shortcutTarget.studySubTab
+        );
       }
     };
-    window.addEventListener('storage', syncThemeFromStorage);
-    window.addEventListener('mytts-theme-change', syncThemeFromStorage);
-    window.addEventListener('mytts-theme-changed', syncThemeFromStorage);
     window.addEventListener('keydown', onGlobalKeyDown);
     return () => {
-      window.removeEventListener('storage', syncThemeFromStorage);
-      window.removeEventListener('mytts-theme-change', syncThemeFromStorage);
-      window.removeEventListener('mytts-theme-changed', syncThemeFromStorage);
       window.removeEventListener('keydown', onGlobalKeyDown);
     };
   }, [handleToggleLeftSidebar, handleToggleRightHistory, handleNavigateTab]);
@@ -695,19 +194,10 @@ export default function App() {
     [activeTab, voiceConfigSubTab, studySubTab]
   );
 
-  // Handlers da HistorySidebar Direita
-  const handleConversationsChanged = useCallback(
-    (nextConvs: SavedConversation[], activeId: string) => {
-      setConversations(nextConvs);
-      setActiveConversationId(activeId);
-    },
-    []
-  );
-
   const handleSelectHistoryItem = useCallback(
     (item: UnifiedHistoryItem) => {
       if (item.kind === 'chat') {
-        setSelectedConversationId(item.id);
+        history.setSelectedConversationId(item.id);
         handleNavigateTab('polyglot');
       } else if (item.kind === 'debate_tts' && item.debateSession) {
         const restoredTurns = item.debateSession.turns.map((t) => ({
@@ -724,7 +214,7 @@ export default function App() {
           },
           audioStatus: 'idle' as const,
         }));
-        setScript((prev) => ({
+        debate.setScript((prev) => ({
           ...prev,
           title: item.debateSession!.title,
           topicSummary: item.debateSession!.documentPreview || prev.topicSummary,
@@ -733,80 +223,30 @@ export default function App() {
         }));
         handleNavigateTab('voices', 'debate');
       } else if (item.kind === 'flashcards') {
-        setSelectedStudyCardId(item.id);
+        history.setSelectedStudyCardId(item.id);
         handleNavigateTab('study');
       }
     },
-    [handleNavigateTab]
+    [debate, handleNavigateTab, history]
   );
-
-  const handleTogglePinHistoryItem = useCallback(async (item: UnifiedHistoryItem) => {
-    if (item.kind === 'chat' && item.conversation) {
-      const updated: SavedConversation = {
-        ...item.conversation,
-        pinned: !item.conversation.pinned,
-      };
-      const saved = await requestSaveUserConversation(updated);
-      if (saved) {
-        setConversations((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
-      }
-    } else if (item.kind === 'debate_tts') {
-      togglePinDebateSession(item.id);
-    }
-  }, []);
-
-  const handleRenameHistoryItem = useCallback(
-    async (item: UnifiedHistoryItem, newTitle: string) => {
-      if (item.kind === 'chat' && item.conversation) {
-        const updated: SavedConversation = {
-          ...item.conversation,
-          title: newTitle,
-          customTitle: true,
-        };
-        const saved = await requestSaveUserConversation(updated);
-        if (saved) {
-          setConversations((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
-        }
-      } else if (item.kind === 'debate_tts') {
-        renameDebateSession(item.id, newTitle);
-      }
-    },
-    []
-  );
-
-  const handleDeleteHistoryItem = useCallback(async (item: UnifiedHistoryItem) => {
-    if (item.kind === 'chat') {
-      const ok = await requestDeleteUserConversation(item.id);
-      if (ok) {
-        setConversations((prev) => prev.filter((c) => c.id !== item.id));
-      }
-    } else if (item.kind === 'debate_tts') {
-      deleteDebateSession(item.id);
-    } else if (item.kind === 'flashcards') {
-      deleteFlashcardFromDeck(item.id);
-    }
-  }, []);
-
-  const handleClearUnpinnedHistory = useCallback(async () => {
-    await requestClearUnpinnedConversations();
-    const nextConvs = await requestListUserConversations();
-    setConversations(nextConvs);
-    clearUnpinnedDebateSessions();
-  }, []);
 
   return (
     <div
       data-state="idle"
-      aria-busy={isGenerating || isSynthesizing}
+      aria-busy={debate.isGenerating || debate.isSynthesizing}
       style={
         {
           '--left-sidebar-w': isLeftSidebarCollapsed ? '68px' : '280px',
           '--right-sidebar-w': isRightHistoryOpen ? '320px' : '0px',
         } as React.CSSProperties
       }
-      className="min-h-screen surface-canvas text-primary flex flex-col lg:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-200"
+      className="min-h-screen surface-canvas text-primary flex flex-col lg:flex-row font-sans selection:bg-[var(--accent-soft-bg)] selection:text-[var(--text-primary)]"
     >
-      {/* 1. Sidebar Esquerda Colapsável (280px <-> 68px Icon Rail Mode + Popover de Conta) */}
+      <a href="#main-content" className="skip-link">
+        Pular para o conteúdo principal
+      </a>
+
+      {/* 1. Left Collapsible Sidebar (280px <-> 68px Icon Rail Mode + Account Popover) */}
       <Sidebar
         activeTab={activeTab}
         onSelectTab={handleNavigateTab}
@@ -820,42 +260,46 @@ export default function App() {
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         isHistoryOpen={isRightHistoryOpen}
-        historyCount={unifiedHistoryItems.length}
+        historyCount={history.unifiedHistoryItems.length}
         onToggleHistory={handleToggleRightHistory}
-        flashcardCount={flashcards.length}
+        flashcardCount={history.flashcards.length}
         theme={theme}
         onToggleTheme={handleToggleBinaryTheme}
         activePreset={activePreset}
         onSelectPreset={handleSelectPreset}
       />
 
-      {/* 2. Área de Trabalho Central (Acoplada às larguras dinâmicas das 2 Sidebars) */}
+      {/* 2. Central Workspace (Coupled to dynamic widths of both Sidebars) */}
       <div className="flex-1 flex flex-col lg:pl-[var(--left-sidebar-w)] lg:pr-[var(--right-sidebar-w)] transition-[padding] duration-[220ms] ease-[cubic-bezier(0.2,0,0,1)] min-h-screen min-w-0 max-w-full overflow-x-clip">
         <MobileAppHeader
           activeTab={activeTab}
           voiceSubTab={voiceConfigSubTab}
           studySubTab={studySubTab}
-          flashcardCount={flashcards.length}
+          flashcardCount={history.flashcards.length}
           selectedVoice={selectedVoice}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onToggleHistorySidebar={handleToggleRightHistory}
           onNavigateTab={handleNavigateTab}
-          historyCount={unifiedHistoryItems.length}
+          historyCount={history.unifiedHistoryItems.length}
         />
 
-        {/* Banner de Erro Global */}
-        {globalError && (
+        {/* Global Error Banner */}
+        {debate.globalError && (
           <div className="max-w-4xl mx-auto w-full px-4 pt-4" role="alert">
-            <div className="bg-rose-50 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 px-4 py-2.5 rounded-xl text-xs flex items-center justify-between shadow-lg">
+            <div className="surface-raised border border-[var(--border-subtle)] text-primary px-4 py-2.5 rounded-xl text-xs flex items-center justify-between gap-3 shadow-lg">
               <div className="flex items-center gap-2">
-                <GoogleIcon name="error" size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />
-                <span>{globalError}</span>
+                <GoogleIcon
+                  name="error"
+                  size={16}
+                  className="text-[var(--status-danger)] shrink-0"
+                />
+                <span>{debate.globalError}</span>
               </div>
               <button
                 type="button"
-                onClick={() => setGlobalError(null)}
-                className="text-rose-700 hover:text-rose-900 dark:text-rose-400 dark:hover:text-white font-mono text-xs cursor-pointer"
+                onClick={() => debate.setGlobalError(null)}
+                className="min-h-11 px-3 rounded-lg text-[var(--status-danger)] hover:text-primary font-mono text-xs cursor-pointer transition-colors"
               >
                 dispensar
               </button>
@@ -863,121 +307,26 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. Canvas de Conteúdo por Módulo (Alinhado à Régua Canônica max-w-[1440px]) */}
-        <main ref={mainCanvasRef} tabIndex={-1} className="flex-1 flex flex-col outline-none">
-          <nav
-            aria-label="Caminho de navegação"
-            className="hidden sm:flex w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-3 pb-1 items-center justify-between gap-3 text-xs text-secondary"
-          >
-            <ol role="list" className="breadcrumb-list">
-              {breadcrumbTrail.map((seg) => (
-                <li key={seg.id}>
-                  <button
-                    type="button"
-                    aria-current={seg.isCurrent ? 'page' : undefined}
-                    onClick={() => handleNavigateTab(seg.tab, seg.voiceSubTab ?? seg.studySubTab)}
-                    className={`transition-colors cursor-pointer ${
-                      seg.isCurrent
-                        ? 'text-primary font-semibold'
-                        : 'hover:text-primary font-medium underline-offset-4 hover:underline'
-                    }`}
-                  >
-                    {seg.label}
-                  </button>
-                </li>
-              ))}
-            </ol>
+        {/* 3. Module Content Canvas (Canonical max-w-[1440px] ruler) */}
+        <main
+          id="main-content"
+          ref={mainCanvasRef}
+          tabIndex={-1}
+          className="flex-1 flex flex-col outline-none"
+        >
+          <WorkspaceBreadcrumbBar
+            activeTab={activeTab}
+            voiceConfigSubTab={voiceConfigSubTab}
+            studySubTab={studySubTab}
+            breadcrumbTrail={breadcrumbTrail}
+            selectedVoice={selectedVoice}
+            isRightHistoryOpen={isRightHistoryOpen}
+            historyCount={history.unifiedHistoryItems.length}
+            onNavigateTab={handleNavigateTab}
+            onToggleRightHistory={handleToggleRightHistory}
+          />
 
-            <div className="flex items-center gap-2.5 shrink-0">
-              {activeTab === 'voices' && (
-                <div
-                  role="group"
-                  aria-label="Atalho de sub-módulos de vozes"
-                  className="hidden xl:flex items-center gap-1 p-0.5 rounded-xl surface-inset border border-[var(--border-subtle)]"
-                >
-                  {(
-                    [
-                      { id: 'catalog', label: 'Catálogo' },
-                      { id: 'solo', label: 'Solo' },
-                      { id: 'debate', label: 'Debate' },
-                    ] as const
-                  ).map((sub) => (
-                    <button
-                      key={sub.id}
-                      type="button"
-                      aria-pressed={voiceConfigSubTab === sub.id}
-                      onClick={() => handleNavigateTab('voices', sub.id)}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
-                        voiceConfigSubTab === sub.id
-                          ? 'card-matte-active text-amber-300'
-                          : 'text-secondary hover:text-primary'
-                      }`}
-                    >
-                      {sub.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === 'study' && (
-                <div
-                  role="group"
-                  aria-label="Atalho de sub-módulos de estudo"
-                  className="hidden xl:flex items-center gap-1 p-0.5 rounded-xl surface-inset border border-[var(--border-subtle)]"
-                >
-                  {(
-                    [
-                      { id: 'decks', label: 'Baralhos' },
-                      { id: 'review', label: 'Estudar' },
-                      { id: 'create', label: 'Criar' },
-                    ] as const
-                  ).map((sub) => (
-                    <button
-                      key={sub.id}
-                      type="button"
-                      aria-pressed={studySubTab === sub.id}
-                      onClick={() => handleNavigateTab('study', sub.id)}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
-                        studySubTab === sub.id
-                          ? 'card-matte-active text-amber-300'
-                          : 'text-secondary hover:text-primary'
-                      }`}
-                    >
-                      {sub.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <span className="font-mono text-xs text-secondary hidden md:inline tabular-nums">
-                Voz Ativa: <strong className="text-primary">{selectedVoice.name}</strong>
-              </span>
-              <button
-                type="button"
-                onClick={handleToggleRightHistory}
-                aria-expanded={isRightHistoryOpen}
-                aria-label="Alternar barra lateral direita de histórico (Ctrl + H)"
-                title="Alternar Histórico & Linha do Tempo de Sessões (Ctrl + H)"
-                className={`px-2.5 py-1 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  isRightHistoryOpen
-                    ? 'card-matte-active text-amber-400 border-[var(--border-subtle)]'
-                    : 'btn-matte-dark text-secondary hover:text-primary border-[var(--border-subtle)]'
-                }`}
-              >
-                <GoogleIcon
-                  name={isRightHistoryOpen ? 'panel_right_close' : 'history'}
-                  size={15}
-                  className="text-amber-400"
-                />
-                <span>Histórico</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded surface-inset-pill text-amber-400 tabular-nums">
-                  {unifiedHistoryItems.length}
-                </span>
-              </button>
-            </div>
-          </nav>
-
-          {/* Módulo Principal (#1): Chat Poliglota Multimodal (EN, IT, JA) */}
+          {/* Module 1: Polyglot Multimodal Chat (EN, IT, JA) */}
           <div
             hidden={activeTab !== 'polyglot'}
             aria-hidden={activeTab !== 'polyglot'}
@@ -987,28 +336,28 @@ export default function App() {
             <PolyglotChatStudio
               globalVoice={selectedVoice}
               onSyncGlobalVoice={setSelectedVoice}
-              selectedConversationId={selectedConversationId}
-              newConversationSignal={newConversationSignal}
-              onConversationsChanged={handleConversationsChanged}
+              selectedConversationId={history.selectedConversationId}
+              newConversationSignal={history.newConversationSignal}
+              onConversationsChanged={history.handleConversationsChanged}
               onOpenStudyTab={() => handleNavigateTab('study')}
               onOpenVoicesConfigTab={() => handleNavigateTab('voices', 'catalog')}
               favoriteVoicesByLang={favoriteVoicesByLang}
               onSendToCreationStudio={(textToRender, renderMode) => {
                 if (textToRender) {
-                  setDocumentText(textToRender);
+                  debate.setDocumentText(textToRender);
                 }
                 setStudioRenderMode(renderMode);
                 if (renderMode === 'solo') {
                   handleNavigateTab('voices', 'solo');
                 } else {
-                  setConfig((prev) => ({ ...prev, format: renderMode }));
+                  debate.setConfig((prev) => ({ ...prev, format: renderMode }));
                   handleNavigateTab('voices', 'debate');
                 }
               }}
             />
           </div>
 
-          {/* Módulo 2: Configuração de Vozes (Catálogo & Favoritas + Estúdio Solo + Debate/Conversa) */}
+          {/* Module 2: Voice Config Workspace (Catalog & Favorites + Solo Studio + Debate) */}
           {activeTab === 'voices' && (
             <VoiceConfigWorkspace
               activeSubTab={voiceConfigSubTab}
@@ -1017,42 +366,42 @@ export default function App() {
               onSelectVoice={setSelectedVoice}
               favoriteVoicesByLang={favoriteVoicesByLang}
               onChangeFavoriteVoice={handleChangeFavoriteVoice}
-              text={documentText}
-              onChangeText={setDocumentText}
-              player={player}
-              isPlaying={isPlaying}
-              playerCurrentTurn={playerCurrentTurn}
-              script={script}
-              setScript={setScript}
-              debateConfig={config}
-              onChangeDebateConfig={handleUpdateDebateConfig}
+              text={debate.documentText}
+              onChangeText={debate.setDocumentText}
+              player={debate.player}
+              isPlaying={debate.isPlaying}
+              playerCurrentTurn={debate.playerCurrentTurn}
+              script={debate.script}
+              setScript={debate.setScript}
+              debateConfig={debate.config}
+              onChangeDebateConfig={debate.handleUpdateDebateConfig}
               studioRenderMode={studioRenderMode}
               onChangeStudioRenderMode={setStudioRenderMode}
-              onGenerateDebate={handleGenerateDebateWithCustomSpeakers}
-              isGeneratingDebate={isGenerating}
-              isSynthesizingDebate={isSynthesizing}
-              onSynthesizeSingleTurn={handleSynthesizeSingleTurn}
-              onPlayTurn={handlePlayDebateTurn}
-              onUpdateTurnText={handleUpdateTurnText}
-              onUpdateTurnVoice={handleUpdateTurnVoice}
+              onGenerateDebate={debate.handleGenerateDebateWithCustomSpeakers}
+              isGeneratingDebate={debate.isGenerating}
+              isSynthesizingDebate={debate.isSynthesizing}
+              onSynthesizeSingleTurn={debate.handleSynthesizeSingleTurn}
+              onPlayTurn={debate.handlePlayDebateTurn}
+              onUpdateTurnText={debate.handleUpdateTurnText}
+              onUpdateTurnVoice={debate.handleUpdateTurnVoice}
               onOpenPolyglotTab={() => handleNavigateTab('polyglot')}
             />
           )}
 
-          {/* Módulo 3: FastChunks (Treinamento Lexical de Idiomas) */}
+          {/* Module 3: FastChunks (Lexical Audio Training) */}
           {activeTab === 'chunks' && (
             <FastChunkAudioApp
               onOpenStudyTab={() => handleNavigateTab('study')}
               onOpenPolyglotTab={() => handleNavigateTab('polyglot')}
-              flashcardCount={flashcards.length}
+              flashcardCount={history.flashcards.length}
             />
           )}
 
-          {/* Módulo 4: Área de Estudo & Flashcards Deck (Zero-Friction Import + Arena 3D TTS) */}
+          {/* Module 4: Study Arena & Flashcards Deck */}
           {activeTab === 'study' && (
             <StudyArenaView
               selectedVoice={selectedVoice}
-              initialCardId={selectedStudyCardId}
+              initialCardId={history.selectedStudyCardId}
               activeSubTab={studySubTab}
               onChangeSubTab={setStudySubTab}
               onOpenPolyglotTab={() => handleNavigateTab('polyglot')}
@@ -1061,66 +410,67 @@ export default function App() {
           )}
         </main>
 
-        {/* Dock de Áudio Inferior (Exibido com roteiro ativo na aba Configuração de Vozes) */}
-        {activeTab === 'voices' && (voiceConfigSubTab === 'debate' || Boolean(script?.turns?.length)) && (
-          <BottomAudioDock
-            player={player}
-            script={script}
-            isPlaying={isPlaying}
-            onTogglePlay={() => {
-              const ready = script?.turns.filter((t) => Boolean(t.audioBase64)).length || 0;
-              if (ready === 0 && script) {
-                handlePlayDebateTurn(playerCurrentTurn);
-              } else {
-                player.togglePlay();
-              }
-            }}
-            currentTime={currentTime}
-            duration={duration}
-            onSeek={(t) => player.seek(t)}
-            playbackRate={playbackRate}
-            onChangePlaybackRate={(r) => player.setSpeed(r)}
-            currentSpeaker={activeSpeaker}
-            currentTurn={activeTurn}
-            currentTurnText={activeTurn?.text}
-            turnIndex={playerCurrentTurn}
-            totalTurns={script?.turns.length || 0}
-            language={config.language}
-          />
-        )}
+        {/* Bottom Audio Dock (Displayed when active script exists in Voices tab) */}
+        {activeTab === 'voices' &&
+          (voiceConfigSubTab === 'debate' || Boolean(debate.script?.turns?.length)) && (
+            <BottomAudioDock
+              player={debate.player}
+              script={debate.script}
+              isPlaying={debate.isPlaying}
+              onTogglePlay={() => {
+                const ready = debate.script?.turns.filter((t) => Boolean(t.audioBase64)).length || 0;
+                if (ready === 0 && debate.script) {
+                  void debate.handlePlayDebateTurn(debate.playerCurrentTurn);
+                } else {
+                  debate.player.togglePlay();
+                }
+              }}
+              currentTime={debate.currentTime}
+              duration={debate.duration}
+              onSeek={(t) => debate.player.seek(t)}
+              playbackRate={debate.playbackRate}
+              onChangePlaybackRate={(r) => debate.player.setSpeed(r)}
+              currentSpeaker={debate.activeSpeaker}
+              currentTurn={debate.activeTurn}
+              currentTurnText={debate.activeTurn?.text}
+              turnIndex={debate.playerCurrentTurn}
+              totalTurns={debate.script?.turns.length || 0}
+              language={debate.config.language}
+            />
+          )}
       </div>
 
-      {/* 4. Sidebar Direita Colapsável de Histórico e Linha do Tempo de Sessões (320px <-> 0px) */}
+      {/* 4. Right Collapsible History Sidebar (320px <-> 0px) */}
       <HistorySidebar
         isOpen={isRightHistoryOpen}
         onClose={() => {
           setIsRightHistoryOpen(false);
           persistBrowserState('mytts_history_open', 'false');
         }}
-        items={unifiedHistoryItems}
-        activeConversationId={activeConversationId}
-        isCloudSynced={userSession.isGoogleAuthenticated}
+        items={history.unifiedHistoryItems}
+        activeConversationId={history.activeConversationId}
+        isCloudSynced={history.userSession.isGoogleAuthenticated}
         onSelectHistoryItem={handleSelectHistoryItem}
         onNewConversation={() => {
-          setSelectedConversationId(null);
-          setNewConversationSignal((prev) => prev + 1);
+          history.setSelectedConversationId(null);
+          history.setNewConversationSignal((prev) => prev + 1);
           handleNavigateTab('polyglot');
         }}
-        onTogglePin={handleTogglePinHistoryItem}
-        onRenameItem={handleRenameHistoryItem}
-        onDeleteItem={handleDeleteHistoryItem}
-        onClearUnpinned={handleClearUnpinnedHistory}
+        onTogglePin={history.handleTogglePinHistoryItem}
+        onRenameItem={history.handleRenameHistoryItem}
+        onDeleteItem={history.handleDeleteHistoryItem}
+        onClearUnpinned={history.handleClearUnpinnedHistory}
       />
 
-      {/* 5. Modal Unificado de Login Google / Sessão / Diagnóstico TTS */}
+      {/* 5. Unified Google Login / Session / TTS Diagnostics Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
-      {/* Modal de Arquitetura e Inspeção */}
+      {/* Architecture & Inspection Modal */}
       {activeTab === 'architecture' && (
         <ArchitectureModal onClose={() => handleNavigateTab('polyglot')} />
       )}
 
-      {/* Command Palette Modal Tátil (Ctrl + K) */}
+      {/* Tactile Command Palette Modal (Ctrl + K) */}
       <CommandPaletteModal
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
@@ -1130,7 +480,7 @@ export default function App() {
         onToggleLeftSidebar={handleToggleLeftSidebar}
         onToggleRightHistory={handleToggleRightHistory}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        historyItems={unifiedHistoryItems}
+        historyItems={history.unifiedHistoryItems}
         onSelectHistoryItem={handleSelectHistoryItem}
       />
     </div>

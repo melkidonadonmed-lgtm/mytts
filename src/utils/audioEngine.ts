@@ -1,7 +1,7 @@
 /**
  * DialecticPod Web Audio Engine - Pro Broadcast Edition
  * Features:
- * - Gapless playback scheduling with prosodic prosody gap
+ * - Gapless playback scheduling with prosodic pre-delay gap
  * - Pitch-preserving speed control (0.75x to 2.0x)
  * - Multitrack Audio Graph with voice boost (+3dB) and background soundtrack
  * - Dynamic Auto-Ducking (attack: ~100ms, release: ~500ms) during speech
@@ -18,222 +18,42 @@ import type {
   SoundtrackPreset,
   SoundtrackMeta,
 } from './proceduralSoundtracks';
+import {
+  getAudioContext,
+  base64ToArrayBuffer,
+  decodeBase64ToAudioBuffer,
+  dbToLinear,
+  buildWavHeader,
+  audioBufferToWavBlob,
+  concatenateWavBuffers,
+} from './audio/wavUtils';
+import {
+  renderMasterMixWav,
+  type ExportTurnInput,
+  type SoundtrackConfig,
+} from './audio/masterMixRenderer';
+import {
+  reconcilePlayerTurns,
+  revokeTurnBlobUrls,
+  type IncomingTurnSpec,
+  type PlayerTurnEntry,
+} from './audio/turnQueueManager';
 
-export { SOUNDTRACK_PRESETS };
-export type { SoundtrackPreset, SoundtrackMeta };
-
-type WindowWithWebkitAudio = Window &
-  typeof globalThis & {
-    webkitAudioContext?: typeof AudioContext;
-    webkitOfflineAudioContext?: typeof OfflineAudioContext;
-  };
+export {
+  SOUNDTRACK_PRESETS,
+  getAudioContext,
+  base64ToArrayBuffer,
+  decodeBase64ToAudioBuffer,
+  dbToLinear,
+  buildWavHeader,
+  audioBufferToWavBlob,
+  concatenateWavBuffers,
+};
+export type { SoundtrackPreset, SoundtrackMeta, ExportTurnInput, SoundtrackConfig };
 
 interface PitchPreservingAudioElement extends HTMLAudioElement {
   mozPreservesPitch?: boolean;
   webkitPreservesPitch?: boolean;
-}
-
-export interface ExportTurnInput {
-  turn?: number;
-  turnNumber?: number;
-  audioBase64?: string;
-  preDelayMs?: number;
-  prosody?: {
-    pre_delay_ms?: number;
-  };
-}
-
-let sharedAudioContext: AudioContext | null = null;
-
-export function getAudioContext(autoResume = false): AudioContext {
-  if (!sharedAudioContext) {
-    const win = window as WindowWithWebkitAudio;
-    const AudioContextClass = win.AudioContext || win.webkitAudioContext;
-    if (!AudioContextClass) {
-      throw new Error('Web Audio API não suportada neste ambiente.');
-    }
-    sharedAudioContext = new AudioContextClass();
-  }
-  if (autoResume && sharedAudioContext.state === 'suspended') {
-    void sharedAudioContext.resume().catch((err: unknown) => {
-      console.debug(
-        '[AudioContext] Resume aguardando gesto do usuário:',
-        err instanceof Error ? err.message : String(err)
-      );
-    });
-  }
-  return sharedAudioContext;
-}
-
-export function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binaryString = window.atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-export async function decodeBase64ToAudioBuffer(base64: string): Promise<AudioBuffer> {
-  const ctx = getAudioContext();
-  const arrayBuffer = base64ToArrayBuffer(base64);
-  return await ctx.decodeAudioData(arrayBuffer.slice(0));
-}
-
-/**
- * Converte atenuação ou ganho em decibéis (dB) para fator multiplicador linear.
- */
-export function dbToLinear(db: number): number {
-  return Math.pow(10, db / 20);
-}
-
-/**
- * Constrói o cabeçalho canônico WAV RIFF de 44 bytes (PCM 16-bit).
- */
-export function buildWavHeader(params: {
-  sampleRate: number;
-  numChannels: number;
-  bitsPerSample?: number;
-  dataByteLength: number;
-}): ArrayBuffer {
-  const { sampleRate, numChannels, bitsPerSample = 16, dataByteLength } = params;
-  const format = 1; // PCM
-  const bytesPerSample = bitsPerSample / 8;
-  const blockAlign = numChannels * bytesPerSample;
-  const headerByteLength = 44;
-  const totalLength = headerByteLength + dataByteLength;
-
-  const headerBuffer = new ArrayBuffer(headerByteLength);
-  const view = new DataView(headerBuffer);
-
-  const asciiTags: Array<[number, string]> = [
-    [0, 'RIFF'],
-    [8, 'WAVE'],
-    [12, 'fmt '],
-    [36, 'data'],
-  ];
-  for (const [offset, tag] of asciiTags) {
-    for (let i = 0; i < tag.length; i++) {
-      view.setUint8(offset + i, tag.charCodeAt(i));
-    }
-  }
-
-  // RIFF Chunk Descriptor
-  view.setUint32(4, totalLength - 8, true);
-
-  // "fmt " Subchunk
-  view.setUint32(16, 16, true); // Subchunk1Size (16 para PCM)
-  view.setUint16(20, format, true); // AudioFormat (1 = PCM)
-  view.setUint16(22, numChannels, true); // NumChannels
-  view.setUint32(24, sampleRate, true); // SampleRate
-  view.setUint32(28, sampleRate * blockAlign, true); // ByteRate
-  view.setUint16(32, blockAlign, true); // BlockAlign
-  view.setUint16(34, bitsPerSample, true); // BitsPerSample
-
-  // "data" Subchunk
-  view.setUint32(40, dataByteLength, true);
-
-  return headerBuffer;
-}
-
-/**
- * Converte um AudioBuffer estéreo ou mono em um Blob WAV RIFF canônico de 16-bit PCM
- */
-export function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
-  const numChannels = buffer.numberOfChannels;
-  const sampleRate = buffer.sampleRate;
-  const bitDepth = 16;
-  const bytesPerSample = bitDepth / 8;
-  const blockAlign = numChannels * bytesPerSample;
-
-  const length = buffer.length;
-  const dataByteLength = length * blockAlign;
-  const headerByteLength = 44;
-  const totalLength = headerByteLength + dataByteLength;
-
-  const arrayBuffer = new ArrayBuffer(totalLength);
-  const headerBytes = new Uint8Array(
-    buildWavHeader({ sampleRate, numChannels, bitsPerSample: bitDepth, dataByteLength })
-  );
-  new Uint8Array(arrayBuffer).set(headerBytes, 0);
-  const view = new DataView(arrayBuffer);
-
-  // Amostras PCM intercaladas com proteção anti-clipping
-  let offset = 44;
-  const channelData: Float32Array[] = [];
-  for (let ch = 0; ch < numChannels; ch++) {
-    channelData.push(buffer.getChannelData(ch));
-  }
-
-  for (let i = 0; i < length; i++) {
-    for (let ch = 0; ch < numChannels; ch++) {
-      let sample = channelData[ch][i];
-      // Clamping estrito [-1.0, 1.0]
-      sample = Math.max(-1, Math.min(1, sample));
-      const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-      view.setInt16(offset, intSample, true);
-      offset += 2;
-    }
-  }
-
-  return new Blob([view], { type: 'audio/wav' });
-}
-
-/**
- * Combines multiple WAV base64 buffers into a single continuous WAV Blob.
- */
-export function concatenateWavBuffers(wavBase64List: string[]): Blob {
-  if (wavBase64List.length === 0) {
-    return new Blob([], { type: 'audio/wav' });
-  }
-
-  const buffers: Uint8Array[] = wavBase64List.map(
-    (b64) => new Uint8Array(base64ToArrayBuffer(b64))
-  );
-
-  let totalDataLength = buffers[0].length - 44;
-  for (let i = 1; i < buffers.length; i++) {
-    if (buffers[i].length > 44) {
-      totalDataLength += buffers[i].length - 44;
-    }
-  }
-
-  const combined = new Uint8Array(44 + totalDataLength);
-  combined.set(buffers[0].subarray(0, 44), 0);
-
-  const chunkSize = combined.length - 8;
-  combined[4] = chunkSize & 0xff;
-  combined[5] = (chunkSize >> 8) & 0xff;
-  combined[6] = (chunkSize >> 16) & 0xff;
-  combined[7] = (chunkSize >> 24) & 0xff;
-
-  combined[40] = totalDataLength & 0xff;
-  combined[41] = (totalDataLength >> 8) & 0xff;
-  combined[42] = (totalDataLength >> 16) & 0xff;
-  combined[43] = (totalDataLength >> 24) & 0xff;
-
-  let offset = 44;
-  combined.set(buffers[0].subarray(44), offset);
-  offset += buffers[0].length - 44;
-
-  for (let i = 1; i < buffers.length; i++) {
-    if (buffers[i].length > 44) {
-      combined.set(buffers[i].subarray(44), offset);
-      offset += buffers[i].length - 44;
-    }
-  }
-
-  return new Blob([combined], { type: 'audio/wav' });
-}
-
-export interface SoundtrackConfig {
-  preset: SoundtrackPreset;
-  musicVolume: number; // 0 a 1 (padrão: 0.20)
-  duckingEnabled: boolean; // padrão: true
-  duckingDepthDb: number; // atenuação em dB (ex: -14 dB)
-  voiceBoostDb: number; // reforço de presença vocal (+3 dB)
-  customFileName?: string;
 }
 
 export interface PlayerState {
@@ -252,7 +72,7 @@ export interface PlayerState {
 export type PlaybackListener = (state: PlayerState) => void;
 
 /**
- * Gapless Audio Player com Pitch Preservation, Multitrack e Auto-Ducking
+ * Gapless Audio Player with Pitch Preservation, Multitrack, and Auto-Ducking.
  */
 export class GaplessAudioPlayer {
   private audioContext: AudioContext | null = null;
@@ -263,7 +83,7 @@ export class GaplessAudioPlayer {
   private musicGainNode: GainNode | null = null;
   private masterGainNode: GainNode | null = null;
 
-  // Trilha Sonora
+  // Soundtrack state
   private musicSourceNode: AudioBufferSourceNode | null = null;
   private currentMusicBuffer: AudioBuffer | null = null;
   private isMusicPlaying: boolean = false;
@@ -278,13 +98,7 @@ export class GaplessAudioPlayer {
     voiceBoostDb: 3,
   };
 
-  private turns: Array<{
-    turnNumber: number;
-    audioBase64: string;
-    blobUrl?: string;
-    duration?: number;
-    preDelayMs: number;
-  }> = [];
+  private turns: PlayerTurnEntry[] = [];
 
   private currentTurnIdx: number = 0;
   private playbackRate: number = 1.0;
@@ -337,7 +151,7 @@ export class GaplessAudioPlayer {
 
       if (!this.voiceGainNode) {
         this.voiceGainNode = this.audioContext.createGain();
-        this.voiceGainNode.gain.value = Math.pow(10, this.soundtrackConfig.voiceBoostDb / 20);
+        this.voiceGainNode.gain.value = dbToLinear(this.soundtrackConfig.voiceBoostDb);
         this.voiceGainNode.connect(this.analyser);
       }
 
@@ -383,10 +197,6 @@ export class GaplessAudioPlayer {
     });
   }
 
-  /**
-   * Aplica atenuação suave (auto-ducking) à música quando a voz começa
-   * ou restaura o volume nominal nos silêncios/intervalos entre turnos
-   */
   private applyDucking(duck: boolean) {
     if (!this.musicGainNode || !this.soundtrackConfig.duckingEnabled || !this.audioContext) return;
     const ctx = this.audioContext;
@@ -400,28 +210,22 @@ export class GaplessAudioPlayer {
       this.musicGainNode.gain.setValueAtTime(this.musicGainNode.gain.value, now);
 
       if (duck) {
-        // Ataque rápido (~100ms) sem cliques
-        const duckFactor = Math.pow(10, this.soundtrackConfig.duckingDepthDb / 20);
+        const duckFactor = dbToLinear(this.soundtrackConfig.duckingDepthDb);
         const target = Math.max(0.0001, nominal * duckFactor);
         this.musicGainNode.gain.exponentialRampToValueAtTime(target, now + 0.1);
       } else {
-        // Release suave (~450ms) permitindo a trilha preencher o espaço
         const target = Math.max(0.0001, nominal);
         this.musicGainNode.gain.exponentialRampToValueAtTime(target, now + 0.45);
       }
     } catch {
-      // Fallback em caso de valor zero na curva exponencial
       if (this.musicGainNode) {
         this.musicGainNode.gain.value = duck
-          ? nominal * Math.pow(10, this.soundtrackConfig.duckingDepthDb / 20)
+          ? nominal * dbToLinear(this.soundtrackConfig.duckingDepthDb)
           : nominal;
       }
     }
   }
 
-  /**
-   * Inicia a reprodução em loop da trilha sonora
-   */
   private async startSoundtrack() {
     if (this.soundtrackConfig.preset === 'none' || !this.currentMusicBuffer) {
       this.stopSoundtrack();
@@ -451,16 +255,13 @@ export class GaplessAudioPlayer {
     }
   }
 
-  /**
-   * Para a reprodução da trilha sonora
-   */
   private stopSoundtrack() {
     if (this.musicSourceNode) {
       try {
         this.musicSourceNode.stop();
         this.musicSourceNode.disconnect();
       } catch {
-        // Ignora erro caso o nó já tenha parado
+        // Ignore if source node has already stopped
       }
       this.musicSourceNode = null;
     }
@@ -498,9 +299,6 @@ export class GaplessAudioPlayer {
     };
   }
 
-  /**
-   * Configura o preset da trilha sonora (procedural ou buffer customizado)
-   */
   public async setSoundtrackPreset(
     preset: SoundtrackPreset,
     customBuffer?: AudioBuffer,
@@ -519,7 +317,6 @@ export class GaplessAudioPlayer {
         await this.startSoundtrack();
       }
     } else {
-      // Gera ou busca buffer procedural no cache
       const ctx = this.ensureAudioContext(false);
       const buffer = await getOrGenerateSoundtrackBuffer(preset, ctx.sampleRate);
       this.currentMusicBuffer = buffer;
@@ -564,92 +361,30 @@ export class GaplessAudioPlayer {
     this.soundtrackConfig.voiceBoostDb = boostDb;
     if (this.voiceGainNode && this.audioContext) {
       this.voiceGainNode.gain.setValueAtTime(
-        Math.pow(10, boostDb / 20),
+        dbToLinear(boostDb),
         this.audioContext.currentTime
       );
     }
     this.notifyListeners();
   }
 
-  public setTurns(
-    turns: Array<{
-      turnNumber: number;
-      audioBase64: string;
-      preDelayMs?: number;
-    }>
-  ) {
-    const existingByTurn = new Map<number, { audioBase64: string; blobUrl?: string }>();
-    for (const prev of this.turns) {
-      existingByTurn.set(prev.turnNumber, {
-        audioBase64: prev.audioBase64,
-        blobUrl: prev.blobUrl,
-      });
-    }
-
-    const keptUrls = new Set<string>();
-    const nextTurns = turns.map((t) => {
-      const existing = existingByTurn.get(t.turnNumber);
-      if (existing && existing.audioBase64 === t.audioBase64 && existing.blobUrl) {
-        keptUrls.add(existing.blobUrl);
-        return {
-          turnNumber: t.turnNumber,
-          audioBase64: t.audioBase64,
-          blobUrl: existing.blobUrl,
-          preDelayMs: t.preDelayMs || 100,
-        };
-      }
-
-      const blob = new Blob([base64ToArrayBuffer(t.audioBase64)], {
-        type: 'audio/wav',
-      });
-      const url = URL.createObjectURL(blob);
-      keptUrls.add(url);
-      return {
-        turnNumber: t.turnNumber,
-        audioBase64: t.audioBase64,
-        blobUrl: url,
-        preDelayMs: t.preDelayMs || 100,
-      };
+  public setTurns(turns: IncomingTurnSpec[]) {
+    const reconciled = reconcilePlayerTurns({
+      existingTurns: this.turns,
+      incomingTurns: turns,
+      currentTurnIdx: this.currentTurnIdx,
+      isPlaying: this.isPlaying,
+      currentTime: this.audioElement.currentTime,
+      hasCurrentSrc: Boolean(this.audioElement.src),
     });
 
-    // Revoga apenas URLs de turnos substituídos ou removidos
-    this.turns.forEach((t) => {
-      if (t.blobUrl && !keptUrls.has(t.blobUrl)) {
-        URL.revokeObjectURL(t.blobUrl);
-      }
-    });
+    this.turns = reconciled.nextTurns;
+    this.currentTurnIdx = reconciled.nextTurnIdx;
 
-    const activeTurnNumber = this.turns[this.currentTurnIdx]?.turnNumber;
-    const activeTurnUrl = this.turns[this.currentTurnIdx]?.blobUrl;
-    this.turns = nextTurns;
-
-    if (this.turns.length === 0) {
-      this.currentTurnIdx = 0;
-      this.notifyListeners();
-      return;
-    }
-
-    const preservedIdx =
-      activeTurnNumber !== undefined
-        ? this.turns.findIndex((t) => t.turnNumber === activeTurnNumber)
-        : -1;
-
-    if (preservedIdx >= 0 && (this.isPlaying || this.audioElement.currentTime > 0)) {
-      this.currentTurnIdx = preservedIdx;
-      const currentTarget = this.turns[preservedIdx];
-      if (currentTarget.blobUrl && currentTarget.blobUrl !== activeTurnUrl) {
-        this.audioElement.src = currentTarget.blobUrl;
-        this.audioElement.playbackRate = this.playbackRate;
-        this.audioElement.volume = this.volume;
-      }
-    } else {
-      this.currentTurnIdx = preservedIdx >= 0 ? preservedIdx : 0;
-      const target = this.turns[this.currentTurnIdx];
-      if (target?.blobUrl && (!this.audioElement.src || target.blobUrl !== activeTurnUrl)) {
-        this.audioElement.src = target.blobUrl;
-        this.audioElement.playbackRate = this.playbackRate;
-        this.audioElement.volume = this.volume;
-      }
+    if (reconciled.shouldUpdateSrc && reconciled.nextSrcUrl) {
+      this.audioElement.src = reconciled.nextSrcUrl;
+      this.audioElement.playbackRate = this.playbackRate;
+      this.audioElement.volume = this.volume;
     }
 
     this.notifyListeners();
@@ -689,7 +424,6 @@ export class GaplessAudioPlayer {
       this.audioElement.volume = this.volume;
     }
 
-    // Inicia trilha sonora caso configurada
     if (this.soundtrackConfig.preset !== 'none' && !this.isMusicPlaying) {
       await this.startSoundtrack();
     }
@@ -762,7 +496,6 @@ export class GaplessAudioPlayer {
   }
 
   private handleTurnEnded() {
-    // Transição entre turnos: solta o ducking para a trilha respirar
     this.applyDucking(false);
 
     if (this.currentTurnIdx < this.turns.length - 1) {
@@ -790,7 +523,6 @@ export class GaplessAudioPlayer {
       this.isPlaying = false;
       this.applyDucking(false);
       this.notifyListeners();
-      // Outro sutil na trilha: fade out em 2s
       if (this.musicGainNode && this.isMusicPlaying && this.audioContext) {
         const now = this.audioContext.currentTime;
         this.musicGainNode.gain.setValueAtTime(this.soundtrackConfig.musicVolume, now + 1.0);
@@ -800,11 +532,6 @@ export class GaplessAudioPlayer {
     }
   }
 
-  /**
-   * Renderiza e exporta o Master do debate completo em WAV estéreo de 16-bit
-   * utilizando a Web Audio OfflineAudioContext. Realiza a mixagem de todos os
-   * turnos sincronizados, trilha de fundo, auto-ducking e curvas de fade in/out.
-   */
   public async exportMasterMixWav(
     scriptTurns?: ExportTurnInput[]
   ): Promise<Blob> {
@@ -822,130 +549,12 @@ export class GaplessAudioPlayer {
 
     try {
       const ctx = this.ensureAudioContext(false);
-      const sampleRate = 44100;
-      const win = window as WindowWithWebkitAudio;
-      const OfflineCtxClass =
-        win.OfflineAudioContext || win.webkitOfflineAudioContext;
-      if (!OfflineCtxClass) {
-        throw new Error('OfflineAudioContext não suportado neste navegador.');
-      }
-
-      // 1. Decodificar todos os turnos de fala
-      const decodedTurns: Array<{
-        turnNumber: number;
-        buffer: AudioBuffer;
-        preDelaySec: number;
-      }> = [];
-
-      for (const turn of rawTurns) {
-        const b64 = turn.audioBase64 || '';
-        const preDelay = Math.max(
-          0.2,
-          (turn.prosody?.pre_delay_ms || turn.preDelayMs || 120) / 1000
-        );
-        const arrayBuf = base64ToArrayBuffer(b64);
-        const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
-        decodedTurns.push({
-          turnNumber: turn.turn || turn.turnNumber || 0,
-          buffer: audioBuf,
-          preDelaySec: preDelay,
-        });
-      }
-
-      // 2. Calcular linha do tempo (Timeline)
-      const introMargin = this.soundtrackConfig.preset !== 'none' ? 1.2 : 0.2;
-      const outroMargin = this.soundtrackConfig.preset !== 'none' ? 2.2 : 0.4;
-
-      let currentTime = introMargin;
-      const scheduledSpeech: Array<{
-        buffer: AudioBuffer;
-        startTime: number;
-        endTime: number;
-      }> = [];
-
-      for (let i = 0; i < decodedTurns.length; i++) {
-        const dt = decodedTurns[i];
-        if (i > 0) {
-          currentTime += dt.preDelaySec;
-        }
-        const start = currentTime;
-        const end = start + dt.buffer.duration;
-        scheduledSpeech.push({ buffer: dt.buffer, startTime: start, endTime: end });
-        currentTime = end;
-      }
-
-      const totalDuration = currentTime + outroMargin;
-      const totalFrames = Math.ceil(sampleRate * totalDuration);
-
-      // 3. Montar grafo de mixagem no OfflineAudioContext
-      const offlineCtx = new OfflineCtxClass(2, totalFrames, sampleRate);
-
-      // Ganho da voz (+3dB boost para clareza)
-      const voiceGain = offlineCtx.createGain();
-      const boostFactor = Math.pow(10, this.soundtrackConfig.voiceBoostDb / 20);
-      voiceGain.gain.setValueAtTime(boostFactor, 0);
-      voiceGain.connect(offlineCtx.destination);
-
-      for (const spk of scheduledSpeech) {
-        const source = offlineCtx.createBufferSource();
-        source.buffer = spk.buffer;
-        source.connect(voiceGain);
-        source.start(spk.startTime);
-      }
-
-      // Mixagem da Trilha Sonora e Envelope de Ducking
-      if (this.soundtrackConfig.preset !== 'none') {
-        let musicBuffer = this.currentMusicBuffer;
-        if (!musicBuffer && this.soundtrackConfig.preset !== 'custom') {
-          musicBuffer = await getOrGenerateSoundtrackBuffer(
-            this.soundtrackConfig.preset,
-            sampleRate
-          );
-        }
-
-        if (musicBuffer) {
-          const musicGain = offlineCtx.createGain();
-          const nominal = this.soundtrackConfig.musicVolume;
-          const duckFactor = this.soundtrackConfig.duckingEnabled
-            ? Math.pow(10, this.soundtrackConfig.duckingDepthDb / 20)
-            : 1.0;
-          const ducked = nominal * duckFactor;
-
-          // Fade-in inicial da trilha
-          musicGain.gain.setValueAtTime(0.0001, 0);
-          musicGain.gain.exponentialRampToValueAtTime(nominal, 0.7);
-
-          // Curva de Ducking sincronizada com cada intervenção vocal
-          for (const spk of scheduledSpeech) {
-            // Ataque quando a fala começa
-            musicGain.gain.setTargetAtTime(ducked, spk.startTime, 0.08);
-            // Release quando a fala termina
-            musicGain.gain.setTargetAtTime(nominal, spk.endTime, 0.35);
-          }
-
-          // Outro: fade-out suave nos últimos 1.5s
-          musicGain.gain.setValueAtTime(nominal, totalDuration - 1.5);
-          musicGain.gain.linearRampToValueAtTime(0.0001, totalDuration);
-
-          musicGain.connect(offlineCtx.destination);
-
-          // Preenche a trilha em repetição contínua
-          let musicOffset = 0;
-          while (musicOffset < totalDuration) {
-            const musicSource = offlineCtx.createBufferSource();
-            musicSource.buffer = musicBuffer;
-            musicSource.connect(musicGain);
-            musicSource.start(musicOffset);
-            musicOffset += musicBuffer.duration;
-          }
-        }
-      }
-
-      // 4. Renderização rápida offline
-      const renderedBuffer = await offlineCtx.startRendering();
-
-      // 5. Encapsular em WAV 16-bit estéreo canônico
-      return audioBufferToWavBlob(renderedBuffer);
+      return await renderMasterMixWav({
+        rawTurns,
+        audioContext: ctx,
+        soundtrackConfig: this.soundtrackConfig,
+        currentMusicBuffer: this.currentMusicBuffer,
+      });
     } finally {
       this.isExportingMaster = false;
       this.notifyListeners();
@@ -970,9 +579,7 @@ export class GaplessAudioPlayer {
     this.pause();
     this.stopSoundtrack();
     this.stopProgressTracker();
-    this.turns.forEach((t) => {
-      if (t.blobUrl) URL.revokeObjectURL(t.blobUrl);
-    });
+    revokeTurnBlobUrls(this.turns);
     this.listeners.clear();
   }
 }

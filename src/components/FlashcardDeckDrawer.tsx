@@ -92,7 +92,7 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               aria-label="Fechar gaveta"
             >
               <GoogleIcon name="close" size={20} />
@@ -108,10 +108,10 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
                     type="button"
                     aria-pressed={langFilter === lang}
                     onClick={() => setLangFilter(lang)}
-                    className={`px-2 py-1 rounded-lg font-mono font-bold border transition-colors cursor-pointer ${
+                    className={`min-h-11 px-2.5 py-1 rounded-lg font-mono font-bold border transition-colors cursor-pointer ${
                       langFilter === lang
                         ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40'
-                        : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800'
+                        : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-[var(--border-control)]'
                     }`}
                   >
                     {lang === 'ALL' ? 'TODOS' : lang}
@@ -129,10 +129,10 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
                     type="button"
                     aria-pressed={dateFilter === p.id}
                     onClick={() => setDateFilter(p.id)}
-                    className={`px-2 py-1 rounded-lg font-bold border transition-colors cursor-pointer ${
+                    className={`min-h-11 px-2.5 py-1 rounded-lg font-bold border transition-colors cursor-pointer ${
                       dateFilter === p.id
                         ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40'
-                        : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800'
+                        : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-[var(--border-control)]'
                     }`}
                   >
                     {p.label}
@@ -167,7 +167,7 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
                 {section.cards.map((card) => (
                   <div
                     key={card.id}
-                    className="card-matte rounded-2xl p-4 flex flex-col gap-2.5 hover:border-slate-400 dark:hover:border-slate-700 transition-colors"
+                    className="card-matte rounded-2xl p-4 flex flex-col gap-2.5 border border-[var(--border-subtle)] hover:border-[var(--border-control)] transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-300">
@@ -188,7 +188,8 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
                             type="button"
                             onClick={() => onPlayCardAudio(card.front, card.language)}
                             title="Ouvir pronúncia"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            aria-label={`Ouvir pronúncia de ${card.front}`}
+                            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-slate-500 hover:text-amber-600 dark:hover:text-amber-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                           >
                             <GoogleIcon name="volume_up" size={16} />
                           </button>
@@ -197,7 +198,8 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
                           type="button"
                           onClick={() => onDeleteCard(card.id)}
                           title="Excluir card"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          aria-label={`Excluir ${card.front}`}
+                          className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         >
                           <GoogleIcon name="delete" size={16} />
                         </button>
@@ -213,7 +215,7 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
                       </p>
                     )}
 
-                    <div className="bg-slate-50 dark:bg-slate-900/90 rounded-xl p-3 border border-slate-200 dark:border-slate-800/80 space-y-1">
+                    <div className="bg-slate-50 dark:bg-slate-900/90 rounded-xl p-3 border border-[var(--border-subtle)] space-y-1">
                       <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">→ {card.back}</p>
                       {card.nuance && (
                         <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-snug">{card.nuance}</p>
@@ -221,7 +223,7 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
                     </div>
 
                     {card.example && (
-                      <div className="text-[11px] text-slate-600 dark:text-slate-400 italic pt-1 border-t border-slate-200 dark:border-slate-800">
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 italic pt-1 border-t border-[var(--border-subtle)]">
                         <p className="text-slate-800 dark:text-slate-300 font-medium">&quot;{card.example}&quot;</p>
                         {card.exampleTranslation && (
                           <p className="text-slate-600 dark:text-slate-500 not-italic">{card.exampleTranslation}</p>
@@ -237,12 +239,12 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
 
         {/* 3. Rodapé com Botão de Exportação CSV */}
         {cards.length > 0 && (
-          <div className="p-4 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+          <div className="p-4 surface-flat border-t border-[var(--border-subtle)] flex flex-col gap-2">
             <button
               type="button"
               disabled={filteredCards.length === 0}
               onClick={handleExport}
-              className="btn-matte btn-matte-amber w-full min-h-[44px] text-xs font-bold text-white shadow-sm disabled:opacity-40"
+              className="btn-matte btn-matte-amber w-full min-h-11 text-xs font-bold text-white shadow-sm disabled:opacity-40"
             >
               <GoogleIcon name="download" size={18} filled className="text-white" />
               <span>Exportar {filteredCards.length} Cards para Anki / Notion (CSV)</span>
@@ -251,7 +253,7 @@ export const FlashcardDeckDrawer: React.FC<FlashcardDeckDrawerProps> = ({
             <button
               type="button"
               onClick={onClearDeck}
-              className="w-full py-1 text-center text-[11px] text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+              className="w-full min-h-11 py-1 text-center text-[11px] text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
             >
               Limpar todo o deck
             </button>

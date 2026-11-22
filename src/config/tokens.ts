@@ -17,38 +17,49 @@ export interface DesignTokenPalette {
   accentEmerald: string;
 }
 
-export const DESIGN_SYSTEM_VERSION = '8.0.0' as const;
+export const DESIGN_SYSTEM_VERSION = '8.1.0' as const;
+
+export const SEMANTIC_SURFACE_VARS = {
+  canvas: 'var(--surface-canvas)',
+  inset: 'var(--surface-inset)',
+  flat: 'var(--surface-flat)',
+  raised: 'var(--surface-raised)',
+  contrast: 'var(--surface-contrast)',
+  borderControl: 'var(--border-control)',
+  accentPoint: 'var(--accent-point)',
+  brandAccent: 'var(--brand-accent)',
+} as const;
 
 export const SOFT_UI_PRESETS: Record<SoftUIThemePreset, DesignTokenPalette> = {
   obsidian: {
     id: 'obsidian',
     label: 'Tactile Matte',
     mode: 'dark',
-    canvas: '#0A0C10',
-    flat: '#13161F',
-    raised: '#191D29',
-    inset: '#06070A',
-    contrast: '#1E2330',
-    textPrimary: '#F3F5F8',
-    textSecondary: '#9BA3B0',
-    accentPoint: '#35acd8',
-    accentSecondary: '#D97706',
-    accentEmerald: '#10B981',
+    canvas: 'oklch(0.155 0.012 260)',
+    flat: 'oklch(0.195 0.018 262)',
+    raised: 'oklch(0.23 0.02 262)',
+    inset: 'oklch(0.125 0.01 260)',
+    contrast: 'oklch(0.258 0.022 262)',
+    textPrimary: 'oklch(0.968 0.005 255)',
+    textSecondary: 'oklch(0.735 0.018 255)',
+    accentPoint: 'oklch(0.71 0.13 225)',
+    accentSecondary: 'oklch(0.68 0.16 65)',
+    accentEmerald: 'oklch(0.72 0.14 158)',
   },
   slate: {
     id: 'slate',
     label: 'Steadfast Stainless',
     mode: 'light',
-    canvas: '#E4E9EF',
-    flat: '#EEF2F6',
-    raised: '#F5F7FA',
-    inset: '#D5DCE4',
-    contrast: '#11161F',
-    textPrimary: '#11161F',
-    textSecondary: '#4A5565',
-    accentPoint: '#0284C7',
-    accentSecondary: '#B45309',
-    accentEmerald: '#059669',
+    canvas: 'oklch(0.93 0.01 250)',
+    flat: 'oklch(0.955 0.006 250)',
+    raised: 'oklch(0.975 0.005 250)',
+    inset: 'oklch(0.89 0.012 250)',
+    contrast: 'oklch(0.19 0.02 255)',
+    textPrimary: 'oklch(0.19 0.02 255)',
+    textSecondary: 'oklch(0.42 0.02 255)',
+    accentPoint: 'oklch(0.57 0.15 240)',
+    accentSecondary: 'oklch(0.52 0.15 55)',
+    accentEmerald: 'oklch(0.52 0.13 158)',
   },
 };
 
@@ -85,7 +96,6 @@ export function getBentoSpanClass(colSpan: 3 | 4 | 6 | 8 | 12 = 4): string {
   return spanMap[colSpan];
 }
 
-// Cobertura de estados de token (Empty, Loading, Success, Error)
 export const TOKEN_AUDIT_INVARIANTS: React.CSSProperties = {
   backdropFilter: 'none',
 };

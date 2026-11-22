@@ -128,14 +128,14 @@ test('Suite 13: Soft UI v8.0.0 — FSM Determinística (AUDIT-STATE-01/02) e Tok
   const span8 = getBentoSpanClass(8);
 
   // 3. ASSERT
-  assert.strictEqual(DESIGN_SYSTEM_VERSION, '8.0.0');
+  assert.strictEqual(DESIGN_SYSTEM_VERSION, '8.1.0');
   assert.strictEqual(stateIdle, 'idle');
   assert.strictEqual(stateEmpty, 'empty');
   assert.strictEqual(stateLoading, 'loading');
   assert.strictEqual(stateError, 'error');
   assert.strictEqual(statePressed, 'pressed');
   assert.strictEqual(sanitizedTitle, 'Estúdio Neural');
-  assert.strictEqual(slateTokens.accentPoint, '#0284C7');
+  assert.strictEqual(slateTokens.accentPoint, 'oklch(0.57 0.15 240)');
   assert.strictEqual(span8, 'col-span-1 md:col-span-8');
 
   // Validação dos 2 únicos presets foscos ('obsidian' e 'slate') e migração legada

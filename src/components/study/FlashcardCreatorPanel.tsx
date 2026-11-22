@@ -291,7 +291,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
                     type="button"
                     aria-pressed={deckMode === m.id}
                     onClick={() => handleSelectDeckMode(m.id)}
-                    className={`min-h-[36px] px-2 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                    className={`min-h-11 px-2 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
                       deckMode === m.id
                         ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                         : 'bg-slate-950/60 text-secondary border-slate-800 hover:text-primary'
@@ -311,7 +311,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
                 type="date"
                 value={studyDateKey}
                 onChange={(e) => setStudyDateKey(e.target.value || toLocalCalendarDateKey(Date.now()))}
-                className="w-full min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-primary"
+                className="w-full min-h-11 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-primary"
               />
             </div>
           </div>
@@ -350,7 +350,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
                     type="button"
                     aria-pressed={language === lang}
                     onClick={() => { setLanguage(lang); if (lang !== 'TRIO') setTrilingualDrafts([]); }}
-                    className={`min-h-[36px] rounded-lg text-[11px] font-mono font-bold transition-colors cursor-pointer ${
+                    className={`min-h-11 rounded-lg text-[11px] font-mono font-bold transition-colors cursor-pointer ${
                       language === lang
                         ? 'bg-amber-500/20 text-amber-300 border border-amber-500/35'
                         : 'text-secondary hover:text-primary'
@@ -368,7 +368,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
               <label htmlFor="card-front" className="text-xs font-extrabold text-primary">
                 {language === 'TRIO' ? 'Expressão ou Frase Base (PT-BR / EN / IT / JA) *' : 'Frente (Expressão / Frase) *'}
               </label>
-              <button type="button" onClick={handleAiComplete} disabled={isGenerating || !front.trim()} className="min-h-[36px] px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+              <button type="button" onClick={handleAiComplete} disabled={isGenerating || !front.trim()} className="min-h-11 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
                 <GoogleIcon name="auto_awesome" size={14} />
                 <span>{isGenerating ? 'Gerando...' : language === 'TRIO' ? 'Gerar Trio EN · IT · JA' : 'Completar com IA'}</span>
               </button>
@@ -402,8 +402,8 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
                             {resolveOrganizedDeckName({ mode: deckMode === 'custom' ? 'by_language' : deckMode, language: draft.language, dateKey: studyDateKey })}
                           </span>
                         </div>
-                        <input type="text" value={draft.front} onChange={(e) => updateDraftField(idx, 'front', e.target.value)} aria-label={`Frente ${normalizeLanguageBadge(draft.language)}`} className="w-full px-2.5 py-1.5 rounded-lg input-sunken text-xs font-bold text-primary border border-slate-800" />
-                        <input type="text" value={draft.back} onChange={(e) => updateDraftField(idx, 'back', e.target.value)} aria-label={`Verso ${normalizeLanguageBadge(draft.language)}`} className="w-full px-2.5 py-1.5 rounded-lg input-sunken text-xs text-emerald-300 border border-slate-800" />
+                        <input type="text" value={draft.front} onChange={(e) => updateDraftField(idx, 'front', e.target.value)} aria-label={`Frente ${normalizeLanguageBadge(draft.language)}`} className="w-full min-h-11 px-2.5 py-1.5 rounded-lg input-sunken text-xs font-bold text-primary border border-slate-800" />
+                        <input type="text" value={draft.back} onChange={(e) => updateDraftField(idx, 'back', e.target.value)} aria-label={`Verso ${normalizeLanguageBadge(draft.language)}`} className="w-full min-h-11 px-2.5 py-1.5 rounded-lg input-sunken text-xs text-emerald-300 border border-slate-800" />
                       </div>
                     ))}
                   </div>
@@ -422,7 +422,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
               </div>
 
               <div className="pt-2 border-t border-slate-800/80">
-                <button type="button" onClick={() => setShowAdvanced((prev) => !prev)} className="min-h-[38px] text-xs font-bold text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer">
+                <button type="button" onClick={() => setShowAdvanced((prev) => !prev)} className="min-h-11 text-xs font-bold text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer">
                   <GoogleIcon name={showAdvanced ? 'expand_less' : 'expand_more'} size={16} />
                   <span>{showAdvanced ? 'Ocultar campos opcionais' : 'Mais detalhes (Pronúncia, Exemplo, Nuance)'}</span>
                 </button>
@@ -484,7 +484,7 @@ export const FlashcardCreatorPanel: React.FC<FlashcardCreatorPanelProps> = ({
                   {formatCalendarDateLabelPtBr(studyDateKey)}
                 </span>
               </div>
-              <button type="button" onClick={() => setPreviewFlipped((prev) => !prev)} className="min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-secondary hover:text-primary text-xs font-semibold flex items-center gap-1 border border-slate-800 cursor-pointer shrink-0">
+              <button type="button" onClick={() => setPreviewFlipped((prev) => !prev)} className="min-h-11 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-secondary hover:text-primary text-xs font-semibold flex items-center gap-1 border border-slate-800 cursor-pointer shrink-0">
                 <GoogleIcon name="flip" size={14} className="text-amber-400" />
                 <span>Virar Carta</span>
               </button>

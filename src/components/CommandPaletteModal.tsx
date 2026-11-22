@@ -285,7 +285,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
     list.push({
       id: 'preset-obsidian',
       title: 'Ativar Escuro Fosco',
-      subtitle: 'Superfícies carvão-ardósia foscas (#0A0C10 / #13161F / #191D29)',
+      subtitle: 'Superfícies carvão-ardósia foscas (var(--surface-canvas) / var(--surface-flat))',
       category: 'Ações Rápidas',
       icon: 'dark_mode',
       action: () => applyPresetCommand('obsidian', 'dark'),
@@ -294,7 +294,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteProps> = ({
     list.push({
       id: 'preset-slate',
       title: 'Ativar Claro Fosco',
-      subtitle: 'Superfícies papel-ardósia sem branco puro (#E4E9EF / #EEF2F6 / #F5F7FA)',
+      subtitle: 'Superfícies papel-ardósia sem branco puro (var(--surface-canvas) / var(--surface-raised))',
       category: 'Ações Rápidas',
       icon: 'light_mode',
       action: () => applyPresetCommand('slate', 'light'),

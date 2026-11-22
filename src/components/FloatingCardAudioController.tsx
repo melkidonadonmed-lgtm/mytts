@@ -223,7 +223,7 @@ export const FloatingCardAudioController: React.FC<FloatingCardAudioControllerPr
               onChange={(e) => onSeek(parseFloat(e.target.value))}
               className="slider-matte flex-1"
               style={{
-                background: `linear-gradient(to right, #f59e0b ${progressPercent}%, #1e293b ${progressPercent}%)`,
+                background: `linear-gradient(to right, var(--brand-accent) ${progressPercent}%, var(--surface-inset) ${progressPercent}%)`,
               }}
             />
             <span className="text-[11px] font-mono tabular-nums text-secondary w-9 shrink-0">

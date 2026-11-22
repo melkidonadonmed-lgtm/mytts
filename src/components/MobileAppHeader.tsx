@@ -47,7 +47,7 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
           <button
             type="button"
             onClick={onOpenMobileSidebar}
-            className="btn-compact-touch min-h-[40px] min-w-[40px] p-2 rounded-xl btn-matte-dark text-secondary hover:text-primary cursor-pointer shrink-0 inline-flex items-center justify-center"
+            className="min-h-11 min-w-11 p-2 rounded-xl btn-matte-dark text-secondary hover:text-primary cursor-pointer shrink-0 inline-flex items-center justify-center"
             aria-label="Abrir menu de navegação"
           >
             <GoogleIcon name="menu" size={19} />
@@ -65,7 +65,7 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
             type="button"
             onClick={onOpenCommandPalette}
             aria-label="Abrir busca rápida e paleta de comandos"
-            className="btn-compact-touch min-h-[40px] min-w-[40px] px-2.5 py-1 rounded-xl btn-matte-dark text-xs font-mono text-secondary hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
+            className="min-h-11 min-w-11 px-2.5 py-1 rounded-xl btn-matte-dark text-xs font-mono text-secondary hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
             title="Abrir Paleta de Comandos (Ctrl+K)"
           >
             <GoogleIcon name="search" size={16} className="text-amber-400" />
@@ -76,7 +76,7 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
             type="button"
             onClick={onToggleHistorySidebar}
             aria-label="Abrir gaveta de histórico de sessões"
-            className="btn-compact-touch min-h-[40px] min-w-[40px] px-2.5 py-1 rounded-xl btn-matte-dark text-xs font-mono text-secondary hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
+            className="min-h-11 min-w-11 px-2.5 py-1 rounded-xl btn-matte-dark text-xs font-mono text-secondary hover:text-primary inline-flex items-center justify-center gap-1 cursor-pointer"
             title="Abrir Histórico & Sessões (Ctrl+H)"
           >
             <GoogleIcon name="history" size={16} className="text-amber-400" />
@@ -97,7 +97,7 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
 
       {/* Navegação Horizontal Rápida no Mobile (4 Módulos Principais) */}
       <nav
-        aria-label="Navegação rápida mobile"
+        aria-label="Módulos mobile"
         className="pill-nav-shell grid grid-cols-4 items-center gap-0.5 p-1 w-full overflow-hidden"
       >
         {(
@@ -119,7 +119,7 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
                 : item.label
             }
             onClick={() => onNavigateTab(item.id)}
-            className="pill-nav-item min-h-[40px] px-1 sm:px-2 py-1 text-[10px] sm:text-xs font-semibold whitespace-nowrap cursor-pointer flex items-center justify-center gap-1 text-center min-w-0"
+            className="pill-nav-item min-h-11 px-1 sm:px-2 py-1 text-[10px] sm:text-xs font-semibold whitespace-nowrap cursor-pointer flex items-center justify-center gap-1 text-center min-w-0"
           >
             <GoogleIcon name={item.icon} size={14} filled={activeTab === item.id} />
             <span aria-hidden="true" className="sm:hidden truncate">{item.shortLabel}</span>
@@ -156,7 +156,7 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
                     type="button"
                     aria-pressed={isSubActive}
                     onClick={() => onNavigateTab('voices', sub.id)}
-                    className={`min-h-[40px] px-2 py-1 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition-colors cursor-pointer ${
+                    className={`min-h-11 px-2 py-1 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition-colors cursor-pointer ${
                       isSubActive
                         ? 'card-matte-active text-amber-300 border-amber-500/40'
                         : 'surface-inset text-secondary hover:text-primary border-[var(--border-subtle)]'
@@ -175,7 +175,7 @@ export const MobileAppHeader: React.FC<MobileAppHeaderProps> = ({
                     type="button"
                     aria-pressed={isSubActive}
                     onClick={() => onNavigateTab('study', sub.id)}
-                    className={`min-h-[40px] px-2 py-1 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition-colors cursor-pointer ${
+                    className={`min-h-11 px-2 py-1 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition-colors cursor-pointer ${
                       isSubActive
                         ? 'card-matte-active text-amber-300 border-amber-500/40'
                         : 'surface-inset text-secondary hover:text-primary border-[var(--border-subtle)]'

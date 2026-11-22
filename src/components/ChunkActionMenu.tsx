@@ -70,12 +70,12 @@ export const ChunkActionMenu: React.FC<ChunkActionMenuProps> = ({
       aria-label="Ações para o trecho de texto"
     >
       {/* Cabeçalho do Trecho */}
-      <div className="flex items-center justify-between px-2 pt-0.5 pb-2 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+      <div className="flex items-center justify-between px-2 pt-0.5 pb-2 border-b border-[var(--border-subtle)] text-[11px] text-slate-500 dark:text-slate-400">
         <span className="truncate font-medium text-slate-900 dark:text-slate-200">"{chunkText}"</span>
         <button
           type="button"
           onClick={onClose}
-          className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 p-0.5 cursor-pointer ml-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="min-h-11 min-w-11 inline-flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 cursor-pointer ml-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
           aria-label="Fechar menu"
         >
           <GoogleIcon name="close" size={16} />

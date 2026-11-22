@@ -1,17 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { 
-  Volume2, 
-  RotateCcw, 
-  Sparkles, 
-  Pause, 
-  Copy, 
-  Check, 
-  Search,
-  BookOpen,
-  Trash2,
-  X,
-  Loader2
-} from 'lucide-react';
+import { Sparkles, Search, BookOpen, Loader2 } from 'lucide-react';
 import { ChunkItem, TargetLang } from '../types/chunks';
 import { base64ToBlobUrl, revokeAudioUrl } from '../utils/audio';
 import {
@@ -26,129 +14,17 @@ import {
   requestGenerateChunks,
 } from '../services/polyglotClient';
 import { getActiveSession, subscribeAuthChanges } from '../services/authService';
-import {
-  addFlashcardsToDeck,
-  chunkItemToFlashcard,
-} from '../services/flashcardDeckStorage';
+import { addFlashcardsToDeck, chunkItemToFlashcard } from '../services/flashcardDeckStorage';
 import { GoogleIcon } from './GoogleIcon';
+import { CHUNK_LANGUAGES, CHUNK_PRESETS } from './chunks/chunkPresets';
+import { ChunkCard } from './chunks/ChunkCard';
+import { ChunkGeneratorModal } from './chunks/ChunkGeneratorModal';
 
 export interface FastChunkAudioAppProps {
   onOpenStudyTab?: () => void;
   onOpenPolyglotTab?: () => void;
   flashcardCount?: number;
 }
-
-// Banco inicial offline para teste imediato de alta fluência
-const CHUNK_PRESETS: Record<TargetLang, Record<string, ChunkItem[]>> = {
-  'en-US': {
-    geral: [
-      {
-        id: 'en-1',
-        chunk: "I'm down for that.",
-        literalOrNuance: "Tô dentro / topo na hora",
-        meaning: "Usado para concordar imediatamente com um plano ou convite de forma bem natural.",
-        context: "Casual entre amigos",
-        pronunciationHint: "aim-dáun-fer-thæt"
-      },
-      {
-        id: 'en-2',
-        chunk: "Long story short...",
-        literalOrNuance: "Resumindo a ópera...",
-        meaning: "Corta os detalhes chatos de um relato longo e vai direto ao ponto central.",
-        context: "Transição de conversa",
-        pronunciationHint: "lóng-stóri-shórt"
-      },
-      {
-        id: 'en-3',
-        chunk: "Don't sweat it.",
-        literalOrNuance: "Esquenta a cabeça não / rlx",
-        meaning: "Equivalente mais solto e coloquial para 'you're welcome' ou 'no problem'.",
-        context: "Alívio de tensão / agradecimento",
-        pronunciationHint: "dôunt-suét-it"
-      },
-      {
-        id: 'en-4',
-        chunk: "Fair enough.",
-        literalOrNuance: "Justo / faz sentido",
-        meaning: "Concordância rápida mesmo quando você não concorda 100%, mas respeita a lógica do outro.",
-        context: "Debates e alinhamento",
-        pronunciationHint: "fér-i-nâf"
-      }
-    ]
-  },
-  'it-IT': {
-    geral: [
-      {
-        id: 'it-1',
-        chunk: "Ma figurati!",
-        literalOrNuance: "Imagina! / Que nada!",
-        meaning: "Resposta coloquial para desfazer formalidades quando alguém agradece ou pede desculpas.",
-        context: "Dia a dia italiano",
-        pronunciationHint: "ma fi-gú-ra-ti"
-      },
-      {
-        id: 'it-2',
-        chunk: "Ci sta.",
-        literalOrNuance: "Faz sentido / combina / topo",
-        meaning: "Gíria moderna universal usada para aprovar uma ideia, plano ou combinação.",
-        context: "Jovens e informal",
-        pronunciationHint: "tchi-stá"
-      },
-      {
-        id: 'it-3',
-        chunk: "Meno male!",
-        literalOrNuance: "Ainda bem! / Menos mal!",
-        meaning: "Expressão de alívio puro ao ouvir uma notícia positiva ou solução de problema.",
-        context: "Reação espontânea",
-        pronunciationHint: "mé-no má-le"
-      },
-      {
-        id: 'it-4',
-        chunk: "Che ne pensi?",
-        literalOrNuance: "O que você acha disso?",
-        meaning: "Puxador de conversa clássico e ágil para passar a bola de volta ao interlocutor.",
-        context: "Engajamento de fala",
-        pronunciationHint: "ke ne pén-si"
-      }
-    ]
-  },
-  'ja-JP': {
-    geral: [
-      {
-        id: 'ja-1',
-        chunk: "なるほどね (Naruhodo ne)",
-        literalOrNuance: "Ah, entendi / faz sentido total",
-        meaning: "Aizuchi (reação auditiva) indispensável para mostrar que você está ouvindo com atenção.",
-        context: "Conversação natural",
-        pronunciationHint: "na-ru-ho-do-ne"
-      },
-      {
-        id: 'ja-2',
-        chunk: "とりあえず (Toriaezu)",
-        literalOrNuance: "Por enquanto / pra começar...",
-        meaning: "Usado para tomar uma decisão rápida sem compromisso definitivo (ex: 'vamos pedir isso primeiro').",
-        context: "Restaurantes e decisões",
-        pronunciationHint: "to-ri-a-e-zu"
-      },
-      {
-        id: 'ja-3',
-        chunk: "お疲れ様！ (Otsukaresama!)",
-        literalOrNuance: "Bom trabalho / valeu por hoje!",
-        meaning: "A saudação de encerramento mais natural do japonês após qualquer esforço conjunto.",
-        context: "Trabalho, estudos e academia",
-        pronunciationHint: "o-tsu-ka-re-sa-ma"
-      },
-      {
-        id: 'ja-4',
-        chunk: "気にしないで (Ki ni shinaide)",
-        literalOrNuance: "Não esquenta com isso / relaxa",
-        meaning: "Maneira calorosa e suave de dizer 'não foi nada' para alguém que se desculpou.",
-        context: "Informal e acolhedor",
-        pronunciationHint: "ki ni shi-nai-de"
-      }
-    ]
-  }
-};
 
 export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
   onOpenStudyTab,
@@ -163,49 +39,25 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [addedFlashcardId, setAddedFlashcardId] = useState<string | null>(null);
 
-  const handleSendChunkToFlashcard = (item: ChunkItem) => {
-    const card = chunkItemToFlashcard(item, selectedLang);
-    addFlashcardsToDeck([card]);
-    setAddedFlashcardId(item.id);
-    window.setTimeout(() => {
-      setAddedFlashcardId((prev) => (prev === item.id ? null : prev));
-    }, 2000);
-  };
-
-  // Estado de Chunks Customizados persistidos no Backend
   const [customChunks, setCustomChunks] = useState<ChunkItem[]>([]);
   const [isLoadingBackend, setIsLoadingBackend] = useState(false);
 
-  // Cache and neural synthesis state (IndexedDB + WAV Blob URL lifecycle)
   const [cachedChunkIds, setCachedChunkIds] = useState<Set<string>>(new Set());
   const [loadingNeuralId, setLoadingNeuralId] = useState<string | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const activeBlobUrlRef = useRef<string | null>(null);
 
-  // Modal de Ingestão / Geração por IA
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   const loopTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Identificador de Sessão Ativa (Sincronizado em tempo real com Login/Logout Google)
   const [userId, setUserId] = useState<string>(() => getActiveSession().uid);
 
   useEffect(() => {
-    const unsub = subscribeAuthChanges((nextSession) => {
-      setUserId(nextSession.uid);
-    });
-    return unsub;
+    return subscribeAuthChanges((nextSession) => setUserId(nextSession.uid));
   }, []);
-
-  // Idiomas disponíveis com códigos técnicos e identificadores
-  const languages: { code: TargetLang; label: string; flag: string }[] = [
-    { code: 'en-US', label: 'Inglês', flag: 'EN' },
-    { code: 'it-IT', label: 'Italiano', flag: 'IT' },
-    { code: 'ja-JP', label: 'Japonês', flag: 'JA' },
-  ];
 
   const stopAndRevokeChunkAudio = useCallback(() => {
     if (audioPlayerRef.current) {
@@ -218,7 +70,6 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
     }
   }, []);
 
-  // Stop speech/audio playback on language change or unmount
   useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel();
@@ -227,19 +78,15 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
     };
   }, [selectedLang, stopAndRevokeChunkAudio]);
 
-  // Modern Web Guidance: Pré-carregamento assíncrono de vozes do sintetizador
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.getVoices();
-      const onVoicesChanged = () => {
-        window.speechSynthesis.getVoices();
-      };
+      const onVoicesChanged = () => window.speechSynthesis.getVoices();
       window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
       return () => window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
     }
   }, []);
 
-  // Modern Web Guidance: Pausa segura de áudio e loop drill quando a aba fica em segundo plano
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -253,19 +100,15 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Modern Web Guidance: Tecla Escape para fechamento acessível de modal
   useEffect(() => {
     if (!isModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsModalOpen(false);
-      }
+      if (e.key === 'Escape') setIsModalOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isModalOpen]);
 
-  // Carregar chunks do backend para o usuário atual
   const fetchUserChunks = useCallback(async () => {
     try {
       setIsLoadingBackend(true);
@@ -279,10 +122,18 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
   }, [selectedLang, userId]);
 
   useEffect(() => {
-    fetchUserChunks();
+    void fetchUserChunks();
   }, [fetchUserChunks]);
 
-  // Função central de reprodução de voz via Web Speech API nativa (sem necessidade de API key)
+  const handleSendChunkToFlashcard = (item: ChunkItem) => {
+    const card = chunkItemToFlashcard(item, selectedLang);
+    addFlashcardsToDeck([card]);
+    setAddedFlashcardId(item.id);
+    window.setTimeout(() => {
+      setAddedFlashcardId((prev) => (prev === item.id ? null : prev));
+    }, 2000);
+  };
+
   const speakChunk = (text: string, id: string, onEndCallback?: () => void): void => {
     if (!('speechSynthesis' in window)) {
       setGenerateError('Seu navegador não suporta síntese de voz nativa.');
@@ -290,10 +141,7 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
     }
 
     window.speechSynthesis.cancel();
-
-    // Remove parênteses com romanização (ex: em japonês) para tocar apenas o idioma nativo limpo
     const cleanText = text.replace(/\(.*?\)/g, '').trim();
-
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = selectedLang;
     utterance.rate = playbackRate;
@@ -305,7 +153,6 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
       setSpeakingId(null);
       if (onEndCallback) onEndCallback();
     };
-
     utterance.onerror = () => {
       setSpeakingId(null);
       if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
@@ -315,47 +162,38 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
-  // Reproduz áudio WAV a partir do Base64 com ciclo de vida seguro de memória
-  const playAudioBase64 = useCallback(async (base64Audio: string, id: string): Promise<void> => {
-    stopAndRevokeChunkAudio();
-    const blobUrl = base64ToBlobUrl(base64Audio, 'audio/wav');
-    activeBlobUrlRef.current = blobUrl;
-    const audio = new Audio(blobUrl);
-    audio.preservesPitch = true;
-    audio.playbackRate = playbackRate;
-    audioPlayerRef.current = audio;
-    setSpeakingId(id);
+  const playAudioBase64 = useCallback(
+    async (base64Audio: string, id: string): Promise<void> => {
+      stopAndRevokeChunkAudio();
+      const blobUrl = base64ToBlobUrl(base64Audio, 'audio/wav');
+      activeBlobUrlRef.current = blobUrl;
+      const audio = new Audio(blobUrl);
+      audio.preservesPitch = true;
+      audio.playbackRate = playbackRate;
+      audioPlayerRef.current = audio;
+      setSpeakingId(id);
 
-    const releaseCurrentBlob = () => {
-      setSpeakingId(null);
-      revokeAudioUrl(blobUrl);
-      if (activeBlobUrlRef.current === blobUrl) {
-        activeBlobUrlRef.current = null;
-      }
-      if (audioPlayerRef.current === audio) {
-        audioPlayerRef.current = null;
-      }
-    };
+      const releaseCurrentBlob = () => {
+        setSpeakingId(null);
+        revokeAudioUrl(blobUrl);
+        if (activeBlobUrlRef.current === blobUrl) activeBlobUrlRef.current = null;
+        if (audioPlayerRef.current === audio) audioPlayerRef.current = null;
+      };
 
-    audio.onended = releaseCurrentBlob;
-    audio.onerror = releaseCurrentBlob;
+      audio.onended = releaseCurrentBlob;
+      audio.onerror = releaseCurrentBlob;
+      await audio.play();
+    },
+    [playbackRate, stopAndRevokeChunkAudio]
+  );
 
-    await audio.play();
-  }, [playbackRate, stopAndRevokeChunkAudio]);
-
-  // Reprodução de Áudio Ultra-Realista via Gemini 3.8 Flash TTS (Director's Chair) com Cache Local (0ms)
   const speakNeuralChunk = async (text: string, id: string): Promise<void> => {
     window.speechSynthesis?.cancel();
     stopAndRevokeChunkAudio();
 
-    const cacheKey = generateAudioCacheKey({
-      type: 'chunk',
-      text,
-      language: selectedLang,
-    });
+    const cacheKey = generateAudioCacheKey({ type: 'chunk', text, language: selectedLang });
 
     try {
-      // 1. Tenta recuperar do cache local persistente (IndexedDB / L1) com latência 0ms
       const cached = await getCachedAudio(cacheKey);
       if (cached && cached.audioBase64) {
         setCachedChunkIds((prev) => new Set(prev).add(id));
@@ -363,7 +201,6 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
         return;
       }
 
-      // 2. Não está em cache: exibe loading e executa síntese via Cache-Aside
       setLoadingNeuralId(id);
       const res = await synthesizeWithCache({
         endpoint: '/api/synthesize-chunk',
@@ -376,7 +213,6 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
         setCachedChunkIds((prev) => new Set(prev).add(id));
         await playAudioBase64(res.audioBase64, id);
       } else {
-        // Fallback gracioso para Web Speech
         speakChunk(text, id);
       }
     } catch (err: unknown) {
@@ -387,7 +223,6 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
     }
   };
 
-  // Alterna o modo Drill (looping contínuo com pausa de 1.8s para shadowing)
   const toggleLoopDrill = (chunkText: string, id: string): void => {
     if (loopDrillId === id) {
       if (loopTimerRef.current) clearTimeout(loopTimerRef.current);
@@ -402,35 +237,28 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
 
     const runLoop = (): void => {
       speakChunk(chunkText, id, () => {
-        loopTimerRef.current = setTimeout(() => {
-          runLoop();
-        }, 1800);
+        loopTimerRef.current = setTimeout(() => runLoop(), 1800);
       });
     };
 
     runLoop();
   };
 
-  // Copia o chunk para a área de transferência
   const handleCopy = (text: string, id: string): void => {
     navigator.clipboard.writeText(text).catch((e) => console.warn('Clipboard indisponível:', e));
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1800);
   };
 
-  // Excluir chunk customizado
   const handleDeleteCustomChunk = async (id: string): Promise<void> => {
     try {
       const ok = await requestDeleteUserChunk(id, userId);
-      if (ok) {
-        setCustomChunks((prev) => prev.filter((c) => c.id !== id));
-      }
+      if (ok) setCustomChunks((prev) => prev.filter((c) => c.id !== id));
     } catch (err: unknown) {
       console.error('Erro ao deletar chunk:', err);
     }
   };
 
-  // Gerar Chunks via Gemini 3.8 Flash
   const handleGenerateChunks = async (): Promise<void> => {
     if (!inputText.trim()) return;
     setIsGenerating(true);
@@ -459,22 +287,24 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
     }
   };
 
-  // Combina presets estáticos com os chunks customizados do usuário
   const allCurrentChunks = useMemo(() => {
     const presets = CHUNK_PRESETS[selectedLang]?.geral || [];
-    // Filtrar customChunks do usuário pelo contexto ou garantir presença
     return [...customChunks, ...presets];
   }, [selectedLang, customChunks]);
 
-  // Filtra chunks pelo termo digitado
-  const filteredChunks = allCurrentChunks.filter((item) => 
-    item.chunk.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.literalOrNuance.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.meaning.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.pronunciationHint && item.pronunciationHint.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredChunks = useMemo(
+    () =>
+      allCurrentChunks.filter(
+        (item) =>
+          item.chunk.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.literalOrNuance.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.meaning.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (item.pronunciationHint &&
+            item.pronunciationHint.toLowerCase().includes(searchTerm.toLowerCase()))
+      ),
+    [allCurrentChunks, searchTerm]
   );
 
-  // Sincroniza em lote os IDs dos chunks que já possuem áudio gravado no cache local
   useEffect(() => {
     let isSubscribed = true;
     const keys = filteredChunks.map((c) =>
@@ -486,9 +316,7 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
       const ids = new Set<string>();
       filteredChunks.forEach((c) => {
         const k = generateAudioCacheKey({ type: 'chunk', text: c.chunk, language: selectedLang });
-        if (cachedKeys.has(k)) {
-          ids.add(c.id);
-        }
+        if (cachedKeys.has(k)) ids.add(c.id);
       });
       setCachedChunkIds(ids);
     });
@@ -500,8 +328,7 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
 
   return (
     <div className="flex-1 flex flex-col font-sans pb-24 selection:bg-amber-500/20">
-      
-      {/* 1. Header Focado e Rápido (Alinhado à Régua Canônica max-w-[1440px]) */}
+      {/* 1. Header Focado e Rápido */}
       <header className="lg:sticky lg:top-0 z-20 dock-matte border-b border-[var(--border-subtle)] px-3 sm:px-6 lg:px-8 py-3">
         <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -524,7 +351,7 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
               <button
                 type="button"
                 onClick={onOpenPolyglotTab}
-                className="min-h-[40px] px-3 py-1.5 rounded-xl btn-matte-dark border border-[var(--border-subtle)] text-xs font-semibold text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer"
+                className="min-h-11 px-3 py-1.5 rounded-xl btn-matte-dark border border-[var(--border-subtle)] text-xs font-semibold text-secondary hover:text-primary flex items-center gap-1.5 cursor-pointer"
               >
                 <GoogleIcon name="translate" size={15} className="text-amber-400" />
                 <span className="hidden sm:inline">Chat Poliglota</span>
@@ -534,7 +361,7 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
               <button
                 type="button"
                 onClick={onOpenStudyTab}
-                className="min-h-[40px] px-3 py-1.5 rounded-xl btn-matte-dark border border-[var(--border-subtle)] text-xs font-semibold text-primary flex items-center gap-1.5 cursor-pointer"
+                className="min-h-11 px-3 py-1.5 rounded-xl btn-matte-dark border border-[var(--border-subtle)] text-xs font-semibold text-primary flex items-center gap-1.5 cursor-pointer"
               >
                 <GoogleIcon name="school" size={15} className="text-amber-400" />
                 <span>Área de Estudo</span>
@@ -544,14 +371,13 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
               </button>
             )}
 
-            {/* Seletor Rápido de Velocidade da Fala */}
-            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-0.5">
+            <div className="flex items-center bg-slate-900 border border-[var(--border-subtle)] rounded-xl p-0.5">
               {[0.8, 1.0, 1.25].map((rate) => (
                 <button
                   key={rate}
                   type="button"
                   onClick={() => setPlaybackRate(rate)}
-                  className={`min-h-[40px] px-2.5 rounded-lg text-xs font-mono tabular-nums font-semibold transition-all cursor-pointer ${
+                  className={`min-h-11 px-2.5 rounded-lg text-xs font-mono tabular-nums font-semibold transition-all cursor-pointer ${
                     playbackRate === rate
                       ? 'bg-amber-400 text-slate-950 shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
@@ -568,11 +394,9 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
 
       {/* 2. Conteúdo Central em Régua Canônica 1440px */}
       <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 flex-1 flex flex-col gap-5">
-        
-        {/* Barra de Controles em 12 Colunas (Idiomas + Busca + Gerador Gemini) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
           <div className="lg:col-span-4 grid grid-cols-3 gap-2">
-            {languages.map((lang) => {
+            {CHUNK_LANGUAGES.map((lang) => {
               const isSelected = selectedLang === lang.code;
               return (
                 <button
@@ -583,13 +407,13 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
                     setLoopDrillId(null);
                     window.speechSynthesis?.cancel();
                   }}
-                  className={`min-h-[44px] flex items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
+                  className={`min-h-11 flex items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
                     isSelected
                       ? 'border-amber-400/60 bg-amber-400/10 text-amber-200 shadow-sm shadow-amber-500/10'
-                      : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                      : 'border-[var(--border-subtle)] bg-slate-900/60 text-slate-400 hover:border-[var(--border-control)] hover:text-slate-200'
                   }`}
                 >
-                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-950/60 border border-white/10">
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-950/60 border border-[var(--border-subtle)]">
                     {lang.flag}
                   </span>
                   <span>{lang.label}</span>
@@ -605,7 +429,7 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por situação (ex: topo, relaxa, resumindo)..."
               aria-label="Buscar chunk por situação ou expressão"
-              className="min-h-[44px] w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 pl-10 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-400/70 focus:outline-none transition-colors"
+              className="min-h-11 w-full rounded-xl border border-[var(--border-control)] bg-slate-900/80 px-4 pl-10 text-sm text-slate-100 placeholder-slate-500 focus:border-amber-400/70 focus:outline-none transition-colors"
             />
             <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -614,7 +438,7 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="min-h-[44px] w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs px-4 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
+              className="min-h-11 w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs px-4 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 active:translate-y-px transition-all cursor-pointer"
             >
               <Sparkles className="w-4 h-4 shrink-0" />
               <span>Extrair ou Criar Chunks IA</span>
@@ -622,7 +446,6 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
           </div>
         </div>
 
-        {/* Status de Sincronização */}
         {isLoadingBackend && (
           <div className="flex items-center justify-center gap-2 text-xs text-amber-400/80 py-1">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -630,22 +453,26 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
           </div>
         )}
 
-        {/* Banner de Erro Reativo na Tela Principal (quando o modal está fechado) */}
         {generateError && !isModalOpen && (
           <div className="flex items-center justify-between gap-2 text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 px-3.5 py-2.5 rounded-xl">
             <span>{generateError}</span>
             <button
               type="button"
               onClick={() => setGenerateError(null)}
-              className="text-rose-400 hover:text-white font-mono text-[11px] cursor-pointer"
+              className="min-h-11 px-2 text-rose-400 hover:text-white font-mono text-[11px] cursor-pointer"
             >
               dispensar
             </button>
           </div>
         )}
 
-        {/* Grade Bento de Cartões de Chunks */}
-        <div className={filteredChunks.length === 0 ? 'flex flex-col' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch'}>
+        <div
+          className={
+            filteredChunks.length === 0
+              ? 'flex flex-col'
+              : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch'
+          }
+        >
           {filteredChunks.length === 0 ? (
             <div className="card-outlined border border-[var(--border-subtle)] text-center py-12 rounded-2xl p-6 max-w-xl mx-auto w-full">
               <BookOpen className="w-8 h-8 text-slate-500 mx-auto mb-2" />
@@ -653,264 +480,43 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="mt-3 min-h-[40px] px-4 py-1.5 rounded-xl btn-matte-amber text-white text-xs font-bold cursor-pointer"
+                className="mt-3 min-h-11 px-4 py-1.5 rounded-xl btn-matte-amber text-white text-xs font-bold cursor-pointer"
               >
                 Criar novo chunk com IA agora
               </button>
             </div>
           ) : (
-            filteredChunks.map((item) => {
-              const isSpeaking = speakingId === item.id;
-              const isDrilling = loopDrillId === item.id;
-
-              return (
-                <article
-                  key={item.id}
-                  className={`relative rounded-2xl border p-4 transition-all duration-200 flex flex-col justify-between gap-3 ${
-                    isDrilling
-                      ? 'border-amber-400/70 bg-gradient-to-b from-amber-500/10 to-slate-900/90 shadow-lg shadow-amber-500/10'
-                      : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700/80'
-                  }`}
-                >
-                  <div>
-                    {/* Cabeçalho do Card: Contexto, Tag de Custom, Badge de Cache e Botão Copiar */}
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800">
-                          {item.context}
-                        </span>
-                        {cachedChunkIds.has(item.id) && (
-                          <span
-                            className="text-[9px] font-mono tabular-nums font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded border border-emerald-400/25 flex items-center gap-0.5"
-                            title="Áudio persistido no cache local IndexedDB (0ms de latência)"
-                          >
-                            <span>CACHE 0ms</span>
-                          </span>
-                        )}
-                        {item.isCustom && (
-                          <span className="text-[9px] font-mono text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
-                            Salvo na Nuvem
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleSendChunkToFlashcard(item)}
-                          className={`min-h-[32px] px-2 py-0.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                            addedFlashcardId === item.id
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                              : 'bg-slate-950 hover:bg-amber-500/15 text-amber-300 border-slate-800 hover:border-amber-500/35'
-                          }`}
-                          title="Enviar este bloco para a Área de Estudo (Flashcards Deck)"
-                        >
-                          <BookOpen className="w-3 h-3" />
-                          <span>{addedFlashcardId === item.id ? 'No Baralho!' : '+ Flashcard'}</span>
-                        </button>
-                        {item.isCustom && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCustomChunk(item.id)}
-                            className="text-slate-500 hover:text-rose-400 transition-colors p-1.5 cursor-pointer"
-                            title="Remover chunk salvo"
-                            aria-label="Remover chunk salvo"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(item.chunk, item.id)}
-                          className="text-slate-500 hover:text-slate-300 transition-colors p-1.5 cursor-pointer"
-                          aria-label="Copiar chunk"
-                          title="Copiar texto"
-                        >
-                          {copiedId === item.id ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Frase / Expressão Nativa em Destaque */}
-                    <h2 className="text-lg font-bold text-slate-100 tracking-tight leading-snug mb-1">
-                      {item.chunk}
-                    </h2>
-
-                    {/* Guia Fonético */}
-                    {item.pronunciationHint && (
-                      <p className="text-xs font-mono text-amber-400/80 mb-2 flex items-center gap-1.5">
-                        <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span>/{item.pronunciationHint}/</span>
-                      </p>
-                    )}
-
-                    {/* Equivalência da Vida Real & Explicação */}
-                    <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800/60 space-y-1">
-                      <p className="text-xs font-bold text-emerald-300">
-                        → {item.literalOrNuance}
-                      </p>
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        {item.meaning}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Barra de Ação de Áudio com suporte a Voz Neural Ultra-Realista */}
-                  <div className="grid grid-cols-12 gap-2">
-                    {/* Voz Neural Gemini (Director's Chair TTS) */}
-                    <button
-                      type="button"
-                      disabled={loadingNeuralId === item.id}
-                      onClick={() => speakNeuralChunk(item.chunk, item.id)}
-                      title="Ouvir com voz neural hiper-realista do Gemini (respiração e tom natural)"
-                      className={`col-span-6 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl active:translate-y-px transition-all text-xs font-bold cursor-pointer border shadow-sm ${
-                        cachedChunkIds.has(item.id)
-                          ? 'bg-gradient-to-r from-emerald-500/15 to-amber-500/15 hover:from-emerald-500/25 hover:to-amber-500/25 text-emerald-300 border-emerald-500/40'
-                          : 'bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 text-amber-300 border-amber-500/40'
-                      }`}
-                    >
-                      {loadingNeuralId === item.id ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Sintetizando...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className={`w-3.5 h-3.5 ${cachedChunkIds.has(item.id) ? 'text-emerald-400' : 'text-amber-400'}`} />
-                          <span>
-                            {isSpeaking ? 'Tocando...' : cachedChunkIds.has(item.id) ? 'Neural (0ms)' : 'Voz Neural IA'}
-                          </span>
-                        </>
-                      )}
-                    </button>
-
-                    {/* Ouvir Web Speech Nativo Rápido */}
-                    <button
-                      type="button"
-                      onClick={() => speakChunk(item.chunk, item.id)}
-                      title="Síntese rápida local do navegador"
-                      className="col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 active:translate-y-px transition-all text-xs font-semibold cursor-pointer border border-slate-700/60"
-                    >
-                      <Volume2 className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Nativo</span>
-                    </button>
-
-                    {/* Modo Drill Repetição (Shadowing) */}
-                    <button
-                      type="button"
-                      onClick={() => toggleLoopDrill(item.chunk, item.id)}
-                      title="Repetição contínua para treinar fala"
-                      className={`col-span-3 min-h-[44px] flex items-center justify-center gap-1 rounded-xl border text-xs font-semibold transition-all active:translate-y-px cursor-pointer ${
-                        isDrilling
-                          ? 'border-amber-400 bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20'
-                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                      }`}
-                    >
-                      {isDrilling ? (
-                        <>
-                          <Pause className="w-3.5 h-3.5 fill-current" />
-                          <span>Parar</span>
-                        </>
-                      ) : (
-                        <>
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Drill</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </article>
-              );
-            })
+            filteredChunks.map((item) => (
+              <ChunkCard
+                key={item.id}
+                item={item}
+                isSpeaking={speakingId === item.id}
+                isDrilling={loopDrillId === item.id}
+                isCached={cachedChunkIds.has(item.id)}
+                isLoadingNeural={loadingNeuralId === item.id}
+                isCopied={copiedId === item.id}
+                isAddedFlashcard={addedFlashcardId === item.id}
+                onSendToFlashcard={handleSendChunkToFlashcard}
+                onDeleteCustomChunk={(id) => void handleDeleteCustomChunk(id)}
+                onCopy={handleCopy}
+                onSpeakNeural={(text, id) => void speakNeuralChunk(text, id)}
+                onSpeakNative={speakChunk}
+                onToggleLoopDrill={toggleLoopDrill}
+              />
+            ))
           )}
         </div>
       </div>
 
-      {/* Modal / Gaveta de Ingestão com Gemini (Modern Web: Light-Dismiss e ARIA) */}
-      {isModalOpen && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setIsModalOpen(false);
-            }
-          }}
-          className="fixed inset-0 z-50 bg-slate-950/80 flex items-end sm:items-center justify-center p-0 sm:p-4"
-          role="presentation"
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="generator-modal-title"
-            className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom-6"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-400" />
-                <h3 id="generator-modal-title" className="text-sm font-bold text-slate-100">
-                  Gerador de Chunks de Bolso (Gemini 3.8)
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
-                aria-label="Fechar modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-400">
-              Cole uma intenção informal (ex: <em>"como pedir desculpas sem parecer muito formal"</em>) ou cole um trecho de notícia/podcast para extrair os chunks mais coloquiais.
-            </p>
-
-            <textarea
-              autoFocus
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Digite uma situação ou cole o parágrafo..."
-              rows={4}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
-            />
-
-            {generateError && (
-              <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2 rounded-lg">
-                {generateError}
-              </p>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="flex-1 min-h-[44px] rounded-xl border border-slate-800 text-xs font-semibold text-slate-400 hover:text-slate-200"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={isGenerating || !inputText.trim()}
-                onClick={handleGenerateChunks}
-                className="flex-1 min-h-[44px] rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-950 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Extraindo...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 fill-current" />
-                    <span>Gerar 3 Chunks</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ChunkGeneratorModal
+        isOpen={isModalOpen}
+        inputText={inputText}
+        isGenerating={isGenerating}
+        generateError={generateError}
+        onChangeInputText={setInputText}
+        onClose={() => setIsModalOpen(false)}
+        onGenerate={() => void handleGenerateChunks()}
+      />
     </div>
   );
 };

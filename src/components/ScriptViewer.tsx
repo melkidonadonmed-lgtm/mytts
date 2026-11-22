@@ -159,7 +159,7 @@ export const ScriptViewer: React.FC<ScriptViewerProps> = ({
                   {/* Speaker Monogram Avatar */}
                   <div
                     className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold text-slate-950 shrink-0 shadow-sm"
-                    style={{ backgroundColor: speakerInfo.color || '#38bdf8' }}
+                    style={{ backgroundColor: speakerInfo.color || 'var(--accent-point)' }}
                   >
                     {speakerInfo.name.charAt(0)}
                   </div>

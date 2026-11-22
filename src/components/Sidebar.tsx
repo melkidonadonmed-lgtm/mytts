@@ -152,10 +152,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? 'Expandir barra lateral (Ctrl + B)'
                   : 'Recolher barra lateral (Ctrl + B)'
               }
-              className={`rail-tooltip-host hidden lg:flex items-center justify-center rounded-xl text-secondary hover:text-primary transition-colors cursor-pointer shrink-0 ${
+              className={`rail-tooltip-host hidden lg:flex items-center justify-center min-h-11 min-w-11 w-11 h-11 rounded-xl text-secondary hover:text-primary transition-colors cursor-pointer shrink-0 ${
                 effectiveCollapsed
-                  ? 'w-10 h-10 btn-matte-dark'
-                  : 'p-1.5 hover:bg-white/[0.06]'
+                  ? 'btn-matte-dark'
+                  : 'hover:bg-white/[0.06]'
               }`}
             >
               <GoogleIcon
@@ -171,7 +171,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={onToggleMobile}
-            className="btn-compact-touch p-1.5 rounded-lg text-secondary hover:text-primary lg:hidden cursor-pointer shrink-0"
+            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-secondary hover:text-primary lg:hidden cursor-pointer shrink-0"
             aria-label="Fechar navegação"
           >
             <GoogleIcon name="close" size={18} />
@@ -188,7 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           {/* 1. Módulos de Navegação Principal Organizados por Grupo */}
           <nav
-            aria-label="Navegação principal"
+            aria-label="Principal"
             className={effectiveCollapsed ? 'w-full flex flex-col items-center space-y-2' : 'space-y-3'}
           >
             {navGroups.map((group) => (
@@ -257,7 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         type="button"
                         aria-current={isActive ? 'page' : undefined}
                         onClick={() => navigateTo(item.id)}
-                        className={`btn-matte w-full flex items-start gap-2 p-2 rounded-xl text-left transition-colors overflow-hidden ${
+                        className={`btn-matte min-h-11 w-full flex items-start gap-2 p-2 rounded-xl text-left transition-colors overflow-hidden ${
                           isActive
                             ? 'card-matte-active'
                             : 'text-secondary hover:text-primary hover:bg-white/[0.04] border border-transparent'
@@ -321,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 type="button"
                                 aria-current={isSubActive ? 'page' : undefined}
                                 onClick={() => navigateTo(item.id, sub.id)}
-                                className={`min-h-[36px] w-full px-2.5 py-1 rounded-lg text-xs flex items-center justify-between gap-1.5 transition-colors cursor-pointer ${
+                                className={`min-h-11 w-full px-2.5 py-1 rounded-lg text-xs flex items-center justify-between gap-1.5 transition-colors cursor-pointer ${
                                   isSubActive
                                     ? 'bg-amber-500/15 text-amber-300 border border-amber-500/35 font-bold'
                                     : 'text-secondary hover:text-primary hover:bg-white/[0.04] border border-transparent'
@@ -380,7 +380,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onOpenCommandPalette();
                     if (isOpenMobile) onToggleMobile();
                   }}
-                  className="min-h-[40px] w-full px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs transition-colors cursor-pointer overflow-hidden whitespace-nowrap"
+                  className="min-h-11 w-full px-3 py-2 rounded-xl btn-matte-dark flex items-center justify-between text-xs transition-colors cursor-pointer overflow-hidden whitespace-nowrap"
                 >
                   <div className="flex items-center gap-2">
                     <GoogleIcon name="search" size={15} className="text-amber-400" />
@@ -422,7 +422,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     if (isOpenMobile) onToggleMobile();
                   }}
                   aria-expanded={isHistoryOpen}
-                  className={`min-h-[40px] w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs transition-colors cursor-pointer overflow-hidden whitespace-nowrap border ${
+                  className={`min-h-11 w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs transition-colors cursor-pointer overflow-hidden whitespace-nowrap border ${
                     isHistoryOpen
                       ? 'card-matte-active text-amber-300 border-amber-500/35'
                       : 'btn-matte-dark text-secondary hover:text-primary border-transparent'

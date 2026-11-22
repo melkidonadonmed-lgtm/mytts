@@ -83,7 +83,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
             onClick={onSelectCard}
             aria-pressed={isSelected}
             title={`Selecionar coluna de ${languageTitle}`}
-            className="chunk-inline-btn flex items-center gap-2 min-w-0 text-left cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-amber-400"
+            className="chunk-inline-btn flex items-center gap-2 min-w-0 min-h-11 text-left cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-amber-400"
           >
             <span
               className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 select-none"
@@ -105,7 +105,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
                 type="button"
                 onClick={onDownloadCardWav}
                 title={`Baixar áudio WAV 24kHz deste card (${languageTitle} · ${cardVoice})`}
-                className="btn-compact-touch p-1.5 rounded-lg text-secondary hover:text-primary transition-colors cursor-pointer"
+                className="btn-compact-touch min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-secondary hover:text-primary transition-colors cursor-pointer"
               >
                 <GoogleIcon name="download" size={15} />
               </button>
@@ -115,7 +115,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
               type="button"
               onClick={handleCopyFull}
               title="Copiar texto completo deste idioma"
-              className="btn-compact-touch p-1.5 rounded-lg text-secondary hover:text-primary transition-colors cursor-pointer"
+              className="btn-compact-touch min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-secondary hover:text-primary transition-colors cursor-pointer"
             >
               {copiedFull ? (
                 <GoogleIcon name="check" size={15} className="text-emerald-400" />
@@ -129,7 +129,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
         {/* Linha 2: Seletor de Voz Neural Exclusivo do Card + Botão Ouvir/Pausar */}
         <div className="flex items-center justify-between gap-2">
           <label
-            className={`flex-1 min-w-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-xl border text-[11px] transition-all cursor-pointer ${
+            className={`flex-1 min-w-0 inline-flex items-center gap-1.5 min-h-11 px-2.5 rounded-xl border text-[11px] transition-all cursor-pointer ${
               isSelected
                 ? 'bg-amber-500/15 border-amber-400/50 text-primary font-bold'
                 : 'btn-matte-dark text-secondary hover:text-primary'
@@ -145,7 +145,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
               onChange={(e) => {
                 onChangeCardVoice(e.target.value);
               }}
-              className="w-full bg-transparent text-primary font-semibold text-[11px] focus:outline-none cursor-pointer truncate"
+              className="w-full min-h-11 bg-transparent text-primary font-semibold text-[11px] focus:outline-none cursor-pointer truncate"
             >
               {GEMINI_VOICES.map((v) => (
                 <option
@@ -167,7 +167,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
               }}
               disabled={isLoadingCard}
               title={isPlayingCard ? `Pausar ${languageTitle}` : `Ouvir ${languageTitle} com voz ${cardVoice}`}
-              className={`btn-compact-touch h-10 min-h-[40px] min-w-[40px] px-3.5 rounded-xl text-[11px] font-bold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 btn-anti-squish ${
+              className={`btn-compact-touch min-h-11 min-w-11 px-3.5 rounded-xl text-[11px] font-bold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 btn-anti-squish ${
                 isPlayingCard
                   ? 'btn-matte-amber text-white shadow-sm'
                   : 'btn-matte-dark text-secondary hover:text-primary'
@@ -212,7 +212,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
                   onClickChunk(chunkText, getLanguageTag(languageCode), e);
                 }}
                 title="Clique para ouvir esta frase ou criar flashcard"
-                className={`chunk-inline-btn text-left inline-block cursor-pointer rounded-xl px-2 py-1 transition-all duration-150 relative ${
+                className={`chunk-inline-btn text-left inline-flex flex-col justify-center min-h-11 cursor-pointer rounded-xl px-2 py-1 transition-all duration-150 relative ${
                   isHovered
                     ? 'bg-amber-400/25 text-primary font-semibold ring-1 ring-amber-400/70 shadow-sm -translate-y-[1px]'
                     : 'text-primary font-medium hover:bg-white/10'
@@ -234,7 +234,7 @@ export const LanguageColumnCard: React.FC<LanguageColumnCardProps> = ({
           <button
             type="button"
             onClick={onSelectCard}
-            className="btn-compact-touch flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors"
+            className="btn-compact-touch min-h-11 flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors"
           >
             <span
               className={`w-2 h-2 rounded-full transition-transform duration-200 ${
