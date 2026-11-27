@@ -9,8 +9,8 @@ import type { GoogleUserSession } from '../types/polyglot';
 import { sanitizeUserId, USER_ID_PATTERN } from './audioContainer';
 
 export const SESSION_COOKIE_NAME = 'mytts_session';
-export const SESSION_MAX_AGE_SEC = 7 * 24 * 60 * 60;
-export const GOOGLE_AUTH_REQUIRED_ERROR = 'Sessão Google autenticada obrigatória.';
+const SESSION_MAX_AGE_SEC = 7 * 24 * 60 * 60;
+const GOOGLE_AUTH_REQUIRED_ERROR = 'Sessão Google autenticada obrigatória.';
 
 const EPHEMERAL_DEV_SECRET = randomBytes(32).toString('hex');
 const ALLOWED_GUEST_PATTERN = /^(usr_[a-zA-Z0-9_-]{1,60}|guest_[a-zA-Z0-9_-]{1,58}|anonymous-user)$/;
@@ -170,7 +170,7 @@ export function verifySessionToken(token: string | undefined): GoogleUserSession
   }
 }
 
-export function parseCookieHeader(cookieHeader: string | undefined): Record<string, string> {
+function parseCookieHeader(cookieHeader: string | undefined): Record<string, string> {
   if (!cookieHeader) return {};
   const result: Record<string, string> = {};
   for (const part of cookieHeader.split(';')) {
@@ -205,6 +205,101 @@ export function clearSessionCookie(res: Response): void {
   const secureFlag = isProd ? '; Secure' : '';
   const cookieValue = `${SESSION_COOKIE_NAME}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secureFlag}`;
   res.append('Set-Cookie', cookieValue);
+}
+
+export interface LiveTicketPayload {
+  uid: string;
+  isAuthenticated: boolean;
+  nonce: string;
+  iat: number;
+  exp: number;
+}
+
+const consumedLiveTickets = new Map<string, number>();
+
+function pruneExpiredTickets(nowMs: number): void {
+  if (consumedLiveTickets.size < 250) return;
+  for (const [nonce, expMs] of consumedLiveTickets.entries()) {
+    if (expMs <= nowMs) {
+      consumedLiveTickets.delete(nonce);
+    }
+  }
+}
+
+export function signLiveTicket(
+  userId: string,
+  isAuthenticated: boolean,
+  ttlSeconds: number = 60
+): string {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const payload: LiveTicketPayload = {
+    uid: sanitizeUserId(userId),
+    isAuthenticated,
+    nonce: randomBytes(12).toString('hex'),
+    iat: nowSec,
+    exp: nowSec + Math.max(10, Math.min(300, Math.floor(ttlSeconds))),
+  };
+  const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf-8').toString('base64url');
+  const signature = createHmac('sha256', getSessionSecret())
+    .update(`live:${encodedPayload}`)
+    .digest('base64url');
+  return `${encodedPayload}.${signature}`;
+}
+
+export function verifyLiveTicket(
+  ticket: string | undefined
+): { ok: true; userId: string; isAuthenticated: boolean } | { ok: false; error: string } {
+  if (!ticket || typeof ticket !== 'string') {
+    return { ok: false, error: 'Ticket Live ausente.' };
+  }
+  const parts = ticket.split('.');
+  if (parts.length !== 2) {
+    return { ok: false, error: 'Ticket Live malformado.' };
+  }
+  const [encodedPayload, providedSig] = parts;
+  if (!encodedPayload || !providedSig) {
+    return { ok: false, error: 'Ticket Live inválido.' };
+  }
+
+  const expectedSig = createHmac('sha256', getSessionSecret())
+    .update(`live:${encodedPayload}`)
+    .digest('base64url');
+  const providedBuf = Buffer.from(providedSig, 'utf-8');
+  const expectedBuf = Buffer.from(expectedSig, 'utf-8');
+  if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
+    return { ok: false, error: 'Assinatura do ticket Live inválida.' };
+  }
+
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(encodedPayload, 'base64url').toString('utf-8')
+    ) as Partial<LiveTicketPayload>;
+    const nowMs = Date.now();
+    if (
+      typeof parsed.uid !== 'string' ||
+      !USER_ID_PATTERN.test(parsed.uid) ||
+      typeof parsed.nonce !== 'string' ||
+      !parsed.nonce ||
+      typeof parsed.exp !== 'number' ||
+      parsed.exp * 1000 <= nowMs
+    ) {
+      return { ok: false, error: 'Ticket Live expirado ou inválido.' };
+    }
+
+    pruneExpiredTickets(nowMs);
+    if (consumedLiveTickets.has(parsed.nonce)) {
+      return { ok: false, error: 'Ticket Live já utilizado (uso único).' };
+    }
+    consumedLiveTickets.set(parsed.nonce, parsed.exp * 1000);
+
+    return {
+      ok: true,
+      userId: parsed.uid,
+      isAuthenticated: Boolean(parsed.isAuthenticated),
+    };
+  } catch {
+    return { ok: false, error: 'Payload do ticket Live corrompido.' };
+  }
 }
 
 export function resolveRequestUserId(req: Pick<Request, 'headers'>): ResolvedUserResult {

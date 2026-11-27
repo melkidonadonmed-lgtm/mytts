@@ -8,20 +8,18 @@ import type { StudioRenderMode } from '../types/debate';
 import { VoiceProfile, GEMINI_VOICES } from '../types/voices';
 import { ParallelMessageBlock } from './ParallelMessageBlock';
 import { AgentInputDock } from './AgentInputDock';
-import { FlashcardDeckDrawer } from './FlashcardDeckDrawer';
 import { ExportInteractionModal } from './ExportInteractionModal';
 import { GoogleIcon } from './GoogleIcon';
 import {
   readFlashcardDeck,
   subscribeFlashcardDeck,
   addFlashcardsToDeck,
-  deleteFlashcardFromDeck,
-  clearFlashcardDeck,
   readDeckNamingPreference,
 } from '../services/flashcardDeckStorage';
 import { resolveOrganizedDeckName, toLocalCalendarDateKey } from '../utils/flashcardOrganizer';
 import {
   readFavoriteVoicesByLanguage,
+  readPreferredTargetLanguage,
   saveFavoriteVoicesByLanguage,
 } from '../services/polyglotClient';
 import { INITIAL_DEMO_MESSAGE, LangKey } from './polyglot/polyglotConstants';
@@ -55,14 +53,13 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 }) => {
   const [messages, setMessages] = useState<PolyglotMessage[]>([INITIAL_DEMO_MESSAGE]);
   const [deck, setDeck] = useState<FlashcardItem[]>(() => readFlashcardDeck());
-  const [isDeckDrawerOpen, setIsDeckDrawerOpen] = useState(false);
   const [exportingMessage, setExportingMessage] = useState<PolyglotMessage | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [focusedMessageId, setFocusedMessageId] = useState<string>('msg-demo-1');
-  const [selectedLanguageByMsg, setSelectedLanguageByMsg] = useState<Record<string, LangKey>>({
-    'msg-demo-1': 'en',
-  });
+  const [selectedLanguageByMsg, setSelectedLanguageByMsg] = useState<Record<string, LangKey>>(() => ({
+    'msg-demo-1': readPreferredTargetLanguage(),
+  }));
 
   const [defaultVoiceByLang, setDefaultVoiceByLang] = useState<Record<LangKey, string>>(() =>
     readFavoriteVoicesByLanguage()
@@ -205,8 +202,15 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
     void audio.handleTogglePlay(messageId, lang, undefined, voiceId);
   };
 
-  const currentFocusedLang = selectedLanguageByMsg[focusedMessageId] || 'en';
+  const currentFocusedLang = selectedLanguageByMsg[focusedMessageId] || readPreferredTargetLanguage();
   const currentFocusedVoice = getCardVoicesForMessage(focusedMessageId)[currentFocusedLang];
+  const recentLiveHistory = messages
+    .filter((m) => m.status === 'ready' && m.id !== 'msg-demo-1')
+    .slice(-4)
+    .map((m) => ({
+      role: 'user',
+      text: `${m.userPrompt}${m.agentReplyPtBr ? ` -> ${m.agentReplyPtBr}` : m.fullText.en ? ` -> ${m.fullText.en}` : ''}`,
+    }));
 
   return (
     <div className="flex-1 flex flex-col min-h-screen font-sans">
@@ -215,7 +219,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         defaultVoiceByLang={defaultVoiceByLang}
         deckCount={deck.length}
         onNewConversation={handleNewConversation}
-        onOpenStudy={() => (onOpenStudyTab ? onOpenStudyTab() : setIsDeckDrawerOpen(true))}
+        onOpenStudy={() => onOpenStudyTab?.()}
         onOpenVoicesConfigTab={onOpenVoicesConfigTab}
       />
 
@@ -232,7 +236,7 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         className="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 pb-6 sm:pb-12 flex flex-col gap-4 sm:gap-6"
       >
         {messages.map((message) => {
-          const selectedLang = selectedLanguageByMsg[message.id] || 'en';
+          const selectedLang = selectedLanguageByMsg[message.id] || readPreferredTargetLanguage();
           const cardVoices = getCardVoicesForMessage(message.id);
           const isThisBlockPlaying =
             audio.playingBlockInfo?.messageId === message.id && audio.isPlayingAudio;
@@ -276,6 +280,8 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
               sequenceStep={audio.sequenceStep}
               onOpenExport={(msg) => setExportingMessage({ ...msg, cardVoices })}
               onSendToCreationStudio={onSendToCreationStudio}
+              onRetryMessage={(msg) => void actions.handleRetryMessage(msg)}
+              onTranslateTurn={(textToTranslate) => void actions.handleSendMessage(textToTranslate, false)}
               onExecuteYoutubePostLinkAction={actions.handleExecuteYoutubePostLinkAction}
             />
           );
@@ -285,6 +291,9 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
 
       <AgentInputDock
         onSendMessage={actions.handleSendMessage}
+        onRecordLiveWsTurn={actions.handleRecordLiveWsTurn}
+        recentHistory={recentLiveHistory}
+        onApplyLiveToolCalls={(calls) => actions.handleApplyLiveToolCalls(calls)}
         onSendToCreationStudio={(typedText, renderMode) => {
           if (!onSendToCreationStudio) return;
           if (typedText) {
@@ -302,15 +311,6 @@ export const PolyglotChatStudio: React.FC<PolyglotChatStudioProps> = ({
         }}
         isLoading={actions.isLoading}
         activeVoiceName={currentFocusedVoice}
-      />
-
-      <FlashcardDeckDrawer
-        isOpen={isDeckDrawerOpen}
-        onClose={() => setIsDeckDrawerOpen(false)}
-        cards={deck}
-        onDeleteCard={(id) => deleteFlashcardFromDeck(id)}
-        onClearDeck={() => clearFlashcardDeck()}
-        onPlayCardAudio={audio.handlePlayChunkAudio}
       />
 
       <ExportInteractionModal

@@ -55,6 +55,41 @@ export const saveFavoriteVoicesByLanguage = (
   return clean;
 };
 
+export const PREFERRED_TARGET_LANG_KEY = 'mytts_preferred_target_lang';
+
+export function readPreferredTargetLanguage(): 'en' | 'it' | 'ja' {
+  const saved = readBrowserState(PREFERRED_TARGET_LANG_KEY);
+  return saved === 'it' || saved === 'ja' ? saved : 'en';
+}
+
+export function savePreferredTargetLanguage(lang: 'en' | 'it' | 'ja'): void {
+  persistBrowserState(PREFERRED_TARGET_LANG_KEY, lang);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('mytts-preferred-lang-changed', { detail: lang }));
+  }
+}
+
+const DEFAULT_AI_TIMEOUT_MS = 45_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = DEFAULT_AI_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Tempo limite da requisição excedido. Tente novamente.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function requestYoutubeMetadata(url: string): Promise<YoutubeVideoMetadata | null> {
   try {
     const resp = await fetch(`/api/youtube/metadata?url=${encodeURIComponent(url)}`, {
@@ -76,7 +111,7 @@ export async function requestTranslateParallelChunks(text: string): Promise<{
   fullText?: { en: string; it: string; ja: string };
   error?: string;
 }> {
-  const resp = await fetch('/api/translate-parallel-chunks', {
+  const resp = await fetchWithTimeout('/api/translate-parallel-chunks', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -104,7 +139,7 @@ export async function requestLiveAgentTurn(params: {
   warning?: string;
   error?: string;
 }> {
-  const resp = await fetch('/api/live-agent-turn', {
+  const resp = await fetchWithTimeout('/api/live-agent-turn', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -137,12 +172,16 @@ export async function requestAgentExplore(params: {
   warning?: string;
   error?: string;
 }> {
-  const resp = await fetch('/api/agent-explore', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-    body: JSON.stringify(params),
-  });
+  const resp = await fetchWithTimeout(
+    '/api/agent-explore',
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(params),
+    },
+    65_000
+  );
   return parseApiJson(resp);
 }
 
@@ -277,7 +316,7 @@ export async function requestGenerateFlashcard(
   if (options?.contextSentence) payload.contextSentence = options.contextSentence;
   if (options?.trilingual !== undefined) payload.trilingual = options.trilingual;
 
-  const resp = await fetch('/api/generate-flashcard', {
+  const resp = await fetchWithTimeout('/api/generate-flashcard', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -322,7 +361,7 @@ export async function requestGenerateChunks(payload: {
   count: number;
   userId: string;
 }): Promise<{ ok: boolean; success?: boolean; chunks?: ChunkItem[]; error?: string }> {
-  const res = await fetch('/api/generate-chunks', {
+  const res = await fetchWithTimeout('/api/generate-chunks', {
     method: 'POST',
     credentials: 'include',
     headers: {

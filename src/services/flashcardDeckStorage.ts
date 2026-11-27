@@ -361,7 +361,7 @@ function notifyDeckListeners(cards: FlashcardItem[], userId: string): void {
   deckListeners.forEach((fn) => fn(cards, userId));
 }
 
-export function saveFlashcardDeckLocal(cards: FlashcardItem[], userId?: string): FlashcardItem[] {
+function saveFlashcardDeckLocal(cards: FlashcardItem[], userId?: string): FlashcardItem[] {
   const uid = userId || getActiveSession().uid;
   const normalized = cards.map(normalizeFlashcard).slice(0, 500);
   persistBrowserState(getDeckStorageKey(uid), JSON.stringify(normalized));
@@ -403,6 +403,12 @@ export async function syncFlashcardDeckFromServer(userId?: string): Promise<Flas
   return localCards;
 }
 
+function buildFlashcardContentKey(card: Pick<FlashcardItem, 'front' | 'chunkText' | 'language'>): string {
+  const normalizedFront = (card.front || card.chunkText || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const langBadge = normalizeLanguageBadge(card.language);
+  return `${langBadge}::${normalizedFront}`;
+}
+
 export function addFlashcardsToDeck(
   incoming: FlashcardItem | FlashcardItem[],
   userId?: string
@@ -412,13 +418,34 @@ export function addFlashcardsToDeck(
   const incomingList = Array.isArray(incoming) ? incoming : [incoming];
 
   const byId = new Map<string, FlashcardItem>();
+  const idByContentKey = new Map<string, string>();
+  for (const existing of current) {
+    const normalizedExisting = normalizeFlashcard(existing);
+    byId.set(normalizedExisting.id, normalizedExisting);
+    idByContentKey.set(buildFlashcardContentKey(normalizedExisting), normalizedExisting.id);
+  }
+
   for (const card of incomingList) {
     const clean = normalizeFlashcard(card);
-    byId.set(clean.id, clean);
-  }
-  for (const existing of current) {
-    if (!byId.has(existing.id)) {
-      byId.set(existing.id, existing);
+    const contentKey = buildFlashcardContentKey(clean);
+    const matchedExisting = byId.get(clean.id) ?? (idByContentKey.has(contentKey) ? byId.get(idByContentKey.get(contentKey)!) : undefined);
+
+    if (matchedExisting) {
+      const merged = normalizeFlashcard({
+        ...matchedExisting,
+        ...clean,
+        id: matchedExisting.id,
+        status: matchedExisting.status ?? clean.status,
+        intervalDays: matchedExisting.intervalDays ?? clean.intervalDays,
+        repetitions: matchedExisting.repetitions ?? clean.repetitions,
+        nextReviewAt: matchedExisting.nextReviewAt ?? clean.nextReviewAt,
+        lastReviewedAt: matchedExisting.lastReviewedAt ?? clean.lastReviewedAt,
+      });
+      byId.set(merged.id, merged);
+      idByContentKey.set(contentKey, merged.id);
+    } else {
+      byId.set(clean.id, clean);
+      idByContentKey.set(contentKey, clean.id);
     }
   }
 
@@ -437,6 +464,24 @@ export function deleteFlashcardFromDeck(cardId: string, userId?: string): Flashc
   const next = current.filter((c) => c.id !== cardId);
   const saved = saveFlashcardDeckLocal(next, uid);
   void requestDeleteUserFlashcard(cardId);
+  return saved;
+}
+
+export function deleteFlashcardDeckByName(deckName: string, userId?: string): FlashcardItem[] {
+  const uid = userId || getActiveSession().uid;
+  const targetDeck = (deckName || 'Baralho Principal').trim() || 'Baralho Principal';
+  const current = readFlashcardDeck(uid);
+  const removed = current.filter(
+    (c) => ((c.deckName || 'Baralho Principal').trim() || 'Baralho Principal') === targetDeck
+  );
+  if (removed.length === 0) return current;
+  const next = current.filter(
+    (c) => ((c.deckName || 'Baralho Principal').trim() || 'Baralho Principal') !== targetDeck
+  );
+  const saved = saveFlashcardDeckLocal(next, uid);
+  for (const card of removed) {
+    void requestDeleteUserFlashcard(card.id);
+  }
   return saved;
 }
 

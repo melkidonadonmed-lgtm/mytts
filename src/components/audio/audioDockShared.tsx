@@ -10,7 +10,7 @@ export interface EmotionMeta {
   icon: string;
 }
 
-export const EMOTIONS_MAP: Record<TurnEmotion | string, EmotionMeta> = {
+const EMOTIONS_MAP: Record<TurnEmotion | string, EmotionMeta> = {
   thoughtful: {
     label: 'Thoughtful',
     ptLabel: 'Reflexivo',

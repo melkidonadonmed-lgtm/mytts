@@ -7,11 +7,11 @@ export type ValidationResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function rejectUnknownKeys(
+function rejectUnknownKeys(
   obj: Record<string, unknown>,
   allowedKeys: ReadonlySet<string>
 ): string | null {
@@ -66,9 +66,8 @@ export const ROUTE_ALLOWED_KEYS = {
   previewVoice: new Set(['voiceId', 'language', 'speakerName']),
   synthesizeChunk: new Set(['text', 'language', 'voiceId']),
   synthesizeSpeech: new Set(['text', 'voiceId', 'emotion', 'speed', 'autoProsody', 'language']),
-  transcribeAudio: new Set(['audioData', 'mimeType']),
+  transcribeAudio: new Set(['audioData', 'mimeType', 'sourceText']),
   generateChunks: new Set(['textOrPrompt', 'language', 'count']),
-  createChunk: new Set(['id', 'chunk', 'literalOrNuance', 'meaning', 'context', 'pronunciationHint']),
   translateParallelChunks: new Set(['text', 'sourceLanguage']),
   generateFlashcard: new Set(['chunkText', 'language', 'contextSentence', 'trilingual']),
   authGoogle: new Set(['credential']),

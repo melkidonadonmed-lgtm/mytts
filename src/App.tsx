@@ -223,8 +223,8 @@ export default function App() {
         }));
         handleNavigateTab('voices', 'debate');
       } else if (item.kind === 'flashcards') {
-        history.setSelectedStudyCardId(item.id);
-        handleNavigateTab('study');
+        history.setSelectedStudyDeckName(item.deckName || 'Baralho Principal');
+        handleNavigateTab('study', 'decks');
       }
     },
     [debate, handleNavigateTab, history]
@@ -401,7 +401,7 @@ export default function App() {
           {activeTab === 'study' && (
             <StudyArenaView
               selectedVoice={selectedVoice}
-              initialCardId={history.selectedStudyCardId}
+              initialDeckName={history.selectedStudyDeckName}
               activeSubTab={studySubTab}
               onChangeSubTab={setStudySubTab}
               onOpenPolyglotTab={() => handleNavigateTab('polyglot')}

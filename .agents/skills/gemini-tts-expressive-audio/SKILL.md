@@ -4,8 +4,8 @@ description: "Use this skill when modifying Gemini 3.8 TTS synthesis, prosodyEng
 compatibility: "Node.js 22+, TypeScript 5+, @google/genai, FFmpeg, MyTTS Studio"
 metadata:
   author: "melki-agent-os"
-  version: "1.2.0"
-  updated_at: "2026-11-16"
+  version: "1.3.0"
+  updated_at: "2026-11-26"
   tags: ["tts", "voz", "audio", "podcast", "gemini", "ffmpeg", "narracao", "dialogo", "ssml", "vocal-tags", "prosody", "mytts"]
 ---
 
@@ -28,20 +28,22 @@ Govern Gemini neural TTS, acoustic direction, auth failover, L1/L2 caching, FFmp
    - Send `speechMetadata: { speaker, style }` in **camelCase** for `gemini-3.8-*`; `@google/genai` (`partToMldev`/`partToVertex`) silently drops `speech_metadata`.
    - Keep `speechMetadata.style` to persona, acoustic direction, speed, and emotion—never `<...>` tags or negative rules.
    - Route verbatim text and the 42 English vocal tags (plus `<short pause>` / `<long pause>`) solely in `part.text` via `buildExpressiveTtsTranscript()`.
-2. **Phase 2 — Hybrid Auth & Cascade Failover (`ToT` — `getGenAiClient` / `getVertexAdcClient`):**
+2. **Phase 2 — Hybrid Auth, Routing & Cascade Failover (`ToT` — `modelRegistry.ts` + `geminiClient.ts`):**
+   - Route short chunks and short speech (`<= 220` chars) via `resolveTtsModelForRoute()` to `gemini-3.8-flash-lite-tts`; route studio solo narrations, dialectics/debates, and previews to `gemini-3.8-flash-tts`.
    - Set `vertexai: true` for `AQ.` keys and `vertexai: false` for `AIza` keys.
    - In `getVertexAdcClient()` (`global`), delete `GEMINI_API_KEY` and `GOOGLE_API_KEY` from `process.env` in `try` and restore in `finally`.
-3. **Phase 3 — Cache Keys, Card State & Playback (`ReAct`):**
+3. **Phase 3 — Cache Keys, Card State, Dynamic RIFF & Playback (`ReAct`):**
+   - Synthesize canonical WAV at `1.0x` on server; control playback speed exclusively on the client via `audio.playbackRate` with `audio.preservesPitch = true`.
    - Compute keys with `generateAudioCacheKey()` from `turn.text` (with tags), never `turn.clean_text`.
    - Clear `audioBase64: undefined` on edits, send `bypassCache: true` on re-synthesis, and never call `onSelectCard()` before `onChangeCardVoice()`.
-   - Set `audio.preservesPitch = true`, pass `voiceId` to `speakBrowserFallback()`, subtract 44 RIFF bytes for `durationSec` (`24000 * 2` B/s), and use `asplit=2` + `aresample=44100` in FFmpeg.
+   - Parse RIFF `fmt ` / `data` chunks dynamically via `extractWavPcmInfo()` (server) and `extractWavDataChunk()` (client) before computing `durationSec` (`sampleRate * channels * (bits / 8)`) or concatenating WAVs; pass `voiceId` to `speakBrowserFallback()`, and use `asplit=2` + `aresample=44100` in FFmpeg.
 4. **Phase 4 — Command-First Verification (`RAW`):**
    - Execute `npm run lint && npm test && npm run build` in the repository root and confirm zero errors before closing.
 
 ## 4. Gotchas & Edge Cases
 
-- **Active Cascade (`TTS_MODEL_CASCADE`):** `gemini-3.8-flash-tts` -> `gemini-3.8-flash-lite-tts` (`inline-fallback` moves `style` to a text prefix only for non-`gemini-3.8-` targets). Retired `gemini-3.1-*-tts-preview` and `gemini-2.5-*-preview-tts` are forbidden/migrated; `gemini-3.8-flash-lite` does not exist.
-- **Locale & Stream Guards:** Skip comma-slicing for `ja-JP`/`ja`; never reuse `[voice]` in FFmpeg without `asplit=2[voice_sc][voice_mix]`.
+- **Active Cascade (`TTS_FLAGSHIP_CASCADE` / `TTS_FAST_CASCADE`):** `gemini-3.8-flash-tts` <-> `gemini-3.8-flash-lite-tts`. Both `gemini-3.8-*` TTS models support and require **camelCase `speechMetadata` natively** (never pass `'inline-fallback'` between them). Retired `gemini-3.1-*-tts-preview` and `gemini-2.5-*-preview-tts` are forbidden/migrated; `gemini-3.8-flash-lite` does not exist.
+- **Locale & Stream Guards:** Skip comma-slicing and keep parentheses stripping (`replace(/\(.*?\)/g, '')`) restricted strictly to `ja*` locales (romaji annotations); never reuse `[voice]` in FFmpeg without `asplit=2[voice_sc][voice_mix]`.
 
 ## 5. Output Schema & Validation Criteria
 

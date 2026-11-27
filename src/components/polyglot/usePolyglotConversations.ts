@@ -227,7 +227,9 @@ export function usePolyglotConversations({
 
   const persistConversationSnapshot = useCallback(
     async (updatedMessages: PolyglotMessage[], convId = activeConversationId) => {
-      const readyOnly = updatedMessages.filter((m) => m.status === 'ready');
+      const readyOnly = updatedMessages
+        .filter((m) => m.status === 'ready')
+        .map(({ retryPayload: _ignoredRetry, ...cleanMsg }) => cleanMsg);
       if (readyOnly.length === 0) return;
 
       const userTurns = readyOnly.filter((m) => m.id !== 'msg-demo-1');

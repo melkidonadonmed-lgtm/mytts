@@ -1,8 +1,13 @@
 import { Router } from 'express';
-import { Type } from '@google/genai';
-import { normalizeYoutubeVideo } from '../../utils/youtubeHelper';
+import { AudioTranscriptionConfigMode, ThinkingLevel, Type } from '@google/genai';
+import {
+  normalizeYoutubeVideo,
+  parseStructuredJsonFromModel,
+} from '../../utils/youtubeHelper';
 import { buildExpressiveTtsTranscript } from '../../utils/prosodyEngine';
+import { capText, formatGeminiError } from '../audioContainer';
 import { ai } from '../geminiClient';
+import { MODEL_REGISTRY } from '../modelRegistry';
 import { ROUTE_ALLOWED_KEYS, validateStrictPayload } from '../validators';
 
 export function createStudioRouter(): Router {
@@ -23,20 +28,27 @@ export function createStudioRouter(): Router {
       const { text, fileData, fileName, mimeType } = check.data;
 
       if (fileData && mimeType === 'application/pdf') {
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents: [
-            {
-              inlineData: {
-                mimeType: 'application/pdf',
-                data: fileData,
+        const cleanPdfBase64 = fileData.includes(',') ? fileData.split(',')[1] : fileData;
+        const response = await ai.models.generateContent(
+          {
+            model: MODEL_REGISTRY.TEXT_REASONING_MODEL,
+            contents: [
+              {
+                inlineData: {
+                  mimeType: 'application/pdf',
+                  data: cleanPdfBase64,
+                },
               },
+              {
+                text: 'Extract the full clean text of this document verbatim, omitting repeated headers/footers. Then at the bottom provide a 2-sentence executive summary and key philosophical/practical tension points for debate.',
+              },
+            ],
+            config: {
+              thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
             },
-            {
-              text: 'Extract the full clean text of this document verbatim, omitting repeated headers/footers. Then at the bottom provide a 2-sentence executive summary and key philosophical/practical tension points for debate.',
-            },
-          ],
-        });
+          },
+          { timeoutMs: 60_000 }
+        );
 
         const extracted = response.text || '';
         return res.json({
@@ -60,7 +72,8 @@ export function createStudioRouter(): Router {
     } catch (error: unknown) {
       console.error('Error in /api/extract-text:', error);
       return res.status(500).json({
-        error: error instanceof Error ? error.message : 'Falha ao processar e extrair documento.',
+        success: false,
+        error: formatGeminiError(error, 'Falha ao processar e extrair documento.'),
       });
     }
   });
@@ -183,14 +196,14 @@ DIRETRIZES PROSÓDICAS PARA SÍNTESE NEURAL (GEMINI 3.8 FLASH TTS):
             ]
           : prompt;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: scriptContents,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-          topP: 0.95,
-          responseMimeType: 'application/json',
+      const response = await ai.models.generateContent(
+        {
+          model: MODEL_REGISTRY.TEXT_REASONING_MODEL,
+          contents: scriptContents,
+          config: {
+            systemInstruction,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
+            responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -208,6 +221,10 @@ DIRETRIZES PROSÓDICAS PARA SÍNTESE NEURAL (GEMINI 3.8 FLASH TTS):
                     emotion: {
                       type: Type.STRING,
                       enum: [
+                        'natural',
+                        'spontaneous',
+                        'storytelling',
+                        'calm',
                         'thoughtful',
                         'inquisitive',
                         'skeptical',
@@ -237,8 +254,6 @@ DIRETRIZES PROSÓDICAS PARA SÍNTESE NEURAL (GEMINI 3.8 FLASH TTS):
         },
       });
 
-      const parsed = JSON.parse(response.text?.trim() || '{}');
-
       interface RawScriptTurn {
         turn: number;
         speaker: string;
@@ -253,16 +268,28 @@ DIRETRIZES PROSÓDICAS PARA SÍNTESE NEURAL (GEMINI 3.8 FLASH TTS):
         };
       }
 
-      parsed.turns = (parsed.turns as RawScriptTurn[]).map((t: RawScriptTurn) => {
-        const isSpk1 = t.speaker.toLowerCase().includes(speaker1.name.toLowerCase());
+      const parsed = parseStructuredJsonFromModel<{
+        title?: string;
+        topicSummary?: string;
+        keyThesis?: string;
+        turns?: RawScriptTurn[];
+      }>(response.text?.trim() || '{}');
+
+      if (!parsed || !Array.isArray(parsed.turns) || parsed.turns.length === 0) {
+        throw new Error('O modelo não retornou os turnos estruturados do roteiro.');
+      }
+
+      const normalizedTurns = parsed.turns.map((t: RawScriptTurn, idx: number) => {
+        const speakerStr = String(t.speaker || '');
+        const isSpk1 = speakerStr.toLowerCase().includes(speaker1.name.toLowerCase());
         const selectedVoice = isSpk1 ? speaker1.voiceId : speaker2.voiceId;
-        const normalizedText = buildExpressiveTtsTranscript(t.text, {
+        const normalizedText = buildExpressiveTtsTranscript(String(t.text || ''), {
           enabled: true,
           language,
           emotion: t.emotion,
           injectNaturalBreaths: true,
         });
-        const clean = (t.clean_text || normalizedText)
+        const clean = String(t.clean_text || normalizedText)
           .replace(/<[^>]+>/g, '')
           .replace(/\[[^\]]+\]/g, '')
           .replace(/\|[^|]+\|/g, '')
@@ -271,6 +298,7 @@ DIRETRIZES PROSÓDICAS PARA SÍNTESE NEURAL (GEMINI 3.8 FLASH TTS):
 
         return {
           ...t,
+          turn: typeof t.turn === 'number' && Number.isFinite(t.turn) ? t.turn : idx + 1,
           speaker: isSpk1 ? speaker1.name : speaker2.name,
           voice_id: selectedVoice,
           text: normalizedText,
@@ -287,66 +315,107 @@ DIRETRIZES PROSÓDICAS PARA SÍNTESE NEURAL (GEMINI 3.8 FLASH TTS):
         success: true,
         script: {
           id: `debate-${Date.now()}`,
-          title: parsed.title,
-          topicSummary: parsed.topicSummary,
-          keyThesis: parsed.keyThesis,
+          title: parsed.title || 'Conversa Gerada no Estúdio',
+          topicSummary: parsed.topicSummary || '',
+          keyThesis: parsed.keyThesis || '',
           language,
           audienceLevel,
           tensionIntensity,
           format,
           speakers: [speaker1, speaker2],
-          turns: parsed.turns,
+          turns: normalizedTurns,
           createdAt: new Date().toISOString(),
         },
       });
     } catch (error: unknown) {
       console.error('Error in /api/generate-script:', error);
       return res.status(500).json({
-        error: error instanceof Error ? error.message : 'Falha ao gerar roteiro dialético.',
+        success: false,
+        error: formatGeminiError(error, 'Falha ao gerar roteiro dialético.'),
       });
     }
   });
 
   router.post('/api/transcribe-audio', async (req, res) => {
     try {
-      const check = validateStrictPayload<{ audioData?: string; mimeType?: string }>(
-        req.body,
-        ROUTE_ALLOWED_KEYS.transcribeAudio
-      );
+      const check = validateStrictPayload<{
+        audioData?: string;
+        mimeType?: string;
+        sourceText?: string;
+      }>(req.body, ROUTE_ALLOWED_KEYS.transcribeAudio);
       if (!check.ok) {
         return res.status(400).json({ error: check.error });
       }
 
-      const { audioData, mimeType = 'audio/webm' } = check.data;
+      const { audioData, mimeType = 'audio/webm', sourceText } = check.data;
       if (!audioData) {
         return res.status(400).json({ error: 'Nenhum dado de áudio recebido para transcrição.' });
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [
-          {
-            inlineData: {
-              mimeType: mimeType || 'audio/webm',
-              data: audioData,
+      const cleanBase64 = audioData.includes(',') ? audioData.split(',')[1] : audioData;
+      const safeMimeType = mimeType || 'audio/webm';
+      let transcript = '';
+      let modelUsed: string = MODEL_REGISTRY.TRANSCRIBE_BATCH_MODEL;
+
+      try {
+        // Dedicated batch transcription model: audio-only content + AudioTranscriptionConfig SMART mode
+        const response = await ai.models.generateContent({
+          model: MODEL_REGISTRY.TRANSCRIBE_BATCH_MODEL,
+          contents: [
+            {
+              inlineData: {
+                mimeType: safeMimeType,
+                data: cleanBase64,
+              },
+            },
+          ],
+          config: {
+            audioTranscriptionConfig: {
+              mode: AudioTranscriptionConfigMode.SMART,
+              ...(sourceText && typeof sourceText === 'string' && sourceText.trim()
+                ? { sourceText: capText(sourceText.trim(), 60_000) }
+                : {}),
             },
           },
-          {
-            text: 'Transcreva este áudio com máxima fidelidade, pontuação natural e inteligente (vírgulas, pontos e parágrafos). Retorne estritamente o texto transcrito, sem preâmbulos, aspas extras ou explicações.',
+        });
+        transcript = response.text?.trim() || '';
+      } catch (transcribeErr: unknown) {
+        console.warn(
+          '[Transcribe] Fallback from gemini-3.5-transcribe to reasoning model:',
+          transcribeErr instanceof Error ? transcribeErr.message : String(transcribeErr)
+        );
+        modelUsed = MODEL_REGISTRY.TEXT_REASONING_MODEL;
+        const fallbackResp = await ai.models.generateContent({
+          model: MODEL_REGISTRY.TEXT_REASONING_MODEL,
+          contents: [
+            {
+              inlineData: {
+                mimeType: safeMimeType,
+                data: cleanBase64,
+              },
+            },
+            {
+              text: 'Transcreva este áudio com máxima fidelidade, pontuação natural e inteligente (vírgulas, pontos e parágrafos). Retorne estritamente o texto transcrito, sem preâmbulos, aspas extras ou explicações.',
+            },
+          ],
+          config: {
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           },
-        ],
-      });
+        });
+        transcript = fallbackResp.text?.trim() || '';
+      }
 
-      const transcript = response.text?.trim() || '';
       return res.json({
         success: true,
         transcript,
+        model: modelUsed,
         wordCount: transcript.split(/\s+/).filter(Boolean).length,
       });
     } catch (error: unknown) {
       console.error('Error in /api/transcribe-audio:', error);
       return res.status(500).json({
-        error: error instanceof Error ? error.message : 'Falha ao transcrever gravação do microfone.',
+        success: false,
+        error: formatGeminiError(error, 'Falha ao transcrever gravação do microfone.'),
       });
     }
   });

@@ -8,7 +8,6 @@ import type { GoogleUserSession } from '../types/polyglot';
 const SESSION_STORAGE_KEY = 'mytts_google_session_v1';
 const LEGACY_USER_ID_KEY = 'fastchunks_user_id';
 const GUEST_UID_STORAGE_KEY = 'mytts_guest_uid_v1';
-const RECENT_ACCOUNTS_KEY = 'mytts_recent_google_accounts_v1';
 
 type AuthListener = (session: GoogleUserSession) => void;
 const listeners = new Set<AuthListener>();
@@ -78,61 +77,6 @@ function createDefaultGuestSession(forceNewGuestId = false): GoogleUserSession {
   };
 }
 
-export function getRecentGoogleAccounts(): GoogleUserSession[] {
-  try {
-    const raw = readStorage(RECENT_ACCOUNTS_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is GoogleUserSession =>
-        Boolean(
-          item &&
-            typeof item === 'object' &&
-            typeof (item as GoogleUserSession).uid === 'string' &&
-            typeof (item as GoogleUserSession).email === 'string' &&
-            (item as GoogleUserSession).email.includes('@')
-        )
-    );
-  } catch {
-    return [];
-  }
-}
-
-function saveRecentGoogleAccount(session: GoogleUserSession): void {
-  if (!session.isGoogleAuthenticated || !session.email) return;
-  try {
-    const current = getRecentGoogleAccounts().filter(
-      (acc) => acc.email.toLowerCase() !== session.email.toLowerCase()
-    );
-    const updated = [
-      {
-        uid: session.uid,
-        name: session.name,
-        email: session.email,
-        picture: session.picture,
-        isGoogleAuthenticated: true,
-      },
-      ...current,
-    ].slice(0, 5);
-    writeStorage(RECENT_ACCOUNTS_KEY, JSON.stringify(updated));
-  } catch {
-    // ignore storage errors
-  }
-}
-
-export function removeRecentGoogleAccount(email: string): GoogleUserSession[] {
-  try {
-    const next = getRecentGoogleAccounts().filter(
-      (acc) => acc.email.toLowerCase() !== email.trim().toLowerCase()
-    );
-    writeStorage(RECENT_ACCOUNTS_KEY, JSON.stringify(next));
-    return next;
-  } catch {
-    return [];
-  }
-}
-
 export function getActiveSession(): GoogleUserSession {
   try {
     const raw = readStorage(SESSION_STORAGE_KEY);
@@ -157,7 +101,6 @@ export function setActiveSession(session: GoogleUserSession): GoogleUserSession 
   try {
     writeStorage(SESSION_STORAGE_KEY, JSON.stringify(session));
     writeStorage(LEGACY_USER_ID_KEY, session.uid);
-    saveRecentGoogleAccount(session);
   } catch {
     // fallback
   }
@@ -207,7 +150,16 @@ export async function authenticateWithGoogleCredential(credentialJwt: string): P
   });
 
   if (!res.ok) {
-    throw new Error('Falha ao validar credencial Google no servidor.');
+    let serverError = 'Falha ao validar credencial Google no servidor.';
+    try {
+      const errJson = (await res.json()) as { error?: string };
+      if (typeof errJson.error === 'string' && errJson.error.trim()) {
+        serverError = errJson.error.trim();
+      }
+    } catch {
+      // ignore non-JSON error body
+    }
+    throw new Error(serverError);
   }
 
   const data = (await res.json()) as { user: GoogleUserSession };

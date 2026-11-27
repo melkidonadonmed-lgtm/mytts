@@ -15,7 +15,8 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import { requestExtractTextJson } from '../services/apiClient';
+import { requestExtractTextJson, requestTranscribeAudio } from '../services/apiClient';
+import { useVoiceRecorder } from './polyglot/useVoiceRecorder';
 
 interface SpeechRecognitionResultItem {
   isFinal: boolean;
@@ -64,6 +65,35 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const textRef = useRef(text);
+  textRef.current = text;
+
+  const {
+    isRecording: isNeuralDictating,
+    isTranscribing: isNeuralTranscribing,
+    toggleRecording: toggleNeuralRecording,
+  } = useVoiceRecorder({
+    onAudioCaptured: async (audioBase64, mimeType) => {
+      try {
+        const res = await requestTranscribeAudio({
+          audioData: audioBase64,
+          mimeType,
+          sourceText: textRef.current.trim() || undefined,
+        });
+        if (res.ok && res.success && res.transcript?.trim()) {
+          const clean = res.transcript.trim();
+          onChangeText(textRef.current.trim() ? `${textRef.current.trim()} ${clean}` : clean);
+          showTempFeedback('Ditado transcrito com sucesso!');
+        } else {
+          showTempError(res.error || 'Não foi possível transcrever o áudio gravado.');
+        }
+      } catch (err: unknown) {
+        showTempError(err instanceof Error ? err.message : 'Falha na transcrição neural.');
+      }
+    },
+  });
+
+  const activeDictating = isNeuralDictating || isDictating;
 
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
   const estimatedMinutes = Math.max(1, Math.round(wordCount / 140));
@@ -125,7 +155,7 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           return;
         }
 
-        showTempFeedback(`Enviando "${file.name}" para extração com Gemini 3.8 Flash...`);
+        showTempFeedback(`Enviando "${file.name}" para extração com Gemini...`);
 
         try {
           const data = await requestExtractTextJson({
@@ -166,8 +196,20 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
     }
   };
 
-  // 3. Ditado com Microfone
+  // 3. Ditado com Microfone (Gemini Transcribe com fallback para Web Speech API)
   const toggleDictation = (): void => {
+    if (isNeuralDictating) {
+      void toggleNeuralRecording(false);
+      showTempFeedback('Processando transcrição...');
+      return;
+    }
+
+    if (typeof MediaRecorder !== 'undefined' && typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices)) {
+      showTempFeedback('Microfone ativo... Fale naturalmente.');
+      void toggleNeuralRecording(false);
+      return;
+    }
+
     if (isDictating) {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
@@ -268,14 +310,26 @@ export const StudioTextEditor: React.FC<StudioTextEditorProps> = ({
           <button
             type="button"
             onClick={toggleDictation}
-            className={`min-h-[44px] px-4 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px border ${
-              isDictating
+            disabled={isNeuralTranscribing}
+            className={`min-h-[44px] px-4 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:translate-y-px border disabled:opacity-50 ${
+              activeDictating
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
                 : 'btn-matte-dark'
             }`}
-            title={isDictating ? 'Parar microfone' : 'Ditar texto com a voz'}
+            title={
+              isNeuralTranscribing
+                ? 'Transcrevendo áudio...'
+                : activeDictating
+                ? 'Parar microfone'
+                : 'Ditar texto com a voz'
+            }
           >
-            {isDictating ? (
+            {isNeuralTranscribing ? (
+              <>
+                <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                <span>Transcrevendo...</span>
+              </>
+            ) : activeDictating ? (
               <>
                 <MicOff className="w-4 h-4 text-rose-400" />
                 <span>Ouvindo...</span>

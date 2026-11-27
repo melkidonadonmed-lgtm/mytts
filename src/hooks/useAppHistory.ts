@@ -14,7 +14,8 @@ import {
 import {
   readFlashcardDeck,
   subscribeFlashcardDeck,
-  deleteFlashcardFromDeck,
+  deleteFlashcardDeckByName,
+  syncFlashcardDeckFromServer,
 } from '../services/flashcardDeckStorage';
 import {
   readDebateSessions,
@@ -41,7 +42,7 @@ export function useAppHistory() {
     readDebateSessions()
   );
   const [flashcards, setFlashcards] = useState<FlashcardItem[]>(() => readFlashcardDeck());
-  const [selectedStudyCardId, setSelectedStudyCardId] = useState<string | null>(null);
+  const [selectedStudyDeckName, setSelectedStudyDeckName] = useState<string | null>(null);
 
   // Sync flashcards, debate sessions, conversations, and hydrate HttpOnly Google session on mount
   useEffect(() => {
@@ -53,9 +54,11 @@ export function useAppHistory() {
     const unsubAuth = subscribeAuthChanges((nextSession) => {
       setUserSession(nextSession);
       setDebateSessions(readDebateSessions(nextSession.uid));
+      void syncFlashcardDeckFromServer(nextSession.uid);
       void requestListUserConversations().then(setConversations);
     });
     void refreshSessionFromServer();
+    void syncFlashcardDeckFromServer();
     void requestListUserConversations().then(setConversations);
     return () => {
       unsubFlash();
@@ -120,7 +123,7 @@ export function useAppHistory() {
     } else if (item.kind === 'debate_tts') {
       deleteDebateSession(item.id);
     } else if (item.kind === 'flashcards') {
-      deleteFlashcardFromDeck(item.id);
+      deleteFlashcardDeckByName(item.deckName || 'Baralho Principal');
     }
   }, []);
 
@@ -140,8 +143,8 @@ export function useAppHistory() {
     newConversationSignal,
     setNewConversationSignal,
     flashcards,
-    selectedStudyCardId,
-    setSelectedStudyCardId,
+    selectedStudyDeckName,
+    setSelectedStudyDeckName,
     unifiedHistoryItems,
     handleConversationsChanged,
     handleTogglePinHistoryItem,

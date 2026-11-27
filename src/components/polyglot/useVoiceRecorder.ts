@@ -53,11 +53,19 @@ export function useVoiceRecorder({ onAudioCaptured }: UseVoiceRecorderOptions) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioChunksRef.current = [];
         setRecordingSeconds(0);
-        const mimeType =
-          typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm')
-            ? 'audio/webm'
-            : 'audio/mp4';
-        const mediaRecorder = new MediaRecorder(stream, { mimeType });
+        const supportedMimes = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/mp4',
+        ];
+        const chosenMime =
+          typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function'
+            ? supportedMimes.find((m) => MediaRecorder.isTypeSupported(m))
+            : undefined;
+        const mediaRecorder = chosenMime
+          ? new MediaRecorder(stream, { mimeType: chosenMime })
+          : new MediaRecorder(stream);
+        const mimeType = mediaRecorder.mimeType || chosenMime || 'audio/webm';
         mediaRecorderRef.current = mediaRecorder;
 
         voiceMonitorRef.current = startLiveVoiceMonitor({

@@ -1,4 +1,3 @@
-import React from 'react';
 import type { TonalLayer, SoftUIThemePreset } from '../types';
 
 export interface DesignTokenPalette {
@@ -18,17 +17,6 @@ export interface DesignTokenPalette {
 }
 
 export const DESIGN_SYSTEM_VERSION = '8.1.0' as const;
-
-export const SEMANTIC_SURFACE_VARS = {
-  canvas: 'var(--surface-canvas)',
-  inset: 'var(--surface-inset)',
-  flat: 'var(--surface-flat)',
-  raised: 'var(--surface-raised)',
-  contrast: 'var(--surface-contrast)',
-  borderControl: 'var(--border-control)',
-  accentPoint: 'var(--accent-point)',
-  brandAccent: 'var(--brand-accent)',
-} as const;
 
 export const SOFT_UI_PRESETS: Record<SoftUIThemePreset, DesignTokenPalette> = {
   obsidian: {
@@ -95,7 +83,3 @@ export function getBentoSpanClass(colSpan: 3 | 4 | 6 | 8 | 12 = 4): string {
   };
   return spanMap[colSpan];
 }
-
-export const TOKEN_AUDIT_INVARIANTS: React.CSSProperties = {
-  backdropFilter: 'none',
-};

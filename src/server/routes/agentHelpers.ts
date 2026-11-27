@@ -1,8 +1,52 @@
+import { Behavior, Type, type FunctionDeclaration } from '@google/genai';
 import type { YoutubeVideoMetadata } from '../../types/polyglot';
 import {
   normalizeYoutubeVideo,
   parseYoutubeSearchResultsHtml,
 } from '../../utils/youtubeHelper';
+
+export function createLiveStudioFunctionDeclarations(options?: {
+  behavior?: Behavior;
+}): FunctionDeclaration[] {
+  const behaviorProp = options?.behavior ? { behavior: options.behavior } : {};
+  return [
+    {
+      name: 'create_study_flashcard',
+      description:
+        'Create and save an Anki-style language study flashcard whenever the user asks to save a phrase, word, or card.',
+      ...behaviorProp,
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          frontPhrase: { type: Type.STRING, description: 'Expression or phrase in the target language.' },
+          backTranslation: { type: Type.STRING, description: 'Natural pt-BR meaning or translation.' },
+          language: { type: Type.STRING, description: 'Target language code: en, it, ja, or all.' },
+        },
+        required: ['frontPhrase', 'backTranslation'],
+      },
+    },
+    {
+      name: 'switch_studio_voice',
+      description:
+        'Switch the active studio neural voice (Puck, Kore, Aoede, Fenrir, Enceladus) when the user asks to change the speaker voice.',
+      ...behaviorProp,
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          targetVoice: {
+            type: Type.STRING,
+            enum: ['Puck', 'Kore', 'Aoede', 'Fenrir', 'Enceladus'],
+          },
+          language: {
+            type: Type.STRING,
+            enum: ['en', 'it', 'ja', 'all'],
+          },
+        },
+        required: ['targetVoice'],
+      },
+    },
+  ];
+}
 
 export interface LiveAgentToolCallResult {
   id: string;
@@ -150,10 +194,18 @@ export async function fetchYoutubeMetadata(rawUrlOrId: string): Promise<YoutubeV
   }
 }
 
-export async function searchYoutubeVideos(query: string, maxResults = 4): Promise<YoutubeVideoMetadata[]> {
-  const cleanQuery = query
-    .replace(/^(busque|pesquise|procure|encontre|mostrar)\s+(no\s+youtube|v[ií]deos?\s+(no\s+youtube\s+)?(sobre|de)?)\s*/i, '')
+export function cleanYoutubeSearchQuery(query: string): string {
+  return query
+    .replace(/^(?:por\s+favor[,\s]+)?(?:busque|pesquise|procure|encontre|mostre|mostrar|traga|ache)\s+/i, '')
+    .replace(/\b(?:no|do|pelo|via|em)\s+youtube\b/gi, ' ')
+    .replace(/\b(?:videos?|vídeos?)\s+(?:sobre|de|em|para)\b/gi, ' ')
+    .replace(/^\s*(?:sobre|de)\s+/i, '')
+    .replace(/\s{2,}/g, ' ')
     .trim();
+}
+
+export async function searchYoutubeVideos(query: string, maxResults = 4): Promise<YoutubeVideoMetadata[]> {
+  const cleanQuery = cleanYoutubeSearchQuery(query);
   if (!cleanQuery) return [];
 
   try {

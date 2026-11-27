@@ -11,13 +11,17 @@ import {
 } from '../../utils/prosodyEngine';
 import {
   capText,
+  clampSpeechSpeed,
+  detectAudioMagicFormat,
   ensureWavContainer,
   formatGeminiError,
   buildFfmpegMixFilterComplex,
+  resolveAllowedVoice,
   ALLOWED_PREVIEW_VOICES,
   ALLOWED_PREVIEW_LANGS,
 } from '../audioContainer';
 import { synthesizeGeminiTtsWav } from '../geminiClient';
+import { resolveTtsModelForRoute } from '../modelRegistry';
 import {
   ROUTE_ALLOWED_KEYS,
   safeUnlinkTempFile,
@@ -26,7 +30,29 @@ import {
 
 const execFileAsync = promisify(execFile);
 
+const MAX_PREVIEW_CACHE_ENTRIES = 40;
 const voicePreviewCache = new Map<string, { wavBase64: string; durationSec: number }>();
+
+function getBoundedPreviewCache(key: string): { wavBase64: string; durationSec: number } | undefined {
+  const hit = voicePreviewCache.get(key);
+  if (!hit) return undefined;
+  voicePreviewCache.delete(key);
+  voicePreviewCache.set(key, hit);
+  return hit;
+}
+
+function setBoundedPreviewCache(
+  key: string,
+  value: { wavBase64: string; durationSec: number }
+): void {
+  if (voicePreviewCache.has(key)) {
+    voicePreviewCache.delete(key);
+  } else if (voicePreviewCache.size >= MAX_PREVIEW_CACHE_ENTRIES) {
+    const oldestKey = voicePreviewCache.keys().next().value;
+    if (oldestKey) voicePreviewCache.delete(oldestKey);
+  }
+  voicePreviewCache.set(key, value);
+}
 
 const VOICE_PREVIEW_EMOTIONS: Record<string, string> = {
   Puck: 'spontaneous',
@@ -112,10 +138,10 @@ export function createTtsRouter(): Router {
         return res.status(400).json({ error: 'Dados do turno inválidos.' });
       }
 
-      const effectiveVoice = voiceId || turn.voice_id || 'Kore';
-      const effectiveSpeaker = speakerName || turn.speaker || effectiveVoice;
+      const effectiveVoice = resolveAllowedVoice(voiceId || turn.voice_id, 'Kore');
+      const effectiveSpeaker = capText((speakerName || turn.speaker || effectiveVoice).trim(), 60);
       const effectiveLang = typeof language === 'string' && language ? language : 'pt-BR';
-      const speechRate = Number(turn.prosody?.speech_rate) || 1.0;
+      const speechRate = clampSpeechSpeed(turn.prosody?.speech_rate, 1.0);
       const turnEmotion = typeof turn.emotion === 'string' && turn.emotion ? turn.emotion : 'natural';
 
       const voiceAcousticStyle = getVoiceAcousticStyle(
@@ -145,7 +171,11 @@ export function createTtsRouter(): Router {
       const { wavBase64, durationSec } = await synthesizeGeminiTtsWav(
         expressiveTranscript,
         effectiveVoice,
-        { speakerName: effectiveSpeaker, stylePrompt }
+        {
+          speakerName: effectiveSpeaker,
+          stylePrompt,
+          model: resolveTtsModelForRoute('turn', expressiveTranscript.length),
+        }
       );
 
       return res.json({
@@ -219,8 +249,17 @@ export function createTtsRouter(): Router {
       let ffmpegArgs: string[] = [];
 
       if (customMusicBase64 && typeof customMusicBase64 === 'string') {
-        tempMusicPath = path.join(os.tmpdir(), `mytts_music_${tempId}.wav`);
-        const musicBuf = Buffer.from(customMusicBase64, 'base64');
+        const cleanMusicB64 = customMusicBase64.includes(',')
+          ? customMusicBase64.split(',')[1]
+          : customMusicBase64;
+        const musicBuf = Buffer.from(cleanMusicB64, 'base64');
+        const magic = detectAudioMagicFormat(musicBuf);
+        if (!magic) {
+          return res.status(400).json({
+            error: 'Formato de música customizada inválido (envie WAV, MP3, OGG ou FLAC válido).',
+          });
+        }
+        tempMusicPath = path.join(os.tmpdir(), `mytts_music_${tempId}.${magic.ext}`);
         await fs.promises.writeFile(tempMusicPath, musicBuf);
 
         ffmpegArgs = [
@@ -256,7 +295,10 @@ export function createTtsRouter(): Router {
       }
 
       try {
-        await execFileAsync('ffmpeg', ffmpegArgs);
+        await execFileAsync('ffmpeg', ffmpegArgs, {
+          timeout: 30_000,
+          maxBuffer: 4 * 1024 * 1024,
+        });
         const outputBuffer = await fs.promises.readFile(tempOutputPath);
         return res.json({
           success: true,
@@ -310,7 +352,7 @@ export function createTtsRouter(): Router {
           : voiceId;
       const cacheKey = `${voiceId}_${language}_${speakerName}`;
 
-      const cachedPreview = voicePreviewCache.get(cacheKey);
+      const cachedPreview = getBoundedPreviewCache(cacheKey);
       if (cachedPreview) {
         return res.json({
           success: true,
@@ -327,8 +369,9 @@ export function createTtsRouter(): Router {
       const { wavBase64, durationSec } = await synthesizeGeminiTtsWav(phrase, voiceId, {
         speakerName,
         stylePrompt,
+        model: resolveTtsModelForRoute('preview', phrase.length),
       });
-      voicePreviewCache.set(cacheKey, { wavBase64, durationSec });
+      setBoundedPreviewCache(cacheKey, { wavBase64, durationSec });
 
       return res.json({
         success: true,
@@ -366,8 +409,14 @@ export function createTtsRouter(): Router {
         'ja-JP': 'Aoede',
       };
 
-      const selectedVoice = voiceId || defaultVoices[language] || 'Puck';
-      const cleanText = capText(text, 2000).replace(/\(.*?\)/g, '').trim();
+      const selectedVoice = resolveAllowedVoice(voiceId, defaultVoices[language] || 'Puck');
+      const capped = capText(text, 2000);
+      const cleanText = (
+        language.startsWith('ja') ? capped.replace(/\(.*?\)/g, '') : capped
+      ).trim();
+      if (!cleanText) {
+        return res.status(400).json({ error: 'Texto do chunk vazio após sanitização.' });
+      }
       const expressiveChunk = buildExpressiveTtsTranscript(cleanText, {
         enabled: true,
         language,
@@ -379,6 +428,7 @@ export function createTtsRouter(): Router {
       const { wavBase64 } = await synthesizeGeminiTtsWav(expressiveChunk, selectedVoice, {
         speakerName: selectedVoice,
         stylePrompt,
+        model: resolveTtsModelForRoute('chunk', cleanText.length),
       });
 
       return res.json({
@@ -421,18 +471,19 @@ export function createTtsRouter(): Router {
         return res.status(400).json({ error: 'O texto para leitura é obrigatório.' });
       }
 
-      const resolvedVoiceId =
-        voiceId ||
-        (language === 'it-IT' || language === 'it'
+      const defaultLangVoice =
+        language === 'it-IT' || language === 'it'
           ? 'Kore'
           : language === 'ja-JP' || language === 'ja'
             ? 'Aoede'
-            : 'Puck');
+            : 'Puck';
+      const resolvedVoiceId = resolveAllowedVoice(voiceId, defaultLangVoice);
+      const safeSpeed = clampSpeechSpeed(speed, 1.0);
 
-      const stylePrompt = getVoiceAcousticStyle(resolvedVoiceId, emotion, speed, language);
+      const stylePrompt = getVoiceAcousticStyle(resolvedVoiceId, emotion, safeSpeed, language);
       const expressiveTranscript = buildExpressiveTtsTranscript(capText(text), {
         enabled: autoProsody,
-        speed,
+        speed: safeSpeed,
         language,
         emotion,
         injectNaturalBreaths: autoProsody,
@@ -441,7 +492,11 @@ export function createTtsRouter(): Router {
       const { wavBase64, durationSec } = await synthesizeGeminiTtsWav(
         expressiveTranscript,
         resolvedVoiceId,
-        { speakerName: resolvedVoiceId, stylePrompt }
+        {
+          speakerName: resolvedVoiceId,
+          stylePrompt,
+          model: resolveTtsModelForRoute('speech', text.trim().length),
+        }
       );
       const wordCount = text.split(/\s+/).filter(Boolean).length;
 

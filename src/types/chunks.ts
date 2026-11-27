@@ -7,6 +7,7 @@ export interface ChunkItem {
   meaning: string;
   context: string;
   pronunciationHint?: string;
+  language?: TargetLang;
   userId?: string;
   isCustom?: boolean;
   createdAt?: number;

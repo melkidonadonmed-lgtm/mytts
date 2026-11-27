@@ -21,6 +21,8 @@ export interface ParsedFlashcardCandidate {
   exampleTranslation: string;
   language: 'en-US' | 'it-IT' | 'ja-JP';
   deckName: string;
+  createdDateKey?: string;
+  hasExplicitDeckName?: boolean;
 }
 
 export interface FlashcardParseResult {
@@ -44,7 +46,7 @@ function cleanTextField(val: unknown, maxLen = MAX_FIELD_LEN): string {
     .slice(0, maxLen);
 }
 
-export function resolveFallbackBcp47(tag?: string): 'en-US' | 'it-IT' | 'ja-JP' {
+function resolveFallbackBcp47(tag?: string): 'en-US' | 'it-IT' | 'ja-JP' {
   const clean = (tag || '').trim().toLowerCase();
   if (clean.startsWith('ja') || clean === 'jp' || clean.includes('japon')) return 'ja-JP';
   if (clean.startsWith('it') || clean.includes('ital')) return 'it-IT';
@@ -111,9 +113,11 @@ function makeCandidate(
     example?: unknown;
     exampleTranslation?: unknown;
     language?: unknown;
+    deckName?: unknown;
+    createdDateKey?: unknown;
   },
   idx: number,
-  deckName: string,
+  fallbackDeckName: string,
   fallbackLang: 'en-US' | 'it-IT' | 'ja-JP' = 'en-US'
 ): ParsedFlashcardCandidate | null {
   const front = cleanTextField(partial.front);
@@ -125,6 +129,10 @@ function makeCandidate(
     cleanTextField(partial.language, 24),
     fallbackLang
   );
+  const explicitDeck = cleanTextField(partial.deckName, 80);
+  const rawDateKey = cleanTextField(partial.createdDateKey, 16);
+  const createdDateKey = /^\d{4}-\d{2}-\d{2}$/.test(rawDateKey) ? rawDateKey : undefined;
+
   return {
     id: `imp_${Date.now()}_${idx}`,
     front,
@@ -134,7 +142,9 @@ function makeCandidate(
     example: cleanTextField(partial.example),
     exampleTranslation: cleanTextField(partial.exampleTranslation),
     language,
-    deckName: cleanTextField(deckName, 80) || 'Baralho Importado',
+    deckName: explicitDeck || cleanTextField(fallbackDeckName, 80) || 'Baralho Importado',
+    createdDateKey,
+    hasExplicitDeckName: Boolean(explicitDeck),
   };
 }
 
@@ -149,6 +159,86 @@ function parseJsonFlashcards(
     }
     return value;
   });
+
+  // Suporta JSON exportado pelo ExportInteractionModal ({ interaction: { promptPtBr, fullText, chunks } })
+  if (
+    parsed &&
+    typeof parsed === 'object' &&
+    'interaction' in parsed &&
+    parsed.interaction &&
+    typeof parsed.interaction === 'object'
+  ) {
+    const inter = parsed.interaction as {
+      promptPtBr?: unknown;
+      fullText?: { en?: unknown; it?: unknown; ja?: unknown };
+      chunks?: Array<{
+        english?: unknown;
+        italian?: unknown;
+        japanese?: unknown;
+        japanesePronunciation?: unknown;
+      }>;
+    };
+    if (Array.isArray(inter.chunks) && inter.chunks.length > 0) {
+      const promptBack = cleanTextField(inter.promptPtBr) || 'Interação Poliglota';
+      const expanded: ParsedFlashcardCandidate[] = [];
+      inter.chunks.forEach((c, idx) => {
+        if (expanded.length >= MAX_PARSED_CARDS) return;
+        const enFront = cleanTextField(c.english);
+        if (enFront) {
+          const cand = makeCandidate(
+            {
+              front: enFront,
+              back: promptBack,
+              context: 'Chat Poliglota (EN)',
+              example: inter.fullText?.en ?? enFront,
+              exampleTranslation: promptBack,
+              language: 'en-US',
+            },
+            expanded.length + idx,
+            deckName,
+            fallbackLang
+          );
+          if (cand) expanded.push(cand);
+        }
+        const itFront = cleanTextField(c.italian);
+        if (itFront && expanded.length < MAX_PARSED_CARDS) {
+          const cand = makeCandidate(
+            {
+              front: itFront,
+              back: promptBack,
+              context: 'Chat Poliglota (IT)',
+              example: inter.fullText?.it ?? itFront,
+              exampleTranslation: promptBack,
+              language: 'it-IT',
+            },
+            expanded.length + idx,
+            deckName,
+            fallbackLang
+          );
+          if (cand) expanded.push(cand);
+        }
+        const jaFront = cleanTextField(c.japanese);
+        if (jaFront && expanded.length < MAX_PARSED_CARDS) {
+          const cand = makeCandidate(
+            {
+              front: jaFront,
+              back: promptBack,
+              context: 'Chat Poliglota (JA)',
+              pronunciation: c.japanesePronunciation ?? '',
+              example: inter.fullText?.ja ?? jaFront,
+              exampleTranslation: promptBack,
+              language: 'ja-JP',
+            },
+            expanded.length + idx,
+            deckName,
+            fallbackLang
+          );
+          if (cand) expanded.push(cand);
+        }
+      });
+      return expanded;
+    }
+  }
 
   const list: unknown[] = Array.isArray(parsed)
     ? parsed
@@ -174,9 +264,11 @@ function parseJsonFlashcards(
         example: obj.example ?? obj.exampleSentence ?? obj.exemplo,
         exampleTranslation: obj.exampleTranslation ?? obj.examplePtBr,
         language: obj.language ?? obj.lang ?? obj.idioma,
+        deckName: obj.deckName ?? obj.deck ?? obj.baralho,
+        createdDateKey: obj.createdDateKey ?? obj.dateKey ?? obj.date,
       },
       i,
-      typeof obj.deckName === 'string' ? obj.deckName : deckName,
+      deckName,
       fallbackLang
     );
     if (candidate) results.push(candidate);
@@ -211,10 +303,19 @@ function splitDelimitedLine(line: string, delimiter: string): string[] {
   return cells;
 }
 
+function normalizeHeaderCell(cell: string): string {
+  return cell
+    .replace(/^\uFEFF/, '')
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 function isHeaderRow(cells: string[]): boolean {
   if (cells.length < 2) return false;
-  const c0 = cells[0].toLowerCase().trim();
-  const c1 = cells[1].toLowerCase().trim();
+  const c0 = normalizeHeaderCell(cells[0]);
+  const c1 = normalizeHeaderCell(cells[1]);
   const headerKeywords = new Set([
     'front',
     'frente',
@@ -235,6 +336,7 @@ function isHeaderRow(cells: string[]): boolean {
     'tradução',
     'traducao',
     'answer',
+    'resposta',
   ]);
   return headerKeywords.has(c0) && backKeywords.has(c1);
 }
@@ -387,12 +489,51 @@ function parseHtmlFlashcards(
   return results;
 }
 
+type CsvColumnRole =
+  | 'front'
+  | 'back'
+  | 'context'
+  | 'pronunciation'
+  | 'example'
+  | 'exampleTranslation'
+  | 'language'
+  | 'deckName'
+  | 'createdDateKey';
+
+function resolveCsvHeaderColumns(headerCells: string[]): Array<CsvColumnRole | null> {
+  return headerCells.map((raw) => {
+    const norm = normalizeHeaderCell(raw);
+    if (/^(front|frente|term|termo|phrase|frase|question|chunk)$/.test(norm)) return 'front';
+    if (/^(back|verso|meaning|significado|translation|tradu[çc][aã]o|answer|resposta)$/.test(norm)) {
+      return 'back';
+    }
+    if (/(nuance|context|contexto|nota|notes)/.test(norm)) return 'context';
+    if (/(pron[úu]ncia|pronunciation|phonetic|romaji|rōmaji)/.test(norm)) return 'pronunciation';
+    if (/^tradu[çc][aã]o do exemplo$|^example\s*translation$/.test(norm)) {
+      return 'exampleTranslation';
+    }
+    if (/^(exemplo|example|example\s*sentence)$/.test(norm)) return 'example';
+    if (/^(idioma|lang|language)$/.test(norm)) return 'language';
+    if (/^(baralho|deck|deck\s*name)$/.test(norm)) return 'deckName';
+    if (/^(data de cria[çc][aã]o|data|date|created\s*date|createddatekey)$/.test(norm)) {
+      return 'createdDateKey';
+    }
+    return null;
+  });
+}
+
+function isExplicitLangTag(value: string): boolean {
+  const clean = value.trim().toLowerCase();
+  return /^(en|en-us|en-gb|it|it-it|ja|ja-jp|jp|ingl[eê]s|italiano|japon[eê]s)$/.test(clean);
+}
+
 function parseCsvFlashcards(
   raw: string,
   deckName: string,
   fallbackLang: 'en-US' | 'it-IT' | 'ja-JP' = 'en-US'
 ): ParsedFlashcardCandidate[] {
   const lines = raw
+    .replace(/^\uFEFF/, '')
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l.length > 0 && !l.startsWith('#'));
@@ -408,32 +549,65 @@ function parseCsvFlashcards(
         ? ','
         : '';
 
+  const splitRow = (line: string): string[] =>
+    delimiter ? splitDelimitedLine(line, delimiter) : line.split(/\s+-\s+|\s+—\s+|\s*::\s*|\s*→\s*/);
+
+  const firstCells = splitRow(firstLine);
+  const hasHeader = isHeaderRow(firstCells);
+  const headerRoles = hasHeader ? resolveCsvHeaderColumns(firstCells) : null;
+  const startIdx = hasHeader ? 1 : 0;
+
   const results: ParsedFlashcardCandidate[] = [];
 
-  for (let i = 0; i < lines.length && results.length < MAX_PARSED_CARDS; i++) {
-    const line = lines[i];
-    let cells: string[];
-    if (delimiter) {
-      cells = splitDelimitedLine(line, delimiter);
-    } else {
-      cells = line.split(/\s+-\s+|\s+—\s+|\s*::\s*|\s*→\s*/);
-    }
+  for (let i = startIdx; i < lines.length && results.length < MAX_PARSED_CARDS; i++) {
+    const cells = splitRow(lines[i]);
+    if (cells.length < 2) continue;
 
-    if (cells.length < 2 || (i === 0 && isHeaderRow(cells))) continue;
-
-    const candidate = makeCandidate(
-      {
+    let candidateInput: Parameters<typeof makeCandidate>[0];
+    if (headerRoles) {
+      const mapped: Partial<Record<CsvColumnRole, string>> = {};
+      headerRoles.forEach((role, colIdx) => {
+        if (role && cells[colIdx] !== undefined) {
+          mapped[role] = cells[colIdx];
+        }
+      });
+      candidateInput = {
+        front: mapped.front ?? cells[0],
+        back: mapped.back ?? cells[1],
+        context: mapped.context ?? '',
+        pronunciation: mapped.pronunciation ?? '',
+        example: mapped.example ?? '',
+        exampleTranslation: mapped.exampleTranslation ?? '',
+        language: mapped.language ?? '',
+        deckName: mapped.deckName,
+        createdDateKey: mapped.createdDateKey,
+      };
+    } else if (cells.length >= 7) {
+      // Formato canônico de 9 colunas exportado por csvExporter.ts
+      candidateInput = {
         front: cells[0],
         back: cells[1],
         context: cells[2] || '',
         pronunciation: cells[3] || '',
         example: cells[4] || '',
-        language: cells[5] || cells[3] || '',
-      },
-      results.length,
-      deckName,
-      fallbackLang
-    );
+        exampleTranslation: cells[5] || '',
+        language: cells[6] || '',
+        deckName: cells[7] || undefined,
+        createdDateKey: cells[8] || undefined,
+      };
+    } else {
+      const cell3IsLang = Boolean(cells[3] && isExplicitLangTag(cells[3]));
+      candidateInput = {
+        front: cells[0],
+        back: cells[1],
+        context: cells[2] || '',
+        pronunciation: cell3IsLang ? '' : cells[3] || '',
+        example: cells[4] || '',
+        language: cells[5] || (cell3IsLang ? cells[3] : ''),
+      };
+    }
+
+    const candidate = makeCandidate(candidateInput, results.length, deckName, fallbackLang);
     if (candidate) results.push(candidate);
   }
 
@@ -447,7 +621,7 @@ export function parseFlashcardsInput(
   const warnings: string[] = [];
   const deckName = options?.deckName?.trim() || 'Baralho Importado';
   const fallbackLang = resolveFallbackBcp47(options?.defaultLanguage);
-  const trimmed = (rawInput || '').slice(0, MAX_RAW_INPUT_BYTES).trim();
+  const trimmed = (rawInput || '').replace(/^\uFEFF/, '').slice(0, MAX_RAW_INPUT_BYTES).trim();
 
   if (!trimmed) {
     return { detectedFormat: 'csv', cards: [], warnings: [] };
@@ -515,33 +689,47 @@ export function parseFlashcardsInput(
 export function candidatesToFlashcardItems(
   candidates: ParsedFlashcardCandidate[],
   overrideDeckName?: string,
-  options?: { deckMode?: DeckNamingMode; customDateKey?: string }
+  options?: {
+    deckMode?: DeckNamingMode;
+    customDateKey?: string;
+    preserveCandidateDeckName?: boolean;
+  }
 ): FlashcardItem[] {
-  const baseEpoch = options?.customDateKey
-    ? calendarDateKeyToEpochMs(options.customDateKey)
-    : Date.now();
-  const dateKey = options?.customDateKey?.trim() || toLocalCalendarDateKey(baseEpoch);
+  const fallbackDateKey = options?.customDateKey?.trim() || toLocalCalendarDateKey(Date.now());
+  const preserveDeck = options?.preserveCandidateDeckName !== false;
 
-  return candidates.map((c, idx) => ({
-    id: c.id || `fc_${baseEpoch}_${idx}`,
-    chunkText: c.front,
-    language: c.language,
-    front: c.front,
-    back: c.back,
-    nuance: c.context || 'Importado para estudo ativo',
-    pronunciation: c.pronunciation || undefined,
-    example: c.example || c.front,
-    exampleTranslation: c.exampleTranslation || c.back,
-    createdAt: baseEpoch - idx,
-    createdDateKey: dateKey,
-    deckName: resolveOrganizedDeckName({
-      mode: options?.deckMode || 'custom',
-      customDeckName: overrideDeckName?.trim() || c.deckName || 'Baralho Importado',
+  return candidates.map((c, idx) => {
+    const dateKey =
+      c.createdDateKey && /^\d{4}-\d{2}-\d{2}$/.test(c.createdDateKey.trim())
+        ? c.createdDateKey.trim()
+        : fallbackDateKey;
+    const baseEpoch = calendarDateKeyToEpochMs(dateKey);
+    const customDeck =
+      preserveDeck && c.hasExplicitDeckName && c.deckName.trim()
+        ? c.deckName.trim()
+        : overrideDeckName?.trim() || c.deckName || 'Baralho Importado';
+
+    return {
+      id: c.id || `fc_${baseEpoch}_${idx}`,
+      chunkText: c.front,
       language: c.language,
-      dateKey,
-    }),
-    status: 'new',
-    intervalDays: 0,
-    repetitions: 0,
-  }));
+      front: c.front,
+      back: c.back,
+      nuance: c.context || 'Importado para estudo ativo',
+      pronunciation: c.pronunciation || undefined,
+      example: c.example || c.front,
+      exampleTranslation: c.exampleTranslation || c.back,
+      createdAt: baseEpoch - idx,
+      createdDateKey: dateKey,
+      deckName: resolveOrganizedDeckName({
+        mode: options?.deckMode || 'custom',
+        customDeckName: customDeck,
+        language: c.language,
+        dateKey,
+      }),
+      status: 'new',
+      intervalDays: 0,
+      repetitions: 0,
+    };
+  });
 }

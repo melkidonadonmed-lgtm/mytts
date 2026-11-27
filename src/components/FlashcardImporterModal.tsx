@@ -7,6 +7,7 @@ import {
 } from '../utils/flashcardParser';
 import { toLocalCalendarDateKey } from '../utils/flashcardOrganizer';
 import { useNativeDialog } from '../utils/nativeDialog';
+import { readPreferredTargetLanguage } from '../services/polyglotClient';
 import type { DeckNamingMode, FlashcardItem } from '../types/polyglot';
 
 interface FlashcardImporterModalProps {
@@ -40,28 +41,60 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
   const [deckName, setDeckName] = useState('Baralho Poliglota');
   const [deckMode, setDeckMode] = useState<DeckNamingMode>('custom');
   const [customDateKey, setCustomDateKey] = useState<string>(() => toLocalCalendarDateKey(Date.now()));
-  const [defaultLanguage, setDefaultLanguage] = useState<'EN' | 'IT' | 'JA'>('EN');
+  const [defaultLanguage, setDefaultLanguage] = useState<'EN' | 'IT' | 'JA'>(() => {
+    const pref = readPreferredTargetLanguage().toUpperCase();
+    return pref === 'IT' || pref === 'JA' ? pref : 'EN';
+  });
   const [detectedFormat, setDetectedFormat] = useState<string>('markdown');
   const [candidates, setCandidates] = useState<ParsedFlashcardCandidate[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
+  const hasUserEditedDeckNameRef = useRef(false);
+  const hasManualTableEditsRef = useRef(false);
+  const prevRawInputRef = useRef('');
+  const deckNameRef = useRef(deckName);
+  deckNameRef.current = deckName;
+
   // Synchronize native <dialog>.showModal() with pointer light-dismiss fallback
   useNativeDialog(dialogRef, isOpen, onClose);
 
-  // Re-analisa automaticamente quando o texto ou idioma padrão mudam
+  // Sync preferred target language when changed from UserSessionPopover
   useEffect(() => {
+    const syncPref = () => {
+      const pref = readPreferredTargetLanguage().toUpperCase();
+      setDefaultLanguage(pref === 'IT' || pref === 'JA' ? pref : 'EN');
+    };
+    window.addEventListener('mytts-preferred-lang-changed', syncPref);
+    return () => window.removeEventListener('mytts-preferred-lang-changed', syncPref);
+  }, []);
+
+  // Re-analisa apenas quando o texto bruto ou idioma padrão mudam (preservando edições manuais na tabela ao renomear deck)
+  useEffect(() => {
+    const rawChanged = prevRawInputRef.current !== rawInput;
+    prevRawInputRef.current = rawInput;
+    if (rawChanged) {
+      hasManualTableEditsRef.current = false;
+    }
+
     if (!rawInput.trim()) {
       setCandidates([]);
       setWarnings([]);
       return;
     }
-    const result = parseFlashcardsInput(rawInput, { deckName, defaultLanguage });
+    if (!rawChanged && hasManualTableEditsRef.current) {
+      return;
+    }
+
+    const result = parseFlashcardsInput(rawInput, {
+      deckName: deckNameRef.current,
+      defaultLanguage,
+    });
     setDetectedFormat(result.detectedFormat);
     setCandidates(result.cards);
     setWarnings(result.warnings);
-  }, [rawInput, defaultLanguage, deckName]);
+  }, [rawInput, defaultLanguage]);
 
   const handleFileLoad = async (file: File) => {
     if (file.size > 1_000_000) {
@@ -83,26 +116,38 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
     field: keyof ParsedFlashcardCandidate,
     value: string
   ) => {
+    hasManualTableEditsRef.current = true;
     setCandidates((prev) =>
       prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
     );
   };
 
   const handleRemoveCandidate = (idx: number) => {
+    hasManualTableEditsRef.current = true;
     setCandidates((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleConfirmImport = () => {
-    const valid = candidates.filter((c) => c.front.trim().length > 0);
-    if (valid.length === 0) return;
+    const valid = candidates.filter(
+      (c) => c.front.trim().length > 0 && c.back.trim().length > 0
+    );
+    if (valid.length === 0) {
+      setWarnings([
+        'Nenhum cartão válido encontrado: preencha Frente e Verso em pelo menos 1 cartão.',
+      ]);
+      return;
+    }
     const items = candidatesToFlashcardItems(valid, deckName, {
       deckMode,
       customDateKey: customDateKey || undefined,
+      preserveCandidateDeckName: !hasUserEditedDeckNameRef.current,
     }).map((item) => ({
       ...item,
       voiceId: defaultVoiceId || item.voiceId,
     }));
     onImport(items);
+    hasUserEditedDeckNameRef.current = false;
+    hasManualTableEditsRef.current = false;
     setRawInput('');
     setCandidates([]);
     setUploadedFileName(null);
@@ -165,7 +210,10 @@ export const FlashcardImporterModal: React.FC<FlashcardImporterModalProps> = ({
               id="flashcard-deck-name-input"
               type="text"
               value={deckName}
-              onChange={(e) => setDeckName(e.target.value)}
+              onChange={(e) => {
+                hasUserEditedDeckNameRef.current = true;
+                setDeckName(e.target.value);
+              }}
               placeholder="Ex.: Inglês · Expressões Clínicas"
               className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700/80 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500/60"
             />

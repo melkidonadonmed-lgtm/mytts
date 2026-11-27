@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   PolyglotMessage,
   YoutubePostLinkAction,
@@ -27,6 +27,11 @@ export const AgentContextCard: React.FC<AgentContextCardProps> = ({
   const [showYoutubeEmbed, setShowYoutubeEmbed] = useState<boolean>(() =>
     Boolean(message.awaitingYoutubeIntent)
   );
+  useEffect(() => {
+    if (message.awaitingYoutubeIntent) {
+      setShowYoutubeEmbed(true);
+    }
+  }, [message.awaitingYoutubeIntent]);
   const [clipStart, setClipStart] = useState(message.youtubeClipRange?.start || '');
   const [clipEnd, setClipEnd] = useState(message.youtubeClipRange?.end || '');
   const [failedThumbs, setFailedThumbs] = useState<Record<string, true>>({});

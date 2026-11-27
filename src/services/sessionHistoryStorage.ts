@@ -29,7 +29,7 @@ function getDebateHistoryKey(userId?: string): string {
   return `mytts_debate_history_${uid}`;
 }
 
-export function notifyHistoryChanged(): void {
+function notifyHistoryChanged(): void {
   historyListeners.forEach((fn) => fn());
 }
 
@@ -243,7 +243,7 @@ export function buildUnifiedHistoryItems(
   });
 }
 
-export function exportHistoryItemContent(
+function exportHistoryItemContent(
   item: UnifiedHistoryItem,
   format: 'json' | 'md',
   userId?: string

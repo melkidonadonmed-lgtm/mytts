@@ -4,15 +4,21 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Firestore } from '@google-cloud/firestore';
 import { ChunkItem, TargetLang } from '../types/chunks';
+import { detectFlashcardLanguage } from '../utils/flashcardParser';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export interface IChunkStorage {
   listUserChunks(userId: string, lang?: TargetLang): Promise<ChunkItem[]>;
-  saveUserChunk(userId: string, chunk: ChunkItem): Promise<void>;
   saveUserChunks(userId: string, chunks: ChunkItem[]): Promise<void>;
   deleteUserChunk(userId: string, chunkId: string): Promise<boolean>;
+}
+
+function matchesChunkTargetLang(chunk: ChunkItem, lang?: TargetLang): boolean {
+  if (!lang) return true;
+  if (chunk.language) return chunk.language === lang;
+  return detectFlashcardLanguage(chunk.chunk || '', undefined, 'en-US') === lang;
 }
 
 class LocalFsAdapter implements IChunkStorage {
@@ -71,13 +77,10 @@ class LocalFsAdapter implements IChunkStorage {
     }
   }
 
-  async listUserChunks(userId: string, _lang?: TargetLang): Promise<ChunkItem[]> {
+  async listUserChunks(userId: string, lang?: TargetLang): Promise<ChunkItem[]> {
     const all = this.readAll();
-    return all[userId] || [];
-  }
-
-  async saveUserChunk(userId: string, chunk: ChunkItem): Promise<void> {
-    await this.saveUserChunks(userId, [chunk]);
+    const list = all[userId] || [];
+    return lang ? list.filter((c) => matchesChunkTargetLang(c, lang)) : list;
   }
 
   async saveUserChunks(userId: string, chunks: ChunkItem[]): Promise<void> {
@@ -120,29 +123,20 @@ class FirestoreAdapter implements IChunkStorage {
     });
   }
 
-  async listUserChunks(userId: string, _lang?: TargetLang): Promise<ChunkItem[]> {
+  async listUserChunks(userId: string, lang?: TargetLang): Promise<ChunkItem[]> {
     const query = this.db.collection(this.collectionName).where('userId', '==', userId);
     const snapshot = await query.get();
     const results: ChunkItem[] = [];
     snapshot.forEach((doc) => {
       const data = doc.data() as ChunkItem;
-      results.push({ ...data, id: doc.id });
+      const item = { ...data, id: doc.id };
+      if (matchesChunkTargetLang(item, lang)) {
+        results.push(item);
+      }
     });
     // Order by createdAt desc
     results.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     return results;
-  }
-
-  async saveUserChunk(userId: string, chunk: ChunkItem): Promise<void> {
-    const docRef = this.db.collection(this.collectionName).doc(chunk.id);
-    await docRef.set(
-      {
-        ...chunk,
-        userId,
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
   }
 
   async saveUserChunks(userId: string, chunks: ChunkItem[]): Promise<void> {
@@ -217,19 +211,6 @@ class ChunkStorageManager implements IChunkStorage {
       if (this.isFirestoreActive) {
         console.warn('[ChunkStorageManager] Erro no Firestore, chaveando para fallback local:', err);
         return await this.localFallback.listUserChunks(userId, lang);
-      }
-      throw err;
-    }
-  }
-
-  async saveUserChunk(userId: string, chunk: ChunkItem): Promise<void> {
-    try {
-      await this.activeStorage.saveUserChunk(userId, chunk);
-    } catch (err: unknown) {
-      if (this.isFirestoreActive) {
-        console.warn('[ChunkStorageManager] Erro ao salvar no Firestore, salvando no fallback local:', err);
-        await this.localFallback.saveUserChunk(userId, chunk);
-        return;
       }
       throw err;
     }

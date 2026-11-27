@@ -45,6 +45,8 @@ export interface ParallelMessageBlockProps {
   sequenceStep: string | null;
   onOpenExport?: (message: PolyglotMessage) => void;
   onSendToCreationStudio?: (text: string, mode: StudioRenderMode) => void;
+  onRetryMessage?: (message: PolyglotMessage) => void;
+  onTranslateTurn?: (text: string) => void;
   onExecuteYoutubePostLinkAction?: (
     messageId: string,
     youtubeUrl: string,
@@ -88,6 +90,8 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
   sequenceStep,
   onOpenExport,
   onSendToCreationStudio,
+  onRetryMessage,
+  onTranslateTurn,
   onExecuteYoutubePostLinkAction,
 }) => {
   const [hoveredChunkId, setHoveredChunkId] = useState<number | null>(null);
@@ -246,15 +250,27 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
       {message.status === 'error' && (
         <div
           role="alert"
-          className="surface-inset border border-[var(--border-control)] text-[var(--status-danger)] p-4 rounded-xl text-xs flex items-center gap-2.5"
+          className="surface-inset border border-[var(--border-control)] text-[var(--status-danger)] p-4 rounded-xl text-xs flex flex-wrap items-center justify-between gap-3"
         >
-          <GoogleIcon name="error" size={20} className="text-[var(--status-danger)] shrink-0" />
-          <span>{message.error || 'Falha ao processar os chunks paralelos desta mensagem.'}</span>
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <GoogleIcon name="error" size={20} className="text-[var(--status-danger)] shrink-0" />
+            <span>{message.error || 'Falha ao processar os chunks paralelos desta mensagem.'}</span>
+          </div>
+          {onRetryMessage && (
+            <button
+              type="button"
+              onClick={() => onRetryMessage(message)}
+              className="btn-matte-dark min-h-11 px-3.5 py-1.5 rounded-xl text-xs font-bold text-primary hover:border-amber-400/60 inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <GoogleIcon name="refresh" size={14} className="text-amber-400" />
+              <span>Tentar novamente</span>
+            </button>
+          )}
         </div>
       )}
 
       {/* 4. Canvas dos 3 Cards Paralelos com Container Query Responsiva */}
-      {message.status === 'ready' && (
+      {message.status === 'ready' && message.chunks.length > 0 && (
         <div className="@container flex flex-col gap-3 min-w-0">
           <div className="grid grid-cols-1 @min-[720px]:grid-cols-3 gap-4 lg:gap-5 items-stretch">
             <LanguageColumnCard
@@ -348,6 +364,22 @@ export const ParallelMessageBlock: React.FC<ParallelMessageBlockProps> = ({
           />
         </div>
       )}
+
+      {message.status === 'ready' &&
+        message.originMode === 'live_agent' &&
+        message.chunks.length === 0 &&
+        onTranslateTurn && (
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={() => onTranslateTurn(message.agentReplyPtBr || message.userPrompt)}
+              className="min-h-11 px-3.5 py-2 rounded-xl btn-matte-dark text-xs font-semibold text-amber-300 hover:text-primary inline-flex items-center gap-2 cursor-pointer"
+            >
+              <GoogleIcon name="translate" size={15} className="text-amber-400" />
+              <span>Traduzir turno nos 3 idiomas (EN · IT · JA)</span>
+            </button>
+          </div>
+        )}
 
       {/* Menu Flutuante Tátil para o Chunk Clicado */}
       {activeMenu && (

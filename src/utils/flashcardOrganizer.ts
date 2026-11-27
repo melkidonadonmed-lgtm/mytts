@@ -19,7 +19,7 @@ export interface LanguageCatalogEntry {
   deckLabel: string;
 }
 
-export const LANGUAGE_CATALOG: Record<FlashcardLanguageBadge, LanguageCatalogEntry> = {
+const LANGUAGE_CATALOG: Record<FlashcardLanguageBadge, LanguageCatalogEntry> = {
   EN: { badge: 'EN', bcp47: 'en-US', labelPtBr: 'Inglês', deckLabel: 'Inglês (EN)' },
   IT: { badge: 'IT', bcp47: 'it-IT', labelPtBr: 'Italiano', deckLabel: 'Italiano (IT)' },
   JA: { badge: 'JA', bcp47: 'ja-JP', labelPtBr: 'Japonês', deckLabel: 'Japonês (JA)' },
@@ -28,7 +28,7 @@ export const LANGUAGE_CATALOG: Record<FlashcardLanguageBadge, LanguageCatalogEnt
 const CANONICAL_LANGS: readonly FlashcardLanguageBadge[] = ['EN', 'IT', 'JA'];
 const DATE_KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-export function getLanguageMeta(lang: string): LanguageCatalogEntry {
+function getLanguageMeta(lang: string): LanguageCatalogEntry {
   return LANGUAGE_CATALOG[normalizeLanguageBadge(lang)];
 }
 
@@ -78,7 +78,7 @@ export function calendarDateKeyToEpochMs(dateKey: string, fallbackNow = Date.now
   return d.getTime();
 }
 
-export function shiftCalendarDateKey(dateKey: string, deltaDays: number): string {
+function shiftCalendarDateKey(dateKey: string, deltaDays: number): string {
   const match = (dateKey || '').trim().match(DATE_KEY_PATTERN);
   if (!match) return toLocalCalendarDateKey(Date.now());
   const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + deltaDays, 12, 0, 0, 0);
@@ -306,7 +306,7 @@ export interface FlashcardGroupSection {
   subGroups?: FlashcardSubGroup[];
 }
 
-export function sortFlashcardsImmutable(
+function sortFlashcardsImmutable(
   cards: FlashcardItem[],
   sortOrder: FlashcardSortOrder
 ): FlashcardItem[] {

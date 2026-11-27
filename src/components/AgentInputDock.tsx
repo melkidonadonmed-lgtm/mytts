@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { GoogleIcon } from './GoogleIcon';
 import { Plus } from 'lucide-react';
-import { requestExtractTextJson } from '../services/apiClient';
+import { requestExtractTextJson, requestTranscribeAudio } from '../services/apiClient';
 import type {
   AgentPersona,
+  LiveAgentToolCallResult,
   YoutubePostLinkAction,
   YoutubeClipRange,
   YoutubeVideoMetadata,
@@ -15,6 +16,12 @@ import {
   inferYoutubeActionFromPrompt,
   requestYoutubeMetadata,
 } from '../services/polyglotClient';
+import {
+  connectLiveWsSession,
+  type LiveWsConnection,
+  type LiveWsMode,
+} from '../services/liveWsClient';
+import { createLivePcmCapture, LivePcm24kPlayer, type LivePcmCaptureHandle } from '../utils/liveAudioBridge';
 import { DockPlusMenu } from './polyglot/DockPlusMenu';
 import { DockYoutubePreviewCard } from './polyglot/DockYoutubePreviewCard';
 import { useVoiceRecorder } from './polyglot/useVoiceRecorder';
@@ -40,6 +47,13 @@ export interface AgentInputDockProps {
     autoPlayAfter?: boolean,
     payload?: AgentInputDockSubmitPayload
   ) => Promise<void>;
+  onRecordLiveWsTurn?: (turn: {
+    userTranscript: string;
+    agentReplyPtBr: string;
+    persona: AgentPersona;
+  }) => void;
+  recentHistory?: Array<{ role: string; text: string }>;
+  onApplyLiveToolCalls?: (calls: LiveAgentToolCallResult[]) => void;
   onSendToCreationStudio?: (text: string, renderMode: StudioRenderMode) => void;
   isLoading: boolean;
   activeVoiceName?: string;
@@ -85,6 +99,9 @@ const formatTimer = (secs: number): string => {
 
 export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   onSendMessage,
+  onRecordLiveWsTurn,
+  recentHistory,
+  onApplyLiveToolCalls,
   onSendToCreationStudio,
   isLoading,
   activeVoiceName = 'Puck',
@@ -103,6 +120,27 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const plusMenuRef = useRef<HTMLDivElement | null>(null);
 
+  const [wsLiveState, setWsLiveState] = useState<'idle' | 'connecting' | 'streaming'>('idle');
+  const [wsLiveMode, setWsLiveMode] = useState<LiveWsMode | null>(null);
+  const [wsLiveBands, setWsLiveBands] = useState<[number, number, number, number, number]>([
+    18, 28, 22, 34, 18,
+  ]);
+  const [liveCaption, setLiveCaption] = useState<string>('');
+  const wsConnRef = useRef<LiveWsConnection | null>(null);
+  const wsCaptureRef = useRef<LivePcmCaptureHandle | null>(null);
+  const wsPlayerRef = useRef<LivePcm24kPlayer | null>(null);
+  const wsResumeHandleRef = useRef<string | undefined>(undefined);
+  const wsInputBeforeDictateRef = useRef<string>('');
+  const wsDictateFinalRef = useRef<string>('');
+  const liveTurnUserRef = useRef<string>('');
+  const liveTurnAgentRef = useRef<string>('');
+  const liveTurnPersonaRef = useRef<AgentPersona>('tutor_conversational');
+  const gracefulCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onApplyToolCallsRef = useRef(onApplyLiveToolCalls);
+  onApplyToolCallsRef.current = onApplyLiveToolCalls;
+  const onRecordLiveWsTurnRef = useRef(onRecordLiveWsTurn);
+  onRecordLiveWsTurnRef.current = onRecordLiveWsTurn;
+
   const detectedYoutubeUrl = useMemo(() => detectYoutubeUrl(inputText), [inputText]);
   const [previewYoutubeMeta, setPreviewYoutubeMeta] = useState<YoutubeVideoMetadata | null>(null);
   const [clipStart, setClipStart] = useState('');
@@ -119,8 +157,26 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     toggleRecording,
   } = useVoiceRecorder({
     onAudioCaptured: async (base64Audio, mimeType, liveAutoSend) => {
+      if (!liveAutoSend) {
+        const res = await requestTranscribeAudio({
+          audioData: base64Audio,
+          mimeType,
+          sourceText: inputText.trim() || undefined,
+        });
+        if (res.ok && res.success && res.transcript?.trim()) {
+          const cleanTranscript = res.transcript.trim();
+          setInputText((prev) =>
+            prev.trim() ? `${prev.trim()} ${cleanTranscript}` : cleanTranscript
+          );
+          textareaRef.current?.focus();
+        } else {
+          setMicError(res.error || 'Falha ao transcrever o ditado.');
+        }
+        return;
+      }
+
       const activeLiveMode: DockMode =
-        dockMode === 'translate' && liveAutoSend ? 'live_tutor' : dockMode;
+        dockMode === 'translate' ? 'live_tutor' : dockMode;
 
       await onSendMessage(inputText.trim() || 'Fala enviada por Voz Live', true, {
         text: inputText.trim() || '',
@@ -160,6 +216,216 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [isPlusMenuOpen]);
 
+  const flushPendingLiveWsTurn = (): void => {
+    const userText = liveTurnUserRef.current.trim();
+    const agentText = liveTurnAgentRef.current.trim();
+    if (!userText && !agentText) return;
+    liveTurnUserRef.current = '';
+    liveTurnAgentRef.current = '';
+    onRecordLiveWsTurnRef.current?.({
+      userTranscript: userText || 'Fala enviada por Gemini Live',
+      agentReplyPtBr: agentText,
+      persona: liveTurnPersonaRef.current,
+    });
+  };
+
+  const stopWsLiveSession = (gracefulEnd: boolean = false): void => {
+    if (gracefulCloseTimerRef.current) {
+      clearTimeout(gracefulCloseTimerRef.current);
+      gracefulCloseTimerRef.current = null;
+    }
+    try {
+      wsCaptureRef.current?.stop();
+    } catch {
+      // Ignore capture stop failure
+    }
+    wsCaptureRef.current = null;
+
+    if (wsLiveMode === 'agent') {
+      flushPendingLiveWsTurn();
+    }
+
+    if (gracefulEnd && wsConnRef.current) {
+      try {
+        wsConnRef.current.sendAudioEnd();
+      } catch {
+        // Ignore end signal failure
+      }
+      const connToClose = wsConnRef.current;
+      gracefulCloseTimerRef.current = setTimeout(() => {
+        gracefulCloseTimerRef.current = null;
+        try {
+          connToClose.close();
+        } catch {
+          // Ignore close error
+        }
+      }, 900);
+    } else if (wsConnRef.current) {
+      try {
+        wsConnRef.current.close();
+      } catch {
+        // Ignore close error
+      }
+    }
+    wsConnRef.current = null;
+    wsPlayerRef.current?.close();
+    wsPlayerRef.current = null;
+    setWsLiveState('idle');
+    setWsLiveMode(null);
+    setIsLiveApiMode(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopWsLiveSession(false);
+    };
+  }, []);
+
+  const startWsOrFallbackVoice = async (mode: LiveWsMode): Promise<void> => {
+    setMicError(null);
+    if (wsLiveState !== 'idle') {
+      stopWsLiveSession(wsLiveMode === 'transcribe');
+      return;
+    }
+
+    if (isRecording) {
+      stopRecordingNow();
+      return;
+    }
+
+    setWsLiveState('connecting');
+    setWsLiveMode(mode);
+    setLiveCaption('');
+    liveTurnUserRef.current = '';
+    liveTurnAgentRef.current = '';
+    if (mode === 'agent') {
+      setIsLiveApiMode(true);
+      if (dockMode === 'translate') setDockMode('live_tutor');
+    } else {
+      wsInputBeforeDictateRef.current = inputText.trim();
+      wsDictateFinalRef.current = '';
+    }
+
+    try {
+      if (mode === 'agent') {
+        wsPlayerRef.current = new LivePcm24kPlayer();
+      }
+
+      const activePersona = getPersonaFromMode(
+        mode === 'agent' && dockMode === 'translate' ? 'live_tutor' : dockMode
+      );
+      liveTurnPersonaRef.current = activePersona;
+
+      const conn = await connectLiveWsSession(
+        {
+          mode,
+          voiceId: activeVoiceName,
+          persona: activePersona,
+          history: recentHistory,
+          resumeHandle: wsResumeHandleRef.current,
+          sourceText: mode === 'transcribe' ? inputText.trim() || undefined : undefined,
+        },
+        {
+          onAudio: (pcmBase64) => {
+            wsPlayerRef.current?.enqueueBase64Pcm(pcmBase64);
+          },
+          onInputTranscript: (transcript, interim) => {
+            const clean = transcript.trim();
+            if (!clean) return;
+            if (mode === 'transcribe') {
+              if (!interim) {
+                wsDictateFinalRef.current = wsDictateFinalRef.current
+                  ? `${wsDictateFinalRef.current} ${clean}`
+                  : clean;
+              }
+              const prefix = wsInputBeforeDictateRef.current;
+              const combined = interim
+                ? [prefix, wsDictateFinalRef.current, clean].filter(Boolean).join(' ')
+                : [prefix, wsDictateFinalRef.current].filter(Boolean).join(' ');
+              setInputText(combined);
+            } else {
+              if (!interim) {
+                liveTurnUserRef.current = liveTurnUserRef.current
+                  ? `${liveTurnUserRef.current} ${clean}`
+                  : clean;
+              }
+              setLiveCaption(`Você: ${clean}`);
+            }
+          },
+          onOutputTranscript: (transcript) => {
+            const clean = transcript.trim();
+            if (clean) {
+              liveTurnAgentRef.current = liveTurnAgentRef.current
+                ? `${liveTurnAgentRef.current} ${clean}`
+                : clean;
+              setLiveCaption(`${activeVoiceName}: ${clean}`);
+            }
+          },
+          onModelText: (textChunk) => {
+            const clean = textChunk.trim();
+            if (mode === 'agent' && clean && !liveTurnAgentRef.current) {
+              liveTurnAgentRef.current = clean;
+            }
+          },
+          onTurnComplete: () => {
+            if (mode === 'agent') {
+              flushPendingLiveWsTurn();
+            }
+          },
+          onInterrupted: () => {
+            wsPlayerRef.current?.clearQueue();
+          },
+          onToolCall: (calls) => {
+            onApplyToolCallsRef.current?.(calls);
+          },
+          onResumption: (handle, resumable) => {
+            if (resumable && handle) {
+              wsResumeHandleRef.current = handle;
+            }
+          },
+          onError: (msg) => {
+            setMicError(msg);
+          },
+          onClose: () => {
+            if (mode === 'agent') {
+              flushPendingLiveWsTurn();
+            }
+            wsCaptureRef.current?.stop();
+            wsCaptureRef.current = null;
+            wsPlayerRef.current?.close();
+            wsPlayerRef.current = null;
+            wsConnRef.current = null;
+            setWsLiveState('idle');
+            setWsLiveMode(null);
+            setIsLiveApiMode(false);
+          },
+        }
+      );
+
+      wsConnRef.current = conn;
+      const capture = await createLivePcmCapture({
+        onPcmChunk: (base64Pcm) => {
+          conn.sendAudioChunk(base64Pcm, 'audio/pcm;rate=16000');
+        },
+        onLevelBands: (bands) => {
+          setWsLiveBands(bands);
+        },
+      });
+      wsCaptureRef.current = capture;
+      setWsLiveState('streaming');
+    } catch (wsErr: unknown) {
+      console.warn(
+        '[LiveWS] Fallback to HTTP recording mode:',
+        wsErr instanceof Error ? wsErr.message : String(wsErr)
+      );
+      stopWsLiveSession(false);
+      if (mode === 'agent') {
+        setIsLiveApiMode(true);
+      }
+      await toggleRecording(mode === 'agent');
+    }
+  };
+
   const submitPromptWithPayload = async (
     overrideText?: string,
     overrideMode?: DockMode,
@@ -169,6 +435,25 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
     if (!textToSend || isLoading || isTranscribing) return;
 
     const autoSearchIntent = hasYoutubeOrWebSearchIntent(textToSend);
+
+    if (
+      wsLiveState === 'streaming' &&
+      wsLiveMode === 'agent' &&
+      wsConnRef.current &&
+      !detectedYoutubeUrl &&
+      !autoSearchIntent &&
+      !enableWebSearch &&
+      !overrideYoutubeAction
+    ) {
+      liveTurnUserRef.current = textToSend;
+      wsConnRef.current.sendText(textToSend);
+      setLiveCaption(`Você: ${textToSend}`);
+      setInputText('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+      return;
+    }
     const effectiveMode: DockMode =
       detectedYoutubeUrl || autoSearchIntent
         ? 'search_youtube'
@@ -310,13 +595,12 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             aria-label="Gemini Live"
             onClick={() => {
               setIsCollapsedLine(false);
-              setIsLiveApiMode(true);
-              void toggleRecording(true);
+              void startWsOrFallbackVoice('agent');
             }}
             className="min-h-11 min-w-11 h-11 w-11 rounded-full btn-matte-dark flex items-center justify-center cursor-pointer shrink-0"
             title="Iniciar conversa por voz no Gemini Live"
           >
-            <GeminiLiveSymbol active={isLiveApiMode || isRecording} />
+            <GeminiLiveSymbol active={isLiveApiMode || isRecording || wsLiveState !== 'idle'} />
           </button>
         </div>
       </div>
@@ -386,12 +670,12 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
           />
         )}
 
-        {(isLiveApiMode || isRecording || isTranscribing || micError) && (
+        {(isLiveApiMode || isRecording || isTranscribing || wsLiveState !== 'idle' || micError) && (
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 rounded-full card-matte border border-emerald-500/30 text-xs shadow-lg">
-            <div className="flex items-center gap-2.5">
-              {isRecording ? (
+            <div className="flex items-center gap-2.5 min-w-0">
+              {isRecording || wsLiveState === 'streaming' ? (
                 <div className="flex items-end gap-0.5 h-3.5 px-1" aria-hidden="true">
-                  {voiceBands.map((b, i) => (
+                  {(wsLiveState === 'streaming' ? wsLiveBands : voiceBands).map((b, i) => (
                     <span
                       key={i}
                       style={{ height: `${Math.max(25, b)}%` }}
@@ -402,20 +686,27 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               ) : (
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               )}
-              <span className="font-bold text-primary text-[11px] sm:text-xs tabular-nums">
-                {isRecording
+              <span className="font-bold text-primary text-[11px] sm:text-xs tabular-nums truncate max-w-[420px]">
+                {wsLiveState === 'connecting'
+                  ? 'Conectando Gemini Live WebSocket...'
+                  : wsLiveState === 'streaming'
+                  ? liveCaption ||
+                    (wsLiveMode === 'transcribe'
+                      ? 'Ditado em tempo real (SMART)... clique no mic para concluir'
+                      : `Gemini Live Stream (${activeVoiceName}) · Fale naturalmente`)
+                  : isRecording
                   ? `Ouvindo (${formatTimer(recordingSeconds)}) · Envia ao pausar`
                   : isTranscribing
-                  ? 'Gemini Live processando sua voz...'
+                  ? 'Gemini processando áudio...'
                   : `Gemini Live Ativo (${activeVoiceName})`}
               </span>
               {micError && <span className="text-rose-400 font-medium">· {micError}</span>}
             </div>
-            {isLiveApiMode && !isRecording && (
+            {(isLiveApiMode || wsLiveState !== 'idle') && !isRecording && (
               <button
                 type="button"
                 onClick={() => {
-                  setIsLiveApiMode(false);
+                  stopWsLiveSession(false);
                   setMicError(null);
                 }}
                 className="min-h-11 text-secondary hover:text-primary text-[11px] font-mono px-2.5 cursor-pointer"
@@ -514,12 +805,12 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                aria-pressed={isRecording && !isLiveApiMode}
-                onClick={() => void toggleRecording(false)}
+                aria-pressed={(isRecording && !isLiveApiMode) || wsLiveMode === 'transcribe'}
+                onClick={() => void startWsOrFallbackVoice('transcribe')}
                 title="Ditar pelo microfone"
                 aria-label="Ditar pelo microfone"
                 className={`min-h-11 min-w-11 h-11 w-11 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-                  isRecording && !isLiveApiMode
+                  (isRecording && !isLiveApiMode) || wsLiveMode === 'transcribe'
                     ? 'bg-emerald-500 text-slate-950 font-bold shadow-md'
                     : 'btn-matte-dark text-secondary hover:text-primary'
                 }`}
@@ -530,25 +821,16 @@ export const AgentInputDock: React.FC<AgentInputDockProps> = ({
               <button
                 type="button"
                 aria-label="Ativar Gemini Live por voz"
-                aria-pressed={isLiveApiMode}
-                onClick={() => {
-                  const nextLive = !isLiveApiMode;
-                  setIsLiveApiMode(nextLive);
-                  if (nextLive) {
-                    if (dockMode === 'translate') setDockMode('live_tutor');
-                    if (!isRecording) void toggleRecording(true);
-                  } else if (isRecording) {
-                    stopRecordingNow();
-                  }
-                }}
-                title="Gemini Live (Conversa por voz em tempo real com detecção automática de fala)"
+                aria-pressed={isLiveApiMode || wsLiveMode === 'agent'}
+                onClick={() => void startWsOrFallbackVoice('agent')}
+                title="Gemini Live (Conversa por voz em tempo real com WebSocket e detecção de fala)"
                 className={`min-h-11 min-w-11 h-11 w-11 rounded-full flex items-center justify-center transition-all shrink-0 cursor-pointer border ${
-                  isLiveApiMode
+                  isLiveApiMode || wsLiveMode === 'agent'
                     ? 'bg-emerald-500/20 border-emerald-400/60 shadow-md ring-2 ring-emerald-400/30'
                     : 'btn-matte-dark border-[var(--border-subtle)] hover:border-amber-400/50'
                 }`}
               >
-                <GeminiLiveSymbol active={isLiveApiMode || isRecording} />
+                <GeminiLiveSymbol active={isLiveApiMode || isRecording || wsLiveState !== 'idle'} />
               </button>
 
               <button

@@ -164,6 +164,7 @@ test('Suite 13: Soft UI v8.0.0 — FSM Determinística (AUDIT-STATE-01/02) e Tok
 // Suite 14: Utilitários Server-Side WAV RIFF 44 Bytes, Sanitização e Allowlists (audioContainer SUT)
 import {
   ensureWavContainer,
+  extractWavPcmInfo,
   pcmToWav,
   sanitizeUserId,
   capText,
@@ -1136,6 +1137,408 @@ test('Suite 25: Auditoria Estática SSOT v8.0.0 — Zero Blur, Anti-Cobalto, Ant
       `Non-semantic clickable div/span found in src/${relTarget}`
     );
   }
+});
+
+import { extractWavDataChunk, concatenateWavBuffers } from '../src/utils/audio/wavUtils';
+import {
+  MODEL_REGISTRY,
+  isGemini4Model,
+  resolveTtsModelForRoute,
+} from '../src/server/modelRegistry';
+import { signLiveTicket, verifyLiveTicket } from '../src/server/authSession';
+
+function buildSyntheticWavWithListChunk(pcmBytes: Uint8Array, sampleRate = 24000): Buffer {
+  const fmtChunk = Buffer.alloc(24);
+  fmtChunk.write('fmt ', 0, 4, 'ascii');
+  fmtChunk.writeUInt32LE(16, 4);
+  fmtChunk.writeUInt16LE(1, 8);
+  fmtChunk.writeUInt16LE(1, 10);
+  fmtChunk.writeUInt32LE(sampleRate, 12);
+  fmtChunk.writeUInt32LE(sampleRate * 2, 16);
+  fmtChunk.writeUInt16LE(2, 20);
+  fmtChunk.writeUInt16LE(16, 22);
+
+  const listPayload = Buffer.from('INFOISFTlavf', 'ascii'); // 12 bytes
+  const listHeader = Buffer.alloc(8);
+  listHeader.write('LIST', 0, 4, 'ascii');
+  listHeader.writeUInt32LE(listPayload.length, 4);
+
+  const dataHeader = Buffer.alloc(8);
+  dataHeader.write('data', 0, 4, 'ascii');
+  dataHeader.writeUInt32LE(pcmBytes.length, 4);
+
+  const riffBody = Buffer.concat([
+    Buffer.from('WAVE', 'ascii'),
+    fmtChunk,
+    listHeader,
+    listPayload,
+    dataHeader,
+    Buffer.from(pcmBytes),
+  ]);
+  const riffHeader = Buffer.alloc(8);
+  riffHeader.write('RIFF', 0, 4, 'ascii');
+  riffHeader.writeUInt32LE(riffBody.length, 4);
+  return Buffer.concat([riffHeader, riffBody]);
+}
+
+// Suite 26: Sanitização de Áudio, RIFF Dinâmico (>44B), Hybrid TTS & Gemini 4 Hygiene
+test('Suite 26: Sanitização de Áudio, RIFF Dinâmico (>44B), Hybrid TTS & Gemini 4 Hygiene', async () => {
+  // 1. Validate StudyArenaView TTS payload conforms to strict synthesizeSpeech keys
+  const studyTtsCheck = validateStrictPayload(
+    {
+      text: 'Hello studio',
+      voiceId: 'Kore',
+      language: 'en-US',
+      speed: 1.0,
+      emotion: 'natural',
+    },
+    ROUTE_ALLOWED_KEYS.synthesizeSpeech
+  );
+  assert.strictEqual(studyTtsCheck.ok, true, 'StudyArenaView payload must pass synthesizeSpeech allowlist');
+
+  // 2. Dynamic RIFF chunk parser (>44B header with extra LIST chunk)
+  const pcm1 = Buffer.alloc(2400, 0x11);
+  const pcm2 = Buffer.alloc(1200, 0x22);
+  const wavWithList1 = buildSyntheticWavWithListChunk(pcm1, 24000);
+  const wavWithList2 = buildSyntheticWavWithListChunk(pcm2, 24000);
+
+  const serverInfo = extractWavPcmInfo(wavWithList1);
+  assert.strictEqual(serverInfo.isRiff, true);
+  assert.strictEqual(serverInfo.sampleRate, 24000);
+  assert.strictEqual(serverInfo.dataOffset, 64, 'dataOffset must skip 20-byte LIST chunk');
+  assert.strictEqual(serverInfo.dataByteLength, pcm1.length);
+  const computedDurationSec = Number((serverInfo.dataByteLength / serverInfo.byteRate).toFixed(2));
+  assert.strictEqual(computedDurationSec, 0.05);
+
+  const clientSlice = extractWavDataChunk(new Uint8Array(wavWithList1));
+  assert.strictEqual(clientSlice.sampleRate, 24000);
+  assert.strictEqual(clientSlice.pcmData.length, pcm1.length);
+
+  const prevWindow = (globalThis as { window?: unknown }).window;
+  (globalThis as { window?: unknown }).window = {
+    atob: (b64: string) => Buffer.from(b64, 'base64').toString('binary'),
+  };
+  try {
+    const mergedBlob = concatenateWavBuffers([
+      wavWithList1.toString('base64'),
+      wavWithList2.toString('base64'),
+    ]);
+    const mergedBuf = Buffer.from(await mergedBlob.arrayBuffer());
+    assert.strictEqual(mergedBuf.toString('ascii', 0, 4), 'RIFF');
+    assert.strictEqual(mergedBuf.toString('ascii', 36, 40), 'data');
+    assert.strictEqual(mergedBuf.readUInt32LE(40), pcm1.length + pcm2.length);
+    assert.strictEqual(mergedBuf.length, 44 + pcm1.length + pcm2.length);
+  } finally {
+    if (prevWindow === undefined) {
+      delete (globalThis as { window?: unknown }).window;
+    } else {
+      (globalThis as { window?: unknown }).window = prevWindow;
+    }
+  }
+
+  // 3. Hybrid TTS routing & Gemini 4 hygiene
+  assert.strictEqual(resolveTtsModelForRoute('chunk', 50), MODEL_REGISTRY.TTS_FAST_MODEL);
+  assert.strictEqual(resolveTtsModelForRoute('speech', 120), MODEL_REGISTRY.TTS_FAST_MODEL);
+  assert.strictEqual(resolveTtsModelForRoute('speech', 500), MODEL_REGISTRY.TTS_FLAGSHIP_MODEL);
+  assert.strictEqual(resolveTtsModelForRoute('turn', 80), MODEL_REGISTRY.TTS_FLAGSHIP_MODEL);
+  assert.strictEqual(isGemini4Model('gemini-4-hydrogen'), true);
+  assert.strictEqual(isGemini4Model('gemini-3.5-flash-lite'), false);
+
+  // 4. Static checks on server files
+  const rootDir = process.cwd();
+  const geminiClientSrc = fs.readFileSync(path.join(rootDir, 'src/server/geminiClient.ts'), 'utf-8');
+  assert.strictEqual(
+    geminiClientSrc.includes("'inline-fallback'"),
+    false,
+    'geminiClient.ts must never pass inline-fallback to Gemini 3.8 TTS models'
+  );
+
+  for (const routeFile of ['src/server/routes/studyRoutes.ts', 'src/server/routes/agentRoutes.ts']) {
+    const routeSrc = fs.readFileSync(path.join(rootDir, routeFile), 'utf-8');
+    assert.strictEqual(
+      routeSrc.includes('buildFallbackPolyglotReply'),
+      false,
+      `${routeFile} must not contain hardcoded fallback buildFallbackPolyglotReply`
+    );
+  }
+
+  const ttsRoutesSrc = fs.readFileSync(path.join(rootDir, 'src/server/routes/ttsRoutes.ts'), 'utf-8');
+  assert.ok(
+    /language\.startsWith\('ja'\)\s*\?\s*capped\.replace\(\/\\\(\.\*\?\\\)\/g/.test(ttsRoutesSrc),
+    'ttsRoutes.ts must scope parentheses stripping to Japanese language chunks'
+  );
+});
+
+// Suite 27: Live WebSocket Tickets (Single-Use, Tamper & Expiry) + Protocol Hygiene
+test('Suite 27: Live WebSocket Tickets (Single-Use, Tamper & Expiry) + Protocol Hygiene', () => {
+  const prevSecret = process.env.AUTH_SESSION_SECRET;
+  process.env.AUTH_SESSION_SECRET = 'suite27-live-ticket-hmac-secret-32-bytes';
+  try {
+    const ticket = signLiveTicket('usr_live_1', false, 60);
+    const firstCheck = verifyLiveTicket(ticket);
+    assert.strictEqual(firstCheck.ok, true);
+    if (firstCheck.ok) {
+      assert.strictEqual(firstCheck.userId, 'usr_live_1');
+      assert.strictEqual(firstCheck.isAuthenticated, false);
+    }
+
+    const replayCheck = verifyLiveTicket(ticket);
+    assert.strictEqual(replayCheck.ok, false, 'Live WS ticket must be strictly single-use');
+
+    assert.strictEqual(verifyLiveTicket(`${ticket}x`).ok, false, 'Tampered ticket must be rejected');
+
+    const proxySrc = fs.readFileSync(path.resolve(process.cwd(), 'src/server/liveWsProxy.ts'), 'utf-8');
+    assert.ok(proxySrc.includes('Modality.TEXT'), 'Transcribe Live mode must set Modality.TEXT');
+    assert.ok(proxySrc.includes('Behavior.NON_BLOCKING'), 'Live tools must declare Behavior.NON_BLOCKING');
+    assert.ok(proxySrc.includes('audio/pcm;rate=16000'), 'Live audio capture MIME must target 16kHz PCM');
+  } finally {
+    if (prevSecret === undefined) {
+      delete process.env.AUTH_SESSION_SECRET;
+    } else {
+      process.env.AUTH_SESSION_SECRET = prevSecret;
+    }
+  }
+});
+
+import { Behavior } from '@google/genai';
+import { DEFAULT_VERTEX_LIVE_AGENT_LOCATION } from '../src/server/geminiClient';
+import {
+  cleanYoutubeSearchQuery,
+  createLiveStudioFunctionDeclarations,
+} from '../src/server/routes/agentHelpers';
+import {
+  addFlashcardsToDeck,
+  deleteFlashcardDeckByName,
+  readFlashcardDeck,
+} from '../src/services/flashcardDeckStorage';
+import { formatFlashcardsToCsv } from '../src/utils/csvExporter';
+import { generateInteractionJson } from '../src/utils/interactionExporter';
+import type { PolyglotMessage } from '../src/types/polyglot';
+
+// Suite 28: Flashcards Round-Trip, Dedup, Deck Delete, YouTube ytInitialData & Live Agent Regional SSOT
+test('Suite 28: Flashcards Round-Trip, Dedup, Deck Delete, YouTube ytInitialData & Live Agent Regional SSOT', () => {
+  // 1. Round-trip CSV UTF-8 BOM -> parseFlashcardsInput -> candidatesToFlashcardItems
+  const originalCards: FlashcardItem[] = [
+    {
+      id: 's28_en_1',
+      chunkText: 'Break the ice',
+      language: 'en-US',
+      front: 'Break the ice',
+      back: 'Quebrar o gelo',
+      nuance: 'Expressão coloquial de abertura',
+      pronunciation: 'breik dhi ais',
+      example: "Let's play a game to break the ice.",
+      exampleTranslation: 'Vamos jogar algo para quebrar o gelo.',
+      createdAt: 1_730_000_000_000,
+      createdDateKey: '2026-11-20',
+      deckName: 'Baralho Corporativo',
+      status: 'new',
+      intervalDays: 0,
+      repetitions: 0,
+    },
+    {
+      id: 's28_it_1',
+      chunkText: 'In bocca al lupo!',
+      language: 'it-IT',
+      front: 'In bocca al lupo!',
+      back: 'Boa sorte!',
+      nuance: 'Resposta tradicional: Crepi il lupo!',
+      pronunciation: 'in bok-ka al lu-po',
+      example: 'In bocca al lupo per domani!',
+      exampleTranslation: 'Boa sorte para amanhã!',
+      createdAt: 1_730_000_000_000,
+      createdDateKey: '2026-11-21',
+      deckName: 'Italiano Essencial',
+      status: 'new',
+      intervalDays: 0,
+      repetitions: 0,
+    },
+    {
+      id: 's28_ja_1',
+      chunkText: 'お疲れ様です (Otsukaresama desu)',
+      language: 'ja-JP',
+      front: 'お疲れ様です (Otsukaresama desu)',
+      back: 'Bom trabalho / Obrigado pelo esforço',
+      nuance: 'Cumprimento diário no trabalho',
+      pronunciation: 'Otsukaresama desu',
+      example: '今日も一日お疲れ様です。',
+      exampleTranslation: 'Bom trabalho pelo dia de hoje.',
+      createdAt: 1_730_000_000_000,
+      createdDateKey: '2026-11-22',
+      deckName: 'Nihongo Trabalho',
+      status: 'new',
+      intervalDays: 0,
+      repetitions: 0,
+    },
+  ];
+
+  const exportedCsv = formatFlashcardsToCsv(originalCards);
+  assert.ok(exportedCsv.startsWith('\uFEFF'), 'Exported CSV must include UTF-8 BOM');
+  const parsedCsv = parseFlashcardsInput(exportedCsv, { deckName: 'Baralho Poliglota', defaultLanguage: 'EN' });
+  assert.strictEqual(parsedCsv.detectedFormat, 'csv');
+  assert.strictEqual(parsedCsv.cards.length, 3, 'CSV round-trip must recover all 3 cards without header leakage');
+  const restored = candidatesToFlashcardItems(parsedCsv.cards, 'Baralho Poliglota', {
+    preserveCandidateDeckName: true,
+  });
+  assert.strictEqual(restored[0].deckName, 'Baralho Corporativo');
+  assert.strictEqual(restored[0].createdDateKey, '2026-11-20');
+  assert.strictEqual(restored[0].language, 'en-US');
+  assert.strictEqual(restored[1].deckName, 'Italiano Essencial');
+  assert.strictEqual(restored[1].createdDateKey, '2026-11-21');
+  assert.strictEqual(restored[1].language, 'it-IT');
+  assert.strictEqual(restored[2].deckName, 'Nihongo Trabalho');
+  assert.strictEqual(restored[2].createdDateKey, '2026-11-22');
+  assert.strictEqual(restored[2].language, 'ja-JP');
+  assert.strictEqual(restored[2].pronunciation, 'Otsukaresama desu');
+
+  // 2. SAMPLE_MARKDOWN header stripping
+  const sampleMd = `| Frente (Expressão) | Verso (Significado PT-BR) | Contexto / Pronúncia | Idioma |
+| --- | --- | --- | --- |
+| Break the ice | Quebrar o gelo / iniciar conversa | Let's play a quick game to break the ice. | EN |
+| In bocca al lupo! | Boa sorte! (lit. na boca do lobo) | Crepi il lupo! Grazie mille! | IT |
+| お疲れ様です (Otsukaresama desu) | Bom trabalho / Obrigado pelo esforço | Expressão essencial no cotidiano japonês | JA |`;
+  const parsedMd = parseFlashcardsInput(sampleMd, { deckName: 'Baralho Poliglota', defaultLanguage: 'EN' });
+  assert.strictEqual(parsedMd.detectedFormat, 'markdown');
+  assert.strictEqual(parsedMd.cards.length, 3, 'Markdown table header must be skipped cleanly');
+
+  // 3. interactionExporter JSON import compatibility
+  const interactionMsg: PolyglotMessage = {
+    id: 'msg_s28_1',
+    userPrompt: 'Vamos tomar um café',
+    timestamp: Date.now(),
+    status: 'ready',
+    fullText: {
+      en: "Let's grab a coffee",
+      it: 'Prendiamo un caffè',
+      ja: 'コーヒーを飲みましょう',
+    },
+    chunks: [
+      {
+        id: 0,
+        en: "Let's grab a coffee",
+        it: 'Prendiamo un caffè',
+        ja: 'コーヒーを飲みましょう',
+        jaPronunciation: 'Koohii wo nomimashou',
+      },
+    ],
+  };
+  const interactionJson = generateInteractionJson(interactionMsg);
+  const parsedInteraction = parseFlashcardsInput(interactionJson, { deckName: 'Chat Poliglota', defaultLanguage: 'EN' });
+  assert.strictEqual(parsedInteraction.detectedFormat, 'json');
+  assert.strictEqual(parsedInteraction.cards.length, 3, 'Interaction JSON must expand into EN/IT/JA flashcards');
+
+  // 4. addFlashcardsToDeck dedup preserving SRS + deleteFlashcardDeckByName
+  const origDesc = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  try {
+    const memoryStore = new Map<string, string>();
+    const mockStorage = {
+      getItem: (key: string) => memoryStore.get(key) ?? null,
+      setItem: (key: string, value: string) => memoryStore.set(key, String(value)),
+      removeItem: (key: string) => {
+        memoryStore.delete(key);
+      },
+      clear: () => memoryStore.clear(),
+      length: 0,
+      key: () => null,
+    };
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: mockStorage,
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
+
+    const uid = `usr_s28_${Date.now()}`;
+    const existingSrsCard: FlashcardItem = {
+      ...originalCards[0],
+      status: 'mastered',
+      intervalDays: 14,
+      repetitions: 3,
+      nextReviewAt: 1_740_000_000_000,
+      lastReviewedAt: 1_738_000_000_000,
+    };
+    addFlashcardsToDeck([existingSrsCard, originalCards[1]], uid);
+
+    const duplicateIncoming: FlashcardItem = {
+      ...originalCards[0],
+      id: 'new_duplicate_id_999',
+      front: '  break the ice ',
+      back: 'Quebrar o gelo (atualizado)',
+      status: 'new',
+      intervalDays: 0,
+      repetitions: 0,
+    };
+    addFlashcardsToDeck(duplicateIncoming, uid);
+
+    const afterDedup = readFlashcardDeck(uid);
+    assert.strictEqual(afterDedup.length, 2, 'Duplicate front+language must deduplicate rather than duplicate');
+    const keptCard = afterDedup.find((c) => c.id === 's28_en_1');
+    assert.ok(keptCard, 'Existing card ID must be preserved on deduplication');
+    assert.strictEqual(keptCard.status, 'mastered', 'SRS status must be preserved on deduplication');
+    assert.strictEqual(keptCard.intervalDays, 14, 'SRS intervalDays must be preserved on deduplication');
+    assert.strictEqual(keptCard.repetitions, 3, 'SRS repetitions must be preserved on deduplication');
+    assert.strictEqual(keptCard.back, 'Quebrar o gelo (atualizado)');
+
+    const afterDelete = deleteFlashcardDeckByName('Baralho Corporativo', uid);
+    assert.strictEqual(afterDelete.length, 1);
+    assert.strictEqual(afterDelete[0].deckName, 'Italiano Essencial');
+  } finally {
+    if (origDesc) {
+      Object.defineProperty(globalThis, 'localStorage', origDesc);
+    } else {
+      delete (globalThis as Record<string, unknown>).localStorage;
+    }
+  }
+
+  // 5. YouTube cleanYoutubeSearchQuery + ytInitialData JSON parser + regex fallback
+  assert.strictEqual(cleanYoutubeSearchQuery('Busque vídeos sobre jazz piano no youtube'), 'jazz piano');
+
+  const fakeYtInitialData = {
+    contents: {
+      twoColumnSearchResultsRenderer: {
+        primaryContents: {
+          sectionListRenderer: {
+            contents: [
+              {
+                itemSectionRenderer: {
+                  contents: [
+                    {
+                      videoRenderer: {
+                        videoId: 'dQw4w9WgXcQ',
+                        title: { runs: [{ text: 'Jazz Piano Cafe Session' }] },
+                        ownerText: { runs: [{ text: 'Blue Note Studio' }] },
+                        lengthText: { simpleText: '12:34' },
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  };
+  const ytInitialHtml = `<html><script>var ytInitialData = ${JSON.stringify(fakeYtInitialData)};</script></html>`;
+  const parsedFromInitialData = parseYoutubeSearchResultsHtml(ytInitialHtml, 4);
+  assert.strictEqual(parsedFromInitialData.length, 1);
+  assert.strictEqual(parsedFromInitialData[0].videoId, 'dQw4w9WgXcQ');
+  assert.strictEqual(parsedFromInitialData[0].title, 'Jazz Piano Cafe Session');
+  assert.strictEqual(parsedFromInitialData[0].authorName, 'Blue Note Studio');
+  assert.strictEqual(parsedFromInitialData[0].durationHint, '12:34');
+
+  const regexOnlyHtml = `"videoRenderer":{"videoId":"abc12345678","title":{"runs":[{"text":"Fallback Regex Title"}]},"ownerText":{"runs":[{"text":"Fallback Channel"}]},"lengthText":{"simpleText":"04:20"}}`;
+  const parsedFromRegex = parseYoutubeSearchResultsHtml(regexOnlyHtml, 4);
+  assert.strictEqual(parsedFromRegex.length, 1);
+  assert.strictEqual(parsedFromRegex[0].videoId, 'abc12345678');
+  assert.strictEqual(parsedFromRegex[0].title, 'Fallback Regex Title');
+
+  // 6. Regional Vertex Live Agent SSOT + shared function declarations
+  assert.strictEqual(DEFAULT_VERTEX_LIVE_AGENT_LOCATION, 'us-central1');
+  const decls = createLiveStudioFunctionDeclarations({ behavior: Behavior.NON_BLOCKING });
+  assert.strictEqual(decls.length, 2);
+  assert.ok(decls.some((d) => d.name === 'create_study_flashcard'));
+  assert.ok(decls.some((d) => d.name === 'switch_studio_voice'));
 });
 
 export async function runContractTests(): Promise<number> {

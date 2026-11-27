@@ -20,7 +20,7 @@ export function formatFlashcardsToCsv(cards: FlashcardItem[]): string {
 
   const escapeCsv = (str: string = ''): string => {
     // Sanitiza quebras de linha e escapa aspas duplas
-    const clean = str.replace(/"/g, '""').trim();
+    const clean = str.replace(/\r?\n/g, ' ').replace(/"/g, '""').trim();
     return `"${clean}"`;
   };
 

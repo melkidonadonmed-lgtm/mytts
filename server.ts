@@ -1,11 +1,18 @@
 import express from 'express';
+import { createServer as createHttpServer } from 'http';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { chunkStorage } from './src/services/chunkStorage';
-import { DEFAULT_GCP_PROJECT, DEFAULT_VERTEX_LOCATION } from './src/server/geminiClient';
+import {
+  DEFAULT_GCP_PROJECT,
+  DEFAULT_VERTEX_LOCATION,
+  getAuthStatusSummary,
+} from './src/server/geminiClient';
+import { attachLiveWebSocketProxy } from './src/server/liveWsProxy';
+import { MODEL_REGISTRY } from './src/server/modelRegistry';
 import { createTtsRouter } from './src/server/routes/ttsRoutes';
 import { createStorageRouter } from './src/server/routes/storageRoutes';
 import { createStudioRouter } from './src/server/routes/studioRoutes';
@@ -74,6 +81,7 @@ app.use(
     '/api/generate-chunks',
     '/api/translate-parallel-chunks',
     '/api/generate-flashcard',
+    '/api/live/ticket',
     '/api/live-agent-turn',
     '/api/agent-explore',
   ],
@@ -88,12 +96,21 @@ app.use(createAgentRouter());
 
 app.get('/api/health', (_req, res) => {
   const storage = chunkStorage.getStorageMode();
+  const authStatus = getAuthStatusSummary();
   res.json({
     status: 'online',
     service: 'DialecticPod & FastChunks API',
-    modelTts: 'gemini-3.8-flash-tts',
-    modelGen: 'gemini-3.8-flash',
-    geminiKeyConfigured: true,
+    modelTts: MODEL_REGISTRY.TTS_FLAGSHIP_MODEL,
+    modelTtsFast: MODEL_REGISTRY.TTS_FAST_MODEL,
+    modelGen: MODEL_REGISTRY.TEXT_REASONING_MODEL,
+    modelFast: MODEL_REGISTRY.TEXT_FAST_MODEL,
+    modelTranscribe: MODEL_REGISTRY.TRANSCRIBE_BATCH_MODEL,
+    modelLiveAgent: MODEL_REGISTRY.LIVE_AGENT_MODEL,
+    modelLiveTranscribe: MODEL_REGISTRY.LIVE_TRANSCRIBE_MODEL,
+    authMode: authStatus.authMode,
+    geminiKeyConfigured: authStatus.geminiKeyConfigured,
+    project: authStatus.project,
+    location: authStatus.location,
     storage,
     uptimeSec: Math.round(process.uptime()),
   });
@@ -143,8 +160,11 @@ async function startServer() {
   }
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3002;
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`DialecticPod server listening on http://0.0.0.0:${PORT}`);
+  const httpServer = createHttpServer(app);
+  attachLiveWebSocketProxy(httpServer);
+
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`DialecticPod server listening on http://0.0.0.0:${PORT} (WS /ws/live active)`);
   });
 }
 

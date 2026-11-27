@@ -60,9 +60,13 @@ const DB_VERSION = 1;
 const STORE_NAME = 'audio_records';
 const MAX_CACHE_ENTRIES = 300;
 const MAX_MEMORY_L1_ENTRIES = 60;
+const SYNTHESIS_TIMEOUT_MS = 35_000;
 
 // L1: Cache em Memória RAM
 const l1MemoryCache = new Map<string, CachedAudioRecord>();
+
+// Deduplicação de requisições TTS idênticas em voo no cliente
+const inFlightSyntheses = new Map<string, Promise<SynthesizeCacheResult>>();
 
 // Singleton da Conexão com IndexedDB
 let dbPromise: Promise<IDBDatabase | null> | null = null;
@@ -375,50 +379,81 @@ export async function synthesizeWithCache(
         key: cacheKey,
       };
     }
+
+    const existingFlight = inFlightSyntheses.get(cacheKey);
+    if (existingFlight && !signal) {
+      return existingFlight;
+    }
   }
 
-  // 2. Fetch de Rede
-  const resp = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal,
-  });
+  const runNetworkSynthesis = async (): Promise<SynthesizeCacheResult> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SYNTHESIS_TIMEOUT_MS);
+    const onCallerAbort = () => controller.abort();
+    if (signal) {
+      if (signal.aborted) controller.abort();
+      else signal.addEventListener('abort', onCallerAbort, { once: true });
+    }
 
-  let data: {
-    success?: boolean;
-    audioBase64?: string;
-    durationSec?: number;
-    error?: string;
-  } = {};
-  try {
-    data = (await resp.json()) as typeof data;
-  } catch {
-    throw new Error(`Falha HTTP ${resp.status} na síntese do áudio neural.`);
-  }
+    try {
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
 
-  if (!resp.ok || !data.success || !data.audioBase64) {
-    throw new Error(data.error || 'Falha na síntese do áudio neural.');
-  }
+      let data: {
+        success?: boolean;
+        audioBase64?: string;
+        durationSec?: number;
+        error?: string;
+      } = {};
+      try {
+        data = (await resp.json()) as typeof data;
+      } catch {
+        throw new Error(`Falha HTTP ${resp.status} na síntese do áudio neural.`);
+      }
 
-  // 3. Gravar no Cache Assincronamente
-  setCachedAudio({
-    key: cacheKey,
-    audioBase64: data.audioBase64,
-    mimeType: 'audio/wav',
-    durationSec: data.durationSec,
-    language: metadata?.language,
-    voiceId: metadata?.voiceId,
-    speed: metadata?.speed,
-    emotion: metadata?.emotion,
-  }).catch((err: unknown) => console.warn('MyTTS: Falha assíncrona ao persistir áudio no cache:', err));
+      if (!resp.ok || !data.success || !data.audioBase64) {
+        throw new Error(data.error || 'Falha na síntese do áudio neural.');
+      }
 
-  return {
-    audioBase64: data.audioBase64,
-    durationSec: data.durationSec,
-    fromCache: false,
-    key: cacheKey,
+      setCachedAudio({
+        key: cacheKey,
+        audioBase64: data.audioBase64,
+        mimeType: 'audio/wav',
+        durationSec: data.durationSec,
+        language: metadata?.language,
+        voiceId: metadata?.voiceId,
+        speed: metadata?.speed,
+        emotion: metadata?.emotion,
+      }).catch((err: unknown) => console.warn('MyTTS: Falha assíncrona ao persistir áudio no cache:', err));
+
+      return {
+        audioBase64: data.audioBase64,
+        durationSec: data.durationSec,
+        fromCache: false,
+        key: cacheKey,
+      };
+    } finally {
+      clearTimeout(timer);
+      if (signal) {
+        signal.removeEventListener('abort', onCallerAbort);
+      }
+    }
   };
+
+  if (!bypassCache && !signal) {
+    const promise = runNetworkSynthesis().finally(() => {
+      inFlightSyntheses.delete(cacheKey);
+    });
+    inFlightSyntheses.set(cacheKey, promise);
+    return promise;
+  }
+
+  return runNetworkSynthesis();
 }
 
 /**

@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { Type } from '@google/genai';
+import {
+  FunctionCallingConfigMode,
+  ThinkingLevel,
+  Type,
+} from '@google/genai';
 import type {
   AgentPersona,
   AgentExploreSource,
@@ -13,20 +17,79 @@ import {
   parseStructuredJsonFromModel,
 } from '../../utils/youtubeHelper';
 import { capText, formatGeminiError } from '../audioContainer';
+import { resolveRequestUserId, signLiveTicket } from '../authSession';
 import { ai } from '../geminiClient';
+import { MODEL_REGISTRY } from '../modelRegistry';
 import { ROUTE_ALLOWED_KEYS, validateStrictPayload } from '../validators';
-import { buildFallbackPolyglotReply } from './studyRoutes';
 import {
+  createLiveStudioFunctionDeclarations,
   fetchYoutubeMetadata,
   resolveLiveToolCalls,
   searchYoutubeVideos,
   type LiveAgentToolCallResult,
 } from './agentHelpers';
 
+function shouldProbeNativeLiveTools(text: string | undefined, hasAudio: boolean): boolean {
+  if (hasAudio) return true;
+  if (!text) return false;
+  return /(flashcard|salvar\s+card|salve\s+um\s+card|cart[aã]o|trocar\s+voz|mudar\s+voz|mudar\s+para\s+(puck|kore|aoede|fenrir|enceladus)|voz\s+(puck|kore|aoede|fenrir|enceladus))/i.test(
+    text
+  );
+}
+
+function resolveAgentHttpStatus(error: unknown): number {
+  const msg = error instanceof Error ? error.message : String(error ?? '');
+  if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429')) {
+    return 429;
+  }
+  return 502;
+}
+
 export type { LiveAgentToolCallResult };
 
 export function createAgentRouter(): Router {
   const router = Router();
+
+  router.post('/api/live/ticket', (req, res) => {
+    const identity = resolveRequestUserId(req);
+    if (!identity.ok) {
+      return res.status(identity.status).json({ success: false, error: identity.error });
+    }
+
+    const ttlSec = 60;
+    const ticket = signLiveTicket(identity.userId, identity.isAuthenticated, ttlSec);
+    const forwardedProtoRaw = req.headers['x-forwarded-proto'];
+    const forwardedProto =
+      typeof forwardedProtoRaw === 'string' ? forwardedProtoRaw.split(',')[0].trim() : '';
+    const isSecure = forwardedProto === 'https' || req.protocol === 'https';
+    const rawHost =
+      (typeof req.headers['x-forwarded-host'] === 'string' && req.headers['x-forwarded-host']) ||
+      req.headers.host ||
+      'localhost:3002';
+    const hostOnly = rawHost.split(',')[0].trim();
+
+    const cloudRunWsOrigin = (process.env.CLOUD_RUN_WS_ORIGIN || '').trim().replace(/\/+$/, '');
+    const isFirebaseHosting =
+      hostOnly.endsWith('.web.app') || hostOnly.endsWith('.firebaseapp.com');
+
+    let wsUrl: string;
+    if (isFirebaseHosting && cloudRunWsOrigin) {
+      const normalizedOrigin = cloudRunWsOrigin.replace(/^http(s?):\/\//i, (_, s) =>
+        s ? 'wss://' : 'ws://'
+      );
+      wsUrl = `${normalizedOrigin}/ws/live?ticket=${encodeURIComponent(ticket)}`;
+    } else {
+      const wsProto = isSecure ? 'wss' : 'ws';
+      wsUrl = `${wsProto}://${hostOnly}/ws/live?ticket=${encodeURIComponent(ticket)}`;
+    }
+
+    return res.json({
+      success: true,
+      ticket,
+      wsUrl,
+      expiresInSec: ttlSec,
+    });
+  });
 
   router.post('/api/live-agent-turn', async (req, res) => {
     const check = validateStrictPayload<{
@@ -69,16 +132,11 @@ export function createAgentRouter(): Router {
       const systemPrompt = `Você é o Agente de Voz em Tempo Real (Live API) do MyTTS Studio.
 Modo ativo: ${personaInstructions[persona] || personaInstructions.tutor_conversational}
 
-Ferramentas nativas do estúdio (Function Calling NON_BLOCKING disponíveis no array opcional "toolCalls"):
-- "create_study_flashcard": use quando o usuário pedir para criar/salvar um flashcard ou cartão de estudo.
-- "switch_studio_voice": use quando o usuário pedir para trocar a voz neural ("Puck", "Kore", "Aoede", "Fenrir" ou "Enceladus").
-
 Regras obrigatórias de saída JSON:
 1. "userTranscript": transcrição exata do que o usuário falou ou enviou.
 2. "agentReplyPtBr": resposta, dica ou explicação amigável em Português do Brasil (pt-BR).
 3. "chunks": array de 2 a 5 blocos semânticos alinhados (EN, IT, JA + jaPronunciation em Romaji).
-4. "fullText": texto completo contínuo em "en", "it" e "ja".
-5. "toolCalls": lista opcional de chamadas de função acionadas neste turno.`;
+4. "fullText": texto completo contínuo em "en", "it" e "ja".`;
 
       const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [];
 
@@ -100,12 +158,12 @@ Regras obrigatórias de saída JSON:
         }`,
       });
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+      const structuredPromise = ai.models.generateContent({
+        model: MODEL_REGISTRY.TEXT_REASONING_MODEL,
         contents: [{ role: 'user', parts }],
         config: {
           systemInstruction: systemPrompt,
-          temperature: 0.5,
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -135,31 +193,52 @@ Regras obrigatórias de saída JSON:
                 },
                 required: ['en', 'it', 'ja'],
               },
-              toolCalls: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING },
-                    frontPhrase: { type: Type.STRING },
-                    backTranslation: { type: Type.STRING },
-                    targetVoice: { type: Type.STRING },
-                    language: { type: Type.STRING },
-                  },
-                  required: ['name'],
-                },
-              },
             },
             required: ['userTranscript', 'agentReplyPtBr', 'chunks', 'fullText'],
           },
         },
       });
 
-      const parsed = JSON.parse(response.text || '{}');
+      // Native Function Calling decoupled from responseSchema to avoid MALFORMED_FUNCTION_CALL on Gemini 4
+      const nativeToolPromise = shouldProbeNativeLiveTools(text, Boolean(audioBase64))
+        ? ai.models
+            .generateContent({
+              model: MODEL_REGISTRY.TEXT_FAST_MODEL,
+              contents: [{ role: 'user', parts }],
+              config: {
+                systemInstruction:
+                  'Detect if the user explicitly asked to save a flashcard or change the studio voice. Call matching tools only when requested.',
+                thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+                tools: [{ functionDeclarations: createLiveStudioFunctionDeclarations() }],
+                toolConfig: {
+                  functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
+                },
+              },
+            })
+            .catch(() => null)
+        : Promise.resolve(null);
+
+      const [response, nativeToolResponse] = await Promise.all([
+        structuredPromise,
+        nativeToolPromise,
+      ]);
+
+      const parsed = parseStructuredJsonFromModel<{
+        userTranscript?: string;
+        agentReplyPtBr?: string;
+        chunks?: AlignedChunk[];
+        fullText?: { en: string; it: string; ja: string };
+      }>(response.text || '{}') || {};
       const resolvedTranscript = parsed.userTranscript || text || 'Áudio recebido';
       const resolvedChunks = parsed.chunks || [];
+      const nativeCalls = Array.isArray(nativeToolResponse?.functionCalls)
+        ? nativeToolResponse.functionCalls.map((fc) => ({
+            name: fc.name,
+            ...(fc.args && typeof fc.args === 'object' ? fc.args : {}),
+          }))
+        : undefined;
       const toolCallsExecuted = resolveLiveToolCalls(
-        parsed.toolCalls,
+        nativeCalls,
         resolvedTranscript,
         resolvedChunks
       );
@@ -174,16 +253,11 @@ Regras obrigatórias de saída JSON:
         toolCallsExecuted,
       });
     } catch (error: unknown) {
-      console.warn('[WARN] /api/live-agent-turn fallback ativado:', formatGeminiError(error, 'Erro Live Agent'));
-      const fallback = buildFallbackPolyglotReply(text || 'Conversa por Voz Live', persona);
-      const toolCallsExecuted = resolveLiveToolCalls([], fallback.userTranscript, fallback.chunks);
-      return res.json({
-        success: true,
-        persona,
-        fallback: true,
-        warning: formatGeminiError(error, 'Operando em modo de contingência local.'),
-        ...fallback,
-        toolCallsExecuted,
+      const formatted = formatGeminiError(error, 'Falha ao processar turno do Agente Live.');
+      console.error('[Error] /api/live-agent-turn:', formatted);
+      return res.status(resolveAgentHttpStatus(error)).json({
+        success: false,
+        error: formatted,
       });
     }
   });
@@ -294,7 +368,7 @@ Regras obrigatórias de saída JSON:
           : effectiveAction === 'extract_expressions'
           ? `MODO SELECIONADO PELO USUÁRIO: EXTRAIR EXPRESSÕES NATIVAS & FLASHCARDS DO VÍDEO.
 - ${clipRangeInstruction}
-- Extraia de 5 a 8 expressões idiomáticas, frases de alta frequência ou vocabulário real usado no vídeo e alinhe cada expressão em Inglês ("en"), Italiano ("it") e Japonês ("ja" + "jaPronunciation" em Romaji).
+- Extraia de 5 a 8 expressões idiomáticas, frases de alta frequência ou vocabulário real usado no vídeo e alinhe cada expressão em Inglês ("en"), Italiano ("it"), Japonês ("ja" + "jaPronunciation" em Romaji) e a tradução/significado natural em Português do Brasil em "meaningPtBr".
 - No campo "agentReplyPtBr", explique em Português do Brasil o significado, tom e nuance de cada expressão extraída do vídeo.`
           : effectiveAction === 'summary_dialogue'
           ? `MODO SELECIONADO PELO USUÁRIO: RESUMO EXECUTIVO + DIÁLOGO PRÁTICO DE ESTUDO.
@@ -338,18 +412,58 @@ Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown ao redor) com a
 }`,
       });
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [{ role: 'user', parts }],
-        config: {
-          temperature: 0.35,
-          tools: detectedYt ? undefined : enableSearch ? [{ googleSearch: {} }] : undefined,
+      const response = await ai.models.generateContent(
+        {
+          model: MODEL_REGISTRY.TEXT_REASONING_MODEL,
+          contents: [{ role: 'user', parts }],
+          config: {
+            thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
+            tools: detectedYt ? undefined : enableSearch ? [{ googleSearch: {} }] : undefined,
+            ...(detectedYt
+              ? {
+                  responseMimeType: 'application/json',
+                  responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                      agentReplyPtBr: { type: Type.STRING },
+                      chunks: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.OBJECT,
+                          properties: {
+                            id: { type: Type.INTEGER },
+                            en: { type: Type.STRING },
+                            it: { type: Type.STRING },
+                            ja: { type: Type.STRING },
+                            jaPronunciation: { type: Type.STRING },
+                            meaningPtBr: { type: Type.STRING },
+                          },
+                          required: ['en', 'it', 'ja'],
+                        },
+                      },
+                      fullText: {
+                        type: Type.OBJECT,
+                        properties: {
+                          en: { type: Type.STRING },
+                          it: { type: Type.STRING },
+                          ja: { type: Type.STRING },
+                        },
+                        required: ['en', 'it', 'ja'],
+                      },
+                    },
+                    required: ['agentReplyPtBr', 'chunks', 'fullText'],
+                  },
+                }
+              : {}),
+          },
         },
-      });
+        { timeoutMs: 60_000 }
+      );
 
+      type ExploreChunkRaw = AlignedChunk & { meaningPtBr?: string };
       const parsed = parseStructuredJsonFromModel<{
         agentReplyPtBr?: string;
-        chunks?: AlignedChunk[];
+        chunks?: ExploreChunkRaw[];
         fullText?: { en: string; it: string; ja: string };
       }>((response.text || '').trim());
 
@@ -357,7 +471,8 @@ Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown ao redor) com a
         throw new Error('O Agente não retornou os blocos de chunks estruturados esperados.');
       }
 
-      const normalizedChunks: AlignedChunk[] = parsed.chunks.map((c, idx) => ({
+      const rawExploreChunks = parsed.chunks;
+      const normalizedChunks: AlignedChunk[] = rawExploreChunks.map((c, idx) => ({
         id: typeof c.id === 'number' ? c.id : idx,
         en: String(c.en || ''),
         it: String(c.it || ''),
@@ -401,17 +516,23 @@ Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown ao redor) com a
 
       const toolCallsExecuted: LiveAgentToolCallResult[] =
         effectiveAction === 'extract_expressions'
-          ? normalizedChunks.slice(0, 3).map((chunk, idx) => ({
-              id: `tool-yt-fc-${Date.now()}-${idx}`,
-              name: 'create_study_flashcard',
-              behavior: 'NON_BLOCKING',
-              args: {
-                frontPhrase: chunk.en,
-                backTranslation: `${chunk.it} • ${chunk.ja}`,
-              },
-              status: 'executed',
-              summaryPtBr: `Expressão do vídeo salva no Deck: "${chunk.en}"`,
-            }))
+          ? normalizedChunks.slice(0, 3).map((chunk, idx) => {
+              const ptMeaning = rawExploreChunks[idx]?.meaningPtBr?.trim();
+              return {
+                id: `tool-yt-fc-${Date.now()}-${idx}`,
+                name: 'create_study_flashcard',
+                behavior: 'NON_BLOCKING',
+                args: {
+                  frontPhrase: chunk.en,
+                  backTranslation:
+                    ptMeaning ||
+                    `${chunk.it} · ${chunk.ja}`,
+                  language: 'en',
+                },
+                status: 'executed',
+                summaryPtBr: `Expressão do vídeo salva no Deck: "${chunk.en}"`,
+              };
+            })
           : [];
 
       return res.json({
@@ -429,33 +550,14 @@ Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown ao redor) com a
         toolCallsExecuted: toolCallsExecuted.length > 0 ? toolCallsExecuted : undefined,
       });
     } catch (error: unknown) {
-      console.warn('[WARN] /api/agent-explore fallback ativado:', formatGeminiError(error, 'Erro Agent Explore'));
-      const [youtubeMeta, youtubeSearchResults] = await Promise.all([
-        detectedYt ? fetchYoutubeMetadata(detectedYt) : Promise.resolve(null),
-        !detectedYt ? searchYoutubeVideos(cleanPrompt, 4) : Promise.resolve([]),
-      ]);
-      const fallback = buildFallbackPolyglotReply(cleanPrompt, 'tutor_conversational', detectedYt);
-      const fallbackSources: AgentExploreSource[] = [];
-      if (detectedYt) {
-        fallbackSources.push({ title: youtubeMeta?.title || 'Vídeo do YouTube Informado', uri: detectedYt });
-      }
-      for (const v of youtubeSearchResults) {
-        fallbackSources.push({ title: `YouTube: ${v.title}`, uri: v.canonicalUrl });
-      }
-
-      return res.json({
-        success: true,
-        fallback: true,
-        warning: formatGeminiError(error, 'Operando em modo de contingência local.'),
-        originMode: detectedYt ? 'youtube' : 'web_search',
-        youtubeUrl: detectedYt,
-        youtubeMeta: youtubeMeta || undefined,
-        youtubeSearchResults: youtubeSearchResults.length > 0 ? youtubeSearchResults : undefined,
-        youtubeAction: effectiveAction,
-        agentReplyPtBr: fallback.agentReplyPtBr,
-        sources: fallbackSources.slice(0, 6),
-        chunks: fallback.chunks,
-        fullText: fallback.fullText,
+      const formatted = formatGeminiError(
+        error,
+        'Falha ao consultar o Agente de Busca / YouTube.'
+      );
+      console.error('[Error] /api/agent-explore:', formatted);
+      return res.status(resolveAgentHttpStatus(error)).json({
+        success: false,
+        error: formatted,
       });
     }
   });

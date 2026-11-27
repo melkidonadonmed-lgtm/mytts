@@ -42,7 +42,7 @@ export interface VoiceConfigWorkspaceProps {
   onChangeStudioRenderMode?: (mode: StudioRenderMode) => void;
   onGenerateDebate: (
     speakers: [SpeakerProfile, SpeakerProfile],
-    tension: 'friendly' | 'balanced' | 'provocative',
+    tension: 'friendly' | 'balanced' | 'provocative' | 'reflective',
     format?: ConversationFormat,
     language?: LanguageCode
   ) => Promise<void>;
@@ -231,18 +231,14 @@ export const VoiceConfigWorkspace: React.FC<VoiceConfigWorkspaceProps> = ({
                   currentLanguage={debateConfig.language}
                   textInput={text}
                   onChangeText={onChangeText}
-                  onGenerateDebate={() => {
-                    const mappedTension =
-                      debateConfig.tensionIntensity === 'reflective'
-                        ? 'friendly'
-                        : debateConfig.tensionIntensity;
-                    return onGenerateDebate(
+                  onGenerateDebate={() =>
+                    onGenerateDebate(
                       debateConfig.speakers,
-                      mappedTension,
+                      debateConfig.tensionIntensity,
                       debateConfig.format,
                       debateConfig.language
-                    );
-                  }}
+                    )
+                  }
                   isGenerating={isGeneratingDebate || isSynthesizingDebate}
                 />
                 <DebateConfigPanel

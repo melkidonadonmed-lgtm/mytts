@@ -4,9 +4,130 @@
  */
 
 export const USER_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
-export const MAX_TTS_CHARS = 20000;
-export const ALLOWED_PREVIEW_VOICES = new Set(['Puck', 'Kore', 'Aoede', 'Fenrir', 'Enceladus']);
+const MAX_TTS_CHARS = 20000;
+export const ALLOWED_STUDIO_VOICES = new Set(['Puck', 'Kore', 'Aoede', 'Fenrir', 'Enceladus']);
+export const ALLOWED_PREVIEW_VOICES = ALLOWED_STUDIO_VOICES;
 export const ALLOWED_PREVIEW_LANGS = new Set(['pt-BR', 'en-US', 'it-IT', 'ja-JP']);
+export const ALLOWED_CHUNK_TARGET_LANGS = new Set(['en-US', 'it-IT', 'ja-JP']);
+
+export function resolveAllowedVoice(raw: unknown, fallback: string = 'Kore'): string {
+  if (typeof raw === 'string' && ALLOWED_STUDIO_VOICES.has(raw.trim())) {
+    return raw.trim();
+  }
+  return ALLOWED_STUDIO_VOICES.has(fallback) ? fallback : 'Kore';
+}
+
+export function clampSpeechSpeed(raw: unknown, fallback: number = 1.0): number {
+  const numeric = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(0.5, Math.min(2.0, Number(numeric.toFixed(2))));
+}
+
+export interface WavPcmInfo {
+  isRiff: boolean;
+  sampleRate: number;
+  numChannels: number;
+  bitsPerSample: number;
+  byteRate: number;
+  dataOffset: number;
+  dataByteLength: number;
+}
+
+/**
+ * Dynamically walks RIFF/WAVE sub-chunks to locate 'fmt ' and 'data',
+ * safely handling headers larger than 44 bytes (e.g., LIST/INFO/JUNK chunks).
+ */
+export function extractWavPcmInfo(buffer: Buffer): WavPcmInfo {
+  const defaultByteRate = 24000 * 2;
+  if (
+    buffer.length < 12 ||
+    buffer.toString('ascii', 0, 4) !== 'RIFF' ||
+    buffer.toString('ascii', 8, 12) !== 'WAVE'
+  ) {
+    return {
+      isRiff: false,
+      sampleRate: 24000,
+      numChannels: 1,
+      bitsPerSample: 16,
+      byteRate: defaultByteRate,
+      dataOffset: 0,
+      dataByteLength: buffer.length,
+    };
+  }
+
+  let sampleRate = 24000;
+  let numChannels = 1;
+  let bitsPerSample = 16;
+  let byteRate = defaultByteRate;
+  let dataOffset = Math.min(44, buffer.length);
+  let dataByteLength = Math.max(0, buffer.length - dataOffset);
+  let foundData = false;
+
+  let offset = 12;
+  while (offset + 8 <= buffer.length) {
+    const chunkId = buffer.toString('ascii', offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const payloadOffset = offset + 8;
+
+    if (chunkId === 'fmt ' && payloadOffset + 16 <= buffer.length) {
+      numChannels = buffer.readUInt16LE(payloadOffset + 2) || 1;
+      sampleRate = buffer.readUInt32LE(payloadOffset + 4) || 24000;
+      byteRate = buffer.readUInt32LE(payloadOffset + 8) || sampleRate * numChannels * 2;
+      bitsPerSample = buffer.readUInt16LE(payloadOffset + 14) || 16;
+    } else if (chunkId === 'data') {
+      dataOffset = payloadOffset;
+      dataByteLength = Math.min(chunkSize, Math.max(0, buffer.length - payloadOffset));
+      foundData = true;
+      break;
+    }
+
+    const paddedSize = chunkSize + (chunkSize % 2);
+    const nextOffset = payloadOffset + paddedSize;
+    if (nextOffset <= offset) break;
+    offset = nextOffset;
+  }
+
+  if (!foundData) {
+    dataOffset = Math.min(44, buffer.length);
+    dataByteLength = Math.max(0, buffer.length - dataOffset);
+  }
+
+  return {
+    isRiff: true,
+    sampleRate,
+    numChannels,
+    bitsPerSample,
+    byteRate: byteRate > 0 ? byteRate : sampleRate * numChannels * (bitsPerSample / 8),
+    dataOffset,
+    dataByteLength,
+  };
+}
+
+export function detectAudioMagicFormat(
+  buffer: Buffer
+): { ext: string; mime: string } | null {
+  if (buffer.length < 4) return null;
+  if (
+    buffer.length >= 12 &&
+    buffer.toString('ascii', 0, 4) === 'RIFF' &&
+    buffer.toString('ascii', 8, 12) === 'WAVE'
+  ) {
+    return { ext: 'wav', mime: 'audio/wav' };
+  }
+  if (buffer.toString('ascii', 0, 3) === 'ID3') {
+    return { ext: 'mp3', mime: 'audio/mpeg' };
+  }
+  if (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0) {
+    return { ext: 'mp3', mime: 'audio/mpeg' };
+  }
+  if (buffer.toString('ascii', 0, 4) === 'OggS') {
+    return { ext: 'ogg', mime: 'audio/ogg' };
+  }
+  if (buffer.toString('ascii', 0, 4) === 'fLaC') {
+    return { ext: 'flac', mime: 'audio/flac' };
+  }
+  return null;
+}
 
 export function sanitizeUserId(raw: unknown): string {
   return typeof raw === 'string' && USER_ID_PATTERN.test(raw) ? raw : 'anonymous-user';

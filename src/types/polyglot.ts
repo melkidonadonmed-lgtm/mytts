@@ -122,6 +122,18 @@ export interface PolyglotMessage {
   sources?: AgentExploreSource[];
   /** Origem da rodada para exibição de badge no histórico e no card */
   originMode?: MessageOriginMode;
+  /** Metadado transitório para botão 'Tentar novamente' em caso de erro de rede/API */
+  retryPayload?: {
+    text: string;
+    autoPlayAfter?: boolean;
+    dockMode?: 'translate' | 'live_tutor' | 'practice' | 'search_youtube';
+    persona?: AgentPersona;
+    youtubeUrl?: string;
+    youtubeAction?: YoutubePostLinkAction;
+    clipRange?: YoutubeClipRange;
+    enableSearch?: boolean;
+    autoSpeakReply?: boolean;
+  };
 }
 
 export interface SavedConversation {

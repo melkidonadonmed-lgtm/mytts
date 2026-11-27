@@ -71,10 +71,22 @@ jobs:
       - name: Deploy no Google Cloud Run
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          AUTH_SESSION_SECRET: ${{ secrets.AUTH_SESSION_SECRET }}
+          CLOUD_RUN_WS_ORIGIN: ${{ secrets.CLOUD_RUN_WS_ORIGIN }}
         run: |
-          ENV_VARS="NODE_ENV=production,GCP_PROJECT_ID=${{ env.PROJECT_ID }}"
+          ENV_VARS="NODE_ENV=production,GCP_PROJECT_ID=${{ env.PROJECT_ID }},GOOGLE_CLOUD_LOCATION=global,VERTEX_LIVE_AGENT_LOCATION=us-central1"
           if [ -n "$GEMINI_API_KEY" ]; then
             ENV_VARS="${ENV_VARS},GEMINI_API_KEY=${GEMINI_API_KEY}"
+          fi
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then
+            ENV_VARS="${ENV_VARS},GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+          fi
+          if [ -n "$AUTH_SESSION_SECRET" ]; then
+            ENV_VARS="${ENV_VARS},AUTH_SESSION_SECRET=${AUTH_SESSION_SECRET}"
+          fi
+          if [ -n "$CLOUD_RUN_WS_ORIGIN" ]; then
+            ENV_VARS="${ENV_VARS},CLOUD_RUN_WS_ORIGIN=${CLOUD_RUN_WS_ORIGIN}"
           fi
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
@@ -82,6 +94,7 @@ jobs:
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
+            --timeout 900 \
             --port 8080 \
             --quiet \
             --update-env-vars "${ENV_VARS}"

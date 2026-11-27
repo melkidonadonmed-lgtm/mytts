@@ -70,6 +70,7 @@ export const VoiceLibrary: React.FC<VoiceLibraryProps> = ({
         const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
         currentAudioUrlRef.current = blobUrl;
         const audio = new Audio(blobUrl);
+        audio.preservesPitch = true;
         audioRef.current = audio;
         setPlayingVoiceId(voice.id);
         audio.onended = () => { setPlayingVoiceId(null); revokeAudioUrl(blobUrl); };

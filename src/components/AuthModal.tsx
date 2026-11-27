@@ -87,8 +87,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (!isOpen || !googleClientId) return;
+    if (!googleClientId.endsWith('.apps.googleusercontent.com')) {
+      setErrorMsg('GOOGLE_CLIENT_ID configurado no servidor possui formato inválido.');
+      return;
+    }
+
+    let cancelled = false;
     const initGsi = () => {
-      if (!window.google?.accounts?.id || !gsiContainerRef.current) return;
+      if (cancelled || !window.google?.accounts?.id || !gsiContainerRef.current) return;
       gsiContainerRef.current.replaceChildren();
       window.google.accounts.id.initialize({
         client_id: googleClientId,
@@ -115,18 +121,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       });
     };
 
-    const existing = document.getElementById('google-gsi-client-script');
+    const handleScriptError = () => {
+      if (!cancelled) {
+        setErrorMsg('Não foi possível carregar o script oficial do Google Sign-In. Verifique bloqueadores ou conexão.');
+      }
+    };
+
+    const existing = document.getElementById('google-gsi-client-script') as HTMLScriptElement | null;
     if (existing) {
-      initGsi();
-      return;
+      if (window.google?.accounts?.id) {
+        initGsi();
+        return () => {
+          cancelled = true;
+        };
+      }
+      existing.addEventListener('load', initGsi);
+      existing.addEventListener('error', handleScriptError);
+      return () => {
+        cancelled = true;
+        existing.removeEventListener('load', initGsi);
+        existing.removeEventListener('error', handleScriptError);
+      };
     }
+
     const script = document.createElement('script');
     script.id = 'google-gsi-client-script';
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
-    script.onload = initGsi;
+    script.addEventListener('load', initGsi);
+    script.addEventListener('error', handleScriptError);
     document.head.appendChild(script);
+    return () => {
+      cancelled = true;
+      script.removeEventListener('load', initGsi);
+      script.removeEventListener('error', handleScriptError);
+    };
   }, [isOpen, googleClientId, onClose]);
 
   const handleUseGuestWorkspace = () => {

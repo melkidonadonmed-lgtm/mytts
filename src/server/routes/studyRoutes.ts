@@ -1,70 +1,30 @@
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
-import { Type } from '@google/genai';
+import { ThinkingLevel, Type } from '@google/genai';
 import { chunkStorage } from '../../services/chunkStorage';
 import type { ChunkItem } from '../../types/chunks';
-import type { AgentPersona, AlignedChunk, FlashcardItem } from '../../types/polyglot';
+import type { AlignedChunk, FlashcardItem } from '../../types/polyglot';
 import { detectFlashcardLanguage } from '../../utils/flashcardParser';
 import { toLocalCalendarDateKey } from '../../utils/flashcardOrganizer';
-import { formatGeminiError, sanitizeUserId } from '../audioContainer';
+import { parseStructuredJsonFromModel } from '../../utils/youtubeHelper';
+import {
+  ALLOWED_CHUNK_TARGET_LANGS,
+  capText,
+  formatGeminiError,
+} from '../audioContainer';
+import { resolveRequestUserId } from '../authSession';
 import { ai } from '../geminiClient';
+import { MODEL_REGISTRY } from '../modelRegistry';
 import { ROUTE_ALLOWED_KEYS, validateStrictPayload } from '../validators';
 
-export function buildFallbackPolyglotReply(
-  inputPrompt: string,
-  persona: AgentPersona,
-  youtubeUrl?: string
-): {
-  userTranscript: string;
-  agentReplyPtBr: string;
-  chunks: AlignedChunk[];
-  fullText: { en: string; it: string; ja: string };
-} {
-  const cleanPrompt = inputPrompt.trim() || 'Olá! Vamos praticar conversação hoje?';
-  const isYoutube = Boolean(youtubeUrl);
+const MAX_PARALLEL_TRANSLATE_CHARS = 6000;
 
-  const agentReplyPtBr = isYoutube
-    ? `Analisei o link do YouTube (${youtubeUrl}). Preparei abaixo uma conversa prática em 3 idiomas com os pontos principais sobre "${cleanPrompt}" para estudo e escuta comparada.`
-    : persona === 'tutor_conversational'
-    ? `Ótima pergunta sobre "${cleanPrompt}"! Como seu Tutor Poliglota, estruturei uma resposta natural nos 3 idiomas abaixo para você ouvir a pronúncia e comparar cada bloco.`
-    : persona === 'practice_partner'
-    ? `Excelente iniciativa! Vamos praticar uma situação real sobre "${cleanPrompt}". Ouça a resposta abaixo e tente repetir em voz alta!`
-    : `Tradução e alinhamento em 3 idiomas concluídos para: "${cleanPrompt}".`;
-
-  const chunks: AlignedChunk[] = [
-    {
-      id: 0,
-      en: "That's a great topic to explore together,",
-      it: 'Questo è un ottimo argomento da esplorare insieme,',
-      ja: 'それは一緒に探求するのに素晴らしいテーマですね、',
-      jaPronunciation: 'Sore wa issho ni tankyū suru no ni subarashii tēma desu ne,',
-    },
-    {
-      id: 1,
-      en: 'let us break down the key ideas naturally',
-      it: 'analizziamo le idee principali in modo naturale',
-      ja: '重要なポイントを自然に整理してみましょう',
-      jaPronunciation: 'jūyō na pointo o shizen ni seiri shite mimashō',
-    },
-    {
-      id: 2,
-      en: 'and practice speaking step by step.',
-      it: 'e facciamo pratica parlando passo dopo passo.',
-      ja: 'そして一歩ずつ会話の練習をしていきましょう。',
-      jaPronunciation: 'soshite ippo zutsu kaiwa no renshū o shite ikimashō.',
-    },
-  ];
-
-  return {
-    userTranscript: cleanPrompt,
-    agentReplyPtBr,
-    chunks,
-    fullText: {
-      en: chunks.map((c) => c.en).join(' '),
-      it: chunks.map((c) => c.it).join(' '),
-      ja: chunks.map((c) => c.ja).join(' '),
-    },
-  };
+function resolveGeminiHttpStatus(error: unknown): number {
+  const msg = error instanceof Error ? error.message : String(error ?? '');
+  if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429')) {
+    return 429;
+  }
+  return 502;
 }
 
 function normalizeGeneratedCard(
@@ -100,11 +60,11 @@ A partir de uma expressão ou frase (em Português, Inglês, Italiano ou Japonê
 Use 'en-US', 'it-IT' e 'ja-JP' em "language"; expressão idiomática no idioma alvo em "front" (kanji/kana + romaji para japonês); tradução natural em pt-BR em "back"; nuance em pt-BR; guia fonético em "pronunciation"; e exemplo real + tradução pt-BR.`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model: MODEL_REGISTRY.TEXT_REASONING_MODEL,
     contents: [{ role: 'user', parts: [{ text: `Entrada: "${chunkText}"\nContexto: "${contextSentence || chunkText}"` }] }],
     config: {
       systemInstruction: systemPrompt,
-      temperature: 0.45,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       responseMimeType: 'application/json',
       responseSchema: {
         type: Type.OBJECT,
@@ -131,8 +91,12 @@ Use 'en-US', 'it-IT' e 'ja-JP' em "language"; expressão idiomática no idioma a
     },
   });
 
-  const parsed = JSON.parse(response.text || '{}') as { cards?: Array<Record<string, string>> };
+  const parsed =
+    parseStructuredJsonFromModel<{ cards?: Array<Record<string, string>> }>(response.text || '{}') || {};
   const rawList = Array.isArray(parsed.cards) ? parsed.cards.slice(0, 3) : [];
+  if (rawList.length === 0) {
+    throw new Error('O modelo não retornou cartões trilíngues válidos.');
+  }
   const now = Date.now();
   return rawList.map((item, idx) => normalizeGeneratedCard(item, chunkText, item.language, now, idx));
 }
@@ -150,7 +114,7 @@ Se a entrada estiver em português e o idioma alvo for EN/IT/JA, traduza para "f
 Inclua "language" ('en-US' | 'it-IT' | 'ja-JP'), "front", "back", "nuance", "pronunciation", "example" e "exampleTranslation".`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model: MODEL_REGISTRY.TEXT_REASONING_MODEL,
     contents: [
       {
         role: 'user',
@@ -159,7 +123,7 @@ Inclua "language" ('en-US' | 'it-IT' | 'ja-JP'), "front", "back", "nuance", "pro
     ],
     config: {
       systemInstruction: systemPrompt,
-      temperature: 0.45,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       responseMimeType: 'application/json',
       responseSchema: {
         type: Type.OBJECT,
@@ -177,7 +141,10 @@ Inclua "language" ('en-US' | 'it-IT' | 'ja-JP'), "front", "back", "nuance", "pro
     },
   });
 
-  const parsed = JSON.parse(response.text || '{}') as Record<string, string>;
+  const parsed = parseStructuredJsonFromModel<Record<string, string>>(response.text || '{}') || {};
+  if (!parsed.front || !parsed.back) {
+    throw new Error('O modelo não retornou frente e verso válidos para o flashcard.');
+  }
   return normalizeGeneratedCard(parsed, chunkText, isAuto ? undefined : requestedLang, Date.now(), 0);
 }
 
@@ -186,6 +153,12 @@ export function createStudyRouter(): Router {
 
   router.post('/api/generate-chunks', async (req, res) => {
     try {
+      const identity = resolveRequestUserId(req);
+      if (!identity.ok) {
+        return res.status(identity.status).json({ error: identity.error });
+      }
+      const userId = identity.userId;
+
       const check = validateStrictPayload<{
         textOrPrompt?: string;
         language?: string;
@@ -196,12 +169,13 @@ export function createStudyRouter(): Router {
       }
 
       const { textOrPrompt, language = 'en-US', count = 3 } = check.data;
-      const userId = sanitizeUserId(req.headers['x-user-id']);
       const safeCount = Math.max(1, Math.min(20, Math.floor(Number(count)) || 3));
 
-      if (!textOrPrompt || typeof textOrPrompt !== 'string') {
+      if (!textOrPrompt || typeof textOrPrompt !== 'string' || !textOrPrompt.trim()) {
         return res.status(400).json({ error: 'Texto ou intenção é obrigatório.' });
       }
+      const safePrompt = capText(textOrPrompt.trim(), 4000);
+      const safeLanguage = ALLOWED_CHUNK_TARGET_LANGS.has(language) ? language : 'en-US';
 
       const langMap: Record<string, string> = {
         'en-US': 'Inglês falado nos Estados Unidos (coloquial americano contemporâneo)',
@@ -209,7 +183,7 @@ export function createStudyRouter(): Router {
         'ja-JP': 'Japonês falado no Japão (coloquial, aizuchi, expressões do dia a dia; obrigatório incluir romaji entre parênteses para pronúncia)',
       };
 
-      const targetLangDesc = langMap[language] || 'Inglês coloquial';
+      const targetLangDesc = langMap[safeLanguage] || 'Inglês coloquial';
       const systemPrompt = `Você é um linguista nativo de ${targetLangDesc} e especialista internacional no Método Lexical (Chunking / Formulaic Language).
 Sua missão: a partir de uma ideia, situação informal ou texto de entrada, extrair ou criar exatamente ${safeCount} blocos de fala natural (chunks coloquiais) prontos para a vida real.
 
@@ -220,20 +194,20 @@ Regras estritas:
 4. Se o idioma for japonês, coloque o texto nativo com kanji/kana seguido da romanização entre parênteses no campo chunk: ex: "なるほどね (Naruhodo ne)".`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: MODEL_REGISTRY.TEXT_FAST_MODEL,
         contents: [
           {
             role: 'user',
             parts: [
               {
-                text: `Gere ${safeCount} chunks coloquiais de alta fluência para a seguinte situação ou texto:\n"${textOrPrompt}"\n\nIdioma Alvo: ${language}`,
+                text: `Gere ${safeCount} chunks coloquiais de alta fluência para a seguinte situação ou texto:\n"${safePrompt}"\n\nIdioma Alvo: ${safeLanguage}`,
               },
             ],
           },
         ],
         config: {
           systemInstruction: systemPrompt,
-          temperature: 0.7,
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -266,15 +240,21 @@ Regras estritas:
         pronunciationHint: string;
       }
 
-      const parsed = JSON.parse(response.text || '{}');
-      const rawChunks = (parsed.chunks || []) as RawGeneratedChunk[];
+      const parsed = parseStructuredJsonFromModel<{ chunks?: RawGeneratedChunk[] }>(
+        response.text || '{}'
+      );
+      const rawChunks = Array.isArray(parsed?.chunks) ? parsed.chunks : [];
+      if (rawChunks.length === 0) {
+        throw new Error('O modelo não retornou chunks coloquiais válidos.');
+      }
       const generatedChunks: ChunkItem[] = rawChunks.map((item, idx) => ({
         id: `gen-${Date.now()}-${idx}-${randomUUID().slice(0, 6)}`,
-        chunk: item.chunk,
-        literalOrNuance: item.literalOrNuance,
-        meaning: item.meaning,
-        context: item.context,
-        pronunciationHint: item.pronunciationHint,
+        chunk: String(item.chunk || ''),
+        literalOrNuance: String(item.literalOrNuance || ''),
+        meaning: String(item.meaning || ''),
+        context: String(item.context || ''),
+        pronunciationHint: String(item.pronunciationHint || ''),
+        language: safeLanguage as ChunkItem['language'],
         userId,
         isCustom: true,
         createdAt: Date.now(),
@@ -284,8 +264,9 @@ Regras estritas:
       return res.json({ success: true, chunks: generatedChunks });
     } catch (error: unknown) {
       console.error('Error in /api/generate-chunks:', error);
-      return res.status(500).json({
-        error: error instanceof Error ? error.message : 'Falha ao gerar chunks com Gemini.',
+      return res.status(resolveGeminiHttpStatus(error)).json({
+        success: false,
+        error: formatGeminiError(error, 'Falha ao gerar chunks com Gemini.'),
       });
     }
   });
@@ -304,6 +285,13 @@ Regras estritas:
       if (!text || typeof text !== 'string' || text.trim().length === 0) {
         return res.status(400).json({ error: 'Texto de entrada é obrigatório.' });
       }
+      const trimmedInput = text.trim();
+      if (trimmedInput.length > MAX_PARALLEL_TRANSLATE_CHARS) {
+        return res.status(400).json({
+          success: false,
+          error: `Texto excede o limite de ${MAX_PARALLEL_TRANSLATE_CHARS} caracteres para tradução paralela em blocos. Divida o texto ou use o Estúdio Solo.`,
+        });
+      }
 
       const systemPrompt = `Você é um linguista computacional poliglota de altíssimo nível especializado em Inglês (EN), Italiano (IT) e Japonês (JA).
 Sua missão: receber um texto de entrada em qualquer idioma e convertê-lo em uma estrutura alinhada de frases/chunks semânticos paralelos nas 3 línguas para estudo comparativo interativo em tempo real.
@@ -320,20 +308,20 @@ Regras Invioláveis:
 4. Mantenha correspondência semântica exata entre os chunks com o mesmo id, para que o usuário possa passar o mouse em um idioma e ver exatamente o mesmo trecho correspondente nos outros dois.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: MODEL_REGISTRY.TEXT_FAST_MODEL,
         contents: [
           {
             role: 'user',
             parts: [
               {
-                text: `Texto de entrada para tradução paralela e alinhamento de chunks:\n"${text.trim()}"\n\nIdioma de origem detectado/declarado: ${sourceLanguage}`,
+                text: `Texto de entrada para tradução paralela e alinhamento de chunks:\n"${trimmedInput}"\n\nIdioma de origem detectado/declarado: ${sourceLanguage}`,
               },
             ],
           },
         ],
         config: {
           systemInstruction: systemPrompt,
-          temperature: 0.4,
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -367,31 +355,46 @@ Regras Invioláveis:
         },
       });
 
-      const parsed = JSON.parse(response.text || '{}');
-      if (!parsed.chunks || !parsed.fullText) {
-        throw new Error('Formato inválido retornado pelo modelo Gemini.');
+      const parsed = parseStructuredJsonFromModel<{
+        chunks?: Array<Partial<AlignedChunk>>;
+        fullText?: { en?: string; it?: string; ja?: string };
+      }>(response.text || '{}');
+
+      if (!parsed || !Array.isArray(parsed.chunks) || parsed.chunks.length === 0) {
+        throw new Error('Formato inválido retornado pelo modelo de tradução.');
       }
+
+      const normalizedChunks: AlignedChunk[] = parsed.chunks
+        .map((c, idx) => ({
+          id: typeof c.id === 'number' && Number.isFinite(c.id) ? c.id : idx,
+          en: String(c.en || '').trim(),
+          it: String(c.it || '').trim(),
+          ja: String(c.ja || '').trim(),
+          jaPronunciation: c.jaPronunciation ? String(c.jaPronunciation).trim() : undefined,
+        }))
+        .filter((c) => Boolean(c.en || c.it || c.ja));
+
+      if (normalizedChunks.length === 0) {
+        throw new Error('Nenhum chunk traduzido válido foi retornado pelo modelo.');
+      }
+
+      const normalizedFullText = {
+        en: String(parsed.fullText?.en || '').trim() || normalizedChunks.map((c) => c.en).join(' '),
+        it: String(parsed.fullText?.it || '').trim() || normalizedChunks.map((c) => c.it).join(' '),
+        ja: String(parsed.fullText?.ja || '').trim() || normalizedChunks.map((c) => c.ja).join(' '),
+      };
 
       return res.json({
         success: true,
-        chunks: parsed.chunks,
-        fullText: parsed.fullText,
+        chunks: normalizedChunks,
+        fullText: normalizedFullText,
       });
     } catch (error: unknown) {
-      console.warn(
-        '[WARN] /api/translate-parallel-chunks fallback ativado:',
-        formatGeminiError(error, 'Erro tradução paralela')
-      );
-      const fallback = buildFallbackPolyglotReply(
-        typeof req.body?.text === 'string' ? req.body.text : 'Conversa Poliglota',
-        'polyglot_translator'
-      );
-      return res.json({
-        success: true,
-        fallback: true,
-        warning: formatGeminiError(error, 'Operando em modo de contingência local.'),
-        chunks: fallback.chunks,
-        fullText: fallback.fullText,
+      const formatted = formatGeminiError(error, 'Falha ao traduzir e alinhar os idiomas.');
+      console.error('[Error] /api/translate-parallel-chunks:', formatted);
+      return res.status(resolveGeminiHttpStatus(error)).json({
+        success: false,
+        error: formatted,
       });
     }
   });

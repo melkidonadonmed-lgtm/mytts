@@ -4,6 +4,7 @@ import type {
   FlashcardItem,
   YoutubePostLinkAction,
   YoutubeClipRange,
+  AgentPersona,
 } from '../../types/polyglot';
 import type { AgentInputDockSubmitPayload } from '../AgentInputDock';
 import {
@@ -57,9 +58,10 @@ export function usePolyglotActions({
   const handleSendMessage = async (
     text: string,
     autoPlayAfter = false,
-    payload?: AgentInputDockSubmitPayload
+    payload?: AgentInputDockSubmitPayload,
+    reuseMessageId?: string
   ): Promise<void> => {
-    const newMessageId = `msg-${Date.now()}`;
+    const newMessageId = reuseMessageId || `msg-${Date.now()}`;
     const initialCardVoices = { ...defaultVoiceByLang };
     const originMode = payload?.youtubeUrl
       ? 'youtube'
@@ -68,6 +70,18 @@ export function usePolyglotActions({
       : payload?.dockMode === 'live_tutor' || payload?.dockMode === 'practice' || payload?.audioBase64
       ? 'live_agent'
       : 'polyglot';
+
+    const retryPayload: PolyglotMessage['retryPayload'] = {
+      text,
+      autoPlayAfter,
+      dockMode: payload?.dockMode,
+      persona: payload?.persona,
+      youtubeUrl: payload?.youtubeUrl,
+      youtubeAction: payload?.youtubeAction,
+      clipRange: payload?.clipRange,
+      enableSearch: payload?.enableSearch,
+      autoSpeakReply: payload?.autoSpeakReply,
+    };
 
     const placeholderMessage: PolyglotMessage = {
       id: newMessageId,
@@ -79,9 +93,16 @@ export function usePolyglotActions({
       status: 'loading',
       originMode,
       youtubeUrl: payload?.youtubeUrl,
+      retryPayload,
     };
 
-    setMessages((prev) => [...prev, placeholderMessage]);
+    if (reuseMessageId) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === reuseMessageId ? { ...placeholderMessage } : m))
+      );
+    } else {
+      setMessages((prev) => [...prev, placeholderMessage]);
+    }
     setFocusedMessageId(newMessageId);
     setSelectedLanguageByMsg((prev) => ({ ...prev, [newMessageId]: 'en' }));
     setCardVoicesByMsg((prev) => ({ ...prev, [newMessageId]: initialCardVoices }));
@@ -122,10 +143,12 @@ export function usePolyglotActions({
         if (exploreData.toolCallsExecuted && exploreData.toolCallsExecuted.length > 0) {
           const toolCards: FlashcardItem[] = [];
           const prefMode = readDeckNamingPreference();
+          let exprIdx = 0;
           for (const tool of exploreData.toolCallsExecuted) {
             if (tool.name === 'create_study_flashcard') {
-              const firstChunk = exploreData.chunks[0];
-              const frontText = tool.args.frontPhrase || firstChunk?.en || text;
+              const matchedChunk = exploreData.chunks[exprIdx] || exploreData.chunks[0];
+              exprIdx += 1;
+              const frontText = tool.args.frontPhrase || matchedChunk?.en || text;
               const now = Date.now();
               const dateKey = toLocalCalendarDateKey(now);
               const detectedLang = detectFlashcardLanguage(frontText, tool.args.language);
@@ -134,12 +157,19 @@ export function usePolyglotActions({
                 chunkText: frontText,
                 language: detectedLang,
                 front: frontText,
-                back: tool.args.backTranslation || firstChunk?.it || '',
+                back: tool.args.backTranslation || matchedChunk?.it || 'Expressão do vídeo',
                 nuance: 'Expressão extraída do vídeo do YouTube.',
-                pronunciation: firstChunk?.jaPronunciation,
-                example: firstChunk?.en || frontText,
-                exampleTranslation: firstChunk?.ja || '',
-                createdAt: now,
+                pronunciation:
+                  detectedLang === 'ja-JP' ? matchedChunk?.jaPronunciation : undefined,
+                example:
+                  detectedLang === 'it-IT'
+                    ? matchedChunk?.it || frontText
+                    : detectedLang === 'ja-JP'
+                    ? matchedChunk?.ja || frontText
+                    : matchedChunk?.en || frontText,
+                exampleTranslation:
+                  detectedLang === 'ja-JP' ? matchedChunk?.en || '' : matchedChunk?.ja || '',
+                createdAt: now - exprIdx,
                 createdDateKey: dateKey,
                 deckName: resolveOrganizedDeckName({
                   mode: prefMode,
@@ -188,56 +218,14 @@ export function usePolyglotActions({
         };
 
         if (liveData.toolCallsExecuted && liveData.toolCallsExecuted.length > 0) {
-          const prefMode = readDeckNamingPreference();
-          for (const tool of liveData.toolCallsExecuted) {
-            if (tool.name === 'create_study_flashcard') {
-              const firstChunk = liveData.chunks[0];
-              const frontText = tool.args.frontPhrase || firstChunk?.en || text;
-              const now = Date.now();
-              const dateKey = toLocalCalendarDateKey(now);
-              const detectedLang = detectFlashcardLanguage(frontText, tool.args.language);
-              addFlashcardsToDeck([
-                {
-                  id: tool.id,
-                  chunkText: frontText,
-                  language: detectedLang,
-                  front: frontText,
-                  back: tool.args.backTranslation || firstChunk?.it || '',
-                  nuance: 'Gerado automaticamente via Function Calling do Agente Live.',
-                  pronunciation: firstChunk?.jaPronunciation,
-                  example: firstChunk?.en || frontText,
-                  exampleTranslation: firstChunk?.ja || '',
-                  createdAt: now,
-                  createdDateKey: dateKey,
-                  deckName: resolveOrganizedDeckName({
-                    mode: prefMode,
-                    customDeckName: 'Agente Live',
-                    language: detectedLang,
-                    dateKey,
-                  }),
-                },
-              ]);
-              showToast(tool.summaryPtBr);
-            } else if (tool.name === 'switch_studio_voice' && tool.args.targetVoice) {
-              const vId = tool.args.targetVoice;
-              const targetLang = tool.args.language || 'all';
-              if (targetLang === 'all') {
-                const updated = { en: vId, it: vId, ja: vId };
-                readyMessage.cardVoices = updated;
-                setCardVoicesByMsg((prev) => ({ ...prev, [newMessageId]: updated }));
-              } else if (targetLang === 'en' || targetLang === 'it' || targetLang === 'ja') {
-                const updated = {
-                  ...(readyMessage.cardVoices || defaultVoiceByLang),
-                  [targetLang]: vId,
-                };
-                readyMessage.cardVoices = updated;
-                setCardVoicesByMsg((prev) => ({ ...prev, [newMessageId]: updated }));
-                setDefaultVoiceByLang((prev) => ({ ...prev, [targetLang]: vId }));
-              }
-              syncVoiceToGlobal(vId);
-              showToast(tool.summaryPtBr);
-            }
-          }
+          applyLiveToolCalls(liveData.toolCallsExecuted, {
+            messageId: newMessageId,
+            firstChunk: liveData.chunks[0],
+            fallbackPrompt: text,
+            onUpdateCardVoices: (updated) => {
+              readyMessage.cardVoices = updated;
+            },
+          });
         }
       } else {
         const data = await requestTranslateParallelChunks(text);
@@ -253,14 +241,19 @@ export function usePolyglotActions({
         };
       }
 
+      const readyWithoutRetry: PolyglotMessage = {
+        ...readyMessage,
+        retryPayload: undefined,
+      };
+
       setMessages((prev) => {
-        const nextList = prev.map((msg) => (msg.id === newMessageId ? readyMessage : msg));
+        const nextList = prev.map((msg) => (msg.id === newMessageId ? readyWithoutRetry : msg));
         void persistConversationSnapshot(nextList);
         return nextList;
       });
 
       if (autoPlayAfter || payload?.autoSpeakReply) {
-        await handleTogglePlay(newMessageId, 'en', readyMessage);
+        await handleTogglePlay(newMessageId, 'en', readyWithoutRetry);
       }
     } catch (err: unknown) {
       console.error(err);
@@ -271,6 +264,7 @@ export function usePolyglotActions({
                 ...msg,
                 status: 'error',
                 error: err instanceof Error ? err.message : 'Erro de conexão com o Gemini.',
+                retryPayload,
               }
             : msg
         )
@@ -278,6 +272,29 @@ export function usePolyglotActions({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRetryMessage = async (message: PolyglotMessage): Promise<void> => {
+    const retry = message.retryPayload;
+    if (!retry) {
+      await handleSendMessage(message.userPrompt, false, undefined, message.id);
+      return;
+    }
+    await handleSendMessage(
+      retry.text,
+      Boolean(retry.autoPlayAfter),
+      {
+        text: retry.text,
+        dockMode: retry.dockMode || 'translate',
+        persona: retry.persona || 'polyglot_translator',
+        youtubeUrl: retry.youtubeUrl,
+        youtubeAction: retry.youtubeAction,
+        clipRange: retry.clipRange,
+        enableSearch: Boolean(retry.enableSearch),
+        autoSpeakReply: retry.autoSpeakReply,
+      },
+      message.id
+    );
   };
 
   const handleExecuteYoutubePostLinkAction = async (
@@ -339,11 +356,17 @@ export function usePolyglotActions({
               chunkText: frontText,
               language: detectedLang,
               front: frontText,
-              back: tool.args.backTranslation || chunk?.it || '',
+              back: tool.args.backTranslation || chunk?.it || 'Expressão do vídeo',
               nuance: 'Expressão extraída do vídeo do YouTube.',
-              pronunciation: chunk?.jaPronunciation,
-              example: chunk?.en || frontText,
-              exampleTranslation: chunk?.ja || '',
+              pronunciation: detectedLang === 'ja-JP' ? chunk?.jaPronunciation : undefined,
+              example:
+                detectedLang === 'it-IT'
+                  ? chunk?.it || frontText
+                  : detectedLang === 'ja-JP'
+                  ? chunk?.ja || frontText
+                  : chunk?.en || frontText,
+              exampleTranslation:
+                detectedLang === 'ja-JP' ? chunk?.en || '' : chunk?.ja || '',
               createdAt: now - idx,
               createdDateKey: dateKey,
               deckName: resolveOrganizedDeckName({
@@ -368,6 +391,7 @@ export function usePolyglotActions({
                 originMode: 'youtube' as const,
                 youtubeUrl: exploreData.youtubeUrl || youtubeUrl,
                 youtubeMeta: exploreData.youtubeMeta || m.youtubeMeta,
+                youtubeSearchResults: undefined,
                 youtubeAction: action,
                 youtubeClipRange: clipRange,
                 awaitingYoutubeIntent: false,
@@ -375,6 +399,7 @@ export function usePolyglotActions({
                 sources: exploreData.sources,
                 chunks: exploreData.chunks!,
                 fullText: exploreData.fullText!,
+                retryPayload: undefined,
                 status: 'ready' as const,
               }
             : m
@@ -390,12 +415,96 @@ export function usePolyglotActions({
                 ...m,
                 status: 'error',
                 error: err instanceof Error ? err.message : 'Erro ao analisar vídeo do YouTube.',
+                retryPayload: {
+                  text: actionPromptMap[action] || youtubeUrl,
+                  dockMode: 'search_youtube',
+                  youtubeUrl,
+                  youtubeAction: action,
+                  clipRange,
+                  enableSearch: true,
+                },
               }
             : m
         )
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const applyLiveToolCalls = (
+    calls: Array<{
+      id: string;
+      name: 'create_study_flashcard' | 'switch_studio_voice';
+      args: {
+        frontPhrase?: string;
+        backTranslation?: string;
+        targetVoice?: string;
+        language?: 'en' | 'it' | 'ja' | 'all';
+      };
+      summaryPtBr: string;
+    }>,
+    context?: {
+      messageId?: string;
+      firstChunk?: { en: string; it: string; ja: string; jaPronunciation?: string };
+      fallbackPrompt?: string;
+      onUpdateCardVoices?: (updated: Record<LangKey, string>) => void;
+    }
+  ): void => {
+    const prefMode = readDeckNamingPreference();
+    for (const tool of calls) {
+      if (tool.name === 'create_study_flashcard') {
+        const firstChunk = context?.firstChunk;
+        const frontText = tool.args.frontPhrase || firstChunk?.en || context?.fallbackPrompt || 'Expressão Live';
+        const now = Date.now();
+        const dateKey = toLocalCalendarDateKey(now);
+        const detectedLang = detectFlashcardLanguage(frontText, tool.args.language);
+        addFlashcardsToDeck([
+          {
+            id: tool.id,
+            chunkText: frontText,
+            language: detectedLang,
+            front: frontText,
+            back: tool.args.backTranslation || firstChunk?.it || 'Expressão salva via Agente Live',
+            nuance: 'Gerado automaticamente via Function Calling do Agente Live.',
+            pronunciation: detectedLang === 'ja-JP' ? firstChunk?.jaPronunciation : undefined,
+            example: firstChunk?.en || frontText,
+            exampleTranslation: firstChunk?.ja || '',
+            createdAt: now,
+            createdDateKey: dateKey,
+            deckName: resolveOrganizedDeckName({
+              mode: prefMode,
+              customDeckName: 'Agente Live',
+              language: detectedLang,
+              dateKey,
+            }),
+          },
+        ]);
+        showToast(tool.summaryPtBr);
+      } else if (tool.name === 'switch_studio_voice' && tool.args.targetVoice) {
+        const vId = tool.args.targetVoice;
+        const targetLang = tool.args.language || 'all';
+        if (targetLang === 'all') {
+          const updated: Record<LangKey, string> = { en: vId, it: vId, ja: vId };
+          context?.onUpdateCardVoices?.(updated);
+          setDefaultVoiceByLang(updated);
+          if (context?.messageId) {
+            setCardVoicesByMsg((prev) => ({ ...prev, [context.messageId!]: updated }));
+          }
+        } else if (targetLang === 'en' || targetLang === 'it' || targetLang === 'ja') {
+          const updated: Record<LangKey, string> = {
+            ...defaultVoiceByLang,
+            [targetLang]: vId,
+          };
+          context?.onUpdateCardVoices?.(updated);
+          setDefaultVoiceByLang((prev) => ({ ...prev, [targetLang]: vId }));
+          if (context?.messageId) {
+            setCardVoicesByMsg((prev) => ({ ...prev, [context.messageId!]: updated }));
+          }
+        }
+        syncVoiceToGlobal(vId);
+        showToast(tool.summaryPtBr);
+      }
     }
   };
 
@@ -438,11 +547,42 @@ export function usePolyglotActions({
     }
   };
 
+  const handleRecordLiveWsTurn = (turn: {
+    userTranscript: string;
+    agentReplyPtBr: string;
+    persona: AgentPersona;
+  }): void => {
+    const newMessageId = `msg-live-${Date.now()}`;
+    const initialCardVoices = { ...defaultVoiceByLang };
+    const liveMessage: PolyglotMessage = {
+      id: newMessageId,
+      userPrompt: turn.userTranscript || 'Conversa por Voz (Gemini Live)',
+      timestamp: Date.now(),
+      chunks: [],
+      fullText: { en: '', it: '', ja: '' },
+      cardVoices: initialCardVoices,
+      status: 'ready',
+      originMode: 'live_agent',
+      agentPersona: turn.persona,
+      agentReplyPtBr: turn.agentReplyPtBr,
+    };
+    setFocusedMessageId(newMessageId);
+    setCardVoicesByMsg((prev) => ({ ...prev, [newMessageId]: initialCardVoices }));
+    setMessages((prev) => {
+      const nextList = [...prev, liveMessage];
+      void persistConversationSnapshot(nextList);
+      return nextList;
+    });
+  };
+
   return {
     isLoading,
     generatingCardKey,
     handleSendMessage,
+    handleRetryMessage,
     handleExecuteYoutubePostLinkAction,
     handleCreateFlashcard,
+    handleApplyLiveToolCalls: applyLiveToolCalls,
+    handleRecordLiveWsTurn,
   };
 }

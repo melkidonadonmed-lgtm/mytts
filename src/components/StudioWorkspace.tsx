@@ -113,12 +113,13 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   };
 
   const executeAudioSynthesis = async (trimmedText: string, cacheKey: string, forceRegenerate: boolean) => {
+    const canonicalSpeed = 1.0;
     if (forceRegenerate) {
       const data = await requestSynthesizeSpeech({
         text: trimmedText,
         voiceId: selectedVoice.id,
         emotion: calibration,
-        speed: playbackSpeed,
+        speed: canonicalSpeed,
         language: 'pt-BR',
         autoProsody,
       });
@@ -132,7 +133,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         durationSec: data.durationSec,
         language: 'pt-BR',
         voiceId: selectedVoice.id,
-        speed: playbackSpeed,
+        speed: canonicalSpeed,
         emotion: calibration,
       }).catch((err: unknown) => console.warn('MyTTS: Falha ao atualizar cache Solo:', err));
       return { audioBase64: data.audioBase64, durationSec: data.durationSec };
@@ -144,7 +145,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         text: trimmedText,
         voiceId: selectedVoice.id,
         emotion: calibration,
-        speed: playbackSpeed,
+        speed: canonicalSpeed,
         language: 'pt-BR',
         autoProsody,
       },
@@ -152,7 +153,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
       metadata: {
         language: 'pt-BR',
         voiceId: selectedVoice.id,
-        speed: playbackSpeed,
+        speed: canonicalSpeed,
         emotion: calibration,
       },
     });
@@ -189,7 +190,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         text: `${autoProsody ? 'prosody:1' : 'prosody:0'}:${trimmedText}`,
         language: 'pt-BR',
         voiceId: selectedVoice.id,
-        speed: playbackSpeed,
+        speed: 1.0,
         emotion: calibration,
       });
 

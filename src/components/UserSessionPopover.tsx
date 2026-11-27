@@ -23,7 +23,7 @@ import {
   subscribeAuthChanges,
 } from '../services/authService';
 import { fetchHealthSummary } from '../services/apiClient';
-import { persistBrowserState, readBrowserState } from '../services/polyglotClient';
+import { readPreferredTargetLanguage, savePreferredTargetLanguage } from '../services/polyglotClient';
 import { GoogleIcon } from './GoogleIcon';
 
 export interface UserSessionPopoverProps {
@@ -56,10 +56,9 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
-  const [preferredLang, setPreferredLang] = useState<'en' | 'it' | 'ja'>(() => {
-    const saved = readBrowserState('mytts_preferred_target_lang');
-    return saved === 'it' || saved === 'ja' ? saved : 'en';
-  });
+  const [preferredLang, setPreferredLang] = useState<'en' | 'it' | 'ja'>(() =>
+    readPreferredTargetLanguage()
+  );
   const [health, setHealth] = useState<HealthSummary>({
     status: 'online',
     modelTts: 'gemini-3.8-flash-tts',
@@ -112,7 +111,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
 
   const handleSelectTargetLang = (lang: 'en' | 'it' | 'ja') => {
     setPreferredLang(lang);
-    persistBrowserState('mytts_preferred_target_lang', lang);
+    savePreferredTargetLanguage(lang);
   };
 
   const handleConfirmSignOut = () => {
@@ -188,7 +187,7 @@ export const UserSessionPopover: React.FC<UserSessionPopoverProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-secondary">Região &amp; Banco:</span>
               <span className="font-mono text-primary">
-                southamerica-east1 · {health.storage === 'firestore' ? 'Firestore' : 'Local JSON'}
+                {health.storage === 'firestore' ? 'southamerica-east1 · Firestore' : 'Local · JSON'}
               </span>
             </div>
           </div>

@@ -5,11 +5,15 @@ import {
   SESSION_COOKIE_NAME,
   deriveCanonicalGoogleUid,
   resolveRequestUserId,
+  signLiveTicket,
   signSessionToken,
   verifyGoogleIdToken,
+  verifyLiveTicket,
   verifySessionToken,
 } from '../src/server/authSession';
+import { createAgentRouter } from '../src/server/routes/agentRoutes';
 import { createStorageRouter } from '../src/server/routes/storageRoutes';
+import { createStudyRouter } from '../src/server/routes/studyRoutes';
 import type { GoogleUserSession } from '../src/types/polyglot';
 
 type TestFn = () => void | Promise<void>;
@@ -33,6 +37,8 @@ async function runSuite(): Promise<void> {
   const app = express();
   app.use(express.json());
   app.use(createStorageRouter());
+  app.use(createStudyRouter());
+  app.use(createAgentRouter());
 
   const server = await new Promise<ReturnType<typeof app.listen>>((resolve) => {
     const srv = app.listen(0, '127.0.0.1', () => resolve(srv));
@@ -205,6 +211,70 @@ async function runSuite(): Promise<void> {
         deriveCanonicalGoogleUid({ sub: 'sub-999', email: 'unverified@gmail.com', emailVerified: false }),
         'google_sub-999'
       );
+    });
+
+    test('08. POST /api/generate-chunks rejects spoofed X-User-Id: google_* without session cookie (401)', async () => {
+      const resp = await fetch(`${baseUrl}/api/generate-chunks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': 'google_victim_spoof',
+        },
+        body: JSON.stringify({ textOrPrompt: 'Coffee chat', language: 'en-US', count: 3 }),
+      });
+      assert.strictEqual(resp.status, 401, 'Spoofed google_* header on /api/generate-chunks must return 401');
+    });
+
+    test('09. POST /api/live/ticket enforces Zero-Trust identity and issues single-use HMAC WS tickets', async () => {
+      const spoofedResp = await fetch(`${baseUrl}/api/live/ticket`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': 'google_victim_spoof',
+        },
+        body: JSON.stringify({}),
+      });
+      assert.strictEqual(spoofedResp.status, 401, 'Spoofed google_* header on /api/live/ticket must return 401');
+
+      const user: GoogleUserSession = {
+        uid: 'google_live_tester',
+        name: 'Live Tester',
+        email: 'live.tester@gmail.com',
+        isGoogleAuthenticated: true,
+      };
+      const sessionCookie = signSessionToken(user);
+
+      const authResp = await fetch(`${baseUrl}/api/live/ticket`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: `${SESSION_COOKIE_NAME}=${sessionCookie}`,
+        },
+        body: JSON.stringify({}),
+      });
+      assert.strictEqual(authResp.status, 200);
+      const data = (await authResp.json()) as {
+        success?: boolean;
+        ticket?: string;
+        wsUrl?: string;
+      };
+      assert.strictEqual(data.success, true);
+      assert.ok(typeof data.ticket === 'string' && data.ticket.includes('.'));
+      assert.ok(typeof data.wsUrl === 'string' && data.wsUrl.includes('/ws/live?ticket='));
+
+      const firstVerify = verifyLiveTicket(data.ticket);
+      assert.strictEqual(firstVerify.ok, true);
+      if (firstVerify.ok) {
+        assert.strictEqual(firstVerify.userId, user.uid);
+        assert.strictEqual(firstVerify.isAuthenticated, true);
+      }
+
+      const replayVerify = verifyLiveTicket(data.ticket);
+      assert.strictEqual(replayVerify.ok, false, 'Replaying a consumed live WS ticket must be rejected');
+
+      const minted = signLiveTicket('usr_direct', false, 60);
+      const tampered = `${minted}tamper`;
+      assert.strictEqual(verifyLiveTicket(tampered).ok, false);
     });
 
     let passed = 0;

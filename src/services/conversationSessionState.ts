@@ -11,7 +11,7 @@ export type ActiveConversationTarget =
 
 const STORAGE_PREFIX = 'mytts_active_conv_';
 
-export function getActiveConversationStorageKey(userId: string): string {
+function getActiveConversationStorageKey(userId: string): string {
   const safeUid = userId ? encodeURIComponent(userId.trim()) : 'guest';
   return `${STORAGE_PREFIX}${safeUid}`;
 }

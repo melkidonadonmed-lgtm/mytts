@@ -22,7 +22,7 @@ interface DebateConfigPanelProps {
   hideFormatSelector?: boolean;
 }
 
-export const SPEAKER_STYLE_OPTIONS: {
+const SPEAKER_STYLE_OPTIONS: {
   label: string;
   roleTitle: string;
   archetype: 'analytical' | 'provocateur';
@@ -66,7 +66,7 @@ export const SPEAKER_STYLE_OPTIONS: {
   },
 ];
 
-export const FORMAT_RENDER_OPTIONS: {
+const FORMAT_RENDER_OPTIONS: {
   id: ConversationFormat;
   label: string;
   badge: string;

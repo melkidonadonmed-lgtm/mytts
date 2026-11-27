@@ -188,6 +188,112 @@ export function parseStructuredJsonFromModel<T = Record<string, unknown>>(
 /**
  * Extrai metadados de vídeos reais a partir do HTML de busca do YouTube (ytInitialData).
  */
+function extractYtInitialDataObject(html: string): unknown | null {
+  const markers = ['var ytInitialData = ', 'window["ytInitialData"] = ', 'ytInitialData = '];
+  for (const marker of markers) {
+    const markerIdx = html.indexOf(marker);
+    if (markerIdx === -1) continue;
+    const jsonStart = html.indexOf('{', markerIdx + marker.length - 1);
+    if (jsonStart === -1) continue;
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = jsonStart; i < html.length; i++) {
+      const ch = html[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (inString) {
+        if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+      } else if (ch === '{') {
+        depth++;
+      } else if (ch === '}') {
+        depth--;
+        if (depth === 0) {
+          const rawJson = html.slice(jsonStart, i + 1);
+          try {
+            return JSON.parse(rawJson);
+          } catch {
+            return null;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function extractTextFromYtNode(node: unknown): string | undefined {
+  if (!node || typeof node !== 'object') return undefined;
+  const obj = node as Record<string, unknown>;
+  if (typeof obj.simpleText === 'string' && obj.simpleText.trim()) {
+    return obj.simpleText.trim();
+  }
+  if (Array.isArray(obj.runs)) {
+    const joined = obj.runs
+      .map((r) => (r && typeof r === 'object' && typeof (r as Record<string, unknown>).text === 'string' ? (r as Record<string, unknown>).text : ''))
+      .join('')
+      .trim();
+    if (joined) return joined;
+  }
+  return undefined;
+}
+
+function collectVideoRenderersFromYtData(
+  node: unknown,
+  results: YoutubeVideoMetadata[],
+  seenIds: Set<string>,
+  maxResults: number
+): void {
+  if (!node || typeof node !== 'object' || results.length >= maxResults) return;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      if (results.length >= maxResults) break;
+      collectVideoRenderersFromYtData(item, results, seenIds, maxResults);
+    }
+    return;
+  }
+
+  const obj = node as Record<string, unknown>;
+  const vr = obj.videoRenderer;
+  if (vr && typeof vr === 'object') {
+    const renderer = vr as Record<string, unknown>;
+    const videoId = typeof renderer.videoId === 'string' ? renderer.videoId : '';
+    if (/^[A-Za-z0-9_-]{11}$/.test(videoId) && !seenIds.has(videoId)) {
+      seenIds.add(videoId);
+      const title = extractTextFromYtNode(renderer.title) || 'Vídeo do YouTube';
+      const authorName =
+        extractTextFromYtNode(renderer.ownerText) ||
+        extractTextFromYtNode(renderer.longBylineText) ||
+        extractTextFromYtNode(renderer.shortBylineText);
+      const durationHint = extractTextFromYtNode(renderer.lengthText);
+      results.push({
+        videoId,
+        canonicalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+        title,
+        authorName,
+        durationHint,
+        thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      });
+      if (results.length >= maxResults) return;
+    }
+  }
+
+  for (const val of Object.values(obj)) {
+    if (results.length >= maxResults) break;
+    if (val && typeof val === 'object') {
+      collectVideoRenderersFromYtData(val, results, seenIds, maxResults);
+    }
+  }
+}
+
 export function parseYoutubeSearchResultsHtml(
   html: string,
   maxResults = 4
@@ -196,6 +302,16 @@ export function parseYoutubeSearchResultsHtml(
   const results: YoutubeVideoMetadata[] = [];
   const seenIds = new Set<string>();
 
+  // 1. Parse estruturado primário via JSON embutido ytInitialData
+  const initialData = extractYtInitialDataObject(html);
+  if (initialData) {
+    collectVideoRenderersFromYtData(initialData, results, seenIds, maxResults);
+    if (results.length > 0) {
+      return results;
+    }
+  }
+
+  // 2. Fallback por Regex quando ytInitialData não puder ser extraído
   const regex =
     /"videoRenderer":\{"videoId":"([A-Za-z0-9_-]{11})"[\s\S]*?"title":\{"runs":\[\{"text":"((?:[^"\\]|\\.)*)"\}/g;
   let match: RegExpExecArray | null;

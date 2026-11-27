@@ -11,10 +11,11 @@ import { concatenateWavBuffers } from '../../utils/audioEngine';
 import {
   generateAudioCacheKey,
   synthesizeWithCache,
-  getCachedAudio,
   getCachedKeySet,
 } from '../../utils/audioCache';
 import { getLanguageTag, LangKey } from './polyglotConstants';
+
+const CANONICAL_TTS_SYNTHESIS_SPEED = 1.0;
 
 export interface UsePolyglotAudioOptions {
   messages: PolyglotMessage[];
@@ -53,6 +54,8 @@ export function usePolyglotAudio({
 
   const sequenceAbortRef = useRef<boolean>(false);
   const isMountedRef = useRef<boolean>(true);
+  const playRequestIdRef = useRef<number>(0);
+  const activeAbortControllerRef = useRef<AbortController | null>(null);
   const activeAudioRef = useRef<{
     audio: HTMLAudioElement;
     blobUrl: string;
@@ -60,13 +63,32 @@ export function usePolyglotAudio({
     lang: LangKey;
   } | null>(null);
 
+  const stopCurrentAudio = useCallback((): void => {
+    playRequestIdRef.current += 1;
+    if (activeAbortControllerRef.current) {
+      activeAbortControllerRef.current.abort();
+      activeAbortControllerRef.current = null;
+    }
+    if (activeAudioRef.current) {
+      activeAudioRef.current.audio.pause();
+      revokeAudioUrl(activeAudioRef.current.blobUrl);
+      activeAudioRef.current = null;
+    }
+    stopBrowserSpeech();
+    setIsPlayingAudio(false);
+    setIsLoadingAudio(false);
+    setPlayingBlockInfo(null);
+    setPlayingAudioKey(null);
+  }, []);
+
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       sequenceAbortRef.current = true;
+      stopCurrentAudio();
     };
-  }, []);
+  }, [stopCurrentAudio]);
 
   const getMessageAudioCacheKey = useCallback(
     (messageId: string, lang: LangKey) => {
@@ -78,11 +100,11 @@ export function usePolyglotAudio({
         text: msg.fullText[lang],
         voiceId: voices[lang],
         language: getLanguageTag(lang),
-        speed: playbackSpeed,
+        speed: CANONICAL_TTS_SYNTHESIS_SPEED,
         emotion: 'natural',
       });
     },
-    [messages, getCardVoicesForMessage, playbackSpeed]
+    [messages, getCardVoicesForMessage]
   );
 
   useEffect(() => {
@@ -98,7 +120,7 @@ export function usePolyglotAudio({
               text: msg.fullText[lang],
               voiceId: voices[lang],
               language: getLanguageTag(lang),
-              speed: playbackSpeed,
+              speed: CANONICAL_TTS_SYNTHESIS_SPEED,
               emotion: 'natural',
             })
           );
@@ -115,20 +137,7 @@ export function usePolyglotAudio({
     return () => {
       isSubscribed = false;
     };
-  }, [messages, getCardVoicesForMessage, playbackSpeed]);
-
-  const stopCurrentAudio = useCallback((): void => {
-    if (activeAudioRef.current) {
-      activeAudioRef.current.audio.pause();
-      revokeAudioUrl(activeAudioRef.current.blobUrl);
-      activeAudioRef.current = null;
-    }
-    stopBrowserSpeech();
-    setIsPlayingAudio(false);
-    setIsLoadingAudio(false);
-    setPlayingBlockInfo(null);
-    setPlayingAudioKey(null);
-  }, []);
+  }, [messages, getCardVoicesForMessage]);
 
   const handleSelectLanguage = (messageId: string, lang: LangKey): void => {
     setFocusedMessageId(messageId);
@@ -192,12 +201,17 @@ export function usePolyglotAudio({
       text: targetMsg.fullText[lang],
       voiceId: cardVoiceId,
       language: getLanguageTag(lang),
-      speed: playbackSpeed,
+      speed: CANONICAL_TTS_SYNTHESIS_SPEED,
       emotion: 'natural',
     });
 
-    const cached = await getCachedAudio(cacheKey);
-    if (!cached) setIsLoadingAudio(true);
+    const requestId = ++playRequestIdRef.current;
+    const controller = new AbortController();
+    activeAbortControllerRef.current = controller;
+
+    if (!cachedKeysSet.has(cacheKey)) {
+      setIsLoadingAudio(true);
+    }
     setPlayingBlockInfo({ messageId, lang });
 
     try {
@@ -207,22 +221,27 @@ export function usePolyglotAudio({
           text: targetMsg.fullText[lang],
           voiceId: cardVoiceId,
           language: getLanguageTag(lang),
-          speed: playbackSpeed,
+          speed: CANONICAL_TTS_SYNTHESIS_SPEED,
           emotion: 'natural',
         },
         cacheKey,
+        signal: controller.signal,
         metadata: {
           language: getLanguageTag(lang),
           voiceId: cardVoiceId,
-          speed: playbackSpeed,
+          speed: CANONICAL_TTS_SYNTHESIS_SPEED,
           emotion: 'natural',
         },
       });
 
+      if (!isMountedRef.current || requestId !== playRequestIdRef.current) {
+        return;
+      }
+
       setCachedKeysSet((prev) => new Set(prev).add(cacheKey));
       const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
 
-      if (!isMountedRef.current) {
+      if (!isMountedRef.current || requestId !== playRequestIdRef.current) {
         revokeAudioUrl(blobUrl);
         return;
       }
@@ -241,8 +260,16 @@ export function usePolyglotAudio({
 
       activeAudioRef.current = { audio, blobUrl, messageId, lang };
       await audio.play();
-      setIsPlayingAudio(true);
+      if (isMountedRef.current && requestId === playRequestIdRef.current) {
+        setIsPlayingAudio(true);
+      }
     } catch (e: unknown) {
+      if (
+        (e instanceof Error && e.name === 'AbortError') ||
+        requestId !== playRequestIdRef.current
+      ) {
+        return;
+      }
       console.warn('Erro na síntese neural do card (acionando fallback Web Speech):', e);
       const fallbackStarted = speakBrowserFallback(targetMsg.fullText[lang], {
         lang: getLanguageTag(lang),
@@ -264,7 +291,12 @@ export function usePolyglotAudio({
         showToast(e instanceof Error ? e.message : 'Falha ao sintetizar áudio do card.');
       }
     } finally {
-      setIsLoadingAudio(false);
+      if (activeAbortControllerRef.current === controller) {
+        activeAbortControllerRef.current = null;
+      }
+      if (isMountedRef.current && requestId === playRequestIdRef.current) {
+        setIsLoadingAudio(false);
+      }
     }
   };
 
@@ -278,7 +310,7 @@ export function usePolyglotAudio({
       text: targetMsg.fullText[lang],
       voiceId: cardVoiceId,
       language: getLanguageTag(lang),
-      speed: playbackSpeed,
+      speed: CANONICAL_TTS_SYNTHESIS_SPEED,
       emotion: 'natural',
     });
 
@@ -290,14 +322,14 @@ export function usePolyglotAudio({
           text: targetMsg.fullText[lang],
           voiceId: cardVoiceId,
           language: getLanguageTag(lang),
-          speed: playbackSpeed,
+          speed: CANONICAL_TTS_SYNTHESIS_SPEED,
           emotion: 'natural',
         },
         cacheKey,
         metadata: {
           language: getLanguageTag(lang),
           voiceId: cardVoiceId,
-          speed: playbackSpeed,
+          speed: CANONICAL_TTS_SYNTHESIS_SPEED,
           emotion: 'natural',
         },
       });
@@ -332,7 +364,7 @@ export function usePolyglotAudio({
         text,
         voiceId,
         language: getLanguageTag(lang),
-        speed: playbackSpeed,
+        speed: CANONICAL_TTS_SYNTHESIS_SPEED,
         emotion: 'natural',
       });
 
@@ -342,14 +374,14 @@ export function usePolyglotAudio({
           text,
           voiceId,
           language: getLanguageTag(lang),
-          speed: playbackSpeed,
+          speed: CANONICAL_TTS_SYNTHESIS_SPEED,
           emotion: 'natural',
         },
         cacheKey,
         metadata: {
           language: getLanguageTag(lang),
           voiceId,
-          speed: playbackSpeed,
+          speed: CANONICAL_TTS_SYNTHESIS_SPEED,
           emotion: 'natural',
         },
       });
@@ -518,16 +550,29 @@ export function usePolyglotAudio({
       voiceId: resolvedVoiceId,
     });
 
+    const requestId = ++playRequestIdRef.current;
+    const controller = new AbortController();
+    activeAbortControllerRef.current = controller;
+
     try {
       const data = await synthesizeWithCache({
         endpoint: '/api/synthesize-chunk',
         body: { text, language, voiceId: resolvedVoiceId },
         cacheKey,
+        signal: controller.signal,
         metadata: { language, voiceId: resolvedVoiceId },
       });
 
+      if (!isMountedRef.current || requestId !== playRequestIdRef.current) {
+        return;
+      }
+
       if (data.audioBase64) {
         const blobUrl = base64ToBlobUrl(data.audioBase64, 'audio/wav');
+        if (!isMountedRef.current || requestId !== playRequestIdRef.current) {
+          revokeAudioUrl(blobUrl);
+          return;
+        }
         const audio = new Audio(blobUrl);
         audio.preservesPitch = true;
         audio.playbackRate = playbackSpeed;
@@ -539,6 +584,12 @@ export function usePolyglotAudio({
         throw new Error('Falha ao reproduzir áudio do chunk.');
       }
     } catch (e: unknown) {
+      if (
+        (e instanceof Error && e.name === 'AbortError') ||
+        requestId !== playRequestIdRef.current
+      ) {
+        return;
+      }
       console.warn('Erro ao tocar áudio do chunk (acionando fallback Web Speech):', e);
       const fallbackStarted = speakBrowserFallback(text, {
         lang: language,
@@ -550,6 +601,10 @@ export function usePolyglotAudio({
       if (!fallbackStarted) {
         stopCurrentAudio();
         showToast(e instanceof Error ? e.message : 'Falha ao reproduzir pronúncia do chunk.');
+      }
+    } finally {
+      if (activeAbortControllerRef.current === controller) {
+        activeAbortControllerRef.current = null;
       }
     }
   };

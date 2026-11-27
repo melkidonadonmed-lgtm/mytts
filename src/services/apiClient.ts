@@ -24,16 +24,35 @@ export async function parseApiJson<T extends Record<string, unknown>>(
   }
 }
 
+const DEFAULT_API_TIMEOUT_MS = 60_000;
+
 const postJson = async <T extends Record<string, unknown>>(
   endpoint: string,
-  payload: unknown
+  payload: unknown,
+  timeoutMs: number = DEFAULT_API_TIMEOUT_MS
 ): Promise<T & { ok: boolean; error?: string }> => {
-  const resp = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  return parseApiJson<T>(resp);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    return parseApiJson<T>(resp);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return {
+        ok: false,
+        error: 'Tempo limite da requisição excedido. Tente novamente.',
+      } as T & { ok: boolean; error?: string };
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 };
 
 export async function requestDebateScript(
@@ -64,7 +83,8 @@ export async function requestPreviewVoice(payload: {
 export async function requestTranscribeAudio(payload: {
   audioData: string;
   mimeType: string;
-}): Promise<{ ok: boolean; success?: boolean; transcript?: string; error?: string }> {
+  sourceText?: string;
+}): Promise<{ ok: boolean; success?: boolean; transcript?: string; model?: string; error?: string }> {
   return postJson('/api/transcribe-audio', payload);
 }
 

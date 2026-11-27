@@ -32,6 +32,7 @@ export type { StudySubTab };
 interface StudyArenaViewProps {
   selectedVoice: VoiceProfile;
   initialCardId?: string | null;
+  initialDeckName?: string | null;
   activeSubTab?: StudySubTab;
   onChangeSubTab?: (subTab: StudySubTab) => void;
   onOpenPolyglotTab?: () => void;
@@ -54,6 +55,7 @@ function mapLanguageBadgeToBcp47(lang: string): string {
 export const StudyArenaView: React.FC<StudyArenaViewProps> = ({
   selectedVoice,
   initialCardId,
+  initialDeckName,
   activeSubTab,
   onChangeSubTab,
   onOpenPolyglotTab,
@@ -135,6 +137,13 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({
   }, [reviewQueue.length, currentIndex]);
 
   useEffect(() => {
+    if (!initialDeckName) return;
+    setSelectedDeck(initialDeckName);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  }, [initialDeckName]);
+
+  useEffect(() => {
     if (!initialCardId) return;
     const idx = reviewQueue.findIndex((c) => c.id === initialCardId);
     if (idx >= 0) { setCurrentIndex(idx); setIsFlipped(false); setStudySubTab('review'); }
@@ -162,7 +171,7 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({
     try {
       const result = await synthesizeWithCache({
         endpoint: '/api/synthesize-speech',
-        body: { text: textToSpeak, voiceName: voiceId, languageCode: bcp47, speed: 1.0 },
+        body: { text: textToSpeak, voiceId, language: bcp47, speed: 1.0, emotion: 'natural' },
         cacheKey,
         metadata: { language: bcp47, voiceId, speed: 1.0, emotion: 'natural' },
       });
@@ -177,7 +186,9 @@ export const StudyArenaView: React.FC<StudyArenaViewProps> = ({
         await audio.play();
         return;
       }
-    } catch { /* Fallback Web Speech */ }
+    } catch (err: unknown) {
+      console.warn('[StudyArenaView] Falha na síntese neural do card (acionando fallback Web Speech):', err);
+    }
     speakBrowserFallback(textToSpeak, { lang: bcp47, voiceId, onEnd: () => setIsSpeaking(false), onError: () => setIsSpeaking(false) });
   }, [selectedVoice.id, stopAudio]);
 

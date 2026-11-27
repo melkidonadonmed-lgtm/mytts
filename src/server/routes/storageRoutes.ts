@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { randomUUID } from 'crypto';
 import { chunkStorage } from '../../services/chunkStorage';
 import { getConversationStorage } from '../../services/conversationStorage';
 import { getFlashcardStorage } from '../../services/flashcardStorage';
-import type { ChunkItem, TargetLang } from '../../types/chunks';
+import type { TargetLang } from '../../types/chunks';
 import type {
   FlashcardItem,
   SavedConversation,
@@ -37,53 +36,6 @@ export function createStorageRouter(): Router {
       console.error('Error in GET /api/chunks:', error);
       return res.status(500).json({
         error: error instanceof Error ? error.message : 'Falha ao buscar chunks do usuário.',
-      });
-    }
-  });
-
-  router.post('/api/chunks', async (req, res) => {
-    try {
-      const identity = resolveRequestUserId(req);
-      if (!identity.ok) {
-        return res.status(identity.status).json({ error: identity.error });
-      }
-      const check = validateStrictPayload<{
-        id?: string;
-        chunk?: string;
-        literalOrNuance?: string;
-        meaning?: string;
-        context?: string;
-        pronunciationHint?: string;
-      }>(req.body, ROUTE_ALLOWED_KEYS.createChunk);
-      if (!check.ok) {
-        return res.status(400).json({ error: check.error });
-      }
-
-      const userId = identity.userId;
-      const { id, chunk, literalOrNuance, meaning, context, pronunciationHint } = check.data;
-
-      if (!chunk || !literalOrNuance || !meaning) {
-        return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
-      }
-
-      const newChunk: ChunkItem = {
-        id: id || `custom-${Date.now()}-${randomUUID().slice(0, 6)}`,
-        chunk,
-        literalOrNuance,
-        meaning,
-        context: context || 'Personalizado',
-        pronunciationHint: pronunciationHint || '',
-        userId,
-        isCustom: true,
-        createdAt: Date.now(),
-      };
-
-      await chunkStorage.saveUserChunk(userId, newChunk);
-      return res.json({ success: true, chunk: newChunk });
-    } catch (error: unknown) {
-      console.error('Error in POST /api/chunks:', error);
-      return res.status(500).json({
-        error: error instanceof Error ? error.message : 'Falha ao salvar chunk.',
       });
     }
   });

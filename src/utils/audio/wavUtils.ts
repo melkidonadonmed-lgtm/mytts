@@ -144,6 +144,74 @@ export function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
   return new Blob([view], { type: 'audio/wav' });
 }
 
+export interface BrowserWavDataSlice {
+  sampleRate: number;
+  numChannels: number;
+  bitsPerSample: number;
+  pcmData: Uint8Array;
+}
+
+function readAsciiTag(bytes: Uint8Array, offset: number, len: number): string {
+  let out = '';
+  for (let i = 0; i < len && offset + i < bytes.length; i++) {
+    out += String.fromCharCode(bytes[offset + i]);
+  }
+  return out;
+}
+
+/**
+ * Dynamically locates 'fmt ' and 'data' sub-chunks in a RIFF/WAVE byte array,
+ * supporting WAV files with non-standard headers (> 44 bytes).
+ */
+export function extractWavDataChunk(bytes: Uint8Array): BrowserWavDataSlice {
+  let sampleRate = 24000;
+  let numChannels = 1;
+  let bitsPerSample = 16;
+
+  if (
+    bytes.length < 12 ||
+    readAsciiTag(bytes, 0, 4) !== 'RIFF' ||
+    readAsciiTag(bytes, 8, 4) !== 'WAVE'
+  ) {
+    return { sampleRate, numChannels, bitsPerSample, pcmData: bytes };
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = 12;
+
+  while (offset + 8 <= bytes.length) {
+    const chunkId = readAsciiTag(bytes, offset, 4);
+    const chunkSize = view.getUint32(offset + 4, true);
+    const payloadOffset = offset + 8;
+
+    if (chunkId === 'fmt ' && payloadOffset + 16 <= bytes.length) {
+      numChannels = view.getUint16(payloadOffset + 2, true) || 1;
+      sampleRate = view.getUint32(payloadOffset + 4, true) || 24000;
+      bitsPerSample = view.getUint16(payloadOffset + 14, true) || 16;
+    } else if (chunkId === 'data') {
+      const end = Math.min(bytes.length, payloadOffset + chunkSize);
+      return {
+        sampleRate,
+        numChannels,
+        bitsPerSample,
+        pcmData: bytes.subarray(payloadOffset, end),
+      };
+    }
+
+    const paddedSize = chunkSize + (chunkSize % 2);
+    const nextOffset = payloadOffset + paddedSize;
+    if (nextOffset <= offset) break;
+    offset = nextOffset;
+  }
+
+  return {
+    sampleRate,
+    numChannels,
+    bitsPerSample,
+    pcmData: bytes.length > 44 ? bytes.subarray(44) : new Uint8Array(0),
+  };
+}
+
 /**
  * Combines multiple WAV base64 buffers into a single continuous WAV Blob.
  */
@@ -152,40 +220,33 @@ export function concatenateWavBuffers(wavBase64List: string[]): Blob {
     return new Blob([], { type: 'audio/wav' });
   }
 
-  const buffers: Uint8Array[] = wavBase64List.map(
-    (b64) => new Uint8Array(base64ToArrayBuffer(b64))
-  );
+  const slices = wavBase64List.map((b64) => {
+    const clean = b64.includes(',') ? b64.split(',')[1] : b64;
+    return extractWavDataChunk(new Uint8Array(base64ToArrayBuffer(clean)));
+  });
 
-  let totalDataLength = buffers[0].length - 44;
-  for (let i = 1; i < buffers.length; i++) {
-    if (buffers[i].length > 44) {
-      totalDataLength += buffers[i].length - 44;
-    }
+  const primary = slices[0];
+  let totalDataLength = 0;
+  for (const slice of slices) {
+    totalDataLength += slice.pcmData.length;
   }
 
+  const headerBytes = new Uint8Array(
+    buildWavHeader({
+      sampleRate: primary.sampleRate,
+      numChannels: primary.numChannels,
+      bitsPerSample: primary.bitsPerSample,
+      dataByteLength: totalDataLength,
+    })
+  );
+
   const combined = new Uint8Array(44 + totalDataLength);
-  combined.set(buffers[0].subarray(0, 44), 0);
-
-  const chunkSize = combined.length - 8;
-  combined[4] = chunkSize & 0xff;
-  combined[5] = (chunkSize >> 8) & 0xff;
-  combined[6] = (chunkSize >> 16) & 0xff;
-  combined[7] = (chunkSize >> 24) & 0xff;
-
-  combined[40] = totalDataLength & 0xff;
-  combined[41] = (totalDataLength >> 8) & 0xff;
-  combined[42] = (totalDataLength >> 16) & 0xff;
-  combined[43] = (totalDataLength >> 24) & 0xff;
+  combined.set(headerBytes, 0);
 
   let offset = 44;
-  combined.set(buffers[0].subarray(44), offset);
-  offset += buffers[0].length - 44;
-
-  for (let i = 1; i < buffers.length; i++) {
-    if (buffers[i].length > 44) {
-      combined.set(buffers[i].subarray(44), offset);
-      offset += buffers[i].length - 44;
-    }
+  for (const slice of slices) {
+    combined.set(slice.pcmData, offset);
+    offset += slice.pcmData.length;
   }
 
   return new Blob([combined], { type: 'audio/wav' });

@@ -9,6 +9,7 @@ import {
   getCachedKeySet,
 } from '../utils/audioCache';
 import {
+  readPreferredTargetLanguage,
   requestFetchUserChunks,
   requestDeleteUserChunk,
   requestGenerateChunks,
@@ -26,12 +27,20 @@ export interface FastChunkAudioAppProps {
   flashcardCount?: number;
 }
 
+function shortLangToTargetLang(shortLang: 'en' | 'it' | 'ja'): TargetLang {
+  if (shortLang === 'it') return 'it-IT';
+  if (shortLang === 'ja') return 'ja-JP';
+  return 'en-US';
+}
+
 export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
   onOpenStudyTab,
   onOpenPolyglotTab,
   flashcardCount = 0,
 }) => {
-  const [selectedLang, setSelectedLang] = useState<TargetLang>('en-US');
+  const [selectedLang, setSelectedLang] = useState<TargetLang>(() =>
+    shortLangToTargetLang(readPreferredTargetLanguage())
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [playbackRate, setPlaybackRate] = useState<number>(1.0);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -54,6 +63,14 @@ export const FastChunkAudioApp: React.FC<FastChunkAudioAppProps> = ({
 
   const loopTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [userId, setUserId] = useState<string>(() => getActiveSession().uid);
+
+  useEffect(() => {
+    const onPrefChanged = () => {
+      setSelectedLang(shortLangToTargetLang(readPreferredTargetLanguage()));
+    };
+    window.addEventListener('mytts-preferred-lang-changed', onPrefChanged);
+    return () => window.removeEventListener('mytts-preferred-lang-changed', onPrefChanged);
+  }, []);
 
   useEffect(() => {
     return subscribeAuthChanges((nextSession) => setUserId(nextSession.uid));
